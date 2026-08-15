@@ -25,6 +25,7 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { href: '/', label: t('nav.dashboard'), icon: Home },
     { href: '/billing', label: t('nav.sell'), icon: Receipt },
+    { href: '/transactions', label: 'Transactions', icon: ShieldCheck },
     { href: '/products', label: t('nav.products'), icon: Package },
     { href: '/inventory', label: t('nav.inventory'), icon: Boxes },
     { href: '/khata', label: t('nav.khata'), icon: BookOpen },

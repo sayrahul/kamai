@@ -310,9 +310,9 @@ export default function DashboardPage() {
             <h3 className="text-sm font-bold text-slate-900">Recent Transactions</h3>
             <p className="text-xs text-slate-500">Click any transaction to view or print invoice</p>
           </div>
-          <Link href="/billing">
-            <button className="text-xs font-semibold text-slate-700 hover:text-slate-900 flex items-center gap-1">
-              <span>View All</span>
+          <Link href="/transactions">
+            <button className="text-xs font-bold text-slate-900 hover:text-slate-700 flex items-center gap-1">
+              <span>View All & Filter Ledger</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </Link>
