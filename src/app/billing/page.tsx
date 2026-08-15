@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { Product, Customer, CartItem, PaymentMethod } from '@/types';
-import { formatINR, generateUPILink, generateWhatsAppReceiptLink, cn } from '@/lib/utils';
+import { formatINR, generateWhatsAppReceiptLink, parseRupeesToPaise, cn } from '@/lib/utils';
 import { lookupPublicBarcode, PublicProductInfo } from '@/lib/api/publicBarcodeLookup';
 import { playBeepSound } from '@/lib/voice/speechParser';
 import { 
@@ -29,11 +29,15 @@ import {
   Camera,
   Mic,
   Barcode,
-  Globe
+  Globe,
+  Tag,
+  Edit2,
+  UserPlus,
+  X,
+  Sliders
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { VoiceBillingModal } from '@/components/voice/VoiceBillingModal';
@@ -44,11 +48,24 @@ import { Sale } from '@/types';
 export default function BillingPage() {
   const { language, t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [amountReceivedInput, setAmountReceivedInput] = useState<string>('');
+
+  // Item Editing State
+  const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null);
+  const [editItemQty, setEditItemQty] = useState<string>('');
+  const [editItemPrice, setEditItemPrice] = useState<string>('');
+  const [editItemDiscount, setEditItemDiscount] = useState<string>('0');
   
+  // Quick Add Customer State
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustPhone, setNewCustPhone] = useState('');
+  const [newCustAddress, setNewCustAddress] = useState('');
+
   // Modals
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [activeSaleForInvoice, setActiveSaleForInvoice] = useState<Sale | null>(null);
@@ -63,9 +80,20 @@ export default function BillingPage() {
   const [completedSaleDetails, setCompletedSaleDetails] = useState<any>(null);
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const categories = useLiveQuery(async () => db.categories.toArray()) || [];
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
+  
   const products = useLiveQuery(async () => {
-    let prods = await db.products.where('is_active').equals(1).toArray();
+    let prods = await db.products.toArray();
+    // Filter active items
+    prods = prods.filter(p => p.is_active !== false);
+
+    // Filter by Category
+    if (selectedCategory !== 'all') {
+      prods = prods.filter(p => p.category_id === selectedCategory);
+    }
+
+    // Filter by Search Query (Name, Barcode, Category)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       prods = prods.filter(
@@ -76,7 +104,7 @@ export default function BillingPage() {
       );
     }
     return prods;
-  }, [searchQuery]) || [];
+  }, [searchQuery, selectedCategory]) || [];
 
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
 
@@ -91,7 +119,7 @@ export default function BillingPage() {
             ? {
                 ...item,
                 quantity: item.quantity + quantityToAdd,
-                total_amount: (item.quantity + quantityToAdd) * item.unit_price,
+                total_amount: Math.max(0, (item.quantity + quantityToAdd) * item.unit_price - (item.discount_amount || 0)),
               }
             : item
         );
@@ -125,7 +153,7 @@ export default function BillingPage() {
             return {
               ...item,
               quantity: newQty,
-              total_amount: newQty * item.unit_price,
+              total_amount: Math.max(0, newQty * item.unit_price - (item.discount_amount || 0)),
             };
           }
           return item;
@@ -136,6 +164,71 @@ export default function BillingPage() {
 
   const removeFromCart = (productId: string) => {
     setCart((prev) => prev.filter((item) => item.product_id !== productId));
+  };
+
+  // Open Edit Item Modal for item in cart
+  const handleOpenEditItem = (item: CartItem) => {
+    setEditingCartItem(item);
+    setEditItemQty(item.quantity.toString());
+    setEditItemPrice((item.unit_price / 100).toString());
+    setEditItemDiscount((item.discount_amount ? item.discount_amount / 100 : 0).toString());
+  };
+
+  const handleSaveEditedItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCartItem) return;
+
+    const qty = parseFloat(editItemQty) || 1;
+    const unitPricePaise = parseRupeesToPaise(editItemPrice || '0');
+    const discountPaise = parseRupeesToPaise(editItemDiscount || '0');
+    const lineTotal = Math.max(0, Math.round(qty * unitPricePaise - discountPaise));
+
+    setCart((prev) =>
+      prev.map((item) =>
+        item.product_id === editingCartItem.product_id
+          ? {
+              ...item,
+              quantity: qty,
+              unit_price: unitPricePaise,
+              discount_amount: discountPaise,
+              total_amount: lineTotal,
+            }
+          : item
+      )
+    );
+
+    setEditingCartItem(null);
+  };
+
+  // Quick Add Customer Handler
+  const handleSaveQuickCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustName.trim()) return;
+
+    const newId = `cust_${Date.now()}`;
+    const newCust: Customer = {
+      id: newId,
+      business_id: business?.id || 'biz_default',
+      name: newCustName.trim(),
+      phone: newCustPhone.trim() || '',
+      address: newCustAddress.trim() || undefined,
+      opening_balance: 0,
+      current_balance: 0,
+      loyalty_points: 0,
+      total_spent: 0,
+      total_visits: 1,
+      customer_type: 'regular',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      sync_status: 'synced',
+    };
+
+    await db.customers.put(newCust);
+    setSelectedCustomerId(newId);
+    setIsAddCustomerModalOpen(false);
+    setNewCustName('');
+    setNewCustPhone('');
+    setNewCustAddress('');
   };
 
   // Barcode scanned handler
@@ -249,7 +342,7 @@ export default function BillingPage() {
       amount_received: receivedPaise,
       balance_due: balanceDuePaise,
       change_returned: changeReturnedPaise,
-      payment_status: balanceDuePaise === 0 ? 'paid' : receivedPaise > 0 ? 'partial' : 'unpaid',
+      payment_status: balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
       status: 'completed',
       created_by: 'owner',
       created_at: now,
@@ -257,40 +350,51 @@ export default function BillingPage() {
       sync_status: 'synced',
     };
 
-    // 1. Record Sale in DB
+    // 1. Save Sale in Dexie DB
     await db.sales.put(newSale);
 
-    // 2. Decrement Inventory & Record Movements
+    // 2. Increment business invoice number counter
+    if (business) {
+      await db.businesses.update(business.id, {
+        next_invoice_number: nextNum + 1,
+        updated_at: now,
+      });
+    }
+
+    // 3. Deduct product inventory stock & create movement logs
     for (const item of cart) {
       const prod = await db.products.get(item.product_id);
       if (prod) {
-        const newStock = prod.current_stock - item.quantity;
-        await db.products.update(prod.id, { current_stock: newStock });
+        const prevStock = prod.current_stock;
+        const newStock = Math.max(0, prevStock - item.quantity);
+        await db.products.update(prod.id, {
+          current_stock: newStock,
+          updated_at: now,
+        });
+
         await db.inventory_movements.put({
-          id: `mov_${Date.now()}_${prod.id}`,
+          id: `mov_${Date.now()}_${item.product_id}`,
           business_id: businessId,
           product_id: prod.id,
           product_name: prod.name,
           movement_type: 'SALE',
-          quantity: -item.quantity,
-          previous_stock: prod.current_stock,
+          quantity: item.quantity,
+          previous_stock: prevStock,
           new_stock: newStock,
           reference_id: saleId,
-          reason: `Sale ${invoiceNumber}`,
+          reason: `Sold on Invoice #${invoiceNumber}`,
           created_by: 'owner',
           created_at: now,
         });
       }
     }
 
-    // 3. If Udhar/Credit, update customer balance & write ledger
-    if (balanceDuePaise > 0 && selectedCustomer) {
-      const newBalance = selectedCustomer.current_balance + balanceDuePaise;
+    // 4. If Udhar / Credit, update customer balance & write ledger entry
+    if (selectedCustomer && balanceDuePaise > 0) {
+      const updatedBalance = selectedCustomer.current_balance + balanceDuePaise;
       await db.customers.update(selectedCustomer.id, {
-        current_balance: newBalance,
-        total_spent: selectedCustomer.total_spent + grandTotalPaise,
-        total_visits: selectedCustomer.total_visits + 1,
-        last_visit_date: now,
+        current_balance: updatedBalance,
+        updated_at: now,
       });
 
       await db.ledger_transactions.put({
@@ -301,61 +405,45 @@ export default function BillingPage() {
         party_name: selectedCustomer.name,
         transaction_type: 'CREDIT_SALE',
         amount: balanceDuePaise,
-        balance_after: newBalance,
+        balance_after: updatedBalance,
         reference_id: saleId,
-        notes: `Credit Sale ${invoiceNumber}`,
+        notes: `Udhar on Invoice #${invoiceNumber}`,
         created_at: now,
       });
-    } else if (selectedCustomer) {
-      await db.customers.update(selectedCustomer.id, {
-        total_spent: selectedCustomer.total_spent + grandTotalPaise,
-        total_visits: selectedCustomer.total_visits + 1,
-        last_visit_date: now,
-      });
     }
 
-    // 4. Update Business invoice number
-    if (business) {
-      await db.businesses.update(business.id, {
-        next_invoice_number: nextNum + 1,
-      });
-    }
+    // 5. Trigger Soundbox Voice Announcement
+    announcePayment(
+      receivedPaise > 0 ? receivedPaise : grandTotalPaise,
+      language
+    );
 
-    // 5. Announce payment received via Voice Soundbox
-    if (receivedPaise > 0) {
-      announcePayment(receivedPaise, language);
-    }
-
+    // 6. Open detailed Invoice & thermal receipt modal
     setActiveSaleForInvoice(newSale);
+    setCompletedSaleDetails({
+      invoiceNumber,
+      customerName: selectedCustomer?.name,
+      customerPhone: selectedCustomer?.phone,
+      grandTotalPaise,
+      balanceDuePaise,
+      items: [...cart],
+    });
+
     setIsInvoiceModalOpen(true);
     setCart([]);
     setAmountReceivedInput('');
   };
 
-  const handleShareWhatsApp = () => {
-    if (!completedSaleDetails) return;
-    const phone = completedSaleDetails.customerPhone || '';
-    const bizName = business?.name || 'Our Store';
-    const itemsSummary = completedSaleDetails.items
-      .map((i: CartItem) => `• ${i.product_name} x ${i.quantity} = ${formatINR(i.total_amount)}`)
-      .join('\n');
-
-    const msg = `🧾 *INVOICE: ${completedSaleDetails.invoiceNumber}*\nFrom: *${bizName}*\n\n${itemsSummary}\n\n*Grand Total: ${formatINR(completedSaleDetails.grandTotalPaise)}*\n${
-      completedSaleDetails.balanceDuePaise > 0 ? `⚠️ Udhar/Balance: ${formatINR(completedSaleDetails.balanceDuePaise)}\n` : '✅ Paid in Full\n'
-    }${business?.upi_id ? `\nPay via UPI: ${business.upi_id}` : ''}\n\nThank you for your business! 🙏`;
-
-    window.open(generateWhatsAppReceiptLink(phone, msg), '_blank');
-  };
-
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-in fade-in duration-200">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Left: Product Selection Catalog (7 cols) */}
-      <div className="lg:col-span-7 space-y-4">
-        <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+      <div className="lg:col-span-7 space-y-3">
+        <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
+          {/* Search & Actions Bar */}
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <Input
-                placeholder={t('billing.searchOrScan')}
+                placeholder="Search products by name, barcode or category..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 leftIcon={<Search className="w-4 h-4 text-slate-400" />}
@@ -364,93 +452,143 @@ export default function BillingPage() {
             </div>
 
             {/* Barcode Camera Scanner Button */}
-            <Button
+            <button
               type="button"
-              variant="secondary"
-              size="icon"
               onClick={() => setIsBarcodeModalOpen(true)}
-              className="text-slate-700 dark:text-slate-200 hover:text-vyapar-600 border border-slate-200 dark:border-slate-700"
+              className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center"
               title="Scan Barcode via Camera"
             >
-              <Camera className="w-5 h-5 text-vyapar-500" />
-            </Button>
+              <Camera className="w-4 h-4 text-slate-800" />
+            </button>
 
             {/* Voice Assistant Microphone Button */}
-            <Button
+            <button
               type="button"
-              variant="primary"
-              size="icon"
               onClick={() => setIsVoiceModalOpen(true)}
-              className="relative shadow-md shadow-vyapar-500/30"
+              className="px-3 py-2 min-h-[38px] rounded-lg bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-sm"
               title="Voice Bill Entry (बोलकर बिल बनाएं)"
             >
-              <Mic className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-300" />
-              </span>
-            </Button>
+              <Mic className="w-4 h-4 text-slate-950" />
+              <span className="hidden sm:inline">Voice POS</span>
+            </button>
           </div>
 
-          {/* Quick Add Product Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
-            {products.map((p) => {
-              const inCart = cart.find((i) => i.product_id === p.id);
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => addToCart(p, 1)}
-                  className={cn(
-                    'p-3 rounded-2xl border text-left flex flex-col justify-between transition-all active:scale-95 group relative overflow-hidden',
-                    inCart
-                      ? 'border-vyapar-500 bg-vyapar-50/70 dark:bg-vyapar-950/40 shadow-sm'
-                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
-                  )}
-                >
-                  {inCart && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-vyapar-500 text-white text-[11px] font-black flex items-center justify-center shadow-sm">
-                      {inCart.quantity}
+          {/* Category Filter Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap',
+                selectedCategory === 'all'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              )}
+            >
+              All Items ({products.length})
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1',
+                  selectedCategory === cat.id
+                    ? 'bg-slate-900 text-white font-bold'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                )}
+              >
+                <Tag className="w-3 h-3 text-slate-400" />
+                <span>{cat.name}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Products Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
+            {products.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
+                No items found. Adjust your search or add new products in the Products catalog.
+              </div>
+            ) : (
+              products.map((p) => {
+                const inCart = cart.find((i) => i.product_id === p.id);
+                const isLowStock = p.current_stock <= p.min_stock_level;
+
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => addToCart(p, 1)}
+                    className={cn(
+                      'p-3 rounded-xl border text-left flex flex-col justify-between cursor-pointer relative overflow-hidden bg-white hover:border-slate-400',
+                      inCart
+                        ? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-50/40'
+                        : 'border-slate-200'
+                    )}
+                  >
+                    {inCart && (
+                      <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-950 text-[10px] font-black shadow-sm">
+                        {inCart.quantity} in cart
+                      </div>
+                    )}
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">
+                        {p.category_name || 'Item'}
+                      </span>
+                      <h4 className="text-xs font-bold text-slate-900 line-clamp-2 mt-0.5">
+                        {p.name}
+                      </h4>
                     </div>
-                  )}
 
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400">
-                      {p.category_name || 'Item'}
-                    </span>
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-vyapar-600 line-clamp-2 mt-0.5">
-                      {p.name}
-                    </h4>
-                  </div>
-
-                  <div className="mt-3 flex items-baseline justify-between">
-                    <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                      {formatINR(p.selling_price)}
-                    </span>
-                    <span className="text-[10px] text-slate-400">/{p.unit}</span>
-                  </div>
-                </button>
-              );
-            })}
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-baseline justify-between">
+                      <div>
+                        <span className="text-sm font-extrabold text-slate-900 font-mono">
+                          {formatINR(p.selling_price)}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium">/{p.unit}</span>
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-semibold",
+                        isLowStock ? "text-amber-700" : "text-slate-400"
+                      )}>
+                        {p.current_stock} left
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
 
       {/* Right: Cart, Customer & Checkout (5 cols) */}
-      <div className="lg:col-span-5 space-y-4">
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm flex flex-col min-h-[calc(100vh-140px)] justify-between">
-          <div className="space-y-4">
-            {/* Customer Picker */}
+      <div className="lg:col-span-5 space-y-3">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col min-h-[calc(100vh-140px)] justify-between">
+          <div className="space-y-3">
+            {/* Customer Picker & Quick Add */}
             <div>
-              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
-                {t('billing.selectCustomer')}
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Customer
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsAddCustomerModalOpen(true)}
+                  className="text-[11px] font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>+ New Customer</span>
+                </button>
+              </div>
+
               <select
                 value={selectedCustomerId}
                 onChange={(e) => setSelectedCustomerId(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-vyapar-500 focus:outline-none min-h-[42px]"
+                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
               >
-                <option value="">{t('billing.walkInCustomer')}</option>
+                <option value="">Walk-in Cash Customer (नकद ग्राहक)</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} {c.phone ? `(${c.phone})` : ''} {c.current_balance > 0 ? `• Udhar: ${formatINR(c.current_balance)}` : ''}
@@ -459,41 +597,82 @@ export default function BillingPage() {
               </select>
             </div>
 
-            {/* Cart Items List */}
-            <div className="border-t border-b border-slate-100 dark:border-slate-800 py-3 space-y-2.5 max-h-64 overflow-y-auto">
+            {/* Cart Header */}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                Cart Items ({cart.reduce((a, b) => a + b.quantity, 0)})
+              </span>
+              {cart.length > 0 && (
+                <button
+                  onClick={() => setCart([])}
+                  className="text-[11px] font-bold text-rose-600 hover:text-rose-700"
+                >
+                  Clear Cart
+                </button>
+              )}
+            </div>
+
+            {/* Cart Items List with Inline / Popover Edit */}
+            <div className="border-t border-b border-slate-100 py-2 space-y-2 max-h-60 overflow-y-auto">
               {cart.length === 0 ? (
                 <div className="text-center py-8 text-xs text-slate-400 font-medium">
-                  {t('billing.cartEmpty')}
+                  Cart is empty. Tap products on the left to add items to bill.
                 </div>
               ) : (
                 cart.map((item) => (
-                  <div key={item.product_id} className="flex items-center justify-between gap-2 text-xs">
+                  <div 
+                    key={item.product_id} 
+                    className="p-2 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs"
+                  >
                     <div className="flex-1 min-w-0">
-                      <div className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                      <div className="font-bold text-slate-900 truncate">
                         {item.product_name}
                       </div>
-                      <div className="text-[11px] text-slate-400">
-                        {formatINR(item.unit_price)} × {item.quantity} {item.unit}
+                      <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1.5">
+                        <span>{formatINR(item.unit_price)} × {item.quantity} {item.unit}</span>
+                        {item.discount_amount ? (
+                          <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1 rounded">
+                            -₹{(item.discount_amount / 100).toFixed(0)} off
+                          </span>
+                        ) : null}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    {/* Quantity Stepper & Edit Button */}
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => updateQuantity(item.product_id, -1)}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 hover:bg-slate-200"
+                        className="w-6 h-6 rounded bg-white border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-100"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="font-bold w-6 text-center">{item.quantity}</span>
+                      <span className="font-bold font-mono text-xs w-6 text-center text-slate-900">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.product_id, 1)}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 hover:bg-slate-200"
+                        className="w-6 h-6 rounded bg-white border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-100"
                       >
                         <Plus className="w-3 h-3" />
                       </button>
+
+                      {/* Edit Price/Quantity/Discount Button */}
+                      <button
+                        onClick={() => handleOpenEditItem(item)}
+                        title="Edit Price, Quantity or Item Discount"
+                        className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-white ml-0.5"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 text-slate-700" />
+                      </button>
+
+                      {/* Remove Button */}
+                      <button
+                        onClick={() => removeFromCart(item.product_id)}
+                        className="p-1 rounded text-slate-400 hover:text-rose-600 ml-0.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
-                    <div className="w-20 text-right font-extrabold text-slate-900 dark:text-slate-100">
+                    <div className="w-16 text-right font-extrabold font-mono text-xs text-slate-900">
                       {formatINR(item.total_amount)}
                     </div>
                   </div>
@@ -503,8 +682,8 @@ export default function BillingPage() {
 
             {/* Payment Method Selector */}
             <div>
-              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
-                {t('billing.paymentMethod')}
+              <label className="text-xs font-bold text-slate-900 uppercase tracking-wider block mb-1">
+                Payment Mode
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {[
@@ -520,10 +699,10 @@ export default function BillingPage() {
                       type="button"
                       onClick={() => setPaymentMethod(m.id as PaymentMethod)}
                       className={cn(
-                        'py-2 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all',
+                        'py-2 px-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all',
                         isSelected
-                          ? 'bg-vyapar-500 border-vyapar-500 text-white shadow-sm'
-                          : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-300'
+                          ? 'bg-slate-900 border-slate-900 text-white'
+                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
                       )}
                     >
                       <Icon className="w-3.5 h-3.5" />
@@ -533,13 +712,38 @@ export default function BillingPage() {
                 })}
               </div>
             </div>
+
+            {/* If Cash: Amount Received Input for Change calculation */}
+            {paymentMethod === 'cash' && cart.length > 0 && (
+              <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700">Cash Tendered / Received:</span>
+                  <input
+                    type="number"
+                    step="1"
+                    placeholder={(grandTotalPaise / 100).toString()}
+                    value={amountReceivedInput}
+                    onChange={(e) => setAmountReceivedInput(e.target.value)}
+                    className="w-24 bg-white border border-slate-300 text-slate-900 text-right font-mono font-bold text-xs rounded px-2 py-1 focus:outline-none focus:border-slate-900"
+                  />
+                </div>
+                {amountReceivedInput && parseFloat(amountReceivedInput) * 100 > grandTotalPaise && (
+                  <div className="flex items-center justify-between text-xs text-emerald-800 font-bold">
+                    <span>Return Change to Customer:</span>
+                    <span className="font-mono">
+                      {formatINR(Math.round(parseFloat(amountReceivedInput) * 100 - grandTotalPaise))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Bottom Total & Checkout Button */}
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3 mt-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-slate-500">{t('billing.grandTotal')}</span>
-              <span className="text-2xl font-black text-slate-900 dark:text-slate-100">
+          <div className="pt-3 border-t border-slate-200 space-y-2.5 mt-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-600 uppercase tracking-wider">Grand Total</span>
+              <span className="text-xl font-extrabold text-slate-900 font-mono">
                 {formatINR(grandTotalPaise)}
               </span>
             </div>
@@ -548,14 +752,126 @@ export default function BillingPage() {
               size="lg"
               disabled={cart.length === 0}
               onClick={handleCompleteSale}
-              className="w-full text-base font-extrabold py-4 shadow-lg shadow-vyapar-500/25"
+              className="w-full text-xs font-bold py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400"
             >
-              <Receipt className="w-5 h-5 mr-2" />
-              <span>{t('billing.completeSale')}</span>
+              <Receipt className="w-4 h-4 mr-1.5 text-slate-950" />
+              <span>Complete Sale & Generate Bill</span>
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Edit Item in Cart Modal */}
+      <Modal
+        isOpen={!!editingCartItem}
+        onClose={() => setEditingCartItem(null)}
+        title={
+          <div className="flex items-center gap-1.5">
+            <Edit2 className="w-4 h-4 text-slate-800" />
+            <span>Edit Item: {editingCartItem?.product_name}</span>
+          </div>
+        }
+        description="Adjust quantity, selling price or apply a discount for this line item."
+        size="sm"
+      >
+        <form onSubmit={handleSaveEditedItem} className="space-y-3">
+          <Input
+            label="Quantity"
+            type="number"
+            step="0.01"
+            value={editItemQty}
+            onChange={(e) => setEditItemQty(e.target.value)}
+            required
+            autoFocus
+          />
+
+          <Input
+            label="Unit Selling Price (₹)"
+            type="number"
+            step="0.01"
+            value={editItemPrice}
+            onChange={(e) => setEditItemPrice(e.target.value)}
+            leftIcon={<span className="text-xs font-bold text-slate-500">₹</span>}
+            required
+          />
+
+          <Input
+            label="Discount on this Item (₹)"
+            type="number"
+            step="0.01"
+            placeholder="0.00"
+            value={editItemDiscount}
+            onChange={(e) => setEditItemDiscount(e.target.value)}
+            leftIcon={<span className="text-xs font-bold text-slate-500">₹</span>}
+          />
+
+          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between text-xs font-bold">
+            <span className="text-slate-600">Calculated Line Total:</span>
+            <span className="font-mono text-sm text-slate-900">
+              {formatINR(
+                Math.max(
+                  0,
+                  Math.round(
+                    (parseFloat(editItemQty) || 0) * parseRupeesToPaise(editItemPrice || '0') -
+                      parseRupeesToPaise(editItemDiscount || '0')
+                  )
+                )
+              )}
+            </span>
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditingCartItem(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm">
+              Update Cart Item
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Quick Add Customer Modal */}
+      <Modal
+        isOpen={isAddCustomerModalOpen}
+        onClose={() => setIsAddCustomerModalOpen(false)}
+        title="Add New Customer"
+        description="Enter customer name and contact details to link with this invoice."
+        size="sm"
+      >
+        <form onSubmit={handleSaveQuickCustomer} className="space-y-3">
+          <Input
+            label="Customer Name"
+            placeholder="e.g. Ramesh Kumar"
+            value={newCustName}
+            onChange={(e) => setNewCustName(e.target.value)}
+            required
+            autoFocus
+          />
+          <Input
+            label="Mobile Number (for WhatsApp Invoice)"
+            placeholder="e.g. 9876543210"
+            type="tel"
+            value={newCustPhone}
+            onChange={(e) => setNewCustPhone(e.target.value)}
+          />
+          <Input
+            label="Address / Area (Optional)"
+            placeholder="e.g. Shop #4, Market Road"
+            value={newCustAddress}
+            onChange={(e) => setNewCustAddress(e.target.value)}
+          />
+
+          <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsAddCustomerModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm">
+              Save Customer
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Barcode Camera Scanner Modal */}
       <BarcodeScannerModal
@@ -579,22 +895,22 @@ export default function BillingPage() {
         onClose={() => setIsQuickAddModalOpen(false)}
         title={
           <span className="flex items-center gap-2">
-            <Globe className="w-5 h-5 text-sky-500" />
+            <Globe className="w-4 h-4 text-slate-800" />
             <span>New Barcode Item Detected</span>
           </span>
         }
         description="Barcode was not found in your local catalog. Set a selling price to add it to your shop and bill it immediately."
       >
-        <form onSubmit={handleSaveQuickAddItem} className="space-y-4">
+        <form onSubmit={handleSaveQuickAddItem} className="space-y-3">
           {isLookingUpPublicApi ? (
-            <div className="p-4 bg-sky-50 dark:bg-sky-950/40 rounded-xl text-center text-xs text-sky-700 dark:text-sky-300 flex items-center justify-center gap-2">
-              <div className="w-4 h-4 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+            <div className="p-3 bg-slate-50 rounded-lg text-center text-xs text-slate-600 flex items-center justify-center gap-2">
+              <div className="w-3.5 h-3.5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
               <span>Looking up product details from Open Food Facts...</span>
             </div>
           ) : publicProductData ? (
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center gap-2 font-bold">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span>Auto-matched from Open Food Facts public database!</span>
+              <span>Auto-matched from Open Food Facts database!</span>
             </div>
           ) : null}
 
@@ -606,7 +922,7 @@ export default function BillingPage() {
             autoFocus
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <Input
               label="Selling Price (₹)"
               placeholder="e.g. 50.00"
@@ -620,15 +936,15 @@ export default function BillingPage() {
               label="Barcode"
               value={scannedUnknownBarcode || ''}
               disabled
-              className="bg-slate-100 dark:bg-slate-800 font-mono text-xs"
+              className="bg-slate-100 font-mono text-xs"
             />
           </div>
 
-          <div className="pt-3 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsQuickAddModalOpen(false)}>
+          <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsQuickAddModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="success">
+            <Button type="submit" size="sm">
               Save & Add to Bill
             </Button>
           </div>
