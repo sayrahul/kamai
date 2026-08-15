@@ -5,7 +5,18 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { formatINR, generateWhatsAppReceiptLink } from '@/lib/utils';
-import { BookOpen, Search, User, Phone, ArrowUpRight, ArrowDownLeft, Share2, Plus, CheckCircle2 } from 'lucide-react';
+import { 
+  BookOpen, 
+  Search, 
+  User, 
+  Phone, 
+  ArrowUpRight, 
+  ArrowDownLeft, 
+  Share2, 
+  Plus, 
+  CheckCircle2,
+  MessageCircle
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -81,22 +92,22 @@ export default function KhataPage() {
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-200">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-rose-500" />
+          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-slate-800" />
             <span>Digital Udhar Khata (ग्राहक खाता)</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Total Outstanding: <span className="font-extrabold text-rose-600">{formatINR(totalOutstanding)}</span>
+          <p className="text-xs text-slate-500">
+            Total Outstanding: <span className="font-extrabold text-rose-700 font-mono">{formatINR(totalOutstanding)}</span>
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Left: Customer List */}
-        <div className="lg:col-span-5 space-y-3">
+        <div className="lg:col-span-5 space-y-2.5">
           <Input
             placeholder="Search customer by name or phone..."
             value={searchQuery}
@@ -111,25 +122,25 @@ export default function KhataPage() {
                 <div
                   key={c.id}
                   onClick={() => setSelectedCustomerId(c.id)}
-                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                  className={`p-3 rounded-xl border cursor-pointer flex items-center justify-between ${
                     isSelected
-                      ? 'border-vyapar-500 bg-vyapar-50/70 dark:bg-vyapar-950/40 shadow-sm'
-                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
+                      ? 'border-slate-900 bg-amber-50 shadow-sm'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
                   }`}
                 >
                   <div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-slate-100">{c.name}</div>
-                    <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                    <div className="text-xs font-bold text-slate-900">{c.name}</div>
+                    <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 font-mono">
                       <Phone className="w-3 h-3" />
                       <span>{c.phone || 'No phone'}</span>
                     </div>
                   </div>
 
                   <div className="text-right">
-                    <div className={`text-sm font-black ${c.current_balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    <div className={`text-xs font-bold font-mono ${c.current_balance > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                       {formatINR(c.current_balance)}
                     </div>
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase">
                       {c.current_balance > 0 ? 'Udhar (बाक़ी)' : 'Settled'}
                     </span>
                   </div>
@@ -142,58 +153,60 @@ export default function KhataPage() {
         {/* Right: Ledger Details for Selected Customer */}
         <div className="lg:col-span-7 space-y-4">
           {selectedCustomer ? (
-            <Card className="p-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+            <Card className="p-4 bg-white border border-slate-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-3">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{selectedCustomer.name}</h2>
-                  <p className="text-xs text-slate-400">{selectedCustomer.phone} • {selectedCustomer.address || 'Local Customer'}</p>
+                  <h2 className="text-base font-bold text-slate-900">{selectedCustomer.name}</h2>
+                  <p className="text-xs text-slate-500 font-mono">{selectedCustomer.phone} • {selectedCustomer.address || 'Local Customer'}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <Button
-                    variant="success"
+                    variant="primary"
                     size="sm"
+                    className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white"
                     onClick={() => handleSendReminder(selectedCustomer)}
                   >
-                    <Share2 className="w-4 h-4 mr-1.5" />
-                    <span>WhatsApp Reminder</span>
+                    <MessageCircle className="w-3.5 h-3.5 mr-1" />
+                    <span>WhatsApp</span>
                   </Button>
 
                   <Button
                     size="sm"
+                    className="text-xs font-bold"
                     onClick={() => setIsPaymentModalOpen(true)}
                   >
-                    <Plus className="w-4 h-4 mr-1.5" />
+                    <Plus className="w-3.5 h-3.5 mr-1" />
                     <span>Record Payment</span>
                   </Button>
                 </div>
               </div>
 
               {/* Transactions List */}
-              <div className="pt-4 space-y-3">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Transaction History</h3>
-                <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-96 overflow-y-auto">
+              <div className="pt-3 space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">Transaction History</h3>
+                <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
                   {transactions.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-slate-400">No ledger transactions yet.</div>
+                    <div className="py-8 text-center text-xs text-slate-500">No ledger transactions yet.</div>
                   ) : (
                     transactions.map((tx) => (
-                      <div key={tx.id} className="py-3 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-xl ${tx.transaction_type === 'PAYMENT_RECEIVED' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                            {tx.transaction_type === 'PAYMENT_RECEIVED' ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+                      <div key={tx.id} className="py-2.5 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`p-1.5 rounded-lg ${tx.transaction_type === 'PAYMENT_RECEIVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                            {tx.transaction_type === 'PAYMENT_RECEIVED' ? <ArrowDownLeft className="w-3.5 h-3.5" /> : <ArrowUpRight className="w-3.5 h-3.5" />}
                           </div>
                           <div>
-                            <div className="font-bold text-slate-800 dark:text-slate-200">
+                            <div className="font-bold text-slate-900">
                               {tx.transaction_type.replace('_', ' ')}
                             </div>
-                            <div className="text-[10px] text-slate-400">{new Date(tx.created_at).toLocaleDateString()} • {tx.notes}</div>
+                            <div className="text-[10px] text-slate-500">{new Date(tx.created_at).toLocaleDateString('en-IN')} • {tx.notes}</div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className={`font-black text-sm ${tx.transaction_type === 'PAYMENT_RECEIVED' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          <div className={`font-bold font-mono text-xs ${tx.transaction_type === 'PAYMENT_RECEIVED' ? 'text-emerald-700' : 'text-rose-700'}`}>
                             {tx.transaction_type === 'PAYMENT_RECEIVED' ? '-' : '+'}{formatINR(tx.amount)}
                           </div>
-                          <div className="text-[10px] text-slate-400">Bal: {formatINR(tx.balance_after)}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">Bal: {formatINR(tx.balance_after)}</div>
                         </div>
                       </div>
                     ))
@@ -202,7 +215,7 @@ export default function KhataPage() {
               </div>
             </Card>
           ) : (
-            <div className="p-12 text-center text-slate-400 border border-dashed rounded-3xl">Select a customer to view Khata ledger</div>
+            <div className="p-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">Select a customer to view Khata ledger</div>
           )}
         </div>
       </div>
@@ -214,7 +227,7 @@ export default function KhataPage() {
         title={`Record Payment for ${selectedCustomer?.name}`}
         description="Enter payment amount received to settle or reduce outstanding balance."
       >
-        <form onSubmit={handleRecordPayment} className="space-y-4">
+        <form onSubmit={handleRecordPayment} className="space-y-3">
           <Input
             label="Payment Amount (₹)"
             type="number"
@@ -231,9 +244,9 @@ export default function KhataPage() {
             value={paymentNotes}
             onChange={(e) => setPaymentNotes(e.target.value)}
           />
-          <div className="pt-4 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsPaymentModalOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="success">Save Payment</Button>
+          <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsPaymentModalOpen(false)}>Cancel</Button>
+            <Button type="submit" size="sm">Save Payment</Button>
           </div>
         </form>
       </Modal>

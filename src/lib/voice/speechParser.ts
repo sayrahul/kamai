@@ -9,6 +9,8 @@ export interface ParsedVoiceItem {
   productNameQuery: string;
 }
 
+export type ParsedSpokenItem = ParsedVoiceItem;
+
 // Word to number mappings for Hindi, Marathi, and English
 const NUMBER_WORDS: Record<string, number> = {
   // English
@@ -59,65 +61,62 @@ export function parseVoicePhrase(phrase: string, catalog: Product[]): ParsedVoic
   const words = phrase.split(/\s+/).filter(Boolean);
   let quantity = 1;
   let unit: string | undefined = undefined;
-  let remainingWords: string[] = [];
+  const remainingTokens: string[] = [];
 
   for (let i = 0; i < words.length; i++) {
-    const word = words[i];
+    const word = words[i].toLowerCase();
 
-    // Check if numeric digit e.g. "2", "2.5", "10"
+    // 1. Match numeric digits (e.g. "2", "2.5", "10")
     if (/^\d+(\.\d+)?$/.test(word)) {
       quantity = parseFloat(word);
       continue;
     }
 
-    // Check if number word
-    if (NUMBER_WORDS[word] !== undefined) {
+    // 2. Match number words in Hindi, Marathi, English
+    if (NUMBER_WORDS[word]) {
       quantity = NUMBER_WORDS[word];
       continue;
     }
 
-    // Check if unit word
-    if (UNIT_WORDS[word] !== undefined) {
+    // 3. Match unit words (kg, litre, packet, etc.)
+    if (UNIT_WORDS[word]) {
       unit = UNIT_WORDS[word];
       continue;
     }
 
-    // Otherwise part of product name
-    remainingWords.push(word);
+    remainingTokens.push(words[i]);
   }
 
-  const queryText = remainingWords.join(' ').trim() || phrase;
+  const queryText = remainingTokens.join(' ').trim().toLowerCase();
 
-  // Match against product catalog
+  // Find closest matching product in catalog
   let bestMatch: Product | undefined = undefined;
   let highestScore = 0;
 
-  for (const prod of catalog) {
-    const prodNameLower = prod.name.toLowerCase();
-    const queryLower = queryText.toLowerCase();
+  if (queryText.length > 0) {
+    for (const prod of catalog) {
+      const prodName = prod.name.toLowerCase();
+      let score = 0;
 
-    // 1. Exact or substring match
-    if (prodNameLower.includes(queryLower) || queryLower.includes(prodNameLower)) {
-      const score = queryLower.length / Math.max(queryLower.length, prodNameLower.length);
-      if (score > highestScore) {
-        highestScore = score;
-        bestMatch = prod;
-      }
-    } else {
-      // 2. Token overlap match
-      const queryTokens = queryLower.split(/\s+/);
-      const prodTokens = prodNameLower.split(/\s+/);
-      let matches = 0;
-
-      for (const token of queryTokens) {
-        if (token.length > 1 && prodTokens.some((pt) => pt.includes(token) || token.includes(pt))) {
-          matches++;
+      // Exact substring match
+      if (prodName.includes(queryText)) {
+        score = 10 + queryText.length;
+      } else {
+        // Match individual tokens
+        const prodTokens = prodName.split(/\s+/);
+        let matchedWords = 0;
+        for (const qToken of remainingTokens) {
+          if (prodTokens.some((pt) => pt.includes(qToken.toLowerCase()) || qToken.toLowerCase().includes(pt))) {
+            matchedWords++;
+          }
+        }
+        if (matchedWords > 0) {
+          score = matchedWords * 2;
         }
       }
 
-      const tokenScore = matches / Math.max(queryTokens.length, 1);
-      if (tokenScore > 0.4 && tokenScore > highestScore) {
-        highestScore = tokenScore;
+      if (score > highestScore) {
+        highestScore = score;
         bestMatch = prod;
       }
     }
@@ -125,12 +124,24 @@ export function parseVoicePhrase(phrase: string, catalog: Product[]): ParsedVoic
 
   return {
     rawText: phrase,
-    quantity: quantity || 1,
+    quantity,
     unit,
     matchedProduct: bestMatch,
     confidence: highestScore,
     productNameQuery: queryText,
   };
+}
+
+/**
+ * Parse full spoken multi-item sentence
+ */
+export function parseSpokenBillingText(
+  transcript: string,
+  products: Product[],
+  language?: string
+): ParsedVoiceItem[] {
+  const phrases = splitSpeechIntoPhrases(transcript);
+  return phrases.map((phrase) => parseVoicePhrase(phrase, products));
 }
 
 /**

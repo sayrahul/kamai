@@ -4,48 +4,53 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { useTranslation } from '@/lib/i18n';
-import { Product } from '@/types';
+import { Product, SupportedLanguage } from '@/types';
 import { formatINR } from '@/lib/utils';
-import { 
-  splitSpeechIntoPhrases, 
-  parseVoicePhrase, 
-  ParsedVoiceItem, 
-  playBeepSound 
-} from '@/lib/voice/speechParser';
+import { parseSpokenBillingText, ParsedSpokenItem, playBeepSound } from '@/lib/voice/speechParser';
 import { 
   Mic, 
   MicOff, 
-  Sparkles, 
-  CheckCircle2, 
-  AlertCircle, 
-  Volume2, 
   Plus, 
-  Trash2,
+  CheckCircle2, 
+  Trash2, 
+  Sparkles, 
+  Volume2, 
+  AlertCircle,
   HelpCircle
 } from 'lucide-react';
 
 interface VoiceBillingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  catalog: Product[];
+  products?: Product[];
+  catalog?: Product[];
+  language?: SupportedLanguage;
   onAddItemsToCart: (items: Array<{ product: Product; quantity: number }>) => void;
 }
 
 export const VoiceBillingModal: React.FC<VoiceBillingModalProps> = ({
   isOpen,
   onClose,
+  products = [],
   catalog,
+  language = 'hi',
   onAddItemsToCart,
 }) => {
-  const { language, t } = useTranslation();
+  const activeProducts = catalog || products;
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [parsedItems, setParsedItems] = useState<ParsedVoiceItem[]>([]);
+  const [parsedItems, setParsedItems] = useState<ParsedSpokenItem[]>([]);
   const [speechError, setSpeechError] = useState<string | null>(null);
+
   const recognitionRef = useRef<any>(null);
 
-  const langCode = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-IN';
+  const langMap: Record<SupportedLanguage, string> = {
+    hi: 'hi-IN',
+    mr: 'mr-IN',
+    en: 'en-IN',
+  };
+
+  const langCode = langMap[language] || 'hi-IN';
 
   useEffect(() => {
     if (!isOpen) {
@@ -56,21 +61,15 @@ export const VoiceBillingModal: React.FC<VoiceBillingModalProps> = ({
       return;
     }
 
-    startListening();
-    return () => {
-      stopListening();
-    };
-  }, [isOpen]);
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-  const startListening = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        setSpeechError('Speech recognition is not supported in this browser. Please use Chrome on Android / PC.');
+        return;
+      }
 
-    if (!SpeechRecognition) {
-      setSpeechError('Web Speech API is not supported in this browser. Please use Chrome, Edge or Safari.');
-      return;
-    }
-
-    try {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -79,28 +78,28 @@ export const VoiceBillingModal: React.FC<VoiceBillingModalProps> = ({
       recognition.onstart = () => {
         setIsListening(true);
         setSpeechError(null);
-        playBeepSound('success');
       };
 
       recognition.onresult = (event: any) => {
-        let finalTranscript = '';
+        let currentTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          const text = event.results[i][0].transcript;
-          finalTranscript += text;
+          currentTranscript += event.results[i][0].transcript;
         }
 
-        setTranscript(finalTranscript);
-        parseLiveTranscript(finalTranscript);
+        if (currentTranscript.trim()) {
+          setTranscript(currentTranscript);
+          const parsed = parseSpokenBillingText(currentTranscript, activeProducts, language);
+          setParsedItems(parsed);
+        }
       };
 
       recognition.onerror = (event: any) => {
         console.warn('Speech recognition error:', event.error);
         if (event.error === 'not-allowed') {
-          setSpeechError('Microphone permission denied. Please allow microphone access in browser settings.');
+          setSpeechError('Microphone permission denied. Please allow microphone access in your browser settings.');
         } else if (event.error !== 'no-speech') {
-          setSpeechError(`Voice error: ${event.error}`);
+          setSpeechError(`Voice input issue (${event.error}). Please try again.`);
         }
-        setIsListening(false);
       };
 
       recognition.onend = () => {
@@ -108,11 +107,23 @@ export const VoiceBillingModal: React.FC<VoiceBillingModalProps> = ({
       };
 
       recognitionRef.current = recognition;
-      recognition.start();
-    } catch (err: any) {
-      console.error(err);
-      setSpeechError('Failed to start microphone.');
-      setIsListening(false);
+      startListening();
+    }
+
+    return () => {
+      stopListening();
+    };
+  }, [isOpen, language, activeProducts]);
+
+  const startListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+        setSpeechError(null);
+      } catch (e) {
+        // already started
+      }
     }
   };
 
@@ -121,37 +132,33 @@ export const VoiceBillingModal: React.FC<VoiceBillingModalProps> = ({
       try {
         recognitionRef.current.stop();
       } catch (e) {}
-      recognitionRef.current = null;
+      setIsListening(false);
     }
-    setIsListening(false);
   };
 
-  const parseLiveTranscript = (text: string) => {
-    if (!text.trim()) return;
-    const phrases = splitSpeechIntoPhrases(text);
-    const results = phrases.map((phrase) => parseVoicePhrase(phrase, catalog));
-    setParsedItems(results);
-  };
-
-  const handleConfirmAndAddToCart = () => {
-    const validItems = parsedItems
-      .filter((item) => item.matchedProduct)
-      .map((item) => ({
-        product: item.matchedProduct!,
-        quantity: item.quantity,
+  const handleApplyToCart = () => {
+    const matched = parsedItems
+      .filter((i) => i.matchedProduct)
+      .map((i) => ({
+        product: i.matchedProduct!,
+        quantity: i.quantity,
       }));
 
-    if (validItems.length > 0) {
-      playBeepSound('success');
-      onAddItemsToCart(validItems);
+    if (matched.length > 0) {
+      playBeepSound();
+      onAddItemsToCart(matched);
       onClose();
     }
   };
 
+  const handleRemoveParsedItem = (idx: number) => {
+    setParsedItems(parsedItems.filter((_, i) => i !== idx));
+  };
+
   const samplePhrases = {
-    hi: 'उदा: "दो पैकेट दूध और एक पैकेट ब्रेड"',
-    mr: 'उदा: "दोन पॅकेट दूध आणि एक किलो साखर"',
-    en: 'e.g. "Two packets of milk and one packet of bread"',
+    hi: 'उदा: "दो पैकेट आटा, एक तेल और तीन साबुन"',
+    mr: 'उदा: "दोन किलो साखर, एक तेल आणि तीन साबण"',
+    en: 'e.g. "two packs atta, one oil and three soaps"',
   };
 
   return (
@@ -159,46 +166,43 @@ export const VoiceBillingModal: React.FC<VoiceBillingModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={
-        <span className="flex items-center gap-2">
-          <Mic className="w-5 h-5 text-vyapar-500" />
-          <span>Voice Bill Entry (बोलकर बिल बनाएं)</span>
-        </span>
+        <div className="flex items-center gap-2">
+          <Mic className="w-5 h-5 text-slate-800" />
+          <span>Voice POS Billing (बोलकर बिल बनाएं)</span>
+        </div>
       }
-      description="Speak naturally in Hindi, Marathi, or English to add multiple items to the cart."
+      description="Speak item names and quantities in Hindi, Marathi, or English. Products are automatically recognized."
       size="lg"
     >
-      <div className="space-y-5">
-        {/* Active Microphone Radar & Visualizer */}
-        <div className="flex flex-col items-center justify-center p-6 rounded-3xl bg-gradient-to-b from-vyapar-50/80 to-amber-50/40 dark:from-slate-950 dark:to-slate-900 border border-vyapar-200/80 dark:border-slate-800 text-center relative overflow-hidden">
-          <div className="relative mb-3">
-            {isListening && (
-              <span className="absolute -inset-3 rounded-full bg-vyapar-400/30 animate-ping pointer-events-none" />
-            )}
+      <div className="space-y-4">
+        {/* Active Microphone Radar */}
+        <div className="flex flex-col items-center justify-center p-5 rounded-xl bg-slate-50 border border-slate-200 text-center relative">
+          <div className="relative mb-2">
             <button
               onClick={isListening ? stopListening : startListening}
-              className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg select-none ${
+              className={`w-14 h-14 rounded-full flex items-center justify-center select-none ${
                 isListening
-                  ? 'bg-vyapar-500 text-white shadow-vyapar-500/40 ring-4 ring-vyapar-500/20'
-                  : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                  ? 'bg-slate-900 text-white ring-4 ring-slate-200'
+                  : 'bg-white border border-slate-300 text-slate-700'
               }`}
             >
-              {isListening ? <Mic className="w-8 h-8 animate-pulse" /> : <MicOff className="w-8 h-8" />}
+              {isListening ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
             </button>
           </div>
 
-          <div className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <div className="font-bold text-xs text-slate-900 flex items-center gap-2">
             <span>{isListening ? 'Listening... Speak your items' : 'Microphone Paused (Tap to Listen)'}</span>
-            <Badge variant="saffron" size="sm" className="text-[10px]">
+            <span className="px-1.5 py-0.5 rounded bg-amber-200 text-slate-900 text-[10px] font-bold">
               {langCode}
-            </Badge>
+            </span>
           </div>
 
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+          <p className="text-xs text-slate-500 mt-1 max-w-sm">
             {samplePhrases[language] || samplePhrases.en}
           </p>
 
           {speechError && (
-            <div className="mt-3 p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+            <div className="mt-2 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{speechError}</span>
             </div>
@@ -207,29 +211,29 @@ export const VoiceBillingModal: React.FC<VoiceBillingModalProps> = ({
 
         {/* Live Spoken Transcript */}
         {transcript && (
-          <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+          <div className="p-3 bg-white rounded-lg border border-slate-200">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
               Live Transcript
             </span>
-            <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 italic">
+            <p className="text-xs font-semibold text-slate-900 italic">
               "{transcript}"
             </p>
           </div>
         )}
 
         {/* Parsed Items List */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold uppercase tracking-wider text-slate-700">
               Recognized Items ({parsedItems.length})
             </span>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-slate-500">
               {parsedItems.filter((i) => i.matchedProduct).length} matched from your catalog
             </span>
           </div>
 
           {parsedItems.length === 0 ? (
-            <div className="p-6 text-center text-xs text-slate-400 border border-dashed rounded-2xl">
+            <div className="p-4 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
               Start speaking to see detected items and quantities appear here in real-time.
             </div>
           ) : (
@@ -237,64 +241,71 @@ export const VoiceBillingModal: React.FC<VoiceBillingModalProps> = ({
               {parsedItems.map((item, idx) => (
                 <div
                   key={idx}
-                  className={`p-3 rounded-2xl border flex items-center justify-between text-xs transition-all ${
+                  className={`p-3 rounded-lg border flex items-center justify-between text-xs ${
                     item.matchedProduct
-                      ? 'border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20 dark:border-emerald-900/50'
-                      : 'border-amber-200 bg-amber-50/40 dark:bg-amber-950/20 dark:border-amber-900/50'
+                      ? 'border-emerald-300 bg-emerald-50 text-slate-900'
+                      : 'border-amber-300 bg-amber-50 text-slate-900'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
                         item.matchedProduct
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                          : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                          ? 'bg-emerald-200 text-emerald-900'
+                          : 'bg-amber-200 text-amber-900'
                       }`}
                     >
                       {item.quantity}x
                     </div>
                     <div>
-                      <div className="font-bold text-slate-900 dark:text-slate-100">
+                      <div className="font-bold text-slate-900">
                         {item.matchedProduct ? item.matchedProduct.name : item.productNameQuery}
                       </div>
-                      <div className="text-[10px] text-slate-400">
-                        Spoken: "{item.rawText}" • {item.matchedProduct ? `${formatINR(item.matchedProduct.selling_price)} / ${item.matchedProduct.unit}` : 'Not in catalog'}
+                      <div className="text-[10px] text-slate-500">
+                        {item.matchedProduct
+                          ? `₹${(item.matchedProduct.selling_price / 100).toFixed(2)}/${item.matchedProduct.unit} • Total: ₹${(
+                              (item.matchedProduct.selling_price * item.quantity) /
+                              100
+                            ).toFixed(2)}`
+                          : 'Item not found in catalog'}
                       </div>
                     </div>
                   </div>
 
-                  <div>
-                    {item.matchedProduct ? (
-                      <Badge variant="success" size="sm">
-                        <CheckCircle2 className="w-3 h-3 mr-0.5" />
-                        Matched
-                      </Badge>
-                    ) : (
-                      <Badge variant="warning" size="sm">
-                        Not Found
-                      </Badge>
-                    )}
-                  </div>
+                  <button
+                    onClick={() => handleRemoveParsedItem(idx)}
+                    className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Footer Actions */}
-        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-          <Button variant="outline" onClick={onClose}>
+        {/* Modal Actions */}
+        <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-3">
+          <Button variant="outline" size="sm" onClick={onClose}>
             Cancel
           </Button>
 
           <Button
-            variant="success"
-            size="md"
+            onClick={handleApplyToCart}
             disabled={parsedItems.filter((i) => i.matchedProduct).length === 0}
-            onClick={handleConfirmAndAddToCart}
+            size="sm"
+            className="text-xs font-bold"
           >
-            <Plus className="w-4 h-4 mr-1.5" />
-            <span>Add {parsedItems.filter((i) => i.matchedProduct).length} Items to Cart</span>
+            <CheckCircle2 className="w-4 h-4 mr-1.5" />
+            <span>
+              Add {parsedItems.filter((i) => i.matchedProduct).length} Items to Cart (₹
+              {(
+                parsedItems
+                  .filter((i) => i.matchedProduct)
+                  .reduce((acc, i) => acc + i.matchedProduct!.selling_price * i.quantity, 0) / 100
+              ).toFixed(2)}
+              )
+            </span>
           </Button>
         </div>
       </div>

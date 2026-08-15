@@ -14,15 +14,15 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || `input-${Math.random().toString(36).substring(2, 9)}`;
 
     return (
-      <div className="w-full flex flex-col gap-1.5 text-left">
+      <div className="w-full flex flex-col gap-1 text-left">
         {label && (
-          <label htmlFor={inputId} className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+          <label htmlFor={inputId} className="text-xs font-bold text-slate-900">
             {label}
           </label>
         )}
         <div className="relative flex items-center">
           {leftIcon && (
-            <div className="absolute left-3.5 flex items-center pointer-events-none text-slate-400">
+            <div className="absolute left-3 flex items-center pointer-events-none text-slate-500">
               {leftIcon}
             </div>
           )}
@@ -30,22 +30,22 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             ref={ref}
             className={cn(
-              'w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl px-4 py-2.5 text-base sm:text-sm font-medium transition-colors placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-vyapar-500 focus:border-transparent min-h-[44px]',
-              leftIcon && 'pl-11',
-              rightIcon && 'pr-11',
-              error && 'border-rose-500 focus:ring-rose-500',
+              'w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-xs font-semibold placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 min-h-[38px]',
+              leftIcon && 'pl-9',
+              rightIcon && 'pr-9',
+              error && 'border-rose-500 focus:border-rose-500 focus:ring-rose-500',
               className
             )}
             {...props}
           />
           {rightIcon && (
-            <div className="absolute right-3 flex items-center">
+            <div className="absolute right-3 flex items-center text-slate-500">
               {rightIcon}
             </div>
           )}
         </div>
-        {error && <span className="text-xs text-rose-500 font-medium">{error}</span>}
-        {helperText && !error && <span className="text-xs text-slate-500 dark:text-slate-400">{helperText}</span>}
+        {error && <span className="text-[11px] text-rose-600 font-bold">{error}</span>}
+        {helperText && !error && <span className="text-[11px] text-slate-500">{helperText}</span>}
       </div>
     );
   }

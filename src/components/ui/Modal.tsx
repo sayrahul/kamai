@@ -47,33 +47,36 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-slate-900/50"
         onClick={onClose}
       />
 
       {/* Dialog Body */}
       <div
         className={cn(
-          'relative w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] z-10',
+          'relative w-full bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col max-h-[92vh] z-10 text-slate-900',
           sizeClasses[size]
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-white">
           <div>
-            {title && <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{title}</h2>}
-            {description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</p>}
+            {title && <h2 className="text-base font-bold text-slate-900">{title}</h2>}
+            {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full text-slate-400 hover:text-slate-600">
-            <X className="w-5 h-5" />
-          </Button>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-5 overflow-y-auto flex-1 bg-white text-slate-900">
           {children}
         </div>
       </div>
