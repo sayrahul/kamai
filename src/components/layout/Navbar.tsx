@@ -64,8 +64,16 @@ export const Navbar: React.FC = () => {
       <header className="sticky top-0 z-40 bg-white text-slate-900 px-4 sm:px-6 py-3 flex items-center justify-between border-b border-slate-200">
         {/* Left: Clean Corporate Shop Profile */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold flex-shrink-0">
-            <Store className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden border border-slate-200">
+            {business?.logo_url ? (
+              <img
+                src={business.logo_url}
+                alt={business.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Store className="w-4 h-4 text-white" />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">

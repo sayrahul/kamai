@@ -21,7 +21,8 @@ import {
   Phone,
   MapPin,
   ExternalLink,
-  MessageCircle
+  MessageCircle,
+  Building2
 } from 'lucide-react';
 
 export type InvoiceFormat = 'thermal-58' | 'thermal-80' | 'a4';
@@ -45,11 +46,11 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   const [showPhoneInput, setShowPhoneInput] = useState<boolean>(false);
 
   useEffect(() => {
-    if (isOpen && sale) {
+    if (isOpen && sale && business) {
       setRecipientPhone(sale.customer_phone || '');
       setShowPhoneInput(!sale.customer_phone);
 
-      if (business?.upi_id) {
+      if (business.upi_id) {
         const upiUrl = generateUPILink(
           business.upi_id,
           business.name,
@@ -122,7 +123,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              80mm Thermal (3")
+              80mm Thermal
             </button>
             <button
               onClick={() => setFormat('thermal-58')}
@@ -132,7 +133,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              58mm Thermal (2")
+              58mm Thermal
             </button>
           </div>
 
@@ -142,41 +143,45 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               variant="outline"
               size="sm"
               onClick={handlePrint}
-              className="text-xs font-semibold"
+              className="text-xs font-bold gap-1"
             >
-              <Printer className="w-3.5 h-3.5 mr-1" />
-              <span>Print / PDF</span>
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Bill</span>
             </Button>
+
             <Button
-              variant="primary"
               size="sm"
               onClick={handleWhatsAppSend}
-              className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 text-xs font-bold gap-1"
             >
-              <MessageCircle className="w-3.5 h-3.5 mr-1" />
+              <MessageCircle className="w-3.5 h-3.5" />
               <span>Send WhatsApp</span>
             </Button>
           </div>
         </div>
 
-        {/* WhatsApp Phone Prompt if needed */}
-        <div className="p-3 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <span className="font-semibold text-slate-700">Customer WhatsApp:</span>
+        {/* WhatsApp Mobile Number Input Row */}
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-emerald-900 font-medium">
+            <MessageCircle className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+            <span>Recipient WhatsApp Mobile:</span>
             <input
               type="tel"
               placeholder="e.g. 9876543210"
               value={recipientPhone}
               onChange={(e) => setRecipientPhone(e.target.value)}
-              className="px-2.5 py-1 text-xs border border-slate-300 rounded-lg font-mono focus:outline-none focus:border-slate-900 w-36"
+              className="bg-white border border-emerald-300 text-slate-900 font-mono font-bold text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-emerald-600"
             />
           </div>
-          <div className="text-[11px] text-slate-500 flex items-center gap-1 w-full sm:w-auto justify-end">
-            <span>Includes itemized bill & interactive online link</span>
-          </div>
+
+          <span className="text-[11px] text-emerald-800 font-semibold">
+            Customer receives instant breakdown & interactive invoice link
+          </span>
         </div>
 
-        {/* Invoice Canvas Preview */}
+        {/* ========================================================================= */}
+        {/* INVOICE PREVIEW CONTAINER */}
+        {/* ========================================================================= */}
         <div className="bg-slate-100 p-3 sm:p-6 rounded-xl flex justify-center overflow-x-auto max-h-[55vh] overflow-y-auto">
           {/* ========================================================================= */}
           {/* FORMAT 1: A4 DETAILED GST TAX INVOICE */}
@@ -186,24 +191,36 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               id="printable-invoice-container"
               className="bg-white border border-slate-200 rounded-xl w-full max-w-2xl p-6 sm:p-8 space-y-6 text-slate-900 shadow-sm"
             >
-              {/* Header */}
-              <div className="flex justify-between items-start pb-5 border-b border-slate-200">
-                <div>
-                  <h2 className="text-xl font-extrabold tracking-tight text-slate-900">
-                    {business.name}
-                  </h2>
-                  {business.address && (
-                    <p className="text-xs text-slate-600 mt-1 max-w-xs">{business.address}</p>
+              {/* Header with Shop Logo */}
+              <div className="flex justify-between items-start pb-5 border-b border-slate-200 gap-4">
+                <div className="flex items-start gap-4">
+                  {business.logo_url && (
+                    <img
+                      src={business.logo_url}
+                      alt={business.name}
+                      className="w-16 h-16 object-contain rounded-lg border border-slate-200 p-1 bg-white flex-shrink-0"
+                    />
                   )}
-                  {business.phone && (
-                    <p className="text-xs text-slate-600 font-mono mt-0.5">Phone: {business.phone}</p>
-                  )}
-                  {business.gstin && (
-                    <p className="text-xs text-slate-700 font-semibold mt-0.5">GSTIN: {business.gstin}</p>
-                  )}
+                  <div>
+                    <h2 className="text-xl font-extrabold tracking-tight text-slate-900">
+                      {business.name}
+                    </h2>
+                    {business.tagline && (
+                      <p className="text-xs font-semibold text-slate-500 italic mt-0.5">{business.tagline}</p>
+                    )}
+                    {business.address && (
+                      <p className="text-xs text-slate-600 mt-1 max-w-xs">{business.address}</p>
+                    )}
+                    {business.phone && (
+                      <p className="text-xs text-slate-600 font-mono mt-0.5">Phone: {business.phone}</p>
+                    )}
+                    {business.gstin && (
+                      <p className="text-xs text-slate-700 font-semibold mt-0.5">GSTIN: {business.gstin}</p>
+                    )}
+                  </div>
                 </div>
 
-                <div className="text-right space-y-1">
+                <div className="text-right space-y-1 flex-shrink-0">
                   <span className="inline-block px-2.5 py-1 bg-slate-900 text-white text-xs font-bold uppercase rounded">
                     Tax Invoice
                   </span>
@@ -274,10 +291,10 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 <div className="flex-1 space-y-3">
                   {qrDataUrl && (
                     <div className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 bg-slate-50">
-                      <img src={qrDataUrl} alt="UPI QR" className="w-18 h-18 rounded border border-slate-200 bg-white" />
+                      <img src={qrDataUrl} alt="UPI QR" className="w-20 h-20 rounded border border-slate-200 bg-white" />
                       <div className="text-[11px] space-y-0.5">
-                        <div className="font-bold text-slate-900">UPI Payment</div>
-                        <div className="text-slate-500 font-mono text-[10px]">{business.upi_id}</div>
+                        <div className="font-bold text-slate-900">Scan & Pay via UPI</div>
+                        <div className="text-slate-600 font-mono text-[10px] font-bold">{business.upi_id}</div>
                         <div className="text-[10px] text-slate-400">GPay, PhonePe, Paytm, BHIM</div>
                       </div>
                     </div>
@@ -285,6 +302,18 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   <div className="text-[11px] text-slate-600">
                     <strong>Amount in Words:</strong> {amountWords}
                   </div>
+
+                  {/* Bank Details block if present */}
+                  {business.bank_name && (
+                    <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 text-[10px] space-y-0.5 text-slate-600">
+                      <div className="font-bold text-slate-800 flex items-center gap-1">
+                        <Building2 className="w-3 h-3" />
+                        <span>Bank Details for NEFT/IMPS:</span>
+                      </div>
+                      <div>Bank: <strong>{business.bank_name}</strong> {business.bank_account_name ? `(${business.bank_account_name})` : ''}</div>
+                      {business.bank_account_no && <div>A/C: <span className="font-mono">{business.bank_account_no}</span> • IFSC: <span className="font-mono font-bold">{business.bank_ifsc}</span></div>}
+                    </div>
+                  )}
                 </div>
 
                 <div className="w-full sm:w-64 space-y-1.5 text-xs">
@@ -333,9 +362,17 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 format === 'thermal-58' ? 'max-w-[260px]' : 'max-w-[340px]'
               }`}
             >
-              {/* Thermal Header */}
+              {/* Thermal Header with Logo */}
               <div className="text-center space-y-1 pb-2 border-b border-dashed border-slate-300">
+                {business.logo_url && (
+                  <img
+                    src={business.logo_url}
+                    alt={business.name}
+                    className="w-10 h-10 object-contain mx-auto mb-1"
+                  />
+                )}
                 <div className="font-bold text-xs uppercase">{business.name}</div>
+                {business.tagline && <div className="text-[9px] text-slate-500 italic">{business.tagline}</div>}
                 {business.address && <div className="text-[10px] text-slate-600">{business.address}</div>}
                 {business.phone && <div className="text-[10px] text-slate-600">Ph: {business.phone}</div>}
                 {business.gstin && <div className="text-[10px] font-semibold">GSTIN: {business.gstin}</div>}
@@ -393,12 +430,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               {qrDataUrl && (
                 <div className="flex flex-col items-center py-1">
                   <img src={qrDataUrl} alt="UPI QR" className="w-24 h-24" />
-                  <div className="text-[9px] text-slate-500 mt-1">Scan to Pay via UPI</div>
+                  <div className="text-[9px] font-bold text-slate-700 mt-1">Scan to Pay via UPI</div>
+                  <div className="text-[8px] font-mono text-slate-500">{business.upi_id}</div>
                 </div>
               )}
 
               <div className="text-center text-[9px] text-slate-500 pt-1">
-                Thank you! Visit again.
+                {business.footer_message || 'Thank you! Visit again.'}
               </div>
             </div>
           )}

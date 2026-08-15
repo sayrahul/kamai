@@ -101,7 +101,14 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
 
         {/* Standee Body */}
         <div className="p-5 flex flex-col items-center text-center bg-white space-y-4">
-          <div>
+          <div className="flex flex-col items-center">
+            {business?.logo_url && (
+              <img
+                src={business.logo_url}
+                alt={businessName}
+                className="w-12 h-12 object-contain rounded-lg border border-slate-200 p-1 mb-2 bg-white"
+              />
+            )}
             <h2 className="text-base font-bold text-slate-900">{businessName}</h2>
             <p className="text-xs text-slate-500 font-mono mt-0.5">{upiId}</p>
           </div>

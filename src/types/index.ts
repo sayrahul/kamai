@@ -21,6 +21,8 @@ export type UserRole = 'OWNER' | 'MANAGER' | 'CASHIER' | 'STAFF';
 export interface Business {
   id: string; // UUID v4
   name: string;
+  tagline?: string;
+  logo_url?: string;
   business_type: BusinessType;
   owner_name: string;
   phone: string;
@@ -29,6 +31,10 @@ export interface Business {
   pincode?: string;
   gstin?: string;
   upi_id?: string;
+  bank_name?: string;
+  bank_account_no?: string;
+  bank_ifsc?: string;
+  bank_account_name?: string;
   currency: string; // 'INR'
   language: SupportedLanguage;
   invoice_prefix: string;
