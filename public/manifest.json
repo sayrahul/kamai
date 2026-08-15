@@ -1,0 +1,21 @@
+{
+  "name": "KamaiPlus (Kamai+) - Business Management & Growth",
+  "short_name": "KamaiPlus",
+  "description": "Free, Offline-First Business Management Platform for Indian Small Businesses",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#f97316",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
