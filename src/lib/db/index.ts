@@ -48,199 +48,316 @@ export class VyaparSetuDatabase extends Dexie {
 
 export const db = new VyaparSetuDatabase();
 
+// Auto-seed demo starter business if DB is empty
+export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
+  const existing = await db.businesses.toCollection().first();
+  if (existing) return existing;
+
+  const businessId = `biz_${Date.now()}`;
+  const now = new Date().toISOString();
+
+  const starterBiz: Business = {
+    id: businessId,
+    name: 'Sharma Kirana Store (Kamai+)',
+    business_type: 'grocery',
+    owner_name: 'Ramesh Sharma',
+    phone: '9876543210',
+    address: 'Shop 12, Main Market, Mumbai',
+    pincode: '400001',
+    gstin: '27AAAAA0000A1Z5',
+    upi_id: 'sharma.kirana@upi',
+    currency: 'INR',
+    language: 'hi',
+    invoice_prefix: 'INV-',
+    next_invoice_number: 1,
+    terms_conditions: 'Thank you for your business! Goods once sold will be exchanged within 7 days.',
+    footer_message: 'Powered by KamaiPlus (Kamai+)',
+    is_onboarded: true,
+    created_at: now,
+    updated_at: now,
+    sync_status: 'synced',
+  };
+
+  await db.businesses.put(starterBiz);
+  await seedBusinessStarterData(businessId, 'grocery');
+  return starterBiz;
+}
+
 // Default Category & Sample Product Seeder per business type
 export async function seedBusinessStarterData(businessId: string, businessType: BusinessType) {
   const now = new Date().toISOString();
 
   // 1. Starter Categories
-  const categoryTemplates: Record<BusinessType, Array<{ name: string; icon: string }>> = {
+  const categoryTemplates: Partial<Record<BusinessType, Array<{ name: string; icon: string }>>> = {
     grocery: [
       { name: 'Grains & Atta (अनाज/आटा)', icon: 'wheat' },
       { name: 'Dairy & Milk (डेयरी)', icon: 'milk' },
       { name: 'Edible Oils & Ghee (तेल/घी)', icon: 'droplet' },
-      { name: 'Packaged Foods & Snacks', icon: 'package' },
-      { name: 'Spices & Masalas (मसाले)', icon: 'flame' },
-      { name: 'Personal & Home Care', icon: 'sparkles' },
+      { name: 'Snacks & Biscuits (नाश्ता/बिस्कुट)', icon: 'cookie' },
+      { name: 'Personal Care & Soaps (साबुन)', icon: 'sparkles' },
+      { name: 'Cleaning & Detergents (सफाई)', icon: 'spray' },
     ],
     clothing: [
-      { name: "Men's Wear", icon: 'shirt' },
-      { name: "Women's Ethnic", icon: 'scissors' },
-      { name: "Kids & Infants", icon: 'baby' },
-      { name: "Footwear", icon: 'footprints' },
-      { name: "Accessories", icon: 'watch' },
+      { name: 'Men Shirts & T-Shirts', icon: 'shirt' },
+      { name: 'Women Sarees & Kurtis', icon: 'sparkles' },
+      { name: 'Kids Wear', icon: 'baby' },
+      { name: 'Footwear & Sandals', icon: 'footprints' },
+      { name: 'Fabrics & Unstitched', icon: 'scissors' },
     ],
     electronics: [
-      { name: 'Smartphones & Tablets', icon: 'smartphone' },
-      { name: 'Cables & Chargers', icon: 'zap' },
-      { name: 'Audio & Earphones', icon: 'headphones' },
-      { name: 'Home Appliances', icon: 'tv' },
-    ],
-    bakery: [
-      { name: 'Cakes & Pastries', icon: 'cake' },
-      { name: 'Breads & Buns', icon: 'package' },
-      { name: 'Cookies & Biscuits', icon: 'cookie' },
-      { name: 'Savory Snacks', icon: 'coffee' },
-    ],
-    salon: [
-      { name: 'Hair Services', icon: 'scissors' },
-      { name: 'Facial & Skin Care', icon: 'sparkles' },
-      { name: 'Grooming Products', icon: 'package' },
-    ],
-    hardware: [
-      { name: 'Paints & Primers', icon: 'paint-bucket' },
-      { name: 'Plumbing & Pipes', icon: 'wrench' },
-      { name: 'Electrical Fittings', icon: 'zap' },
-      { name: 'Tools & Hardware', icon: 'hammer' },
-    ],
-    stationery: [
-      { name: 'Notebooks & Registers', icon: 'book' },
-      { name: 'Pens & Writing Tools', icon: 'pen' },
-      { name: 'Art & Craft', icon: 'palette' },
-      { name: 'Office Supplies', icon: 'briefcase' },
+      { name: 'Smartphones & Mobiles', icon: 'smartphone' },
+      { name: 'Mobile Accessories & Covers', icon: 'headphones' },
+      { name: 'Cables & Chargers', icon: 'cable' },
+      { name: 'Audio & Bluetooth Speakers', icon: 'speaker' },
+      { name: 'Repairing Parts & Services', icon: 'wrench' },
     ],
     mobile: [
-      { name: 'Mobile Handsets', icon: 'smartphone' },
-      { name: 'Screen Guards & Covers', icon: 'shield' },
-      { name: 'Repair Services', icon: 'wrench' },
-      { name: 'Recharges & Accessories', icon: 'battery-charging' },
+      { name: 'Smartphones & Mobiles', icon: 'smartphone' },
+      { name: 'Mobile Accessories & Covers', icon: 'headphones' },
+      { name: 'Cables & Chargers', icon: 'cable' },
+      { name: 'Audio & Earphones', icon: 'speaker' },
+      { name: 'Recharge & Services', icon: 'wrench' },
+    ],
+    bakery: [
+      { name: 'Fresh Breads & Buns', icon: 'sandwich' },
+      { name: 'Cakes & Pastries', icon: 'cake' },
+      { name: 'Cookies & Khari', icon: 'cookie' },
+      { name: 'Indian Sweets (Mithai)', icon: 'sparkles' },
+      { name: 'Cold Drinks & Shakes', icon: 'cup-soda' },
     ],
     restaurant: [
       { name: 'Thali & Meals', icon: 'utensils' },
-      { name: 'Snacks & Fast Food', icon: 'coffee' },
-      { name: 'Beverages & Tea', icon: 'cup-soda' },
-      { name: 'Desserts', icon: 'cake' },
+      { name: 'Fast Food & Snacks', icon: 'sandwich' },
+      { name: 'Beverages & Chai', icon: 'coffee' },
+      { name: 'Desserts & Sweets', icon: 'ice-cream' },
+    ],
+    hardware: [
+      { name: 'Hand Tools & Drills', icon: 'wrench' },
+      { name: 'Paints & Brushes', icon: 'paint-roller' },
+      { name: 'Pipes & Sanitary fittings', icon: 'pipe' },
+      { name: 'Electrical Wires & Switches', icon: 'zap' },
+      { name: 'Nuts, Bolts & Screws', icon: 'nut' },
+    ],
+    stationery: [
+      { name: 'Notebooks & Registers', icon: 'book' },
+      { name: 'Pens & Pencils', icon: 'pen' },
+      { name: 'Office Files & Folders', icon: 'folder' },
+      { name: 'Art & Craft Supplies', icon: 'palette' },
+      { name: 'School Bags & Pouches', icon: 'backpack' },
+    ],
+    salon: [
+      { name: 'Hair Cut & Styling', icon: 'scissors' },
+      { name: 'Shaving & Beard Grooming', icon: 'sparkles' },
+      { name: 'Facial & Skin Care', icon: 'smile' },
+      { name: 'Hair Color & Spa', icon: 'droplet' },
+      { name: 'Beauty Products', icon: 'package' },
     ],
     services: [
-      { name: 'Standard Service', icon: 'wrench' },
-      { name: 'Consultation', icon: 'user' },
-      { name: 'Spare Parts', icon: 'package' },
+      { name: 'General Labor & Repair', icon: 'wrench' },
+      { name: 'Inspection & Diagnosis', icon: 'search' },
+      { name: 'Parts Replacement', icon: 'cpu' },
+      { name: 'Annual Maintenance (AMC)', icon: 'shield-check' },
     ],
     other: [
-      { name: 'General Items', icon: 'package' },
-      { name: 'Services', icon: 'wrench' },
-    ]
+      { name: 'General Products', icon: 'package' },
+      { name: 'Custom Services', icon: 'briefcase' },
+    ],
   };
 
-  const cats = categoryTemplates[businessType] || categoryTemplates.grocery;
-  const createdCategoryIds: Record<string, string> = {};
+  const categoriesToSeed = categoryTemplates[businessType] || categoryTemplates.grocery || [];
+  const createdCategoryIds: string[] = [];
 
-  for (let i = 0; i < cats.length; i++) {
+  for (let i = 0; i < categoriesToSeed.length; i++) {
     const catId = `cat_${Date.now()}_${i}`;
     await db.categories.put({
       id: catId,
       business_id: businessId,
-      name: cats[i].name,
-      icon: cats[i].icon,
+      name: categoriesToSeed[i].name,
+      icon: categoriesToSeed[i].icon,
       created_at: now,
     });
-    createdCategoryIds[cats[i].name] = catId;
+    createdCategoryIds.push(catId);
   }
 
-  // 2. Starter Products for Kirana/Grocery or standard retail
-  if (businessType === 'grocery' || businessType === 'other') {
-    const groceryProducts: Array<Omit<Product, 'id' | 'business_id' | 'created_at' | 'updated_at' | 'sync_status'>> = [
+  // 2. Sample Products for Kirana / Grocery
+  if (businessType === 'grocery' || !categoryTemplates[businessType]) {
+    const sampleGroceryProducts: Array<Omit<Product, 'id' | 'business_id' | 'created_at' | 'updated_at' | 'sync_status'>> = [
       {
         name: 'Aashirvaad Shudh Chakki Atta 5kg',
-        category_id: Object.values(createdCategoryIds)[0] || 'cat_default',
-        category_name: 'Grains & Atta (अनाज/आटा)',
-        unit: 'packet',
-        purchase_price: 24000, // ₹240.00
-        selling_price: 26500, // ₹265.00
-        mrp: 27500, // ₹275.00
-        tax_rate: 0,
-        is_tax_inclusive: true,
-        current_stock: 25,
-        min_stock_level: 5,
         barcode: '890103000001',
-        is_favorite: true,
-        is_active: true,
-      },
-      {
-        name: 'Amul Taaza Toned Milk 500ml',
-        category_id: Object.values(createdCategoryIds)[1] || 'cat_default',
-        category_name: 'Dairy & Milk (डेयरी)',
+        category_id: createdCategoryIds[0] || 'cat_grains',
+        category_name: 'Grains & Atta',
+        selling_price: 24500, // ₹245.00
+        purchase_price: 21500, // ₹215.00
+        mrp: 26000, // ₹260.00
         unit: 'packet',
-        purchase_price: 2550, // ₹25.50
-        selling_price: 2700, // ₹27.00
-        mrp: 2700, // ₹27.00
+        current_stock: 45,
+        min_stock_level: 10,
         tax_rate: 0,
         is_tax_inclusive: true,
-        current_stock: 40,
-        min_stock_level: 10,
-        barcode: '890126201005',
-        is_favorite: true,
+        hsn_code: '1101',
         is_active: true,
+        is_favorite: true,
       },
       {
-        name: 'Fortune Sunlite Refined Sunflower Oil 1L',
-        category_id: Object.values(createdCategoryIds)[2] || 'cat_default',
-        category_name: 'Edible Oils & Ghee (तेल/घी)',
-        unit: 'packet',
-        purchase_price: 12500, // ₹125.00
-        selling_price: 14200, // ₹142.00
+        name: 'Fortune Sunlite Sunflower Oil 1L Pouch',
+        barcode: '890103000002',
+        category_id: createdCategoryIds[2] || 'cat_oils',
+        category_name: 'Edible Oils & Ghee',
+        selling_price: 13500, // ₹135.00
+        purchase_price: 12000, // ₹120.00
         mrp: 15500, // ₹155.00
+        unit: 'packet',
+        current_stock: 60,
+        min_stock_level: 15,
         tax_rate: 5,
         is_tax_inclusive: true,
-        current_stock: 30,
-        min_stock_level: 6,
-        barcode: '890600728001',
-        is_favorite: true,
+        hsn_code: '1512',
         is_active: true,
+        is_favorite: true,
       },
       {
-        name: 'Parle-G Gold Biscuits 100g',
-        category_id: Object.values(createdCategoryIds)[3] || 'cat_default',
-        category_name: 'Packaged Foods & Snacks',
+        name: 'Amul Taaza Homogenised Milk 1L',
+        barcode: '890103000003',
+        category_id: createdCategoryIds[1] || 'cat_dairy',
+        category_name: 'Dairy & Milk',
+        selling_price: 7400, // ₹74.00
+        purchase_price: 6800, // ₹68.00
+        mrp: 7500, // ₹75.00
         unit: 'packet',
-        purchase_price: 850, // ₹8.50
-        selling_price: 1000, // ₹10.00
-        mrp: 1000, // ₹10.00
+        current_stock: 25,
+        min_stock_level: 8,
+        tax_rate: 0,
+        is_tax_inclusive: true,
+        hsn_code: '0401',
+        is_active: true,
+        is_favorite: true,
+      },
+      {
+        name: 'Tata Salt Vacuum Evaporated 1kg',
+        barcode: '890103000004',
+        category_id: createdCategoryIds[0] || 'cat_grains',
+        category_name: 'Grains & Atta',
+        selling_price: 2800, // ₹28.00
+        purchase_price: 2300, // ₹23.00
+        mrp: 3000, // ₹30.00
+        unit: 'packet',
+        current_stock: 100,
+        min_stock_level: 20,
+        tax_rate: 0,
+        is_tax_inclusive: true,
+        hsn_code: '2501',
+        is_active: true,
+        is_favorite: true,
+      },
+      {
+        name: 'Parle-G Gold Biscuits 1kg Family Pack',
+        barcode: '890103000005',
+        category_id: createdCategoryIds[3] || 'cat_snacks',
+        category_name: 'Snacks & Biscuits',
+        selling_price: 11000, // ₹110.00
+        purchase_price: 9500, // ₹95.00
+        mrp: 12000, // ₹120.00
+        unit: 'packet',
+        current_stock: 35,
+        min_stock_level: 10,
         tax_rate: 18,
         is_tax_inclusive: true,
-        current_stock: 80,
-        min_stock_level: 20,
-        barcode: '890171910101',
-        is_favorite: true,
+        hsn_code: '1905',
         is_active: true,
+        is_favorite: true,
       },
       {
-        name: 'Tata Salt Vaccum Evaporated 1kg',
-        category_id: Object.values(createdCategoryIds)[4] || 'cat_default',
-        category_name: 'Spices & Masalas (मसाले)',
+        name: 'Maggi 2-Minute Masala Noodles 420g (Pack of 6)',
+        barcode: '890103000006',
+        category_id: createdCategoryIds[3] || 'cat_snacks',
+        category_name: 'Snacks & Biscuits',
+        selling_price: 8800, // ₹88.00
+        purchase_price: 7600, // ₹76.00
+        mrp: 9600, // ₹96.00
         unit: 'packet',
-        purchase_price: 2400, // ₹24.00
-        selling_price: 2800, // ₹28.00
-        mrp: 2800, // ₹28.00
-        tax_rate: 0,
+        current_stock: 40,
+        min_stock_level: 10,
+        tax_rate: 18,
         is_tax_inclusive: true,
-        current_stock: 50,
-        min_stock_level: 15,
-        barcode: '890404390100',
-        is_favorite: true,
+        hsn_code: '1902',
         is_active: true,
+        is_favorite: true,
       },
       {
-        name: 'Loose Basmati Rice (सुपर बासमती चावल)',
-        category_id: Object.values(createdCategoryIds)[0] || 'cat_default',
-        category_name: 'Grains & Atta (अनाज/आटा)',
+        name: 'Dettol Original Soap 125g (Buy 3 Get 1 Free)',
+        barcode: '890103000007',
+        category_id: createdCategoryIds[4] || 'cat_personal',
+        category_name: 'Personal Care & Soaps',
+        selling_price: 17500, // ₹175.00
+        purchase_price: 15000, // ₹150.00
+        mrp: 19500, // ₹195.00
+        unit: 'packet',
+        current_stock: 18,
+        min_stock_level: 5,
+        tax_rate: 18,
+        is_tax_inclusive: true,
+        hsn_code: '3401',
+        is_active: true,
+        is_favorite: false,
+      },
+      {
+        name: 'Surf Excel Quick Wash Detergent Powder 1kg',
+        barcode: '890103000008',
+        category_id: createdCategoryIds[5] || 'cat_cleaning',
+        category_name: 'Cleaning & Detergents',
+        selling_price: 15500, // ₹155.00
+        purchase_price: 13500, // ₹135.00
+        mrp: 17000, // ₹170.00
+        unit: 'packet',
+        current_stock: 30,
+        min_stock_level: 8,
+        tax_rate: 18,
+        is_tax_inclusive: true,
+        hsn_code: '3402',
+        is_active: true,
+        is_favorite: false,
+      },
+      {
+        name: 'Sugar / Chini (Loose / Packaged)',
+        barcode: '890103000009',
+        category_id: createdCategoryIds[0] || 'cat_grains',
+        category_name: 'Grains & Atta',
+        selling_price: 4400, // ₹44.00/kg
+        purchase_price: 3800, // ₹38.00/kg
+        mrp: 4800, // ₹48.00
         unit: 'kg',
-        purchase_price: 8200, // ₹82.00 / kg
-        selling_price: 9500, // ₹95.00 / kg
-        mrp: 10500,
+        current_stock: 250,
+        min_stock_level: 50,
+        tax_rate: 5,
+        is_tax_inclusive: true,
+        hsn_code: '1701',
+        is_active: true,
+        is_favorite: true,
+      },
+      {
+        name: 'Toor Dal / Arhar Dal Super Premium',
+        barcode: '890103000010',
+        category_id: createdCategoryIds[0] || 'cat_grains',
+        category_name: 'Grains & Atta',
+        selling_price: 16500, // ₹165.00/kg
+        purchase_price: 14500, // ₹145.00/kg
+        mrp: 18000, // ₹180.00
+        unit: 'kg',
+        current_stock: 120,
+        min_stock_level: 25,
         tax_rate: 0,
         is_tax_inclusive: true,
-        current_stock: 4, // Intentionally low stock to showcase attention alert
-        min_stock_level: 15,
-        is_favorite: true,
+        hsn_code: '0713',
         is_active: true,
+        is_favorite: true,
       }
     ];
 
-    for (let j = 0; j < groceryProducts.length; j++) {
-      const p = groceryProducts[j];
-      const prodId = `prod_${Date.now()}_${j}`;
+    for (let p = 0; p < sampleGroceryProducts.length; p++) {
+      const prodId = `prod_${Date.now()}_${p}`;
       await db.products.put({
-        ...p,
+        ...sampleGroceryProducts[p],
         id: prodId,
         business_id: businessId,
         created_at: now,
@@ -248,58 +365,79 @@ export async function seedBusinessStarterData(businessId: string, businessType: 
         sync_status: 'synced',
       });
 
-      // Also create initial inventory movement
+      // Add initial stock movement audit log
       await db.inventory_movements.put({
-        id: `mov_${Date.now()}_${j}`,
+        id: `mov_init_${Date.now()}_${p}`,
         business_id: businessId,
         product_id: prodId,
-        product_name: p.name,
+        product_name: sampleGroceryProducts[p].name,
         movement_type: 'ADJUSTMENT',
-        quantity: p.current_stock,
+        quantity: sampleGroceryProducts[p].current_stock,
         previous_stock: 0,
-        new_stock: p.current_stock,
-        reason: 'Opening Stock Initialization',
+        new_stock: sampleGroceryProducts[p].current_stock,
+        reason: 'Starter Catalog Setup',
         created_by: 'system',
         created_at: now,
       });
     }
   }
 
-  // 3. Add 2 Starter Customers for demonstration
-  const starterCustomers: Array<Omit<Customer, 'id' | 'business_id' | 'created_at' | 'updated_at' | 'sync_status'>> = [
+  // 3. Sample Customers with Udhar Khata balances
+  const sampleCustomers: Array<Omit<Customer, 'id' | 'business_id' | 'created_at' | 'updated_at' | 'sync_status'>> = [
     {
-      name: 'Ramesh Sharma (शर्मा जी)',
-      phone: '9876543210',
-      address: 'Shop 4, Main Market, Mumbai',
-      opening_balance: 145000, // ₹1,450.00 Udhar
-      current_balance: 145000,
-      loyalty_points: 120,
-      total_spent: 850000, // ₹8,500.00
-      total_visits: 14,
-      last_visit_date: new Date(Date.now() - 4 * 86400000).toISOString(),
+      name: 'Sunil Verma',
+      phone: '9820123456',
+      address: 'Flat 202, Gokuldham Society',
       customer_type: 'credit',
-      notes: 'Regular customer, clears balance every 15 days',
+      opening_balance: 145000,
+      current_balance: 145000, // ₹1,450.00 Udhar
+      loyalty_points: 85,
+      total_spent: 850000,
+      total_visits: 14,
+      last_visit_date: new Date(Date.now() - 3 * 86400000).toISOString(),
     },
     {
-      name: 'Pooja Verma (पूजा जी)',
-      phone: '9123456789',
-      address: 'Flat 302, Green Valley Apts',
+      name: 'Pooja Patil',
+      phone: '9819988776',
+      address: 'Plot 15, Station Road',
+      customer_type: 'credit',
+      opening_balance: 62000,
+      current_balance: 62000, // ₹620.00 Udhar
+      loyalty_points: 42,
+      total_spent: 420000,
+      total_visits: 8,
+      last_visit_date: new Date(Date.now() - 1 * 86400000).toISOString(),
+    },
+    {
+      name: 'Rajesh Gupta',
+      phone: '9833445566',
+      address: 'Shanti Nagar, Lane 3',
+      customer_type: 'vip',
+      opening_balance: 0,
+      current_balance: 0, // No Udhar
+      loyalty_points: 185,
+      total_spent: 1850000,
+      total_visits: 28,
+      last_visit_date: now,
+    },
+    {
+      name: 'Anil Deshmukh (Inactive 35 days)',
+      phone: '9822334455',
+      address: 'Near Old Post Office',
+      customer_type: 'inactive',
       opening_balance: 0,
       current_balance: 0,
-      loyalty_points: 350,
-      total_spent: 1840000, // ₹18,400.00
-      total_visits: 28,
-      last_visit_date: new Date(Date.now() - 52 * 86400000).toISOString(), // 52 days ago -> Inactive!
-      customer_type: 'vip',
-      notes: 'VIP customer, prefers home delivery',
+      loyalty_points: 31,
+      total_spent: 310000,
+      total_visits: 5,
+      last_visit_date: new Date(Date.now() - 35 * 86400000).toISOString(), // 35 days ago (Inactive)
     }
   ];
 
-  for (let k = 0; k < starterCustomers.length; k++) {
-    const cust = starterCustomers[k];
-    const custId = `cust_${Date.now()}_${k}`;
+  for (let c = 0; c < sampleCustomers.length; c++) {
+    const custId = `cust_${Date.now()}_${c}`;
     await db.customers.put({
-      ...cust,
+      ...sampleCustomers[c],
       id: custId,
       business_id: businessId,
       created_at: now,
@@ -307,16 +445,17 @@ export async function seedBusinessStarterData(businessId: string, businessType: 
       sync_status: 'synced',
     });
 
-    if (cust.opening_balance > 0) {
+    // If customer has initial Udhar balance, add initial ledger record
+    if (sampleCustomers[c].current_balance > 0) {
       await db.ledger_transactions.put({
-        id: `ledg_${Date.now()}_${k}`,
+        id: `ledg_init_${Date.now()}_${c}`,
         business_id: businessId,
         party_type: 'customer',
         party_id: custId,
-        party_name: cust.name,
-        transaction_type: 'OPENING_BALANCE',
-        amount: cust.opening_balance,
-        balance_after: cust.opening_balance,
+        party_name: sampleCustomers[c].name,
+        transaction_type: 'CREDIT_SALE',
+        amount: sampleCustomers[c].current_balance,
+        balance_after: sampleCustomers[c].current_balance,
         notes: 'Initial Udhar balance setup',
         created_at: now,
       });
