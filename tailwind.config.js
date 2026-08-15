@@ -8,39 +8,42 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        paytm: {
-          royal: '#002970',
-          dark: '#001F54',
-          cyan: '#00BAF2',
-          cyanDark: '#0096C7',
-          sky: '#00B9F1',
-          light: '#E8F6FE',
-          bg: '#F5F8FE',
-          green: '#00B050',
-          greenLight: '#E6F8ED',
-          gold: '#FFB800',
+        corporate: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
+          950: '#020617',
         },
         vyapar: {
-          50: '#E8F6FE',
-          100: '#D0EEFD',
-          200: '#A1DCFB',
-          300: '#72CAF9',
-          400: '#00BAF2', // Paytm Cyan
-          500: '#002970', // Paytm Royal Blue
-          600: '#001F54', // Paytm Deep Navy
-          700: '#00173D',
-          800: '#000F26',
-          900: '#000814',
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#64748b',
+          500: '#0f172a', // Clean Corporate Slate / Black Accent
+          600: '#020617',
+          700: '#020617',
+          800: '#000000',
+          900: '#000000',
         },
-        emerald_custom: {
-          500: '#00B050',
-          600: '#009443',
-          700: '#007836',
-        },
-        slate_custom: {
-          850: '#18202f',
-          900: '#0f172a',
-          950: '#090d16',
+        paytm: {
+          royal: '#0f172a',
+          dark: '#020617',
+          cyan: '#2563eb', // Clean Corporate Blue
+          cyanDark: '#1d4ed8',
+          sky: '#3b82f6',
+          light: '#f1f5f9',
+          bg: '#ffffff',
+          green: '#16a34a',
+          greenLight: '#f0fdf4',
+          gold: '#d97706',
         }
       },
       fontFamily: {

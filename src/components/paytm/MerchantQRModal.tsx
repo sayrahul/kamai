@@ -2,21 +2,20 @@
 
 import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
-import { Modal } from '@/components/ui/Modal';
-import { Button } from '@/components/ui/Button';
 import { Business } from '@/types';
 import { generateUPILink } from '@/lib/utils';
-import { isSoundboxEnabled, setSoundboxEnabled, announcePayment } from '@/lib/voice/paytmSoundbox';
 import { 
-  QrCode, 
+  X, 
   Download, 
   Share2, 
   Volume2, 
   VolumeX, 
-  CheckCircle2, 
-  Sparkles,
-  Store
+  ShieldCheck, 
+  Store,
+  CheckCircle2
 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { isSoundboxEnabled, setSoundboxEnabled } from '@/lib/voice/paytmSoundbox';
 
 interface MerchantQRModalProps {
   isOpen: boolean;
@@ -29,136 +28,154 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
   onClose,
   business,
 }) => {
-  const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [copied, setCopied] = useState<boolean>(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+
+  const upiId = business?.upi_id || 'merchant@upi';
+  const businessName = business?.name || 'KamaiPlus Store';
+  const upiLink = generateUPILink(upiId, businessName);
 
   useEffect(() => {
     setSoundEnabled(isSoundboxEnabled());
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (isOpen && business?.upi_id) {
-      const upiUrl = generateUPILink(business.upi_id, business.name);
-      QRCode.toDataURL(upiUrl, {
-        width: 260,
+    if (isOpen) {
+      QRCode.toDataURL(upiLink, {
+        width: 240,
         margin: 1,
-        color: { dark: '#002970', light: '#ffffff' },
-      }).then(setQrDataUrl).catch(() => setQrDataUrl(''));
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff',
+        },
+      })
+        .then((url) => setQrDataUrl(url))
+        .catch((err) => console.error('Error generating QR:', err));
     }
-  }, [isOpen, business]);
+  }, [isOpen, upiLink]);
+
+  if (!isOpen) return null;
 
   const toggleSoundbox = () => {
     const next = !soundEnabled;
     setSoundEnabled(next);
     setSoundboxEnabled(next);
-    if (next) {
-      announcePayment(10000, business?.language || 'hi');
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${businessName} UPI QR Code`,
+          text: `Pay ${businessName} directly using UPI ID: ${upiId}`,
+          url: window.location.origin,
+        });
+      } catch (e) {
+        console.log('Share canceled');
+      }
+    } else {
+      navigator.clipboard.writeText(upiId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  const handleDownloadQR = () => {
-    if (!qrDataUrl) return;
-    const a = document.createElement('a');
-    a.href = qrDataUrl;
-    a.download = `${(business?.name || 'shop').replace(/\s+/g, '_')}_UPI_QR.png`;
-    a.click();
+  const handleDownload = () => {
+    window.print();
   };
 
-  if (!business) return null;
-
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={
-        <div className="flex items-center gap-2">
-          <QrCode className="w-5 h-5 text-paytm-cyan" />
-          <span>Paytm-Style All-In-One Merchant QR</span>
-        </div>
-      }
-      description="Accept payments from GPay, PhonePe, Paytm, BHIM, and any UPI app."
-      size="md"
-    >
-      <div className="space-y-4">
-        {/* Merchant Standee Container */}
-        <div className="bg-gradient-to-b from-[#002970] to-[#00173D] p-5 rounded-3xl text-white text-center shadow-xl border border-paytm-cyan/30 relative overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-paytm-cyan flex items-center justify-center text-white font-black text-sm">
-                ₹
-              </div>
-              <div className="text-left">
-                <div className="text-xs font-black tracking-tight text-white line-clamp-1">{business.name}</div>
-                <div className="text-[10px] text-paytm-cyan font-semibold">Accepted Here • All UPI Apps</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1 bg-white/10 px-2.5 py-1 rounded-full text-[10px] font-bold text-emerald-300">
-              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-              <span>0% Charges</span>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40">
+      <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-white text-slate-900">
+          <div className="flex items-center gap-2">
+            <Store className="w-4 h-4 text-slate-700" />
+            <span className="text-xs font-bold uppercase tracking-wider">Store Payment QR</span>
           </div>
-
-          {/* QR Canvas Box */}
-          <div className="bg-white p-4 rounded-2xl my-4 mx-auto max-w-[240px] shadow-2xl flex flex-col items-center">
-            {qrDataUrl ? (
-              <img src={qrDataUrl} alt="UPI QR" className="w-48 h-48 rounded-lg" />
-            ) : (
-              <div className="w-48 h-48 bg-slate-100 flex items-center justify-center text-slate-400 text-xs font-semibold">
-                Set UPI ID in Settings
-              </div>
-            )}
-            <div className="text-[11px] font-extrabold text-paytm-royal mt-1 font-mono">{business.upi_id || 'No UPI ID set'}</div>
-          </div>
-
-          {/* Bottom Logos & Tagline */}
-          <div className="flex items-center justify-center gap-3 text-[10px] font-bold text-white/80">
-            <span>Paytm</span>
-            <span>•</span>
-            <span>PhonePe</span>
-            <span>•</span>
-            <span>GPay</span>
-            <span>•</span>
-            <span>BHIM UPI</span>
-          </div>
-        </div>
-
-        {/* Soundbox Voice Audio Toggle Card */}
-        <div className="p-3 bg-paytm-light rounded-2xl border border-paytm-cyan/20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white ${soundEnabled ? 'bg-paytm-royal' : 'bg-slate-400'}`}>
-              {soundEnabled ? <Volume2 className="w-5 h-5 text-paytm-cyan" /> : <VolumeX className="w-5 h-5" />}
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-900">Paytm Soundbox Voice Alert</div>
-              <div className="text-[10px] text-slate-500">Plays "KamaiPlus par ₹... प्राप्त हुए" on payment</div>
-            </div>
-          </div>
-
           <button
-            onClick={toggleSoundbox}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              soundEnabled
-                ? 'bg-paytm-royal text-white shadow-sm'
-                : 'bg-slate-200 text-slate-600'
-            }`}
+            onClick={onClose}
+            className="p-1 rounded hover:bg-slate-100 text-slate-500"
           >
-            {soundEnabled ? 'Active' : 'Muted'}
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 pt-1">
-          <Button variant="outline" size="md" onClick={handleDownloadQR} className="flex-1">
-            <Download className="w-4 h-4 mr-1.5 text-paytm-royal" />
-            <span>Download Standee</span>
+        {/* Standee Body */}
+        <div className="p-5 flex flex-col items-center text-center bg-white space-y-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">{businessName}</h2>
+            <p className="text-xs text-slate-500 font-mono mt-0.5">{upiId}</p>
+          </div>
+
+          {/* QR Code Image Container */}
+          <div className="bg-white p-3 rounded-xl border border-slate-200 inline-flex items-center justify-center min-w-[200px] min-h-[200px]">
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt="Store UPI QR Code"
+                className="w-44 h-44 object-contain"
+              />
+            ) : (
+              <div className="w-44 h-44 flex items-center justify-center text-xs text-slate-400">
+                Generating QR...
+              </div>
+            )}
+          </div>
+
+          {/* 0% Charges Pill */}
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-100 text-slate-700 text-xs font-medium border border-slate-200">
+            <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
+            <span>Accepts GPay, PhonePe, Paytm & BHIM</span>
+          </div>
+
+          {/* Soundbox Setting Row */}
+          <div className="w-full flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-slate-50 text-xs">
+            <div className="flex items-center gap-2">
+              {soundEnabled ? (
+                <Volume2 className="w-4 h-4 text-slate-800" />
+              ) : (
+                <VolumeX className="w-4 h-4 text-slate-400" />
+              )}
+              <div className="text-left">
+                <div className="font-bold text-slate-900">Audio Voice Alert</div>
+                <div className="text-[10px] text-slate-500">Instant spoken notification</div>
+              </div>
+            </div>
+            <button
+              onClick={toggleSoundbox}
+              className={`px-2.5 py-1 rounded border text-[11px] font-bold ${
+                soundEnabled
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-700 border-slate-300'
+              }`}
+            >
+              {soundEnabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-3 border-t border-slate-200 bg-white grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleShare}
+            className="text-xs"
+          >
+            {copied ? <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> : <Share2 className="w-3.5 h-3.5 mr-1" />}
+            <span>{copied ? 'Copied' : 'Share QR'}</span>
           </Button>
-          <Button variant="primary" size="md" onClick={onClose} className="flex-1 bg-paytm-royal hover:bg-paytm-dark">
-            <span>Done</span>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleDownload}
+            className="text-xs"
+          >
+            <Download className="w-3.5 h-3.5 mr-1" />
+            <span>Print Standee</span>
           </Button>
         </div>
       </div>
-    </Modal>
+    </div>
   );
 };

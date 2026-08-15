@@ -4,38 +4,35 @@
 
 @layer base {
   :root {
-    --background: 220 50% 98%;
-    --foreground: 222 84% 15%;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
   }
 
-  * {
+  /* Disable transitions and animations for crisp, clean, instant UI */
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    @apply bg-[#F5F8FE] text-slate-900 antialiased font-sans;
+    @apply bg-[#F8FAFC] text-slate-900 antialiased font-sans;
     min-height: 100vh;
     touch-action: manipulation;
   }
 }
 
-/* Paytm fintech surface highlights */
+/* Clean Corporate Minimalist Card */
 .paytm-card {
-  @apply bg-white border border-slate-200/80 shadow-sm hover:shadow-md rounded-2xl transition-all;
+  @apply bg-white border border-slate-200 rounded-xl;
 }
 
-.paytm-gradient-header {
-  background: linear-gradient(135deg, #002970 0%, #001F54 50%, #001233 100%);
-}
-
-.paytm-gradient-accent {
-  background: linear-gradient(135deg, #00BAF2 0%, #0096C7 100%);
-}
-
-/* Custom scrollbars for clean Indian mobile & POS look */
+/* Custom Minimalist Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -43,12 +40,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 41, 112, 0.2);
-  border-radius: 9999px;
+  background: #cbd5e1;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 41, 112, 0.4);
+  background: #94a3b8;
 }
 
 /* Thermal Printer Specific Styles (58mm, 80mm and A4) */

@@ -40,7 +40,6 @@ import { VoiceBillingModal } from '@/components/voice/VoiceBillingModal';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { announcePayment } from '@/lib/voice/paytmSoundbox';
 import { Sale } from '@/types';
-import confetti from 'canvas-confetti';
 
 export default function BillingPage() {
   const { language, t } = useTranslation();
@@ -322,12 +321,7 @@ export default function BillingPage() {
       });
     }
 
-    // 5. Trigger celebration & Paytm Soundbox Voice Announcement
-    try {
-      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-    } catch (e) {}
-
-    // Announce payment received via Paytm Soundbox
+    // 5. Announce payment received via Voice Soundbox
     if (receivedPaise > 0) {
       announcePayment(receivedPaise, language);
     }

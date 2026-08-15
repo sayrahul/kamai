@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import confetti from 'canvas-confetti';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -96,18 +95,7 @@ export default function OnboardingPage() {
         await seedBusinessStarterData(businessId, businessType);
       }
 
-      // Celebrate onboarding completion
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-        });
-      } catch (e) {}
-
-      setTimeout(() => {
-        router.push('/');
-      }, 500);
+      router.push('/');
     } catch (err) {
       console.error('Failed to complete onboarding:', err);
       alert('Error setting up business. Please try again.');
