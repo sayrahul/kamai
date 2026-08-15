@@ -74,13 +74,20 @@ export function calculateTax(
 export function generateUPILink(
   vpa: string,
   payeeName: string,
-  amountPaise: number,
+  amountPaise?: number,
   invoiceNumber?: string
 ): string {
-  const amountRupees = (amountPaise / 100).toFixed(2);
   const encodedName = encodeURIComponent(payeeName);
-  const note = encodeURIComponent(`Payment for Bill #${invoiceNumber || 'Sale'}`);
-  return `upi://pay?pa=${vpa}&pn=${encodedName}&am=${amountRupees}&cu=INR&tn=${note}`;
+  let link = `upi://pay?pa=${vpa}&pn=${encodedName}&cu=INR`;
+  if (amountPaise && amountPaise > 0) {
+    const amountRupees = (amountPaise / 100).toFixed(2);
+    link += `&am=${amountRupees}`;
+  }
+  if (invoiceNumber) {
+    const note = encodeURIComponent(`Bill #${invoiceNumber}`);
+    link += `&tn=${note}`;
+  }
+  return link;
 }
 
 /**

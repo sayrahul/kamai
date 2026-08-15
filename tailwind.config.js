@@ -8,22 +8,34 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        paytm: {
+          royal: '#002970',
+          dark: '#001F54',
+          cyan: '#00BAF2',
+          cyanDark: '#0096C7',
+          sky: '#00B9F1',
+          light: '#E8F6FE',
+          bg: '#F5F8FE',
+          green: '#00B050',
+          greenLight: '#E6F8ED',
+          gold: '#FFB800',
+        },
         vyapar: {
-          50: '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#fdba74',
-          400: '#fb923c',
-          500: '#f97316', // Saffron / Indian Orange Accent
-          600: '#ea580c',
-          700: '#c2410c',
-          800: '#9a3412',
-          900: '#7c2d12',
+          50: '#E8F6FE',
+          100: '#D0EEFD',
+          200: '#A1DCFB',
+          300: '#72CAF9',
+          400: '#00BAF2', // Paytm Cyan
+          500: '#002970', // Paytm Royal Blue
+          600: '#001F54', // Paytm Deep Navy
+          700: '#00173D',
+          800: '#000F26',
+          900: '#000814',
         },
         emerald_custom: {
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
+          500: '#00B050',
+          600: '#009443',
+          700: '#007836',
         },
         slate_custom: {
           850: '#18202f',

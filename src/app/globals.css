@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 50% 98%;
+    --foreground: 222 84% 15%;
   }
 
   * {
@@ -13,10 +13,23 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased font-sans;
+    @apply bg-[#F5F8FE] text-slate-900 antialiased font-sans;
     min-height: 100vh;
     touch-action: manipulation;
   }
+}
+
+/* Paytm fintech surface highlights */
+.paytm-card {
+  @apply bg-white border border-slate-200/80 shadow-sm hover:shadow-md rounded-2xl transition-all;
+}
+
+.paytm-gradient-header {
+  background: linear-gradient(135deg, #002970 0%, #001F54 50%, #001233 100%);
+}
+
+.paytm-gradient-accent {
+  background: linear-gradient(135deg, #00BAF2 0%, #0096C7 100%);
 }
 
 /* Custom scrollbars for clean Indian mobile & POS look */
@@ -30,12 +43,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.4);
+  background: rgba(0, 41, 112, 0.2);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(156, 163, 175, 0.7);
+  background: rgba(0, 41, 112, 0.4);
 }
 
 /* Thermal Printer Specific Styles (58mm, 80mm and A4) */

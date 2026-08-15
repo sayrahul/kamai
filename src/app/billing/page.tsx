@@ -38,11 +38,12 @@ import { Modal } from '@/components/ui/Modal';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { VoiceBillingModal } from '@/components/voice/VoiceBillingModal';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
+import { announcePayment } from '@/lib/voice/paytmSoundbox';
 import { Sale } from '@/types';
 import confetti from 'canvas-confetti';
 
 export default function BillingPage() {
-  const { t } = useTranslation();
+  const { language, t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
@@ -321,10 +322,15 @@ export default function BillingPage() {
       });
     }
 
-    // 5. Trigger celebration & open full thermal/A4 invoice modal
+    // 5. Trigger celebration & Paytm Soundbox Voice Announcement
     try {
       confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
     } catch (e) {}
+
+    // Announce payment received via Paytm Soundbox
+    if (receivedPaise > 0) {
+      announcePayment(receivedPaise, language);
+    }
 
     setActiveSaleForInvoice(newSale);
     setIsInvoiceModalOpen(true);
