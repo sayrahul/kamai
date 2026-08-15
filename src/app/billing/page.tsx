@@ -37,6 +37,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { VoiceBillingModal } from '@/components/voice/VoiceBillingModal';
+import { InvoiceModal } from '@/components/invoices/InvoiceModal';
+import { Sale } from '@/types';
 import confetti from 'canvas-confetti';
 
 export default function BillingPage() {
@@ -48,7 +50,8 @@ export default function BillingPage() {
   const [amountReceivedInput, setAmountReceivedInput] = useState<string>('');
   
   // Modals
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [activeSaleForInvoice, setActiveSaleForInvoice] = useState<Sale | null>(null);
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
@@ -230,15 +233,14 @@ export default function BillingPage() {
 
     const saleId = `sale_${Date.now()}`;
 
-    // 1. Record Sale in DB
-    await db.sales.put({
+    const newSale: Sale = {
       id: saleId,
       business_id: businessId,
       invoice_number: invoiceNumber,
       customer_id: selectedCustomer?.id,
       customer_name: selectedCustomer?.name || 'Cash Customer',
       customer_phone: selectedCustomer?.phone,
-      items: cart,
+      items: [...cart],
       subtotal: subtotalPaise,
       discount_total: 0,
       tax_total: 0,
@@ -253,7 +255,10 @@ export default function BillingPage() {
       created_at: now,
       updated_at: now,
       sync_status: 'synced',
-    });
+    };
+
+    // 1. Record Sale in DB
+    await db.sales.put(newSale);
 
     // 2. Decrement Inventory & Record Movements
     for (const item of cart) {
@@ -316,23 +321,15 @@ export default function BillingPage() {
       });
     }
 
-    // 5. Trigger celebration & open success receipt modal
+    // 5. Trigger celebration & open full thermal/A4 invoice modal
     try {
       confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
     } catch (e) {}
 
-    setCompletedSaleDetails({
-      invoiceNumber,
-      grandTotalPaise,
-      customerName: selectedCustomer?.name || 'Walk-in Customer',
-      customerPhone: selectedCustomer?.phone,
-      items: [...cart],
-      balanceDuePaise,
-    });
-
+    setActiveSaleForInvoice(newSale);
+    setIsInvoiceModalOpen(true);
     setCart([]);
     setAmountReceivedInput('');
-    setIsSuccessModalOpen(true);
   };
 
   const handleShareWhatsApp = () => {
@@ -638,50 +635,13 @@ export default function BillingPage() {
         </form>
       </Modal>
 
-      {/* Sale Completed Modal */}
-      <Modal
-        isOpen={isSuccessModalOpen}
-        onClose={() => setIsSuccessModalOpen(false)}
-        title="Sale Completed Successfully!"
-        description="Receipt generated. You can share it via WhatsApp or print directly."
-      >
-        <div className="space-y-5 text-center">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center mx-auto">
-            <CheckCircle2 className="w-8 h-8" />
-          </div>
-
-          <div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">
-              {formatINR(completedSaleDetails?.grandTotalPaise || 0)}
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Invoice #{completedSaleDetails?.invoiceNumber} • {completedSaleDetails?.customerName}
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            <Button
-              variant="success"
-              size="lg"
-              onClick={handleShareWhatsApp}
-              className="w-full flex-1"
-            >
-              <Share2 className="w-4 h-4 mr-2" />
-              <span>{t('billing.shareWhatsApp')}</span>
-            </Button>
-
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={() => window.print()}
-              className="w-full sm:w-auto"
-            >
-              <Printer className="w-4 h-4 mr-2" />
-              <span>{t('billing.printReceipt')}</span>
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {/* Full Thermal / A4 GST Invoice & Receipt Modal */}
+      <InvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        sale={activeSaleForInvoice}
+        business={business || null}
+      />
     </div>
   );
 }

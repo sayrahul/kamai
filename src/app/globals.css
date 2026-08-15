@@ -38,24 +38,37 @@
   background: rgba(156, 163, 175, 0.7);
 }
 
-/* Thermal Printer Specific Styles (58mm and 80mm) */
+/* Thermal Printer Specific Styles (58mm, 80mm and A4) */
 @media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   body * {
     visibility: hidden;
   }
-  #printable-receipt, #printable-receipt * {
+
+  #printable-invoice-container, #printable-invoice-container * {
     visibility: visible;
   }
-  #printable-receipt {
+
+  #printable-invoice-container {
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 8px;
-    font-size: 12px;
-    line-height: 1.2;
-    color: black;
-    background: white;
+    margin: 0 auto;
+    padding: 10px;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: none !important;
   }
 }

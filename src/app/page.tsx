@@ -25,9 +25,12 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { InvoiceModal } from '@/components/invoices/InvoiceModal';
+import { Sale } from '@/types';
 
 export default function DashboardPage() {
   const { t } = useTranslation();
+  const [selectedSaleForInvoice, setSelectedSaleForInvoice] = React.useState<Sale | null>(null);
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   
@@ -318,10 +321,16 @@ export default function DashboardPage() {
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {sales.map((s) => (
-                <div key={s.id} className="py-3 flex items-center justify-between text-xs">
+                <div
+                  key={s.id}
+                  onClick={() => setSelectedSaleForInvoice(s)}
+                  className="py-3 flex items-center justify-between text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 p-2 rounded-xl transition-colors"
+                >
                   <div>
-                    <div className="font-bold text-slate-900 dark:text-slate-100">
-                      {s.invoice_number} • {s.customer_name || 'Cash Customer'}
+                    <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <span>{s.invoice_number}</span>
+                      <span className="text-slate-400">•</span>
+                      <span>{s.customer_name || 'Cash Customer'}</span>
                     </div>
                     <div className="text-[11px] text-slate-400 mt-0.5">
                       {s.items.length} items • {s.payment_method.toUpperCase()}
@@ -341,6 +350,14 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Invoice & Thermal Receipt Modal */}
+      <InvoiceModal
+        isOpen={!!selectedSaleForInvoice}
+        onClose={() => setSelectedSaleForInvoice(null)}
+        sale={selectedSaleForInvoice}
+        business={business || null}
+      />
     </div>
   );
 }
