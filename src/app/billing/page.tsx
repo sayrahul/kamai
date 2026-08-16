@@ -34,7 +34,9 @@ import {
   Edit2,
   UserPlus,
   X,
-  Sliders
+  ShoppingCart,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -53,6 +55,9 @@ export default function BillingPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [amountReceivedInput, setAmountReceivedInput] = useState<string>('');
+
+  // Mobile Bottom Drawer State
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState<boolean>(false);
 
   // Item Editing State
   const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null);
@@ -307,6 +312,7 @@ export default function BillingPage() {
   };
 
   // Calculations
+  const totalItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const subtotalPaise = cart.reduce((acc, item) => acc + item.total_amount, 0);
   const grandTotalPaise = subtotalPaise;
 
@@ -430,336 +436,419 @@ export default function BillingPage() {
     });
 
     setIsInvoiceModalOpen(true);
+    setIsMobileCartOpen(false);
     setCart([]);
     setAmountReceivedInput('');
   };
 
+  // Reusable Checkout Panel Component for Desktop side-panel and Mobile Bottom Drawer
+  const renderCheckoutPanel = () => (
+    <div className="space-y-3">
+      {/* Customer Picker & Quick Add */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            Customer
+          </label>
+          <button
+            type="button"
+            onClick={() => setIsAddCustomerModalOpen(true)}
+            className="text-[11px] font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>+ New Customer</span>
+          </button>
+        </div>
+
+        <select
+          value={selectedCustomerId}
+          onChange={(e) => setSelectedCustomerId(e.target.value)}
+          className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
+        >
+          <option value="">Walk-in Cash Customer (नकद ग्राहक)</option>
+          {customers.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name} {c.phone ? `(${c.phone})` : ''} {c.current_balance > 0 ? `• Udhar: ${formatINR(c.current_balance)}` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Cart Header */}
+      <div className="flex items-center justify-between pt-1">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+          Cart Items ({totalItemCount})
+        </span>
+        {cart.length > 0 && (
+          <button
+            onClick={() => setCart([])}
+            className="text-[11px] font-bold text-rose-600 hover:text-rose-700"
+          >
+            Clear Cart
+          </button>
+        )}
+      </div>
+
+      {/* Cart Items List with Inline / Popover Edit */}
+      <div className="border-t border-b border-slate-100 py-2 space-y-2 max-h-56 overflow-y-auto">
+        {cart.length === 0 ? (
+          <div className="text-center py-6 text-xs text-slate-400 font-medium">
+            Cart is empty. Tap products on the left to add items to bill.
+          </div>
+        ) : (
+          cart.map((item) => (
+            <div 
+              key={item.product_id} 
+              className="p-2 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-slate-900 truncate">
+                  {item.product_name}
+                </div>
+                <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1.5">
+                  <span>{formatINR(item.unit_price)} × {item.quantity} {item.unit}</span>
+                  {item.discount_amount ? (
+                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1 rounded">
+                      -₹{(item.discount_amount / 100).toFixed(0)} off
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Quantity Stepper & Edit Button */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => updateQuantity(item.product_id, -1)}
+                  className="w-6 h-6 rounded bg-white border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-100"
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <span className="font-bold font-mono text-xs w-6 text-center text-slate-900">{item.quantity}</span>
+                <button
+                  onClick={() => updateQuantity(item.product_id, 1)}
+                  className="w-6 h-6 rounded bg-white border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-100"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+
+                {/* Edit Price/Quantity/Discount Button */}
+                <button
+                  onClick={() => handleOpenEditItem(item)}
+                  title="Edit Price, Quantity or Item Discount"
+                  className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-white ml-0.5"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-slate-700" />
+                </button>
+
+                {/* Remove Button */}
+                <button
+                  onClick={() => removeFromCart(item.product_id)}
+                  className="p-1 rounded text-slate-400 hover:text-rose-600 ml-0.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="w-16 text-right font-extrabold font-mono text-xs text-slate-900">
+                {formatINR(item.total_amount)}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Payment Method Selector */}
+      <div>
+        <label className="text-xs font-bold text-slate-900 uppercase tracking-wider block mb-1">
+          Payment Mode
+        </label>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { id: 'cash', label: 'Cash (नकद)', icon: Banknote },
+            { id: 'upi', label: 'UPI / QR', icon: QrCode },
+            { id: 'credit', label: 'Udhar (उधार)', icon: BookOpen },
+          ].map((m) => {
+            const Icon = m.icon;
+            const isSelected = paymentMethod === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setPaymentMethod(m.id as PaymentMethod)}
+                className={cn(
+                  'py-2 px-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all',
+                  isSelected
+                    ? 'bg-slate-900 border-slate-900 text-white'
+                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                )}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{m.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* If Cash: Amount Received Input for Change calculation */}
+      {paymentMethod === 'cash' && cart.length > 0 && (
+        <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700">Cash Tendered / Received:</span>
+            <input
+              type="number"
+              step="1"
+              placeholder={(grandTotalPaise / 100).toString()}
+              value={amountReceivedInput}
+              onChange={(e) => setAmountReceivedInput(e.target.value)}
+              className="w-24 bg-white border border-slate-300 text-slate-900 text-right font-mono font-bold text-xs rounded px-2 py-1 focus:outline-none focus:border-slate-900"
+            />
+          </div>
+          {amountReceivedInput && parseFloat(amountReceivedInput) * 100 > grandTotalPaise && (
+            <div className="flex items-center justify-between text-xs text-emerald-800 font-bold">
+              <span>Return Change to Customer:</span>
+              <span className="font-mono">
+                {formatINR(Math.round(parseFloat(amountReceivedInput) * 100 - grandTotalPaise))}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Bottom Total & Checkout Button */}
+      <div className="pt-2.5 border-t border-slate-200 space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-bold text-slate-600 uppercase tracking-wider">Grand Total</span>
+          <span className="text-xl font-extrabold text-slate-900 font-mono">
+            {formatINR(grandTotalPaise)}
+          </span>
+        </div>
+
+        <Button
+          size="lg"
+          disabled={cart.length === 0}
+          onClick={handleCompleteSale}
+          className="w-full text-xs font-bold py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400"
+        >
+          <Receipt className="w-4 h-4 mr-1.5 text-slate-950" />
+          <span>Complete Sale & Generate Bill</span>
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-      {/* Left: Product Selection Catalog (7 cols) */}
-      <div className="lg:col-span-7 space-y-3">
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
-          {/* Search & Actions Bar */}
-          <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <Input
-                placeholder="Search products by name, barcode or category..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                leftIcon={<Search className="w-4 h-4 text-slate-400" />}
-                autoFocus
-              />
+    <div className="relative pb-24 md:pb-0">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Left: Product Selection Catalog (7 cols on desktop, full width on mobile) */}
+        <div className="lg:col-span-7 space-y-3">
+          <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
+            {/* Search & Actions Bar */}
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search products by name, barcode or category..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+                  autoFocus
+                />
+              </div>
+
+              {/* Barcode Camera Scanner Button */}
+              <button
+                type="button"
+                onClick={() => setIsBarcodeModalOpen(true)}
+                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center"
+                title="Scan Barcode via Camera"
+              >
+                <Camera className="w-4 h-4 text-slate-800" />
+              </button>
+
+              {/* Voice Assistant Microphone Button */}
+              <button
+                type="button"
+                onClick={() => setIsVoiceModalOpen(true)}
+                className="px-3 py-2 min-h-[38px] rounded-lg bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                title="Voice Bill Entry (बोलकर बिल बनाएं)"
+              >
+                <Mic className="w-4 h-4 text-slate-950" />
+                <span className="hidden sm:inline">Voice POS</span>
+              </button>
             </div>
 
-            {/* Barcode Camera Scanner Button */}
-            <button
-              type="button"
-              onClick={() => setIsBarcodeModalOpen(true)}
-              className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center"
-              title="Scan Barcode via Camera"
-            >
-              <Camera className="w-4 h-4 text-slate-800" />
-            </button>
-
-            {/* Voice Assistant Microphone Button */}
-            <button
-              type="button"
-              onClick={() => setIsVoiceModalOpen(true)}
-              className="px-3 py-2 min-h-[38px] rounded-lg bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-sm"
-              title="Voice Bill Entry (बोलकर बिल बनाएं)"
-            >
-              <Mic className="w-4 h-4 text-slate-950" />
-              <span className="hidden sm:inline">Voice POS</span>
-            </button>
-          </div>
-
-          {/* Category Filter Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            <button
-              onClick={() => setSelectedCategory('all')}
-              className={cn(
-                'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap',
-                selectedCategory === 'all'
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              )}
-            >
-              All Items ({products.length})
-            </button>
-            {categories.map((cat) => (
+            {/* Category Filter Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
               <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
+                onClick={() => setSelectedCategory('all')}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1',
-                  selectedCategory === cat.id
-                    ? 'bg-slate-900 text-white font-bold'
+                  'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap',
+                  selectedCategory === 'all'
+                    ? 'bg-slate-900 text-white'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 )}
               >
-                <Tag className="w-3 h-3 text-slate-400" />
-                <span>{cat.name}</span>
+                All Items ({products.length})
               </button>
-            ))}
-          </div>
-
-          {/* Products Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
-            {products.length === 0 ? (
-              <div className="col-span-full py-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
-                No items found. Adjust your search or add new products in the Products catalog.
-              </div>
-            ) : (
-              products.map((p) => {
-                const inCart = cart.find((i) => i.product_id === p.id);
-                const isLowStock = p.current_stock <= p.min_stock_level;
-
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => addToCart(p, 1)}
-                    className={cn(
-                      'p-3 rounded-xl border text-left flex flex-col justify-between cursor-pointer relative overflow-hidden bg-white hover:border-slate-400',
-                      inCart
-                        ? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-50/40'
-                        : 'border-slate-200'
-                    )}
-                  >
-                    {inCart && (
-                      <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-950 text-[10px] font-black shadow-sm">
-                        {inCart.quantity} in cart
-                      </div>
-                    )}
-
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400">
-                        {p.category_name || 'Item'}
-                      </span>
-                      <h4 className="text-xs font-bold text-slate-900 line-clamp-2 mt-0.5">
-                        {p.name}
-                      </h4>
-                    </div>
-
-                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-baseline justify-between">
-                      <div>
-                        <span className="text-sm font-extrabold text-slate-900 font-mono">
-                          {formatINR(p.selling_price)}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-medium">/{p.unit}</span>
-                      </div>
-                      <span className={cn(
-                        "text-[10px] font-semibold",
-                        isLowStock ? "text-amber-700" : "text-slate-400"
-                      )}>
-                        {p.current_stock} left
-                      </span>
-                    </div>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Right: Cart, Customer & Checkout (5 cols) */}
-      <div className="lg:col-span-5 space-y-3">
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col min-h-[calc(100vh-140px)] justify-between">
-          <div className="space-y-3">
-            {/* Customer Picker & Quick Add */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Customer
-                </label>
+              {categories.map((cat) => (
                 <button
-                  type="button"
-                  onClick={() => setIsAddCustomerModalOpen(true)}
-                  className="text-[11px] font-bold text-slate-700 hover:text-slate-950 flex items-center gap-1"
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1',
+                    selectedCategory === cat.id
+                      ? 'bg-slate-900 text-white font-bold'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  )}
                 >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>+ New Customer</span>
+                  <Tag className="w-3 h-3 text-slate-400" />
+                  <span>{cat.name}</span>
                 </button>
-              </div>
-
-              <select
-                value={selectedCustomerId}
-                onChange={(e) => setSelectedCustomerId(e.target.value)}
-                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
-              >
-                <option value="">Walk-in Cash Customer (नकद ग्राहक)</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.phone ? `(${c.phone})` : ''} {c.current_balance > 0 ? `• Udhar: ${formatINR(c.current_balance)}` : ''}
-                  </option>
-                ))}
-              </select>
+              ))}
             </div>
 
-            {/* Cart Header */}
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                Cart Items ({cart.reduce((a, b) => a + b.quantity, 0)})
-              </span>
-              {cart.length > 0 && (
-                <button
-                  onClick={() => setCart([])}
-                  className="text-[11px] font-bold text-rose-600 hover:text-rose-700"
-                >
-                  Clear Cart
-                </button>
-              )}
-            </div>
-
-            {/* Cart Items List with Inline / Popover Edit */}
-            <div className="border-t border-b border-slate-100 py-2 space-y-2 max-h-60 overflow-y-auto">
-              {cart.length === 0 ? (
-                <div className="text-center py-8 text-xs text-slate-400 font-medium">
-                  Cart is empty. Tap products on the left to add items to bill.
+            {/* Products Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
+              {products.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
+                  No items found. Adjust your search or add new products in the Products catalog.
                 </div>
               ) : (
-                cart.map((item) => (
-                  <div 
-                    key={item.product_id} 
-                    className="p-2 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-slate-900 truncate">
-                        {item.product_name}
-                      </div>
-                      <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1.5">
-                        <span>{formatINR(item.unit_price)} × {item.quantity} {item.unit}</span>
-                        {item.discount_amount ? (
-                          <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1 rounded">
-                            -₹{(item.discount_amount / 100).toFixed(0)} off
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
+                products.map((p) => {
+                  const inCart = cart.find((i) => i.product_id === p.id);
+                  const isLowStock = p.current_stock <= p.min_stock_level;
 
-                    {/* Quantity Stepper & Edit Button */}
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => updateQuantity(item.product_id, -1)}
-                        className="w-6 h-6 rounded bg-white border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-100"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="font-bold font-mono text-xs w-6 text-center text-slate-900">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.product_id, 1)}
-                        className="w-6 h-6 rounded bg-white border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-100"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-
-                      {/* Edit Price/Quantity/Discount Button */}
-                      <button
-                        onClick={() => handleOpenEditItem(item)}
-                        title="Edit Price, Quantity or Item Discount"
-                        className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-white ml-0.5"
-                      >
-                        <Edit2 className="w-3.5 h-3.5 text-slate-700" />
-                      </button>
-
-                      {/* Remove Button */}
-                      <button
-                        onClick={() => removeFromCart(item.product_id)}
-                        className="p-1 rounded text-slate-400 hover:text-rose-600 ml-0.5"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="w-16 text-right font-extrabold font-mono text-xs text-slate-900">
-                      {formatINR(item.total_amount)}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Payment Method Selector */}
-            <div>
-              <label className="text-xs font-bold text-slate-900 uppercase tracking-wider block mb-1">
-                Payment Mode
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: 'cash', label: 'Cash (नकद)', icon: Banknote },
-                  { id: 'upi', label: 'UPI / QR', icon: QrCode },
-                  { id: 'credit', label: 'Udhar (उधार)', icon: BookOpen },
-                ].map((m) => {
-                  const Icon = m.icon;
-                  const isSelected = paymentMethod === m.id;
                   return (
                     <button
-                      key={m.id}
+                      key={p.id}
                       type="button"
-                      onClick={() => setPaymentMethod(m.id as PaymentMethod)}
+                      onClick={() => addToCart(p, 1)}
                       className={cn(
-                        'py-2 px-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all',
-                        isSelected
-                          ? 'bg-slate-900 border-slate-900 text-white'
-                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                        'p-3 rounded-xl border text-left flex flex-col justify-between cursor-pointer relative overflow-hidden bg-white hover:border-slate-400 transition-all active:scale-[0.98]',
+                        inCart
+                          ? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-50/40'
+                          : 'border-slate-200'
                       )}
                     >
-                      <Icon className="w-3.5 h-3.5" />
-                      <span>{m.label}</span>
+                      {inCart && (
+                        <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-950 text-[10px] font-black shadow-sm">
+                          {inCart.quantity} in cart
+                        </div>
+                      )}
+
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400">
+                          {p.category_name || 'Item'}
+                        </span>
+                        <h4 className="text-xs font-bold text-slate-900 line-clamp-2 mt-0.5">
+                          {p.name}
+                        </h4>
+                      </div>
+
+                      <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-baseline justify-between">
+                        <div>
+                          <span className="text-sm font-extrabold text-slate-900 font-mono">
+                            {formatINR(p.selling_price)}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium">/{p.unit}</span>
+                        </div>
+                        <span className={cn(
+                          "text-[10px] font-semibold",
+                          isLowStock ? "text-amber-700" : "text-slate-400"
+                        )}>
+                          {p.current_stock} left
+                        </span>
+                      </div>
                     </button>
                   );
-                })}
-              </div>
+                })
+              )}
             </div>
-
-            {/* If Cash: Amount Received Input for Change calculation */}
-            {paymentMethod === 'cash' && cart.length > 0 && (
-              <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700">Cash Tendered / Received:</span>
-                  <input
-                    type="number"
-                    step="1"
-                    placeholder={(grandTotalPaise / 100).toString()}
-                    value={amountReceivedInput}
-                    onChange={(e) => setAmountReceivedInput(e.target.value)}
-                    className="w-24 bg-white border border-slate-300 text-slate-900 text-right font-mono font-bold text-xs rounded px-2 py-1 focus:outline-none focus:border-slate-900"
-                  />
-                </div>
-                {amountReceivedInput && parseFloat(amountReceivedInput) * 100 > grandTotalPaise && (
-                  <div className="flex items-center justify-between text-xs text-emerald-800 font-bold">
-                    <span>Return Change to Customer:</span>
-                    <span className="font-mono">
-                      {formatINR(Math.round(parseFloat(amountReceivedInput) * 100 - grandTotalPaise))}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
+        </div>
 
-          {/* Bottom Total & Checkout Button */}
-          <div className="pt-3 border-t border-slate-200 space-y-2.5 mt-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-600 uppercase tracking-wider">Grand Total</span>
-              <span className="text-xl font-extrabold text-slate-900 font-mono">
-                {formatINR(grandTotalPaise)}
-              </span>
-            </div>
-
-            <Button
-              size="lg"
-              disabled={cart.length === 0}
-              onClick={handleCompleteSale}
-              className="w-full text-xs font-bold py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400"
-            >
-              <Receipt className="w-4 h-4 mr-1.5 text-slate-950" />
-              <span>Complete Sale & Generate Bill</span>
-            </Button>
+        {/* Right: Cart, Customer & Checkout (5 cols on Desktop) */}
+        <div className="hidden lg:block lg:col-span-5 space-y-3">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col min-h-[calc(100vh-140px)] justify-between">
+            {renderCheckoutPanel()}
           </div>
         </div>
       </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* ANDROID FLOATING MINI CART BAR (Docked above Bottom Navbar) */}
+      {/* ------------------------------------------------------------- */}
+      {cart.length > 0 && (
+        <div className="lg:hidden fixed bottom-[64px] left-3 right-3 z-40">
+          <div 
+            onClick={() => setIsMobileCartOpen(true)}
+            className="bg-slate-900 text-white rounded-xl p-3 shadow-2xl border border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xs shadow-sm flex-shrink-0">
+                {totalItemCount}
+              </div>
+
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-extrabold font-mono text-sm text-white">
+                    {formatINR(grandTotalPaise)}
+                  </span>
+                  <span className="text-slate-400 text-[10px] font-medium">
+                    ({cart.length} {cart.length === 1 ? 'item' : 'items'})
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-300 truncate max-w-[180px] sm:max-w-[280px]">
+                  {cart.map(i => `${i.product_name} (${i.quantity})`).join(', ')}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 text-xs font-extrabold shadow-sm">
+              <span>View Cart</span>
+              <ChevronUp className="w-3.5 h-3.5" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MOBILE BOTTOM SHEET CART DRAWER */}
+      {/* ------------------------------------------------------------- */}
+      {isMobileCartOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60">
+          <div 
+            className="fixed inset-0"
+            onClick={() => setIsMobileCartOpen(false)}
+          />
+
+          <div className="relative bg-white rounded-t-2xl border-t border-slate-200 shadow-2xl max-h-[85vh] flex flex-col z-10 overflow-hidden">
+            {/* Drawer Header Handle */}
+            <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
+                  {totalItemCount}
+                </div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                  Cart Breakdown & Checkout
+                </h3>
+              </div>
+
+              <button
+                onClick={() => setIsMobileCartOpen(false)}
+                className="p-1 rounded-lg hover:bg-slate-200 text-slate-500"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Drawer Body */}
+            <div className="p-4 overflow-y-auto flex-1">
+              {renderCheckoutPanel()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Item in Cart Modal */}
       <Modal
