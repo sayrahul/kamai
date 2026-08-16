@@ -14,7 +14,8 @@ import {
   ShoppingBag, 
   TrendingUp, 
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  Palette
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +33,7 @@ export const Sidebar: React.FC = () => {
     { href: '/customers', label: t('nav.customers'), icon: Users },
     { href: '/purchases', label: t('nav.purchases'), icon: ShoppingBag },
     { href: '/growth', label: t('nav.growth'), icon: TrendingUp },
+    { href: '/invoice-designer', label: 'Invoice Themes', icon: Palette },
     { href: '/settings', label: t('nav.settings'), icon: Settings },
   ];
 

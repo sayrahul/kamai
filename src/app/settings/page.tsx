@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { db } from '@/lib/db';
+import { db, seedComprehensiveDemoData } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import QRCode from 'qrcode';
 import { generateUPILink } from '@/lib/utils';
+import Link from 'next/link';
 import { 
   Settings, 
   Store, 
@@ -13,19 +14,20 @@ import {
   Upload, 
   Globe, 
   CheckCircle2, 
-  QrCode,
-  FileText,
-  Camera,
-  Trash2,
-  Building2,
-  Receipt,
-  User,
-  Phone,
-  Mail,
-  MapPin,
-  HelpCircle,
-  ExternalLink,
-  Sparkles
+  QrCode, 
+  FileText, 
+  Camera, 
+  Trash2, 
+  Building2, 
+  Receipt, 
+  User, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  HelpCircle, 
+  ExternalLink, 
+  Sparkles,
+  Palette
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -222,6 +224,34 @@ export default function SettingsPage() {
     reader.readAsText(file);
   };
 
+  // Load 50+ Test Demo Data
+  const [isSeedingDemo, setIsSeedingDemo] = useState(false);
+  const [demoSeedMessage, setDemoSeedMessage] = useState('');
+
+  const handleLoadDemoData = async (clearExisting = false) => {
+    if (!business?.id) {
+      alert('Store not loaded yet. Please wait a moment.');
+      return;
+    }
+
+    if (clearExisting && !confirm('This will replace current demo catalog, sales, customers & suppliers with fresh 50+ test records. Proceed?')) {
+      return;
+    }
+
+    setIsSeedingDemo(true);
+    setDemoSeedMessage('');
+    try {
+      const res = await seedComprehensiveDemoData(business.id, clearExisting);
+      setDemoSeedMessage(`Successfully loaded ${res.productsCount} products, ${res.customersCount} customers, ${res.suppliersCount} suppliers, and ${res.salesCount} sales records!`);
+      setTimeout(() => setDemoSeedMessage(''), 6000);
+    } catch (err) {
+      console.error('Demo data seed error:', err);
+      alert('Failed to load demo data. Check console for details.');
+    } finally {
+      setIsSeedingDemo(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -269,6 +299,14 @@ export default function SettingsPage() {
             </button>
           );
         })}
+
+        <Link
+          href="/invoice-designer"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap bg-amber-400 hover:bg-amber-500 text-slate-950 border border-amber-400 shadow-xs transition-all"
+        >
+          <Palette className="w-3.5 h-3.5 text-slate-950" />
+          <span>🎨 Invoice Themes (Vyapar)</span>
+        </Link>
       </div>
 
       {/* Tab 1: Profile & Logo */}
@@ -583,45 +621,94 @@ export default function SettingsPage() {
         </form>
       )}
 
-      {/* Tab 4: Backup & Restore */}
+      {/* Tab 4: Backup & Restore & Demo Data */}
       {activeTab === 'backup' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="p-4 bg-white border border-slate-200 space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-              <Download className="w-4 h-4 text-slate-700" />
-              <span>Export Full Shop Database</span>
-            </span>
-            <p className="text-xs text-slate-500">
-              Download your complete catalog, all sales, customer Udhar Khata ledger, and settings into a secure JSON backup.
+        <div className="space-y-4">
+          {/* Demo Data Seeder Card */}
+          <Card className="p-4 bg-amber-50/60 border border-amber-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span>Test Demo Data (50+ Sample Items)</span>
+              </span>
+              <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+                For Testing & QA
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Instantly populate your store with 50+ real Indian kirana/FMCG products (with barcodes, MRP, tax rates & units), 15 customers with active Udhar balances, 6 wholesale suppliers, and 20 recent sales transactions to test analytics and billing POS.
             </p>
-            <Button
-              variant="secondary"
-              onClick={handleExportBackup}
-              size="sm"
-              className="w-full font-bold text-xs justify-center"
-            >
-              <Download className="w-3.5 h-3.5 mr-1.5" />
-              <span>Download Backup JSON</span>
-            </Button>
+
+            {demoSeedMessage && (
+              <div className="p-2.5 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+                <span>{demoSeedMessage}</span>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <Button
+                variant="primary"
+                onClick={() => handleLoadDemoData(false)}
+                disabled={isSeedingDemo}
+                size="sm"
+                className="font-bold text-xs justify-center bg-slate-900 text-white hover:bg-slate-800"
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+                <span>{isSeedingDemo ? 'Loading 50+ Test Items...' : '⚡ Append 50+ Test Demo Data'}</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => handleLoadDemoData(true)}
+                disabled={isSeedingDemo}
+                size="sm"
+                className="font-bold text-xs justify-center border-rose-300 text-rose-700 hover:bg-rose-50"
+              >
+                <span>Reset & Fresh Seed 50+ Data</span>
+              </Button>
+            </div>
           </Card>
 
-          <Card className="p-4 bg-white border border-slate-200 space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-              <Upload className="w-4 h-4 text-slate-700" />
-              <span>Restore Database from Backup</span>
-            </span>
-            <p className="text-xs text-slate-500">
-              Import a previously exported JSON backup file to restore all your products and ledger records.
-            </p>
-            <label className="block w-full">
-              <span className="sr-only">Choose backup file</span>
-              <div className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-800 hover:bg-slate-50 cursor-pointer">
-                <Upload className="w-3.5 h-3.5 text-slate-700" />
-                <span>Select & Restore Backup File</span>
-              </div>
-              <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
-            </label>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="p-4 bg-white border border-slate-200 space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                <Download className="w-4 h-4 text-slate-700" />
+                <span>Export Full Shop Database</span>
+              </span>
+              <p className="text-xs text-slate-500">
+                Download your complete catalog, all sales, customer Udhar Khata ledger, and settings into a secure JSON backup.
+              </p>
+              <Button
+                variant="secondary"
+                onClick={handleExportBackup}
+                size="sm"
+                className="w-full font-bold text-xs justify-center"
+              >
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                <span>Download Backup JSON</span>
+              </Button>
+            </Card>
+
+            <Card className="p-4 bg-white border border-slate-200 space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                <Upload className="w-4 h-4 text-slate-700" />
+                <span>Restore Database from Backup</span>
+              </span>
+              <p className="text-xs text-slate-500">
+                Import a previously exported JSON backup file to restore all your products and ledger records.
+              </p>
+              <label className="block w-full">
+                <span className="sr-only">Choose backup file</span>
+                <div className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-800 hover:bg-slate-50 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5 text-slate-700" />
+                  <span>Select & Restore Backup File</span>
+                </div>
+                <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
+              </label>
+            </Card>
+          </div>
         </div>
       )}
     </div>

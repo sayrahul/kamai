@@ -3,7 +3,11 @@ import { formatINR, generateUPILink } from '@/lib/utils';
 
 export interface SharedInvoicePayload {
   b_name: string;
+  b_tagline?: string;
+  b_logo?: string;
+  b_owner?: string;
   b_phone?: string;
+  b_email?: string;
   b_address?: string;
   b_gstin?: string;
   b_upi?: string;
@@ -13,6 +17,7 @@ export interface SharedInvoicePayload {
   s_cust?: string;
   s_phone?: string;
   s_subtotal: number;
+  s_discount?: number;
   s_tax: number;
   s_total: number;
   s_received: number;
@@ -25,6 +30,7 @@ export interface SharedInvoicePayload {
     unit: string;
     price: number;
     tax: number;
+    discount?: number;
     total: number;
   }>;
 }
@@ -36,7 +42,11 @@ export function encodeInvoiceForSharing(sale: Sale, business: Business): string 
   try {
     const payload: SharedInvoicePayload = {
       b_name: business.name,
+      b_tagline: business.tagline,
+      b_logo: business.logo_url,
+      b_owner: business.owner_name,
       b_phone: business.phone,
+      b_email: business.email,
       b_address: business.address,
       b_gstin: business.gstin,
       b_upi: business.upi_id,
@@ -46,6 +56,7 @@ export function encodeInvoiceForSharing(sale: Sale, business: Business): string 
       s_cust: sale.customer_name,
       s_phone: sale.customer_phone,
       s_subtotal: sale.subtotal,
+      s_discount: sale.discount_total,
       s_tax: sale.tax_total,
       s_total: sale.grand_total,
       s_received: sale.amount_received,
@@ -58,6 +69,7 @@ export function encodeInvoiceForSharing(sale: Sale, business: Business): string 
         unit: i.unit,
         price: i.unit_price,
         tax: i.tax_rate,
+        discount: i.discount_amount,
         total: i.total_amount,
       })),
     };

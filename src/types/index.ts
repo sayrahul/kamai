@@ -18,6 +18,32 @@ export type SupportedLanguage = 'en' | 'hi' | 'mr';
 
 export type UserRole = 'OWNER' | 'MANAGER' | 'CASHIER' | 'STAFF';
 
+export type InvoiceThemeId = 
+  | 'vyapar_classic' 
+  | 'modern_emerald' 
+  | 'royal_blue' 
+  | 'golden_elegance' 
+  | 'compact_kirana' 
+  | 'thermal_minimal';
+
+export interface InvoiceThemeConfig {
+  theme_id: InvoiceThemeId;
+  primary_color: string;
+  header_style: 'standard' | 'banner' | 'centered' | 'modern';
+  show_logo: boolean;
+  show_tagline: boolean;
+  show_owner: boolean;
+  show_upi_qr: boolean;
+  show_gst_breakup: boolean;
+  show_hsn_code: boolean;
+  show_mrp_savings: boolean;
+  show_terms: boolean;
+  show_signature: boolean;
+  custom_title?: string;
+  custom_footer?: string;
+  custom_terms?: string;
+}
+
 export interface Business {
   id: string; // UUID v4
   name: string;
@@ -41,6 +67,7 @@ export interface Business {
   next_invoice_number: number;
   terms_conditions?: string;
   footer_message?: string;
+  invoice_theme_config?: InvoiceThemeConfig;
   is_onboarded: boolean;
   created_at: string;
   updated_at: string;

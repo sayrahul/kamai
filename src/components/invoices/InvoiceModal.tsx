@@ -9,6 +9,7 @@ import { Business, Sale, CartItem } from '@/types';
 import { formatINR, generateUPILink } from '@/lib/utils';
 import { calculateGstSummary, numberToWordsINR } from '@/lib/invoices/gstCalculator';
 import { sendInvoiceViaWhatsApp, generateWhatsAppInvoiceMessage } from '@/lib/invoices/whatsappInvoice';
+import Link from 'next/link';
 import { 
   Printer, 
   Share2, 
@@ -22,8 +23,11 @@ import {
   MapPin,
   ExternalLink,
   MessageCircle,
-  Building2
+  Building2,
+  Sparkles,
+  Palette
 } from 'lucide-react';
+import { downloadInvoicePdfFromElement, shareInvoicePdfDirect } from '@/lib/invoices/pdfGenerator';
 
 export type InvoiceFormat = 'thermal-58' | 'thermal-80' | 'a4';
 
@@ -44,6 +48,8 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [recipientPhone, setRecipientPhone] = useState<string>('');
   const [showPhoneInput, setShowPhoneInput] = useState<boolean>(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+  const [shareSuccessMsg, setShareSuccessMsg] = useState<string>('');
 
   useEffect(() => {
     if (isOpen && sale && business) {
@@ -83,8 +89,35 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
     window.print();
   };
 
-  const handleWhatsAppSend = () => {
-    sendInvoiceViaWhatsApp(recipientPhone, sale, business);
+  const handleDownloadPdf = async () => {
+    const el = document.getElementById('modal-printable-invoice');
+    if (!el) return;
+    setIsGeneratingPdf(true);
+    try {
+      await downloadInvoicePdfFromElement(el, sale.invoice_number);
+    } catch (err) {
+      console.error('PDF download error:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleWhatsAppSend = async () => {
+    const el = document.getElementById('modal-printable-invoice');
+    setIsGeneratingPdf(true);
+    try {
+      const res = await shareInvoicePdfDirect(el, sale, business, recipientPhone);
+      if (res.shared) {
+        setShareSuccessMsg('Invoice dispatched to WhatsApp!');
+        setTimeout(() => setShareSuccessMsg(''), 4000);
+      }
+    } catch (err) {
+      console.error('WhatsApp send error:', err);
+      sendInvoiceViaWhatsApp(recipientPhone, sale, business);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   return (
@@ -139,6 +172,18 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Link href="/invoice-designer">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs font-bold gap-1 text-slate-700 hover:text-slate-950"
+                title="Customize Invoice Theme & Layout"
+              >
+                <Palette className="w-3.5 h-3.5 text-amber-600" />
+                <span className="hidden sm:inline">Themes</span>
+              </Button>
+            </Link>
+
             <Button
               variant="outline"
               size="sm"
@@ -146,13 +191,25 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               className="text-xs font-bold gap-1"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Print Bill</span>
+              <span className="hidden sm:inline">Print</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              className="text-xs font-bold gap-1"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{isGeneratingPdf ? 'Generating...' : 'PDF'}</span>
             </Button>
 
             <Button
               size="sm"
               onClick={handleWhatsAppSend}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 text-xs font-bold gap-1"
+              disabled={isGeneratingPdf}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 text-xs font-bold gap-1 shadow-sm"
             >
               <MessageCircle className="w-3.5 h-3.5" />
               <span>Send WhatsApp</span>
@@ -162,21 +219,28 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
 
         {/* WhatsApp Mobile Number Input Row */}
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-emerald-900 font-medium">
+          <div className="flex items-center gap-2 text-emerald-900 font-medium w-full sm:w-auto">
             <MessageCircle className="w-4 h-4 text-emerald-700 flex-shrink-0" />
-            <span>Recipient WhatsApp Mobile:</span>
+            <span className="whitespace-nowrap">Recipient WhatsApp:</span>
             <input
               type="tel"
               placeholder="e.g. 9876543210"
               value={recipientPhone}
               onChange={(e) => setRecipientPhone(e.target.value)}
-              className="bg-white border border-emerald-300 text-slate-900 font-mono font-bold text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-emerald-600"
+              className="bg-white border border-emerald-300 text-slate-900 font-mono font-bold text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-emerald-600 flex-1 sm:w-40"
             />
           </div>
 
-          <span className="text-[11px] text-emerald-800 font-semibold">
-            Customer receives instant breakdown & interactive invoice link
-          </span>
+          {shareSuccessMsg ? (
+            <span className="text-[11px] text-emerald-800 font-bold flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{shareSuccessMsg}</span>
+            </span>
+          ) : (
+            <span className="text-[11px] text-emerald-800 font-semibold text-center sm:text-right">
+              Sends PDF & interactive digital bill with your logo & store branding
+            </span>
+          )}
         </div>
 
         {/* ========================================================================= */}
@@ -188,7 +252,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
           {/* ========================================================================= */}
           {format === 'a4' && (
             <div
-              id="printable-invoice-container"
+              id="modal-printable-invoice"
               className="bg-white border border-slate-200 rounded-xl w-full max-w-2xl p-6 sm:p-8 space-y-6 text-slate-900 shadow-sm"
             >
               {/* Header with Shop Logo */}
@@ -357,7 +421,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
           {/* ========================================================================= */}
           {(format === 'thermal-80' || format === 'thermal-58') && (
             <div
-              id="printable-invoice-container"
+              id="modal-printable-invoice"
               className={`bg-white border border-slate-200 rounded-xl p-4 font-mono text-[11px] text-slate-900 space-y-3 ${
                 format === 'thermal-58' ? 'max-w-[260px]' : 'max-w-[340px]'
               }`}

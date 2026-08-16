@@ -816,15 +816,15 @@ export default function BillingPage() {
       {/* MOBILE BOTTOM SHEET CART DRAWER */}
       {/* ------------------------------------------------------------- */}
       {isMobileCartOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60">
+        <div className="lg:hidden fixed inset-0 z-[60] flex flex-col justify-end bg-slate-900/60 backdrop-blur-[2px]">
           <div 
             className="fixed inset-0"
             onClick={() => setIsMobileCartOpen(false)}
           />
 
-          <div className="relative bg-white rounded-t-2xl border-t border-slate-200 shadow-2xl max-h-[85vh] flex flex-col z-10 overflow-hidden">
+          <div className="relative bg-white rounded-t-2xl border-t border-slate-200 shadow-2xl max-h-[90vh] flex flex-col z-10 overflow-hidden">
             {/* Drawer Header Handle */}
-            <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+            <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
                   {totalItemCount}
@@ -842,8 +842,8 @@ export default function BillingPage() {
               </button>
             </div>
 
-            {/* Drawer Body */}
-            <div className="p-4 overflow-y-auto flex-1">
+            {/* Drawer Body with extra bottom padding for mobile safe area */}
+            <div className="p-4 pb-10 overflow-y-auto flex-1 overscroll-contain">
               {renderCheckoutPanel()}
             </div>
           </div>

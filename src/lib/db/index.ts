@@ -48,10 +48,20 @@ export class VyaparSetuDatabase extends Dexie {
 
 export const db = new VyaparSetuDatabase();
 
+import { seedComprehensiveDemoData } from './demoData';
+export { seedComprehensiveDemoData };
+
 // Auto-seed demo starter business if DB is empty
 export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
   const existing = await db.businesses.toCollection().first();
-  if (existing) return existing;
+  if (existing) {
+    // Check if catalog needs demo data enrichment (e.g. less than 15 products)
+    const productCount = await db.products.where('business_id').equals(existing.id).count();
+    if (productCount < 15) {
+      await seedComprehensiveDemoData(existing.id, false);
+    }
+    return existing;
+  }
 
   const businessId = `biz_${Date.now()}`;
   const now = new Date().toISOString();
@@ -69,7 +79,7 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
     currency: 'INR',
     language: 'hi',
     invoice_prefix: 'INV-',
-    next_invoice_number: 1,
+    next_invoice_number: 1001,
     terms_conditions: 'Thank you for your business! Goods once sold will be exchanged within 7 days.',
     footer_message: 'Powered by KamaiPlus (Kamai+)',
     is_onboarded: true,
@@ -79,7 +89,7 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
   };
 
   await db.businesses.put(starterBiz);
-  await seedBusinessStarterData(businessId, 'grocery');
+  await seedComprehensiveDemoData(businessId, false);
   return starterBiz;
 }
 

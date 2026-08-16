@@ -22,11 +22,14 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
+import { downloadInvoicePdfFromElement } from '@/lib/invoices/pdfGenerator';
+
 function InvoiceContent() {
   const searchParams = useSearchParams();
   const [data, setData] = useState<SharedInvoicePayload | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
 
   useEffect(() => {
     const encoded = searchParams.get('d');
@@ -48,7 +51,11 @@ function InvoiceContent() {
           if (biz) {
             setData({
               b_name: biz.name,
+              b_tagline: biz.tagline,
+              b_logo: biz.logo_url,
+              b_owner: biz.owner_name,
               b_phone: biz.phone,
+              b_email: biz.email,
               b_address: biz.address,
               b_gstin: biz.gstin,
               b_upi: biz.upi_id,
@@ -58,6 +65,7 @@ function InvoiceContent() {
               s_cust: sale.customer_name,
               s_phone: sale.customer_phone,
               s_subtotal: sale.subtotal,
+              s_discount: sale.discount_total,
               s_tax: sale.tax_total,
               s_total: sale.grand_total,
               s_received: sale.amount_received,
@@ -70,6 +78,7 @@ function InvoiceContent() {
                 unit: i.unit,
                 price: i.unit_price,
                 tax: i.tax_rate,
+                discount: i.discount_amount,
                 total: i.total_amount,
               })),
             });
@@ -105,10 +114,24 @@ function InvoiceContent() {
     window.print();
   };
 
+  const handleDownloadPdf = async () => {
+    const el = document.getElementById('printable-invoice-container');
+    if (!el || !data) return;
+    setIsGeneratingPdf(true);
+    try {
+      await downloadInvoicePdfFromElement(el, data.s_inv);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: `Tax Invoice #${data?.s_inv}`,
+        title: `Tax Invoice #${data?.s_inv} from ${data?.b_name}`,
         text: `Invoice #${data?.s_inv} from ${data?.b_name} for ${data ? formatINR(data.s_total) : ''}`,
         url: window.location.href,
       }).catch(() => {});
@@ -152,9 +175,13 @@ function InvoiceContent() {
             <Share2 className="w-3.5 h-3.5 mr-1" />
             <span>Share</span>
           </Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadPdf} disabled={isGeneratingPdf}>
+            <Download className="w-3.5 h-3.5 mr-1" />
+            <span>{isGeneratingPdf ? 'Generating PDF...' : 'PDF'}</span>
+          </Button>
           <Button variant="primary" size="sm" onClick={handlePrint}>
             <Printer className="w-3.5 h-3.5 mr-1" />
-            <span>Print / Save PDF</span>
+            <span>Print</span>
           </Button>
         </div>
       </div>
@@ -162,25 +189,35 @@ function InvoiceContent() {
       {/* Printable / Interactive Clean Corporate Invoice Sheet */}
       <div 
         id="printable-invoice-container"
-        className="bg-white border border-slate-200 rounded-xl w-full max-w-2xl p-6 sm:p-8 space-y-6 shadow-sm"
+        className="bg-white border border-slate-200 rounded-xl w-full max-w-2xl p-6 sm:p-8 space-y-6 shadow-sm text-slate-900"
       >
         {/* Invoice Header */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between pb-5 border-b border-slate-200 gap-4">
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="flex items-start gap-3.5">
+            {data.b_logo && (
+              <img
+                src={data.b_logo}
+                alt={data.b_name}
+                className="w-14 h-14 object-contain rounded-lg border border-slate-200 p-1 bg-white flex-shrink-0"
+              />
+            )}
+            <div>
               <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
                 {data.b_name}
               </h1>
+              {data.b_tagline && (
+                <p className="text-xs font-semibold text-slate-500 italic mt-0.5">{data.b_tagline}</p>
+              )}
+              {data.b_address && (
+                <p className="text-xs text-slate-600 mt-1 max-w-xs">{data.b_address}</p>
+              )}
+              {data.b_phone && (
+                <p className="text-xs text-slate-600 font-mono mt-0.5">Ph: {data.b_phone}</p>
+              )}
+              {data.b_gstin && (
+                <p className="text-xs text-slate-700 font-semibold mt-0.5">GSTIN: {data.b_gstin}</p>
+              )}
             </div>
-            {data.b_address && (
-              <p className="text-xs text-slate-600 mt-1 max-w-xs">{data.b_address}</p>
-            )}
-            {data.b_phone && (
-              <p className="text-xs text-slate-600 font-mono mt-0.5">Ph: {data.b_phone}</p>
-            )}
-            {data.b_gstin && (
-              <p className="text-xs text-slate-700 font-semibold mt-0.5">GSTIN: {data.b_gstin}</p>
-            )}
           </div>
 
           <div className="text-left sm:text-right space-y-1">

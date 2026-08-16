@@ -33,6 +33,7 @@ import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 
 export type DatePreset = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 export type PaymentFilter = 'all' | 'cash' | 'upi' | 'credit';
+export type SortOption = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 
 export default function TransactionsPage() {
   const { t } = useTranslation();
@@ -44,6 +45,7 @@ export default function TransactionsPage() {
   const [endDate, setEndDate] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('date-desc');
   
   // Active Invoice Modal State
   const [activeSaleForInvoice, setActiveSaleForInvoice] = useState<Sale | null>(null);
@@ -58,64 +60,80 @@ export default function TransactionsPage() {
   }) || [];
 
   // Filter logic
-  const filteredSales = allSales.filter((sale) => {
-    const saleDate = new Date(sale.created_at);
-    const now = new Date();
+  const filteredSales = allSales
+    .filter((sale) => {
+      const saleDate = new Date(sale.created_at);
+      const now = new Date();
 
-    // 1. Date Range Filter
-    if (datePreset === 'today') {
-      const todayStr = now.toISOString().split('T')[0];
-      if (!sale.created_at.startsWith(todayStr)) return false;
-    } else if (datePreset === 'yesterday') {
-      const yesterday = new Date(now);
-      yesterday.setDate(now.getDate() - 1);
-      const yestStr = yesterday.toISOString().split('T')[0];
-      if (!sale.created_at.startsWith(yestStr)) return false;
-    } else if (datePreset === 'week') {
-      const sevenDaysAgo = new Date(now);
-      sevenDaysAgo.setDate(now.getDate() - 7);
-      if (saleDate < sevenDaysAgo) return false;
-    } else if (datePreset === 'month') {
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      if (saleDate < monthStart) return false;
-    } else if (datePreset === 'custom') {
-      if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        if (saleDate < start) return false;
+      // 1. Date Range Filter
+      if (datePreset === 'today') {
+        const todayStr = now.toISOString().split('T')[0];
+        if (!sale.created_at.startsWith(todayStr)) return false;
+      } else if (datePreset === 'yesterday') {
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        const yestStr = yesterday.toISOString().split('T')[0];
+        if (!sale.created_at.startsWith(yestStr)) return false;
+      } else if (datePreset === 'week') {
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        if (saleDate < sevenDaysAgo) return false;
+      } else if (datePreset === 'month') {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        if (saleDate < monthStart) return false;
+      } else if (datePreset === 'custom') {
+        if (startDate) {
+          const start = new Date(startDate);
+          start.setHours(0, 0, 0, 0);
+          if (saleDate < start) return false;
+        }
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          if (saleDate > end) return false;
+        }
       }
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        if (saleDate > end) return false;
+
+      // 2. Transaction Type (Cash vs Credit vs UPI)
+      if (paymentFilter !== 'all') {
+        if (paymentFilter === 'cash' && sale.payment_method !== 'cash') return false;
+        if (paymentFilter === 'upi' && sale.payment_method !== 'upi') return false;
+        if (paymentFilter === 'credit' && sale.payment_method !== 'credit' && (sale.balance_due || 0) <= 0) return false;
       }
-    }
 
-    // 2. Transaction Type (Cash vs Credit vs UPI)
-    if (paymentFilter !== 'all') {
-      if (paymentFilter === 'cash' && sale.payment_method !== 'cash') return false;
-      if (paymentFilter === 'upi' && sale.payment_method !== 'upi') return false;
-      if (paymentFilter === 'credit' && sale.payment_method !== 'credit' && sale.balance_due <= 0) return false;
-    }
+      // 3. Customer Filter
+      if (selectedCustomerId === 'walk-in') {
+        if (sale.customer_id) return false;
+      } else if (selectedCustomerId !== 'all') {
+        if (sale.customer_id !== selectedCustomerId) return false;
+      }
 
-    // 3. Customer Filter
-    if (selectedCustomerId !== 'all') {
-      if (sale.customer_id !== selectedCustomerId) return false;
-    }
+      // 4. Search Query (Invoice #, customer name, phone, or item name)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchInv = sale.invoice_number.toLowerCase().includes(q);
+        const matchCust = (sale.customer_name && sale.customer_name.toLowerCase().includes(q)) || 
+                          (sale.customer_phone && sale.customer_phone.includes(q));
+        const matchItems = sale.items && sale.items.some(i => i.product_name.toLowerCase().includes(q));
 
-    // 4. Search Query (Invoice #, customer name, phone, or item name)
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchInv = sale.invoice_number.toLowerCase().includes(q);
-      const matchCust = (sale.customer_name && sale.customer_name.toLowerCase().includes(q)) || 
-                        (sale.customer_phone && sale.customer_phone.includes(q));
-      const matchItems = sale.items && sale.items.some(i => i.product_name.toLowerCase().includes(q));
+        if (!matchInv && !matchCust && !matchItems) return false;
+      }
 
-      if (!matchInv && !matchCust && !matchItems) return false;
-    }
-
-    return true;
-  });
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'date-asc') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      if (sortBy === 'amount-desc') {
+        return b.grand_total - a.grand_total;
+      }
+      if (sortBy === 'amount-asc') {
+        return a.grand_total - b.grand_total;
+      }
+      // default: date-desc
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
   // KPI Calculations on filtered subset
   const totalRevenuePaise = filteredSales.reduce((acc, s) => acc + s.grand_total, 0);
@@ -269,26 +287,65 @@ export default function TransactionsPage() {
       </div>
 
       {/* Filter Control Box */}
-      <Card className="p-4 bg-white border border-slate-200 space-y-3.5">
-        {/* Row 1: Search & Filter Presets */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-          {/* Search Box */}
-          <div className="flex-1">
+      <Card className="p-4 bg-white border border-slate-200 space-y-3.5 shadow-sm">
+        {/* Row 1: Search, Customer Filter & Sorting */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+          {/* Search Box (6 cols on desktop) */}
+          <div className="md:col-span-6">
             <Input
-              placeholder="Search by Invoice # (e.g. INV-001), Customer, or Item name..."
+              placeholder="Search by Invoice # (e.g. INV-1001), Customer, phone, or item..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               leftIcon={<Search className="w-4 h-4 text-slate-400" />}
             />
           </div>
 
-          {/* Payment Type Filter Buttons (Cash vs Credit vs UPI) */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+          {/* Customer Dropdown (3 cols on desktop) */}
+          <div className="md:col-span-3">
+            <select
+              value={selectedCustomerId}
+              onChange={(e) => setSelectedCustomerId(e.target.value)}
+              className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2.5 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
+            >
+              <option value="all">👥 All Customers ({allSales.length})</option>
+              <option value="walk-in">🚶 Walk-in Cash Customers Only</option>
+              <optgroup label="Registered Customers">
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.phone ? `(${c.phone})` : ''} {c.current_balance > 0 ? `• Udhar: ${formatINR(c.current_balance)}` : ''}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          {/* Sort By Dropdown (3 cols on desktop) */}
+          <div className="md:col-span-3">
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 min-h-[38px]">
+              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="w-full bg-transparent text-slate-900 text-xs font-semibold focus:outline-none cursor-pointer"
+              >
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="amount-desc">Highest Amount</option>
+                <option value="amount-asc">Lowest Amount</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: Transaction Type & Date Range Presets */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-3 border-t border-slate-100">
+          {/* Payment Mode Selector Buttons */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg overflow-x-auto">
             {[
               { id: 'all', label: 'All Modes' },
               { id: 'cash', label: 'Cash (नकद)', icon: Banknote },
+              { id: 'credit', label: 'Credit / Udhar (उधार)', icon: BookOpen },
               { id: 'upi', label: 'UPI / QR', icon: QrCode },
-              { id: 'credit', label: 'Credit (उधार)', icon: BookOpen },
             ].map((p) => {
               const isSelected = paymentFilter === p.id;
               return (
@@ -302,32 +359,14 @@ export default function TransactionsPage() {
                       : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
                   )}
                 >
-                  {p.icon && <p.icon className="w-3 h-3" />}
+                  {p.icon && <p.icon className="w-3.5 h-3.5" />}
                   <span>{p.label}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Customer Dropdown */}
-          <div className="w-full lg:w-48">
-            <select
-              value={selectedCustomerId}
-              onChange={(e) => setSelectedCustomerId(e.target.value)}
-              className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2.5 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
-            >
-              <option value="all">All Customers</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} {c.phone ? `(${c.phone})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Row 2: Date Range Presets & Custom Pickers */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          {/* Date Range Presets */}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-bold text-slate-600 mr-1 flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5" />
@@ -348,9 +387,9 @@ export default function TransactionsPage() {
                   key={d.id}
                   onClick={() => setDatePreset(d.id as DatePreset)}
                   className={cn(
-                    'px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap',
+                    'px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap transition-all',
                     isSelected
-                      ? 'bg-amber-400 text-slate-950 font-bold'
+                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   )}
                 >
@@ -359,41 +398,96 @@ export default function TransactionsPage() {
               );
             })}
           </div>
+        </div>
 
-          {/* Custom Date Pickers */}
-          {datePreset === 'custom' && (
-            <div className="flex items-center gap-2 text-xs">
-              <div className="flex items-center gap-1">
-                <span className="text-slate-500 font-medium">From:</span>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-mono"
-                />
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-slate-500 font-medium">To:</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-mono"
-                />
-              </div>
+        {/* Row 3: Custom Date Pickers when 'custom' preset is selected */}
+        {datePreset === 'custom' && (
+          <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-lg flex flex-wrap items-center gap-3 text-xs animate-in fade-in">
+            <span className="font-bold text-slate-700 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-amber-700" />
+              <span>Select Date Range:</span>
+            </span>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 font-medium">From:</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-mono font-semibold focus:outline-none focus:border-slate-900"
+              />
             </div>
-          )}
 
-          {hasActiveFilters && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 font-medium">To:</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-mono font-semibold focus:outline-none focus:border-slate-900"
+              />
+            </div>
+
+            {(startDate || endDate) && (
+              <button
+                onClick={() => { setStartDate(''); setEndDate(''); }}
+                className="text-[11px] font-bold text-rose-600 hover:text-rose-800 ml-auto"
+              >
+                Clear Dates
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Row 4: Active Filter Chips Bar */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
+            <span className="text-[11px] font-bold text-slate-500 mr-1 flex items-center gap-1">
+              <Filter className="w-3 h-3 text-slate-400" />
+              <span>Active Filters:</span>
+            </span>
+
+            {searchQuery && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-300 text-slate-800 text-[11px] font-medium">
+                <span>Search: &quot;{searchQuery}&quot;</span>
+                <X className="w-3 h-3 cursor-pointer hover:text-rose-600" onClick={() => setSearchQuery('')} />
+              </span>
+            )}
+
+            {paymentFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900 text-white text-[11px] font-medium">
+                <span>Type: {paymentFilter.toUpperCase()}</span>
+                <X className="w-3 h-3 cursor-pointer hover:text-rose-300" onClick={() => setPaymentFilter('all')} />
+              </span>
+            )}
+
+            {selectedCustomerId !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-300 text-slate-800 text-[11px] font-medium">
+                <span>
+                  Customer: {selectedCustomerId === 'walk-in' ? 'Walk-in Cash' : customers.find(c => c.id === selectedCustomerId)?.name || 'Selected'}
+                </span>
+                <X className="w-3 h-3 cursor-pointer hover:text-rose-600" onClick={() => setSelectedCustomerId('all')} />
+              </span>
+            )}
+
+            {datePreset !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-950 text-[11px] font-medium">
+                <span>
+                  Date: {datePreset === 'custom' ? `${startDate || 'Start'} to ${endDate || 'End'}` : datePreset.toUpperCase()}
+                </span>
+                <X className="w-3 h-3 cursor-pointer hover:text-rose-600" onClick={() => { setDatePreset('all'); setStartDate(''); setEndDate(''); }} />
+              </span>
+            )}
+
             <button
               onClick={clearAllFilters}
-              className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 ml-auto"
+              className="text-[11px] font-bold text-rose-600 hover:text-rose-800 flex items-center gap-1 ml-auto"
             >
-              <X className="w-3.5 h-3.5" />
-              <span>Clear Filters</span>
+              <X className="w-3 h-3" />
+              <span>Reset All ({filteredSales.length} results)</span>
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </Card>
 
       {/* Transactions List / Table */}

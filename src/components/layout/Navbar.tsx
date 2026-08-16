@@ -1,6 +1,5 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n';
 import { SupportedLanguage } from '@/types';
 import { db } from '@/lib/db';
@@ -14,23 +13,31 @@ import {
   QrCode, 
   Volume2, 
   VolumeX, 
-  ShieldCheck 
+  ShieldCheck,
+  User,
+  LogOut,
+  Sparkles
 } from 'lucide-react';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
 import { isSoundboxEnabled, setSoundboxEnabled, announcePayment } from '@/lib/voice/paytmSoundbox';
+import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
 
 export const Navbar: React.FC = () => {
+  const router = useRouter();
   const { language, setLanguage, t } = useTranslation();
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [showLangMenu, setShowLangMenu] = useState<boolean>(false);
+  const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
   const business = useLiveQuery(async () => {
     return await db.businesses.toCollection().first();
   });
 
   useEffect(() => {
+    setCurrentUser(getStoredUser());
     setSoundEnabled(isSoundboxEnabled());
     setIsOnline(navigator.onLine);
     const handleOnline = () => setIsOnline(true);
@@ -43,6 +50,11 @@ export const Navbar: React.FC = () => {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  const handleLogout = () => {
+    setStoredUser(null);
+    router.push('/auth');
+  };
 
   const toggleSoundbox = () => {
     const next = !soundEnabled;
@@ -156,6 +168,54 @@ export const Navbar: React.FC = () => {
                     {language === l.code && <CheckCircle2 className="w-3.5 h-3.5 text-slate-900" />}
                   </button>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* User Profile & Logout Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold"
+              title="User Profile & Account"
+            >
+              <div className="w-5 h-5 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-black text-[10px]">
+                {currentUser?.name?.charAt(0) || 'U'}
+              </div>
+            </button>
+
+            {showUserMenu && (
+              <div className="absolute right-0 mt-1.5 w-52 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50 text-slate-900">
+                <div className="px-3 py-1.5 border-b border-slate-100 mb-1">
+                  <div className="text-xs font-bold text-slate-900 truncate">
+                    {currentUser?.name || business?.owner_name || 'Store Owner'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-mono">
+                    {currentUser?.phone || business?.phone || '9876543210'}
+                  </div>
+                  <div className="text-[10px] text-amber-700 font-extrabold uppercase mt-0.5">
+                    {currentUser?.role || 'Store Owner'}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    router.push('/settings');
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium"
+                >
+                  <Store className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Store Settings</span>
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-bold mt-1 border-t border-slate-100"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Log Out / साइन आउट</span>
+                </button>
               </div>
             )}
           </div>
