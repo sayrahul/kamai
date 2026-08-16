@@ -31,24 +31,22 @@ export const IntroWalkthrough: React.FC<IntroWalkthroughProps> = ({ onComplete, 
     {
       id: 0,
       badge: 'Superfast POS Billing',
-      hindiBadge: 'सुपरफास्ट बिलिंग',
       title: 'Lightning-Fast POS & Voice Billing',
-      subtitle: 'Generate GST invoices and thermal receipts in under 5 seconds with barcode scanning and Hindi voice commands.',
+      subtitle: 'Generate GST invoices and thermal receipts in under 5 seconds with barcode scanning and natural voice commands.',
       accentColor: 'from-amber-500 to-amber-600',
       bgGlow: 'bg-amber-500/10',
       iconBg: 'bg-amber-100 text-amber-900 border-amber-300',
       mainIcon: Receipt,
       points: [
         { icon: Zap, title: '5-Second Checkout', desc: 'Instant barcode scan & quick item search' },
-        { icon: Volume2, title: 'Hindi Speech-to-Bill', desc: 'Speak items naturally to generate bills' },
+        { icon: Volume2, title: 'Natural Speech-to-Bill', desc: 'Speak items naturally to generate bills' },
         { icon: Store, title: 'Thermal & A4 Formats', desc: 'Direct 80mm/58mm thermal receipt printing' },
       ],
     },
     {
       id: 1,
       badge: 'Digital Khata & WhatsApp',
-      hindiBadge: 'डिजिटल खाता और ऑटो तकादा',
-      title: 'Digital Udhar Khata & WhatsApp Invoices',
+      title: 'Digital Credit Khata & WhatsApp Invoices',
       subtitle: 'Track customer balances, send automated payment reminders, and dispatch official PDF invoices directly on WhatsApp.',
       accentColor: 'from-emerald-500 to-teal-600',
       bgGlow: 'bg-emerald-500/10',
@@ -63,7 +61,6 @@ export const IntroWalkthrough: React.FC<IntroWalkthroughProps> = ({ onComplete, 
     {
       id: 2,
       badge: '100% Offline-First',
-      hindiBadge: 'बिना इंटरनेट चालू',
       title: '100% Offline-First & Multi-Device Sync',
       subtitle: 'Your shop never stops even when internet or power goes out. Full IndexedDB speed with automated cloud backups.',
       accentColor: 'from-sky-500 to-indigo-600',
@@ -103,7 +100,7 @@ export const IntroWalkthrough: React.FC<IntroWalkthroughProps> = ({ onComplete, 
           <div>
             <span className="font-extrabold text-sm tracking-tight text-white">KamaiPlus</span>
             <span className="text-[10px] text-amber-400 font-bold ml-1.5 px-1.5 py-0.5 rounded bg-amber-400/10 border border-amber-400/20">
-              कमई+
+              POS
             </span>
           </div>
         </div>
@@ -112,7 +109,7 @@ export const IntroWalkthrough: React.FC<IntroWalkthroughProps> = ({ onComplete, 
           onClick={onSkip}
           className="text-xs font-bold text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 bg-slate-900/60 transition-colors"
         >
-          Skip Intro / छोड़ें
+          Skip Intro
         </button>
       </div>
 
@@ -124,8 +121,6 @@ export const IntroWalkthrough: React.FC<IntroWalkthroughProps> = ({ onComplete, 
             <span className="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-amber-400 text-xs font-bold flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               <span>{current.badge}</span>
-              <span className="text-slate-500">•</span>
-              <span className="text-slate-300 font-normal">{current.hindiBadge}</span>
             </span>
           </div>
 
@@ -186,7 +181,7 @@ export const IntroWalkthrough: React.FC<IntroWalkthroughProps> = ({ onComplete, 
           size="lg"
           className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-6 py-2.5 rounded-xl border-amber-400 shadow-lg gap-2"
         >
-          <span>{currentSlide === slides.length - 1 ? 'Get Started / शुरू करें' : 'Next / आगे बढ़ें'}</span>
+          <span>{currentSlide === slides.length - 1 ? 'Get Started' : 'Next'}</span>
           <ArrowRight className="w-4 h-4" />
         </Button>
       </div>

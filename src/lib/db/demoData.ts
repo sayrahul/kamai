@@ -50,14 +50,14 @@ export async function seedComprehensiveDemoData(
 
   // 1. Categories
   const categoryDefs = [
-    { id: `cat_${businessId}_grains`, name: 'Grains & Atta (अनाज/आटा)', icon: 'wheat' },
-    { id: `cat_${businessId}_dairy`, name: 'Dairy & Milk (डेयरी)', icon: 'milk' },
-    { id: `cat_${businessId}_oils`, name: 'Edible Oils & Ghee (तेल/घी)', icon: 'droplet' },
-    { id: `cat_${businessId}_snacks`, name: 'Snacks & Biscuits (नाश्ता/बिस्कुट)', icon: 'cookie' },
-    { id: `cat_${businessId}_beverages`, name: 'Beverages & Tea (चाय/पेय)', icon: 'coffee' },
-    { id: `cat_${businessId}_spices`, name: 'Spices & Masala (मसाले)', icon: 'sparkles' },
-    { id: `cat_${businessId}_personal`, name: 'Personal Care & Soaps (साबुन)', icon: 'sparkles' },
-    { id: `cat_${businessId}_cleaning`, name: 'Cleaning & Detergents (सफाई)', icon: 'spray' },
+    { id: `cat_${businessId}_grains`, name: 'Grains & Atta', icon: 'wheat' },
+    { id: `cat_${businessId}_dairy`, name: 'Dairy & Milk', icon: 'milk' },
+    { id: `cat_${businessId}_oils`, name: 'Edible Oils & Ghee', icon: 'droplet' },
+    { id: `cat_${businessId}_snacks`, name: 'Snacks & Biscuits', icon: 'cookie' },
+    { id: `cat_${businessId}_beverages`, name: 'Beverages & Tea', icon: 'coffee' },
+    { id: `cat_${businessId}_spices`, name: 'Spices & Masala', icon: 'sparkles' },
+    { id: `cat_${businessId}_personal`, name: 'Personal Care & Soaps', icon: 'sparkles' },
+    { id: `cat_${businessId}_cleaning`, name: 'Cleaning & Detergents', icon: 'spray' },
   ];
 
   for (const cat of categoryDefs) {

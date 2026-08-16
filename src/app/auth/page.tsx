@@ -228,7 +228,7 @@ export default function AuthPage() {
           {/* Header Title */}
           <div className="text-center space-y-1.5">
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              {authTab === 'login' ? 'Welcome Back • लॉगिन करें' : 'Create Store Account • नया खाता'}
+              {authTab === 'login' ? 'Welcome Back' : 'Create Store Account'}
             </h1>
             <p className="text-xs text-slate-400">
               {authTab === 'login'
@@ -274,7 +274,7 @@ export default function AuthPage() {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Sign In / लॉगिन
+              Sign In
             </button>
             <button
               type="button"
@@ -285,7 +285,7 @@ export default function AuthPage() {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Register / नया खाता
+              Register
             </button>
           </div>
 
@@ -321,7 +321,7 @@ export default function AuthPage() {
 
               {/* Mobile Number Input */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-300 block">Mobile Number / मोबाइल नंबर</label>
+                <label className="text-xs font-bold text-slate-300 block">Mobile Number</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs font-mono font-bold">
                     +91
@@ -370,7 +370,7 @@ export default function AuthPage() {
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-300 block">Password / पासवर्ड</label>
+                  <label className="text-xs font-bold text-slate-300 block">Password</label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}

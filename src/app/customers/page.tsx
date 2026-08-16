@@ -20,6 +20,7 @@ export default function CustomersPage() {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [openingBalance, setOpeningBalance] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const customers = useLiveQuery(async () => {
@@ -45,6 +46,7 @@ export default function CustomersPage() {
       name: name.trim(),
       phone: phone.trim(),
       address: address.trim(),
+      date_of_birth: dateOfBirth || undefined,
       opening_balance: opBalPaise,
       current_balance: opBalPaise,
       loyalty_points: 0,
@@ -152,7 +154,10 @@ export default function CustomersPage() {
       >
         <form onSubmit={handleAddCustomer} className="space-y-4">
           <Input label="Customer Full Name" placeholder="e.g. Anand Sharma" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-          <Input label="Mobile Number" placeholder="e.g. 9876543210" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="Mobile Number" placeholder="e.g. 9876543210" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <Input label="Birthday (MM-DD or YYYY-MM-DD)" placeholder="e.g. 08-16 or 1992-08-16" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
+          </div>
           <Input label="Address (Optional)" placeholder="e.g. Flat 102, Main Road" value={address} onChange={(e) => setAddress(e.target.value)} />
           <Input label="Opening Udhar Balance (₹, Optional)" placeholder="0.00" type="number" step="0.01" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} />
           <div className="pt-4 flex justify-end gap-2">

@@ -6,16 +6,16 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { formatINR } from '@/lib/utils';
-import { 
-  Receipt, 
-  BookOpen, 
-  Package, 
-  Users, 
-  AlertTriangle, 
-  ArrowRight, 
-  TrendingUp, 
-  Plus, 
-  Clock, 
+import {
+  Receipt,
+  BookOpen,
+  Package,
+  Users,
+  AlertTriangle,
+  ArrowRight,
+  TrendingUp,
+  Plus,
+  Clock,
   IndianRupee,
   PhoneCall,
   ShoppingBag,
@@ -29,7 +29,20 @@ import {
   Share2,
   ShieldCheck,
   Zap,
-  ArrowUpRight
+  ArrowUpRight,
+  Palette,
+  Calculator,
+  Barcode,
+  FileSpreadsheet,
+  Cloud,
+  Boxes,
+  ChevronDown,
+  ChevronUp,
+  Filter,
+  Search,
+  SlidersHorizontal,
+  Calendar,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -37,16 +50,22 @@ import { Badge } from '@/components/ui/Badge';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
 import { Sale } from '@/types';
-import { isSoundboxEnabled, setSoundboxEnabled, announcePayment } from '@/lib/voice/paytmSoundbox';
+import { announcePayment, isSoundboxEnabled } from '@/lib/voice/paytmSoundbox';
 
-export default function DashboardPage() {
-  const { language, t } = useTranslation();
+export default function HomePage() {
+  const { t, language } = useTranslation();
   const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
+  // Recent Transactions Filter & Collapse States
+  const [isRecentCollapsed, setIsRecentCollapsed] = useState<boolean>(false);
+  const [recentDateFilter, setRecentDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | 'this_month'>('all');
+  const [recentPaymentFilter, setRecentPaymentFilter] = useState<'all' | 'cash' | 'upi' | 'credit' | 'split'>('all');
+  const [recentSearchQuery, setRecentSearchQuery] = useState<string>('');
+
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
-  
+
   // Metrics Queries
   const products = useLiveQuery(async () => db.products.toArray()) || [];
   const lowStockProducts = products.filter((p) => p.current_stock <= p.min_stock_level);
@@ -60,8 +79,46 @@ export default function DashboardPage() {
   const todaysSales = allSales.filter((s) => s.created_at.startsWith(todayDatePrefix));
   const todaysSalesTotal = todaysSales.reduce((acc, s) => acc + s.grand_total, 0);
 
-  // Recent 10 sales for table
-  const sales = [...allSales].reverse().slice(0, 10);
+  // Filtered recent sales for home widget
+  const filteredRecentSales = allSales
+    .filter((s) => {
+      // Date filter
+      const saleDate = new Date(s.created_at);
+      const now = new Date();
+      if (recentDateFilter === 'today') {
+        const todayStr = now.toISOString().split('T')[0];
+        if (!s.created_at.startsWith(todayStr)) return false;
+      } else if (recentDateFilter === 'yesterday') {
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yStr = yesterday.toISOString().split('T')[0];
+        if (!s.created_at.startsWith(yStr)) return false;
+      } else if (recentDateFilter === '7days') {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if (saleDate < weekAgo) return false;
+      } else if (recentDateFilter === 'this_month') {
+        if (saleDate.getMonth() !== now.getMonth() || saleDate.getFullYear() !== now.getFullYear()) return false;
+      }
+
+      // Payment filter
+      if (recentPaymentFilter !== 'all' && s.payment_method !== recentPaymentFilter) {
+        return false;
+      }
+
+      // Search filter
+      if (recentSearchQuery.trim()) {
+        const q = recentSearchQuery.toLowerCase();
+        const matchInvoice = s.invoice_number.toLowerCase().includes(q);
+        const matchCust = (s.customer_name || '').toLowerCase().includes(q);
+        const matchPhone = (s.customer_phone || '').includes(q);
+        if (!matchInvoice && !matchCust && !matchPhone) return false;
+      }
+
+      return true;
+    })
+    .reverse();
+
+  const displayedSales = filteredRecentSales.slice(0, 10);
 
   useEffect(() => {
     setSoundEnabled(isSoundboxEnabled());
@@ -204,11 +261,10 @@ export default function DashboardPage() {
                     <span className="hidden sm:inline">Low Stock Count</span>
                   </span>
                 </div>
-                <span className={`hidden lg:inline-flex px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                  lowStockProducts.length > 0
+                <span className={`hidden lg:inline-flex px-1.5 py-0.2 rounded-full text-[9px] font-black ${lowStockProducts.length > 0
                     ? 'bg-rose-100 text-rose-950'
                     : 'bg-emerald-100 text-emerald-950'
-                }`}>
+                  }`}>
                   {lowStockProducts.length > 0 ? 'Alert' : 'OK'}
                 </span>
               </div>
@@ -244,168 +300,403 @@ export default function DashboardPage() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {/* Tile 1: POS Billing */}
-          <Link href="/billing">
-            <div className="bg-white border border-slate-200 hover:border-slate-400 rounded-xl p-3.5 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-900 flex items-center justify-center font-bold flex-shrink-0">
-                <Receipt className="w-4 h-4" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5 sm:gap-3">
+          {/* Tile 1: POS Billing (Emerald) */}
+          <Link href="/billing" className="group">
+            <div className="bg-white border border-emerald-200 hover:border-emerald-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-emerald-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Receipt className="w-4 h-4 text-emerald-700" />
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">POS Billing</div>
-                <div className="text-[11px] text-slate-500">Fast checkout</div>
+                <div className="text-[11px] text-emerald-800 font-medium truncate">Fast checkout</div>
               </div>
             </div>
           </Link>
 
-          {/* Tile 2: Voice Billing */}
-          <Link href="/billing">
-            <div className="bg-white border border-slate-200 hover:border-slate-400 rounded-xl p-3.5 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-900 flex items-center justify-center font-bold flex-shrink-0">
-                <Mic className="w-4 h-4" />
+          {/* Tile 2: Cash Register (Gold/Emerald) */}
+          <Link href="/cash-register" className="group">
+            <div className="bg-white border border-emerald-300 hover:border-emerald-500 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-emerald-50/50 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-emerald-200/70 text-emerald-950 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Calculator className="w-4 h-4 text-emerald-900" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Cash Register</div>
+                <div className="text-[11px] text-emerald-900 font-medium truncate">Shift Closing & Z-Report</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 3: Voice Billing (Sky Blue) */}
+          <Link href="/billing" className="group">
+            <div className="bg-white border border-sky-200 hover:border-sky-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-sky-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-sky-100 text-sky-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Mic className="w-4 h-4 text-sky-700" />
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">Voice Billing</div>
-                <div className="text-[11px] text-slate-500">Speech-to-bill</div>
+                <div className="text-[11px] text-sky-800 font-medium truncate">Speech-to-bill</div>
               </div>
             </div>
           </Link>
 
-          {/* Tile 3: Digital Khata */}
-          <Link href="/khata">
-            <div className="bg-white border border-slate-200 hover:border-slate-400 rounded-xl p-3.5 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-900 flex items-center justify-center font-bold flex-shrink-0">
-                <BookOpen className="w-4 h-4" />
+          {/* Tile 3: Digital Khata (Warm Orange) */}
+          <Link href="/khata" className="group">
+            <div className="bg-white border border-orange-200 hover:border-orange-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-orange-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-orange-100 text-orange-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <BookOpen className="w-4 h-4 text-orange-700" />
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">Khata Ledger</div>
-                <div className="text-[11px] text-slate-500">Customer Udhar</div>
+                <div className="text-[11px] text-orange-800 font-medium truncate">Customer Credit</div>
               </div>
             </div>
           </Link>
 
-          {/* Tile 4: Products Catalog */}
-          <Link href="/products">
-            <div className="bg-white border border-slate-200 hover:border-slate-400 rounded-xl p-3.5 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-900 flex items-center justify-center font-bold flex-shrink-0">
-                <Package className="w-4 h-4" />
+          {/* Tile 4: Products Master (Indigo Blue) */}
+          <Link href="/products" className="group">
+            <div className="bg-white border border-indigo-200 hover:border-indigo-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-indigo-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Package className="w-4 h-4 text-indigo-700" />
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">Products Master</div>
-                <div className="text-[11px] text-slate-500">{products.length} items</div>
+                <div className="text-[11px] text-indigo-800 font-medium truncate">{products.length} items catalog</div>
               </div>
             </div>
           </Link>
 
-          {/* Tile 5: Customers */}
-          <Link href="/customers">
-            <div className="bg-white border border-slate-200 hover:border-slate-400 rounded-xl p-3.5 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-900 flex items-center justify-center font-bold flex-shrink-0">
-                <Users className="w-4 h-4" />
+          {/* Tile 5: Customers (Violet Purple) */}
+          <Link href="/customers" className="group">
+            <div className="bg-white border border-violet-200 hover:border-violet-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-violet-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-violet-100 text-violet-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Users className="w-4 h-4 text-violet-700" />
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">Customers</div>
-                <div className="text-[11px] text-slate-500">{customers.length} profiles</div>
+                <div className="text-[11px] text-violet-800 font-medium truncate">{customers.length} profiles</div>
               </div>
             </div>
           </Link>
 
-          {/* Tile 6: WhatsApp Growth */}
-          <Link href="/growth">
-            <div className="bg-white border border-slate-200 hover:border-slate-400 rounded-xl p-3.5 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-900 flex items-center justify-center font-bold flex-shrink-0">
-                <TrendingUp className="w-4 h-4" />
+          {/* Tile 6: WhatsApp Growth (Teal) */}
+          <Link href="/growth" className="group">
+            <div className="bg-white border border-teal-200 hover:border-teal-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-teal-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-teal-100 text-teal-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <TrendingUp className="w-4 h-4 text-teal-700" />
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">Growth Engine</div>
-                <div className="text-[11px] text-slate-500">WhatsApp offers</div>
+                <div className="text-[11px] text-teal-800 font-medium truncate">WhatsApp offers</div>
               </div>
             </div>
           </Link>
 
-          {/* Tile 7: Purchases */}
-          <Link href="/purchases">
-            <div className="bg-white border border-slate-200 hover:border-slate-400 rounded-xl p-3.5 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-900 flex items-center justify-center font-bold flex-shrink-0">
-                <ShoppingBag className="w-4 h-4" />
+          {/* Tile 7: Inventory & Batches (Cyan Blue) */}
+          <Link href="/inventory" className="group">
+            <div className="bg-white border border-cyan-200 hover:border-cyan-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-cyan-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-cyan-100 text-cyan-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Boxes className="w-4 h-4 text-cyan-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Inventory & Expiry</div>
+                <div className="text-[11px] text-cyan-800 font-medium truncate">Batches & POs</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 8: Transactions & Returns (Teal Green) */}
+          <Link href="/transactions" className="group">
+            <div className="bg-white border border-teal-200 hover:border-teal-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-teal-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-teal-100 text-teal-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <ShieldCheck className="w-4 h-4 text-teal-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Transactions</div>
+                <div className="text-[11px] text-teal-800 font-medium truncate">Sales returns & logs</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 9: Invoice Themes (Warm Amber Gold) */}
+          <Link href="/invoice-designer" className="group">
+            <div className="bg-white border border-amber-300 hover:border-amber-500 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-amber-50/50 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Palette className="w-4 h-4 text-amber-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Invoice Themes</div>
+                <div className="text-[11px] text-amber-800 font-medium truncate">Bill Templates</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 10: Barcode Studio (Purple Violet) */}
+          <Link href="/barcode-generator" className="group">
+            <div className="bg-white border border-purple-200 hover:border-purple-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-purple-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Barcode className="w-4 h-4 text-purple-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Barcode Studio</div>
+                <div className="text-[11px] text-purple-800 font-medium truncate">Price tag printing</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 11: GSTR-1 Tax Reports (Indigo Blue) */}
+          <Link href="/gst-reports" className="group">
+            <div className="bg-white border border-indigo-200 hover:border-indigo-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-indigo-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <FileSpreadsheet className="w-4 h-4 text-indigo-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">GSTR-1 Reports</div>
+                <div className="text-[11px] text-indigo-800 font-medium truncate">HSN & Tax filing</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 12: Cloud Backup (Sky Blue) */}
+          <Link href="/cloud-backup" className="group">
+            <div className="bg-white border border-sky-200 hover:border-sky-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-sky-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-sky-100 text-sky-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Cloud className="w-4 h-4 text-sky-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Cloud Backup</div>
+                <div className="text-[11px] text-sky-800 font-medium truncate">Google Drive sync</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 13: Purchases (Rose Pink) */}
+          <Link href="/purchases" className="group">
+            <div className="bg-white border border-rose-200 hover:border-rose-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-rose-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-rose-100 text-rose-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <ShoppingBag className="w-4 h-4 text-rose-700" />
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">Purchases</div>
-                <div className="text-[11px] text-slate-500">Restock records</div>
+                <div className="text-[11px] text-rose-800 font-medium truncate">Restock records</div>
               </div>
             </div>
           </Link>
 
-          {/* Tile 8: Settings */}
-          <Link href="/settings">
-            <div className="bg-white border border-slate-200 hover:border-slate-400 rounded-xl p-3.5 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-900 flex items-center justify-center font-bold flex-shrink-0">
-                <Settings className="w-4 h-4" />
+          {/* Tile 14: Settings (Slate Neutral) */}
+          <Link href="/settings" className="group">
+            <div className="bg-white border border-slate-300 hover:border-slate-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-slate-100/50 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Settings className="w-4 h-4 text-slate-700" />
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">Settings</div>
-                <div className="text-[11px] text-slate-500">Backup & profile</div>
+                <div className="text-[11px] text-slate-700 font-medium truncate">Backup & profile</div>
               </div>
             </div>
           </Link>
         </div>
       </div>
 
-      {/* ---------------- RECENT INVOICES / TRANSACTIONS ---------------- */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">Recent Transactions</h3>
-            <p className="text-xs text-slate-500">Click any transaction to view or print invoice</p>
-          </div>
-          <Link href="/transactions">
-            <button className="text-xs font-bold text-slate-900 hover:text-slate-700 flex items-center gap-1">
-              <span>View All & Filter Ledger</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+      {/* ---------------- RECENT INVOICES / TRANSACTIONS WIDGET (DROPDOWN & FILTERABLE) ---------------- */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
+        {/* Top Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsRecentCollapsed(!isRecentCollapsed)}
+              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors flex items-center justify-center"
+              title={isRecentCollapsed ? 'Expand Transactions List' : 'Collapse Transactions List'}
+            >
+              {isRecentCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
             </button>
+
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900">Recent Transactions</h3>
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700">
+                  {filteredRecentSales.length} bills
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                {isRecentCollapsed ? 'Click dropdown arrow to expand and filter list' : 'Click any invoice to view, print, or WhatsApp bill'}
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Action: Open Dedicated Filter Page */}
+          <Link href="/transactions">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs font-bold gap-1.5 border-slate-300 hover:border-slate-900 w-full sm:w-auto justify-center"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-700" />
+              <span>Full Ledger & Returns Page</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-0.5 text-slate-500" />
+            </Button>
           </Link>
         </div>
 
-        <div className="pt-2">
-          {sales.length === 0 ? (
-            <div className="py-6 text-center">
-              <p className="text-xs text-slate-500">No transactions recorded yet.</p>
-              <Link href="/billing" className="inline-block mt-2">
-                <Button size="sm">Create First Invoice</Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {sales.map((s) => (
-                <div
-                  key={s.id}
-                  onClick={() => setSelectedSaleForInvoice(s)}
-                  className="py-2.5 px-2 flex items-center justify-between text-xs cursor-pointer hover:bg-slate-50 rounded-lg"
-                >
-                  <div>
-                    <div className="font-bold text-slate-900 flex items-center gap-2">
-                      <span>{s.invoice_number}</span>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-slate-700">{s.customer_name || 'Cash Customer'}</span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
-                      {s.items.length} items • {s.payment_method.toUpperCase()} • {new Date(s.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
+        {/* Collapsible Content Section */}
+        {!isRecentCollapsed && (
+          <div className="space-y-3 pt-1 animate-in fade-in">
+            {/* Quick Filter Toolbar */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
+              {/* Search Box */}
+              <div className="relative flex-1">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Filter by invoice #, customer name, phone..."
+                  value={recentSearchQuery}
+                  onChange={(e) => setRecentSearchQuery(e.target.value)}
+                  className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg pl-8 pr-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-slate-900"
+                />
+              </div>
 
-                  <div className="text-right">
-                    <div className="font-bold text-slate-900 text-sm">
-                      {formatINR(s.grand_total)}
-                    </div>
-                    <Badge variant={s.payment_status === 'paid' ? 'success' : 'warning'} size="sm">
-                      {s.payment_status.toUpperCase()}
-                    </Badge>
-                  </div>
+              {/* Filter Dropdowns */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Date Dropdown */}
+                <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                  <Calendar className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                  <select
+                    value={recentDateFilter}
+                    onChange={(e) => setRecentDateFilter(e.target.value as any)}
+                    className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">All Dates</option>
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="7days">Last 7 Days</option>
+                    <option value="this_month">This Month</option>
+                  </select>
                 </div>
-              ))}
+
+                {/* Payment Mode Dropdown */}
+                <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                  <Filter className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                  <select
+                    value={recentPaymentFilter}
+                    onChange={(e) => setRecentPaymentFilter(e.target.value as any)}
+                    className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">All Payment Modes</option>
+                    <option value="cash">Cash Only</option>
+                    <option value="upi">UPI / QR Only</option>
+                    <option value="credit">Credit / Udhar</option>
+                    <option value="split">Split Multi-Payment</option>
+                  </select>
+                </div>
+
+                {/* Reset Filters Button */}
+                {(recentDateFilter !== 'all' || recentPaymentFilter !== 'all' || recentSearchQuery.trim() !== '') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRecentDateFilter('all');
+                      setRecentPaymentFilter('all');
+                      setRecentSearchQuery('');
+                    }}
+                    className="px-2 py-1.5 rounded-lg text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 flex items-center gap-1 transition-colors"
+                    title="Reset all filters"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Reset</span>
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-        </div>
+
+            {/* Transactions List */}
+            {filteredRecentSales.length === 0 ? (
+              <div className="py-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                <Receipt className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50" />
+                <p className="text-xs font-bold text-slate-700">No matching transactions found</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Try adjusting your date or payment filters</p>
+                {(recentDateFilter !== 'all' || recentPaymentFilter !== 'all' || recentSearchQuery.trim() !== '') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRecentDateFilter('all');
+                      setRecentPaymentFilter('all');
+                      setRecentSearchQuery('');
+                    }}
+                    className="mt-2 text-xs font-bold text-slate-900 underline"
+                  >
+                    Clear all filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {displayedSales.map((s) => (
+                  <div
+                    key={s.id}
+                    onClick={() => setSelectedSaleForInvoice(s)}
+                    className="py-2.5 px-2.5 flex items-center justify-between text-xs cursor-pointer hover:bg-slate-50/80 rounded-xl transition-colors group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold flex-shrink-0 ${
+                        s.payment_method === 'cash' 
+                          ? 'bg-emerald-100 text-emerald-800' 
+                          : s.payment_method === 'upi'
+                          ? 'bg-sky-100 text-sky-800'
+                          : s.payment_method === 'credit'
+                          ? 'bg-amber-100 text-amber-900'
+                          : 'bg-purple-100 text-purple-900'
+                      }`}>
+                        <Receipt className="w-4 h-4" />
+                      </div>
+
+                      <div>
+                        <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                          <span>{s.invoice_number}</span>
+                          <span className="text-slate-300">•</span>
+                          <span className="text-slate-700 font-semibold">{s.customer_name || 'Cash Customer'}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 font-medium">
+                          <span>{s.items.length} items</span>
+                          <span>•</span>
+                          <span className="uppercase font-bold text-[10px]">{s.payment_method}</span>
+                          <span>•</span>
+                          <span>{new Date(s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}, {new Date(s.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right flex items-center gap-3">
+                      <div>
+                        <div className="font-mono font-black text-slate-900 text-sm">
+                          {formatINR(s.grand_total)}
+                        </div>
+                        <Badge variant={s.payment_status === 'paid' ? 'success' : 'warning'} size="sm">
+                          {s.payment_status.toUpperCase()}
+                        </Badge>
+                      </div>
+
+                      <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all hidden sm:inline" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Footer Pagination / Jump to Full Page */}
+            {filteredRecentSales.length > 10 && (
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-medium">
+                  Showing top 10 of {filteredRecentSales.length} matching transactions
+                </span>
+                <Link href="/transactions" className="font-bold text-slate-900 hover:text-slate-700 flex items-center gap-1">
+                  <span>View All on Ledger Page</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Invoice & Thermal Receipt Modal */}

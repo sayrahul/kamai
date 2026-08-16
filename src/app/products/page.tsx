@@ -467,15 +467,15 @@ export default function ProductsPage() {
                 onChange={(e) => setFormUnit(e.target.value as ProductUnit)}
                 className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
               >
-                <option value="packet">Packet (पैकेट)</option>
-                <option value="piece">Piece (नग / पीस)</option>
-                <option value="kg">Kilogram (किलो)</option>
-                <option value="gram">Gram (ग्राम)</option>
-                <option value="litre">Litre (लीटर)</option>
-                <option value="ml">Millilitre (मिली)</option>
-                <option value="box">Box (डिब्बा / पेटी)</option>
-                <option value="dozen">Dozen (दर्जन)</option>
-                <option value="meter">Meter (मीटर)</option>
+                <option value="packet">Packet (pkt)</option>
+                <option value="piece">Piece (pc)</option>
+                <option value="kg">Kilogram (kg)</option>
+                <option value="gram">Gram (gm)</option>
+                <option value="litre">Litre (ltr)</option>
+                <option value="ml">Millilitre (ml)</option>
+                <option value="box">Box (box)</option>
+                <option value="dozen">Dozen (dz)</option>
+                <option value="meter">Meter (m)</option>
                 <option value="custom">Custom Unit</option>
               </select>
             </div>

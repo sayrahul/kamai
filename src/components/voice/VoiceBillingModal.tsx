@@ -168,7 +168,7 @@ export const VoiceBillingModal: React.FC<VoiceBillingModalProps> = ({
       title={
         <div className="flex items-center gap-2">
           <Mic className="w-5 h-5 text-slate-800" />
-          <span>Voice POS Billing (बोलकर बिल बनाएं)</span>
+          <span>Voice POS Billing Assistant</span>
         </div>
       }
       description="Speak item names and quantities in Hindi, Marathi, or English. Products are automatically recognized."

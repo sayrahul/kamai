@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
@@ -36,13 +36,20 @@ import {
   X,
   ShoppingCart,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Scale,
+  Sliders,
+  Bluetooth,
+  Usb
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { VoiceBillingModal } from '@/components/voice/VoiceBillingModal';
+import { HardwareManagerModal } from '@/components/hardware/HardwareManagerModal';
+import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
+import { electronicScale, ScaleReading } from '@/lib/hardware/weighingScale';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { announcePayment } from '@/lib/voice/paytmSoundbox';
 import { Sale } from '@/types';
@@ -55,6 +62,12 @@ export default function BillingPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [amountReceivedInput, setAmountReceivedInput] = useState<string>('');
+
+  // Split Payment Breakdown (Rupees)
+  const [splitCash, setSplitCash] = useState<string>('');
+  const [splitUpi, setSplitUpi] = useState<string>('');
+  const [splitCard, setSplitCard] = useState<string>('');
+  const [splitCredit, setSplitCredit] = useState<string>('');
 
   // Mobile Bottom Drawer State
   const [isMobileCartOpen, setIsMobileCartOpen] = useState<boolean>(false);
@@ -70,6 +83,10 @@ export default function BillingPage() {
   const [newCustName, setNewCustName] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCustAddress, setNewCustAddress] = useState('');
+
+  // Hardware Modals & Live Scale State
+  const [isHardwareModalOpen, setIsHardwareModalOpen] = useState<boolean>(false);
+  const [liveScaleWeight, setLiveScaleWeight] = useState<number>(0);
 
   // Modals
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -236,11 +253,16 @@ export default function BillingPage() {
     setNewCustAddress('');
   };
 
-  // Barcode scanned handler
+  // Barcode scanned handler (Supports both camera scan & hardware laser gun)
   const handleBarcodeScanned = async (barcode: string) => {
     const clean = barcode.trim();
-    // 1. Search in local product catalog
-    const localMatch = await db.products.where('barcode').equals(clean).first();
+    if (!clean) return;
+
+    // 1. Search in local product catalog by Barcode or ID
+    let localMatch = await db.products.where('barcode').equals(clean).first();
+    if (!localMatch) {
+      localMatch = await db.products.get(clean);
+    }
 
     if (localMatch) {
       addToCart(localMatch, 1);
@@ -261,6 +283,41 @@ export default function BillingPage() {
     } finally {
       setIsLookingUpPublicApi(false);
     }
+  };
+
+  // Hardware Laser Barcode Gun / Zebra PDA Global Keydown Interception
+  useHardwareBarcodeScanner({
+    onScan: handleBarcodeScanned,
+    enabled: !isBarcodeModalOpen && !isVoiceModalOpen && !isInvoiceModalOpen,
+  });
+
+  // Electronic Scale Real-Time Weight Sync
+  useEffect(() => {
+    const unsubscribe = electronicScale.subscribe((reading) => {
+      setLiveScaleWeight(reading.weightKg);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Apply scale weight to last/selected weighed item in cart
+  const handleApplyWeightToCart = (weightKg: number) => {
+    if (weightKg <= 0) return;
+    setCart((prev) => {
+      if (prev.length === 0) return prev;
+      // Target the last added item
+      const lastIndex = prev.length - 1;
+      return prev.map((item, idx) => {
+        if (idx === lastIndex) {
+          const newQty = weightKg;
+          return {
+            ...item,
+            quantity: newQty,
+            total_amount: Math.max(0, Math.round(newQty * item.unit_price) - (item.discount_amount || 0)),
+          };
+        }
+        return item;
+      });
+    });
   };
 
   // Save quick-added item from public API into local catalog & add to cart
@@ -325,10 +382,37 @@ export default function BillingPage() {
     const invoiceNumber = `${invPrefix}${String(nextNum).padStart(3, '0')}`;
     const now = new Date().toISOString();
 
-    const receivedPaise = amountReceivedInput ? Math.round(parseFloat(amountReceivedInput) * 100) : grandTotalPaise;
-    const isCredit = paymentMethod === 'credit' || receivedPaise < grandTotalPaise;
-    const balanceDuePaise = isCredit ? Math.max(0, grandTotalPaise - receivedPaise) : 0;
-    const changeReturnedPaise = !isCredit && receivedPaise > grandTotalPaise ? receivedPaise - grandTotalPaise : 0;
+    let receivedPaise = 0;
+    let balanceDuePaise = 0;
+    let changeReturnedPaise = 0;
+    let paymentSplitData: any = undefined;
+
+    if (paymentMethod === 'split') {
+      const cashP = splitCash ? Math.round(parseFloat(splitCash) * 100) : 0;
+      const upiP = splitUpi ? Math.round(parseFloat(splitUpi) * 100) : 0;
+      const cardP = splitCard ? Math.round(parseFloat(splitCard) * 100) : 0;
+      const creditP = splitCredit ? Math.round(parseFloat(splitCredit) * 100) : 0;
+      
+      const allocatedP = cashP + upiP + cardP + creditP;
+      // Auto-assign any remaining balance to Udhar if customer selected, else cash
+      const unassigned = Math.max(0, grandTotalPaise - allocatedP);
+      const finalCreditP = creditP + (selectedCustomer ? unassigned : 0);
+      const finalCashP = cashP + (!selectedCustomer ? unassigned : 0);
+
+      receivedPaise = finalCashP + upiP + cardP;
+      balanceDuePaise = finalCreditP;
+      paymentSplitData = {
+        cash_amount: finalCashP,
+        upi_amount: upiP,
+        card_amount: cardP,
+        credit_amount: finalCreditP,
+      };
+    } else {
+      receivedPaise = amountReceivedInput ? Math.round(parseFloat(amountReceivedInput) * 100) : grandTotalPaise;
+      const isCredit = paymentMethod === 'credit' || receivedPaise < grandTotalPaise;
+      balanceDuePaise = isCredit ? Math.max(0, grandTotalPaise - receivedPaise) : 0;
+      changeReturnedPaise = !isCredit && receivedPaise > grandTotalPaise ? receivedPaise - grandTotalPaise : 0;
+    }
 
     const saleId = `sale_${Date.now()}`;
 
@@ -345,6 +429,7 @@ export default function BillingPage() {
       tax_total: 0,
       grand_total: grandTotalPaise,
       payment_method: paymentMethod,
+      payment_split: paymentSplitData,
       amount_received: receivedPaise,
       balance_due: balanceDuePaise,
       change_returned: changeReturnedPaise,
@@ -465,10 +550,10 @@ export default function BillingPage() {
           onChange={(e) => setSelectedCustomerId(e.target.value)}
           className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
         >
-          <option value="">Walk-in Cash Customer (नकद ग्राहक)</option>
+          <option value="">Walk-in Cash Customer</option>
           {customers.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name} {c.phone ? `(${c.phone})` : ''} {c.current_balance > 0 ? `• Udhar: ${formatINR(c.current_balance)}` : ''}
+              {c.name} {c.phone ? `(${c.phone})` : ''} {c.current_balance > 0 ? `• Credit: ${formatINR(c.current_balance)}` : ''}
             </option>
           ))}
         </select>
@@ -562,11 +647,12 @@ export default function BillingPage() {
         <label className="text-xs font-bold text-slate-900 uppercase tracking-wider block mb-1">
           Payment Mode
         </label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
           {[
-            { id: 'cash', label: 'Cash (नकद)', icon: Banknote },
+            { id: 'cash', label: 'Cash', icon: Banknote },
             { id: 'upi', label: 'UPI / QR', icon: QrCode },
-            { id: 'credit', label: 'Udhar (उधार)', icon: BookOpen },
+            { id: 'credit', label: 'Credit', icon: BookOpen },
+            { id: 'split', label: 'Split', icon: CreditCard },
           ].map((m) => {
             const Icon = m.icon;
             const isSelected = paymentMethod === m.id;
@@ -574,21 +660,128 @@ export default function BillingPage() {
               <button
                 key={m.id}
                 type="button"
-                onClick={() => setPaymentMethod(m.id as PaymentMethod)}
+                onClick={() => {
+                  setPaymentMethod(m.id as PaymentMethod);
+                  if (m.id === 'split' && !splitCash && !splitUpi) {
+                    // Default half/half or full to cash
+                    setSplitCash((grandTotalPaise / 200).toString());
+                    setSplitUpi((grandTotalPaise / 200).toString());
+                  }
+                }}
                 className={cn(
-                  'py-2 px-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all',
+                  'py-2 px-1 rounded-lg border text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all text-center',
                   isSelected
-                    ? 'bg-slate-900 border-slate-900 text-white'
+                    ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
                     : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
                 )}
               >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{m.label}</span>
+                <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="truncate">{m.label}</span>
               </button>
             );
           })}
         </div>
       </div>
+
+      {/* If Split / Multi-Mode Payment: Render Breakdown Inputs */}
+      {paymentMethod === 'split' && cart.length > 0 && (() => {
+        const cVal = parseFloat(splitCash || '0') || 0;
+        const uVal = parseFloat(splitUpi || '0') || 0;
+        const crVal = parseFloat(splitCredit || '0') || 0;
+        const cardVal = parseFloat(splitCard || '0') || 0;
+        const allocatedPaise = Math.round((cVal + uVal + crVal + cardVal) * 100);
+        const remainingPaise = grandTotalPaise - allocatedPaise;
+
+        return (
+          <div className="p-3 bg-slate-50 border border-slate-300 rounded-xl space-y-2 text-xs">
+            <div className="flex items-center justify-between font-bold text-slate-800 pb-1 border-b border-slate-200">
+              <span>Split Payment Breakdown:</span>
+              <span className={remainingPaise === 0 ? 'text-emerald-700 font-extrabold' : 'text-amber-800 font-extrabold'}>
+                {remainingPaise === 0 ? '✓ Matched Exactly' : remainingPaise > 0 ? `₹${(remainingPaise / 100).toFixed(2)} Remaining` : `₹${Math.abs(remainingPaise / 100).toFixed(2)} Overpaid`}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Cash (₹)</label>
+                <input
+                  type="number"
+                  step="1"
+                  placeholder="0"
+                  value={splitCash}
+                  onChange={(e) => setSplitCash(e.target.value)}
+                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-bold text-xs rounded p-1.5 focus:outline-none focus:border-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">UPI / QR (₹)</label>
+                <input
+                  type="number"
+                  step="1"
+                  placeholder="0"
+                  value={splitUpi}
+                  onChange={(e) => setSplitUpi(e.target.value)}
+                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-bold text-xs rounded p-1.5 focus:outline-none focus:border-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Card / POS (₹)</label>
+                <input
+                  type="number"
+                  step="1"
+                  placeholder="0"
+                  value={splitCard}
+                  onChange={(e) => setSplitCard(e.target.value)}
+                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-bold text-xs rounded p-1.5 focus:outline-none focus:border-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Udhar / Khata (₹)</label>
+                <input
+                  type="number"
+                  step="1"
+                  placeholder="0"
+                  value={splitCredit}
+                  onChange={(e) => setSplitCredit(e.target.value)}
+                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-bold text-xs rounded p-1.5 focus:outline-none focus:border-slate-900"
+                />
+              </div>
+            </div>
+
+            {remainingPaise !== 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[10px] text-slate-500 font-semibold">Assign Remaining to:</span>
+                <button
+                  type="button"
+                  onClick={() => setSplitCash((prev) => (Math.max(0, (parseFloat(prev || '0') + remainingPaise / 100)).toFixed(2)))}
+                  className="px-2 py-0.5 rounded bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-800"
+                >
+                  + Cash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSplitUpi((prev) => (Math.max(0, (parseFloat(prev || '0') + remainingPaise / 100)).toFixed(2)))}
+                  className="px-2 py-0.5 rounded bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-800"
+                >
+                  + UPI
+                </button>
+                {selectedCustomer && (
+                  <button
+                    type="button"
+                    onClick={() => setSplitCredit((prev) => (Math.max(0, (parseFloat(prev || '0') + remainingPaise / 100)).toFixed(2)))}
+                    className="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 hover:bg-amber-200 text-[10px] font-bold text-amber-900"
+                  >
+                    + Udhar
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* If Cash: Amount Received Input for Change calculation */}
       {paymentMethod === 'cash' && cart.length > 0 && (
@@ -655,6 +848,22 @@ export default function BillingPage() {
                 />
               </div>
 
+              {/* Live Electronic Weighing Scale Button */}
+              <button
+                type="button"
+                onClick={() => setIsHardwareModalOpen(true)}
+                className={cn(
+                  'px-2.5 py-1.5 min-h-[38px] rounded-lg border text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs',
+                  liveScaleWeight > 0
+                    ? 'bg-amber-400 border-amber-500 text-slate-950 ring-2 ring-amber-400/40'
+                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                )}
+                title="Electronic Weighing Scale: Click to view live scale reading or apply weight to cart item"
+              >
+                <Scale className="w-4 h-4 text-amber-700" />
+                <span className="font-mono">{liveScaleWeight.toFixed(3)} kg</span>
+              </button>
+
               {/* Barcode Camera Scanner Button */}
               <button
                 type="button"
@@ -670,10 +879,20 @@ export default function BillingPage() {
                 type="button"
                 onClick={() => setIsVoiceModalOpen(true)}
                 className="px-3 py-2 min-h-[38px] rounded-lg bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-sm"
-                title="Voice Bill Entry (बोलकर बिल बनाएं)"
+                title="Voice Bill Entry"
               >
                 <Mic className="w-4 h-4 text-slate-950" />
                 <span className="hidden sm:inline">Voice POS</span>
+              </button>
+
+              {/* Hardware Manager Button (Bluetooth Thermal, Laser Scanner, Scale) */}
+              <button
+                type="button"
+                onClick={() => setIsHardwareModalOpen(true)}
+                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center"
+                title="POS Hardware (Bluetooth Printer, Laser Scanner, Weighing Scale)"
+              >
+                <Sliders className="w-4 h-4 text-white" />
               </button>
             </div>
 
@@ -1046,6 +1265,13 @@ export default function BillingPage() {
         onClose={() => setIsInvoiceModalOpen(false)}
         sale={activeSaleForInvoice}
         business={business || null}
+      />
+
+      {/* Hardware Manager Modal (Bluetooth Printer, Laser Scanner, Weighing Scale) */}
+      <HardwareManagerModal
+        isOpen={isHardwareModalOpen}
+        onClose={() => setIsHardwareModalOpen(false)}
+        onApplyWeightToSelected={handleApplyWeightToCart}
       />
     </div>
   );

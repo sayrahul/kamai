@@ -87,7 +87,7 @@ export default function KhataPage() {
 
   const handleSendReminder = (c: typeof selectedCustomer) => {
     if (!c) return;
-    const msg = `नमस्ते ${c.name} जी, ${business?.name || 'हमारी दुकान'} से आपका कुल बाक़ी हिसाब ₹${(c.current_balance / 100).toFixed(2)} है। कृपया सुविधानुसार भुगतान करें।\n${business?.upi_id ? `UPI ID: ${business.upi_id}\n` : ''}धन्यवाद! 🙏`;
+    const msg = `Dear ${c.name}, gentle reminder from ${business?.name || 'our store'} regarding your pending balance of ₹${(c.current_balance / 100).toFixed(2)}. Kindly clear via UPI: ${business?.upi_id ? business.upi_id : ''}. Thank you! 🙏`;
     window.open(generateWhatsAppReceiptLink(c.phone || '', msg), '_blank');
   };
 
@@ -97,7 +97,7 @@ export default function KhataPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-slate-800" />
-            <span>Digital Udhar Khata (ग्राहक खाता)</span>
+            <span>Digital Credit Khata Ledger</span>
           </h1>
           <p className="text-xs text-slate-500">
             Total Outstanding: <span className="font-extrabold text-rose-700 font-mono">{formatINR(totalOutstanding)}</span>
@@ -141,7 +141,7 @@ export default function KhataPage() {
                       {formatINR(c.current_balance)}
                     </div>
                     <span className="text-[10px] text-slate-500 font-bold uppercase">
-                      {c.current_balance > 0 ? 'Udhar (बाक़ी)' : 'Settled'}
+                      {c.current_balance > 0 ? 'Pending Balance' : 'Settled'}
                     </span>
                   </div>
                 </div>

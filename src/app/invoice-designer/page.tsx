@@ -144,7 +144,7 @@ export default function InvoiceDesignerPage() {
           </div>
 
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Invoice Themes & Design • बिल डिज़ाइन
+            Invoice Themes & Design
           </h1>
           <p className="text-xs text-slate-500">
             Choose your brand colors, layout, tax headers, and UPI QR codes. Selected template applies automatically to WhatsApp shares and PDF prints.
@@ -195,7 +195,7 @@ export default function InvoiceDesignerPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">1</span>
-                <span>Select Invoice Theme (थीम चुनें)</span>
+                <span>Select Invoice Theme</span>
               </h2>
               <span className="text-[11px] text-slate-500 font-semibold">{INVOICE_THEME_PRESETS.length} Themes</span>
             </div>
@@ -228,8 +228,8 @@ export default function InvoiceDesignerPage() {
                           <CheckCircle2 className="w-4 h-4 text-slate-900 flex-shrink-0" />
                         )}
                       </div>
-                      <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                        {preset.hindiName}
+                      <div className="text-[10px] text-slate-500 font-bold mt-0.5 uppercase tracking-wide">
+                        {preset.badge} Layout
                       </div>
                       <p className="text-[10px] text-slate-600 mt-1 line-clamp-2 leading-relaxed">
                         {preset.description}
@@ -257,7 +257,7 @@ export default function InvoiceDesignerPage() {
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">2</span>
-              <span>Brand Accent Color (थीम का रंग)</span>
+              <span>Brand Accent Color</span>
             </h2>
 
             <div className="flex flex-wrap items-center gap-2.5 pt-1">
@@ -300,7 +300,7 @@ export default function InvoiceDesignerPage() {
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">3</span>
-              <span>Header & Branding Toggles (हेडर विकल्प)</span>
+              <span>Header & Branding Toggles</span>
             </h2>
 
             <div className="space-y-3">
@@ -374,7 +374,7 @@ export default function InvoiceDesignerPage() {
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">4</span>
-              <span>Terms & Footer Note (नियम व शर्तें)</span>
+              <span>Terms & Footer Note</span>
             </h2>
 
             <div className="space-y-3">
@@ -410,7 +410,7 @@ export default function InvoiceDesignerPage() {
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
               <Eye className="w-4 h-4 text-slate-700" />
-              <span>Live Interactive Preview (रियल-टाइम प्रिव्यू)</span>
+              <span>Live Interactive Preview</span>
             </div>
             <span className="text-[11px] text-slate-500 font-medium">A4 High-Res Format</span>
           </div>

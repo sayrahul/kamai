@@ -111,6 +111,9 @@ export interface Product {
   tax_rate: number; // percentage (0, 5, 12, 18, 28)
   is_tax_inclusive: boolean;
   hsn_code?: string;
+  batch_number?: string;
+  mfg_date?: string; // YYYY-MM-DD
+  expiry_date?: string; // YYYY-MM-DD
   current_stock: number;
   min_stock_level: number;
   supplier_id?: string;
@@ -130,6 +133,9 @@ export interface Customer {
   phone: string;
   email?: string;
   address?: string;
+  gstin?: string;
+  date_of_birth?: string; // YYYY-MM-DD or MM-DD
+  anniversary_date?: string; // YYYY-MM-DD or MM-DD
   opening_balance: number; // in paise (+ = owes us/Udhar, - = advance payment)
   current_balance: number; // in paise
   loyalty_points: number;
@@ -162,6 +168,7 @@ export interface Supplier {
 export interface CartItem {
   product_id: string;
   product_name: string;
+  hsn_code?: string;
   quantity: number;
   unit: ProductUnit;
   unit_price: number; // in paise
@@ -177,6 +184,14 @@ export type PaymentMethod = 'cash' | 'upi' | 'card' | 'bank_transfer' | 'credit'
 export type PaymentStatus = 'paid' | 'partial' | 'unpaid';
 export type SaleStatus = 'completed' | 'cancelled' | 'draft';
 
+export interface PaymentSplit {
+  cash_amount: number; // in paise
+  upi_amount: number; // in paise
+  card_amount: number; // in paise
+  credit_amount: number; // in paise
+  notes?: string;
+}
+
 export interface Sale {
   id: string;
   business_id: string;
@@ -190,6 +205,7 @@ export interface Sale {
   tax_total: number; // in paise
   grand_total: number; // in paise
   payment_method: PaymentMethod;
+  payment_split?: PaymentSplit;
   amount_received: number; // in paise
   balance_due: number; // in paise (added to Udhar Khata)
   change_returned: number; // in paise
@@ -200,6 +216,19 @@ export interface Sale {
   created_at: string;
   updated_at: string;
   sync_status: 'synced' | 'pending';
+}
+
+export interface CashExpense {
+  id: string;
+  business_id: string;
+  category: 'tea_snacks' | 'shop_maintenance' | 'staff_salary' | 'transport' | 'supplier_payout' | 'electricity' | 'other';
+  title: string;
+  amount: number; // in paise
+  paid_to?: string;
+  payment_mode: 'cash' | 'upi';
+  created_by: string;
+  created_at: string;
+  notes?: string;
 }
 
 export type MovementType = 'SALE' | 'PURCHASE' | 'RETURN' | 'ADJUSTMENT' | 'DAMAGE';
@@ -250,15 +279,46 @@ export interface CashRegister {
   closed_at?: string;
   opening_cash: number; // in paise
   cash_sales: number; // in paise
+  upi_sales: number; // in paise
+  credit_sales: number; // in paise
   cash_in: number; // in paise
   cash_out: number; // in paise
   expected_closing_cash: number; // in paise
   actual_closing_cash?: number; // in paise
-  difference?: number; // in paise
+  difference?: number; // in paise (actual - expected)
   status: 'open' | 'closed';
   notes?: string;
   opened_by: string;
   closed_by?: string;
+}
+
+export interface ReturnItem {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit: ProductUnit;
+  unit_price: number; // in paise
+  tax_rate: number;
+  total_amount: number; // in paise
+  restock_to_inventory: boolean;
+  reason?: string;
+}
+
+export interface SalesReturn {
+  id: string;
+  business_id: string;
+  return_number: string;
+  original_sale_id: string;
+  original_invoice_number: string;
+  customer_id?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  items: ReturnItem[];
+  refund_amount: number; // in paise
+  refund_method: 'cash' | 'upi' | 'store_credit' | 'khata_deduction';
+  notes?: string;
+  created_by: string;
+  created_at: string;
 }
 
 export interface MarketingTemplate {

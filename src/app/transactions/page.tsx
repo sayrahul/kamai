@@ -24,12 +24,14 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   Clock,
-  ChevronRight
+  ChevronRight,
+  RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
+import { SalesReturnModal } from '@/components/sales/SalesReturnModal';
 
 export type DatePreset = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 export type PaymentFilter = 'all' | 'cash' | 'upi' | 'credit';
@@ -47,9 +49,11 @@ export default function TransactionsPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('date-desc');
   
-  // Active Invoice Modal State
+  // Active Invoice & Return Modal State
   const [activeSaleForInvoice, setActiveSaleForInvoice] = useState<Sale | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [returnSaleId, setReturnSaleId] = useState<string | undefined>(undefined);
 
   // Queries
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -224,6 +228,19 @@ export default function TransactionsPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => {
+              setReturnSaleId(undefined);
+              setIsReturnModalOpen(true);
+            }}
+            className="text-xs font-bold gap-1 bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+            <span>Sales Return</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleExportCSV}
             className="text-xs font-bold gap-1.5"
             disabled={filteredSales.length === 0}
@@ -343,8 +360,8 @@ export default function TransactionsPage() {
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg overflow-x-auto">
             {[
               { id: 'all', label: 'All Modes' },
-              { id: 'cash', label: 'Cash (नकद)', icon: Banknote },
-              { id: 'credit', label: 'Credit / Udhar (उधार)', icon: BookOpen },
+              { id: 'cash', label: 'Cash', icon: Banknote },
+              { id: 'credit', label: 'Credit', icon: BookOpen },
               { id: 'upi', label: 'UPI / QR', icon: QrCode },
             ].map((p) => {
               const isSelected = paymentFilter === p.id;
@@ -597,6 +614,17 @@ export default function TransactionsPage() {
 
                     <div className="flex items-center gap-1">
                       <button
+                        onClick={() => {
+                          setReturnSaleId(sale.id);
+                          setIsReturnModalOpen(true);
+                        }}
+                        title="Process Sales Return / Credit Note"
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-amber-50 hover:text-amber-700 text-slate-600"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                      </button>
+
+                      <button
                         onClick={(e) => handleSendWhatsApp(sale, e)}
                         title="Send invoice via WhatsApp"
                         className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-emerald-50 hover:text-emerald-700 text-slate-600"
@@ -626,6 +654,16 @@ export default function TransactionsPage() {
         onClose={() => setIsInvoiceModalOpen(false)}
         sale={activeSaleForInvoice}
         business={business || null}
+      />
+
+      {/* Sales Return Modal */}
+      <SalesReturnModal
+        isOpen={isReturnModalOpen}
+        onClose={() => {
+          setIsReturnModalOpen(false);
+          setReturnSaleId(undefined);
+        }}
+        initialSaleId={returnSaleId}
       />
     </div>
   );

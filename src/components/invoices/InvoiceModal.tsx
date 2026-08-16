@@ -28,6 +28,8 @@ import {
   Palette
 } from 'lucide-react';
 import { downloadInvoicePdfFromElement, shareInvoicePdfDirect } from '@/lib/invoices/pdfGenerator';
+import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
+import { Bluetooth, Zap } from 'lucide-react';
 
 export type InvoiceFormat = 'thermal-58' | 'thermal-80' | 'a4';
 
@@ -103,6 +105,26 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
     }
   };
 
+  const [isBluetoothPrinting, setIsBluetoothPrinting] = useState<boolean>(false);
+
+  const handleBluetoothEscPosPrint = async () => {
+    setIsBluetoothPrinting(true);
+    try {
+      await bluetoothPrinter.printSaleReceipt(
+        sale,
+        business,
+        format === 'thermal-80' ? 80 : 58
+      );
+      setShareSuccessMsg('Receipt printed over Bluetooth!');
+      setTimeout(() => setShareSuccessMsg(''), 4000);
+    } catch (err: any) {
+      console.warn('Bluetooth print failed:', err);
+      alert(err.message || 'Bluetooth printing failed. Make sure printer is turned on.');
+    } finally {
+      setIsBluetoothPrinting(false);
+    }
+  };
+
   const handleWhatsAppSend = async () => {
     const el = document.getElementById('modal-printable-invoice');
     setIsGeneratingPdf(true);
@@ -171,7 +193,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
             <Link href="/invoice-designer">
               <Button
                 variant="outline"
@@ -183,6 +205,19 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 <span className="hidden sm:inline">Themes</span>
               </Button>
             </Link>
+
+            {/* Bluetooth ESC/POS Fast Print Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBluetoothEscPosPrint}
+              disabled={isBluetoothPrinting}
+              className="text-xs font-bold gap-1 bg-sky-50 text-sky-900 border-sky-300 hover:bg-sky-100"
+              title="1-Click Direct Bluetooth ESC/POS Printing without dialog"
+            >
+              <Bluetooth className="w-3.5 h-3.5 text-sky-700" />
+              <span>{isBluetoothPrinting ? 'Printing...' : 'BT Print'}</span>
+            </Button>
 
             <Button
               variant="outline"
