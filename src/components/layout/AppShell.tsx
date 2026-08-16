@@ -18,7 +18,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     
     // Auth route guarding
     const user = getStoredUser();
-    const isPublicRoute = pathname === '/auth' || pathname.startsWith('/invoice');
+    const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
+    const isPublicRoute = pathname === '/auth' || isCustomerInvoice;
 
     if (!user && !isPublicRoute) {
       router.push('/auth');
@@ -45,8 +46,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-[#090D16]">{children}</main>;
   }
 
-  // If on public shared invoice page, render standalone without shell
-  if (pathname.startsWith('/invoice')) {
+  // If on public shared customer digital invoice page (e.g. /invoice?d=...), render standalone without merchant shell
+  const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
+  if (isCustomerInvoice) {
     return <main className="min-h-screen bg-slate-50">{children}</main>;
   }
 

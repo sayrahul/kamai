@@ -1,7 +1,6 @@
-'use client';
-
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { db } from '@/lib/db';
 import { decodeInvoicePayload, SharedInvoicePayload } from '@/lib/invoices/whatsappInvoice';
 import { formatINR, generateUPILink } from '@/lib/utils';
@@ -18,7 +17,9 @@ import {
   Download, 
   MapPin, 
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  ArrowLeft,
+  Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -161,25 +162,33 @@ function InvoiceContent() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] py-6 px-3 sm:px-6 flex flex-col items-center">
       {/* Top Action Bar (hidden in print) */}
-      <div className="w-full max-w-2xl mb-4 flex items-center justify-between no-print">
+      <div className="w-full max-w-2xl mb-4 flex items-center justify-between no-print gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-900">{data.b_name}</span>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-medium border border-slate-200">
+          <Link
+            href="/"
+            className="p-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1 text-xs font-bold transition-all"
+            title="Go to Dashboard / App Home"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Home</span>
+          </Link>
+          <span className="text-xs font-bold text-slate-900 truncate max-w-[150px] sm:max-w-none">{data.b_name}</span>
+          <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-medium border border-slate-200">
             <ShieldCheck className="w-3 h-3 text-slate-600" />
-            <span>Digital Invoice</span>
+            <span>Digital Bill</span>
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleShare}>
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={handleShare} className="text-xs font-bold">
             <Share2 className="w-3.5 h-3.5 mr-1" />
-            <span>Share</span>
+            <span className="hidden sm:inline">Share</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={handleDownloadPdf} disabled={isGeneratingPdf}>
+          <Button variant="outline" size="sm" onClick={handleDownloadPdf} disabled={isGeneratingPdf} className="text-xs font-bold">
             <Download className="w-3.5 h-3.5 mr-1" />
-            <span>{isGeneratingPdf ? 'Generating PDF...' : 'PDF'}</span>
+            <span>{isGeneratingPdf ? 'PDF...' : 'PDF'}</span>
           </Button>
-          <Button variant="primary" size="sm" onClick={handlePrint}>
+          <Button variant="primary" size="sm" onClick={handlePrint} className="text-xs font-bold">
             <Printer className="w-3.5 h-3.5 mr-1" />
             <span>Print</span>
           </Button>
