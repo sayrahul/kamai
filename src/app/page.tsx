@@ -31,16 +31,19 @@ import {
   ShoppingBag,
   SlidersHorizontal,
   Sparkles,
+  Star,
   TrendingUp,
   Users,
   Volume2,
   X,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { Sale } from '@/types';
 import { announcePayment, isSoundboxEnabled } from '@/lib/voice/paytmSoundbox';
 
@@ -49,6 +52,8 @@ export default function HomePage() {
   const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState<boolean>(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
 
   // Recent Transactions Filter & Collapse States
   const [isRecentCollapsed, setIsRecentCollapsed] = useState<boolean>(false);
@@ -114,6 +119,16 @@ export default function HomePage() {
 
   useEffect(() => {
     setSoundEnabled(isSoundboxEnabled());
+    // Fetch live subscription tier from cloud
+    fetch('/api/subscription/status?' + new URLSearchParams({ businessId: '' })).catch(() => {});
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.business?.subscription_tier) {
+          setSubscriptionTier(data.business.subscription_tier);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleTestSoundbox = (e: React.MouseEvent) => {
@@ -121,8 +136,38 @@ export default function HomePage() {
     announcePayment(todaysSalesTotal > 0 ? todaysSalesTotal : 15000, language);
   };
 
+  const tierLabel = subscriptionTier === 'enterprise' ? 'Enterprise' : subscriptionTier === 'pro' ? 'Pro' : 'Free';
+  const isFree = subscriptionTier === 'free';
+
   return (
     <div className="space-y-5">
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeOpen}
+        onClose={() => setIsUpgradeOpen(false)}
+        currentTier={subscriptionTier}
+        businessName={business?.name}
+        onUpgradeSuccess={(tier) => setSubscriptionTier(tier)}
+      />
+
+      {/* Free plan upgrade nudge banner */}
+      {isFree && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <Zap className="w-4 h-4 text-amber-500 flex-shrink-0" />
+            <span className="text-xs font-bold text-amber-900">
+              You&apos;re on the <strong>Free</strong> plan — Upgrade to unlock unlimited bills, cloud sync & WhatsApp sharing
+            </span>
+          </div>
+          <button
+            onClick={() => setIsUpgradeOpen(true)}
+            className="flex-shrink-0 text-[11px] font-black bg-amber-400 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-lg cursor-pointer transition-all"
+          >
+            Upgrade →
+          </button>
+        </div>
+      )}
+
       {/* ---------------- STORE HERO HEADER BAR ---------------- */}
       <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
         <div className="space-y-1">
@@ -132,6 +177,16 @@ export default function HomePage() {
             </span>
             <span className="text-xs text-slate-500 font-medium">
               {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+            {/* Subscription Tier Badge */}
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-black border ${
+              subscriptionTier === 'enterprise'
+                ? 'bg-violet-100 text-violet-700 border-violet-200'
+                : subscriptionTier === 'pro'
+                ? 'bg-amber-100 text-amber-700 border-amber-200'
+                : 'bg-slate-100 text-slate-500 border-slate-200'
+            }`}>
+              {subscriptionTier === 'enterprise' ? '👑' : subscriptionTier === 'pro' ? '⚡' : '🆓'} {tierLabel}
             </span>
           </div>
 
@@ -161,6 +216,16 @@ export default function HomePage() {
             <QrCode className="w-3.5 h-3.5 text-slate-600" />
             <span>Store QR</span>
           </button>
+
+          {isFree && (
+            <button
+              onClick={() => setIsUpgradeOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-black transition-all cursor-pointer"
+            >
+              <Star className="w-3.5 h-3.5 text-amber-500" />
+              <span>Upgrade</span>
+            </button>
+          )}
 
           <Link href="/billing">
             <Button size="md" className="text-xs font-black px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400 shadow-sm">
