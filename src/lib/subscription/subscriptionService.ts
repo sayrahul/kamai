@@ -54,6 +54,22 @@ export const subscriptionService = {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       window.dispatchEvent(new Event('subscription_changed'));
+
+      // Sync with Supabase Cloud Backend in background
+      try {
+        const storedUser = localStorage.getItem('kamai_auth_user');
+        const userObj = storedUser ? JSON.parse(storedUser) : null;
+        fetch('/api/subscription/activate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            businessId: userObj?.business_id || undefined,
+            tier,
+            billingCycle,
+            razorpayPaymentId: transactionRef,
+          }),
+        }).catch((err) => console.warn('Cloud subscription sync notice:', err));
+      } catch {}
     }
 
     return state;

@@ -10,6 +10,12 @@ import {
   restoreDatabaseFromPayload, 
   FullBackupPayload 
 } from '@/lib/backup/cloudBackupService';
+import { 
+  pushLocalToSupabase, 
+  pullSupabaseToLocal, 
+  isSupabaseConfigured, 
+  SyncResult 
+} from '@/lib/supabase/syncService';
 import { formatINR } from '@/lib/utils';
 import { 
   Cloud, 
@@ -50,6 +56,11 @@ export default function CloudBackupPage() {
   const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
   const [lastBackupType, setLastBackupType] = useState<string | null>(null);
 
+  // Supabase State
+  const [isSupabaseSyncing, setIsSupabaseSyncing] = useState(false);
+  const [supabaseConnected, setSupabaseConnected] = useState(false);
+  const [lastSupabaseSyncTime, setLastSupabaseSyncTime] = useState<string | null>(null);
+
   // Restore State
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
   const [restorePayload, setRestorePayload] = useState<FullBackupPayload | null>(null);
@@ -67,10 +78,51 @@ export default function CloudBackupPage() {
     try {
       const lastTime = localStorage.getItem('kamai_last_backup_time');
       const lastType = localStorage.getItem('kamai_last_backup_type');
+      const lastSupa = localStorage.getItem('kamai_last_supabase_sync');
       if (lastTime) setLastBackupTime(lastTime);
       if (lastType) setLastBackupType(lastType);
+      if (lastSupa) setLastSupabaseSyncTime(lastSupa);
+      setSupabaseConnected(isSupabaseConfigured());
     } catch (e) {}
   }, []);
+
+  // Supabase Push Sync Handler
+  const handleSupabasePush = async () => {
+    setIsSupabaseSyncing(true);
+    try {
+      const res = await pushLocalToSupabase();
+      if (res.success) {
+        setLastSupabaseSyncTime(res.syncedAt || new Date().toISOString());
+        setBackupSuccessMessage(res.message);
+        setTimeout(() => setBackupSuccessMessage(null), 5000);
+      } else {
+        alert(res.message);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Supabase cloud sync failed.');
+    } finally {
+      setIsSupabaseSyncing(false);
+    }
+  };
+
+  // Supabase Pull Sync Handler
+  const handleSupabasePull = async () => {
+    setIsSupabaseSyncing(true);
+    try {
+      const res = await pullSupabaseToLocal();
+      if (res.success) {
+        setLastSupabaseSyncTime(res.syncedAt || new Date().toISOString());
+        setRestoreSuccessMessage(res.message);
+        setTimeout(() => setRestoreSuccessMessage(null), 5000);
+      } else {
+        alert(res.message);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Supabase pull failed.');
+    } finally {
+      setIsSupabaseSyncing(false);
+    }
+  };
 
   // 1-Click Google Drive Cloud Backup
   const handleGoogleDriveBackup = async () => {
@@ -259,12 +311,75 @@ export default function CloudBackupPage() {
         {/* LEFT COLUMN: BACKUP & RESTORE ACTIONS (7 Cols) */}
         {/* ========================================================================= */}
         <div className="lg:col-span-7 space-y-4">
+          {/* CARD 0: SUPABASE REALTIME CLOUD DATABASE SYNC */}
+          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
+            <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                  <Database className="w-4 h-4 text-emerald-600" />
+                  <span>Supabase Cloud Database Sync</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Live PostgreSQL cloud database synchronization for cross-device access and multi-store analytics.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                  supabaseConnected 
+                    ? 'bg-emerald-50 text-emerald-900 border-emerald-300' 
+                    : 'bg-amber-50 text-amber-950 border-amber-300'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${supabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  <span>{supabaseConnected ? 'Supabase Connected' : 'Vercel Config Pending'}</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/30 space-y-3 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="space-y-0.5">
+                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <RefreshCw className={`w-3.5 h-3.5 text-emerald-700 ${isSupabaseSyncing ? 'animate-spin' : ''}`} />
+                    <span>2-Way Cloud Synchronization</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600">
+                    Last Synced: <strong>{lastSupabaseSyncTime ? new Date(lastSupabaseSyncTime).toLocaleString('en-IN') : 'Not yet synced'}</strong>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSupabasePull}
+                    disabled={isSupabaseSyncing}
+                    variant="outline"
+                    className="text-xs font-bold gap-1 bg-white text-slate-800 border-slate-300 hover:bg-slate-50"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Pull from Cloud</span>
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    onClick={handleSupabasePush}
+                    disabled={isSupabaseSyncing}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 shadow-sm"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{isSupabaseSyncing ? 'Syncing...' : 'Sync Now to Supabase'}</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+
           {/* CARD 1: 1-CLICK BACKUP OPTIONS */}
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
                 <Cloud className="w-4 h-4 text-slate-700" />
-                <span>Cloud & Local Backup Storage</span>
+                <span>Google Drive & Encrypted File Backups</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Create a full, tamper-proof snapshot of your store data that can be restored onto any phone, tablet, or PC.
@@ -273,13 +388,13 @@ export default function CloudBackupPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               {/* Option A: Google Drive */}
-              <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-2.5 flex flex-col justify-between">
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5 flex flex-col justify-between">
                 <div>
-                  <div className="font-black text-emerald-950 flex items-center gap-1.5">
-                    <Cloud className="w-4 h-4 text-emerald-700" />
-                    <span>Google Drive Cloud Sync</span>
+                  <div className="font-black text-slate-900 flex items-center gap-1.5">
+                    <Cloud className="w-4 h-4 text-sky-700" />
+                    <span>Google Drive Snapshot</span>
                   </div>
-                  <p className="text-[11px] text-emerald-900 mt-1 leading-relaxed">
+                  <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
                     Saves directly to your personal Google Drive account. Ideal for multi-device sync and disaster recovery.
                   </p>
                 </div>
@@ -288,7 +403,7 @@ export default function CloudBackupPage() {
                   size="sm"
                   onClick={handleGoogleDriveBackup}
                   disabled={isBackingUp}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs justify-center"
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs justify-center"
                 >
                   <Cloud className="w-3.5 h-3.5 mr-1" />
                   <span>Backup to Google Drive</span>

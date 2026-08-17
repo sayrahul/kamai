@@ -5,8 +5,11 @@ export interface AuthUser {
   name: string;
   phone: string;
   email?: string;
+  business_id?: string;
   business_name?: string;
-  role: 'owner' | 'manager' | 'cashier';
+  subscription_tier?: 'free' | 'pro' | 'enterprise';
+  subscription_valid_until?: string | null;
+  role: 'owner' | 'manager' | 'cashier' | 'staff';
   created_at: string;
   token?: string;
 }

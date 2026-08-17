@@ -101,13 +101,75 @@ export default function AuthPage() {
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginPhone) {
-      alert('Please enter your mobile number');
+    if (!loginPhone || loginPhone.length < 10) {
+      alert('Please enter a valid 10-digit mobile number');
       return;
     }
 
     setIsLoading(true);
     try {
+      // 1. Try Cloud Login via Supabase backend API
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loginPhone.trim(),
+          password: loginPassword,
+          otpCode,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // Save business into local Dexie store if provided
+        if (data.business) {
+          await db.businesses.put({
+            id: data.business.id,
+            name: data.business.name,
+            business_type: data.business.business_type || 'grocery',
+            owner_name: data.business.owner_name || 'Store Owner',
+            phone: data.business.phone || loginPhone.trim(),
+            address: data.business.address || '',
+            pincode: data.business.pincode || '',
+            gstin: data.business.gstin || '',
+            upi_id: data.business.upi_id || `${loginPhone.trim()}@upi`,
+            currency: data.business.currency || 'INR',
+            language: data.business.language || 'hi',
+            invoice_prefix: data.business.invoice_prefix || 'INV-',
+            next_invoice_number: data.business.next_invoice_number || 1001,
+            is_onboarded: true,
+            created_at: data.business.created_at || new Date().toISOString(),
+            updated_at: data.business.updated_at || new Date().toISOString(),
+            sync_status: 'synced',
+          });
+        }
+
+        const user: AuthUser = {
+          id: data.user.id,
+          name: data.user.name,
+          phone: data.user.phone,
+          business_id: data.user.businessId,
+          business_name: data.user.businessName,
+          subscription_tier: data.user.subscriptionTier || 'free',
+          subscription_valid_until: data.user.subscriptionValidUntil,
+          role: data.user.role || 'owner',
+          created_at: new Date().toISOString(),
+          token: `token_${Date.now()}`,
+        };
+        setStoredUser(user);
+        markIntroAsSeen();
+        router.push('/');
+        return;
+      }
+
+      // If specific server error returned (e.g. invalid password or user not found)
+      if (res.status === 401 || res.status === 404 || res.status === 409) {
+        alert(data.error || 'Authentication failed. Please check your credentials.');
+        return;
+      }
+
+      // Fallback: Local offline login if Supabase server offline
       await ensureStarterBusinessIfEmpty();
       const user: AuthUser = {
         id: `usr_${Date.now()}`,
@@ -122,7 +184,19 @@ export default function AuthPage() {
       router.push('/');
     } catch (err) {
       console.error('Login error:', err);
-      alert('Failed to sign in. Please try again.');
+      // Fallback for full offline resilience
+      await ensureStarterBusinessIfEmpty();
+      const user: AuthUser = {
+        id: `usr_${Date.now()}`,
+        name: 'Store Owner',
+        phone: loginPhone,
+        role: 'owner',
+        created_at: new Date().toISOString(),
+        token: `token_${Date.now()}`,
+      };
+      setStoredUser(user);
+      markIntroAsSeen();
+      router.push('/');
     } finally {
       setIsLoading(false);
     }
@@ -137,6 +211,73 @@ export default function AuthPage() {
 
     setIsLoading(true);
     try {
+      // 1. Try Cloud Registration via Supabase backend API
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeName: signupStoreName.trim(),
+          ownerName: signupOwnerName.trim(),
+          phone: signupPhone.trim(),
+          password: signupPassword,
+          businessType: signupCategory,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // Save created business into local Dexie store
+        if (data.business) {
+          await db.businesses.put({
+            id: data.business.id,
+            name: data.business.name,
+            business_type: data.business.business_type || signupCategory,
+            owner_name: data.business.owner_name || signupOwnerName.trim(),
+            phone: data.business.phone || signupPhone.trim(),
+            address: data.business.address || '',
+            pincode: data.business.pincode || '',
+            gstin: data.business.gstin || '',
+            upi_id: data.business.upi_id || `${signupPhone.trim()}@upi`,
+            currency: 'INR',
+            language: 'hi',
+            invoice_prefix: 'INV-',
+            next_invoice_number: 1,
+            terms_conditions: 'Thank you for your business! Goods once sold can be returned within 7 days.',
+            footer_message: 'Powered by KamaiPlus',
+            is_onboarded: true,
+            created_at: data.business.created_at || new Date().toISOString(),
+            updated_at: data.business.updated_at || new Date().toISOString(),
+            sync_status: 'synced',
+          });
+        }
+
+        const user: AuthUser = {
+          id: data.user.id,
+          name: data.user.name,
+          phone: data.user.phone,
+          email: signupEmail.trim() || undefined,
+          business_id: data.user.businessId,
+          business_name: data.user.businessName,
+          subscription_tier: data.user.subscriptionTier || 'free',
+          subscription_valid_until: data.user.subscriptionValidUntil,
+          role: 'owner',
+          created_at: new Date().toISOString(),
+          token: `token_${Date.now()}`,
+        };
+        setStoredUser(user);
+        markIntroAsSeen();
+        router.push('/');
+        return;
+      }
+
+      if (res.status === 409) {
+        alert(data.error || 'An account with this phone already exists. Please log in.');
+        setAuthTab('login');
+        return;
+      }
+
+      // Fallback: Local offline business creation
       const bizId = `biz_${Date.now()}`;
       const now = new Date().toISOString();
 
@@ -177,7 +318,44 @@ export default function AuthPage() {
       router.push('/');
     } catch (err) {
       console.error('Signup error:', err);
-      alert('Failed to create store. Please try again.');
+      // Fallback for full offline resilience
+      const bizId = `biz_${Date.now()}`;
+      const now = new Date().toISOString();
+
+      await db.businesses.put({
+        id: bizId,
+        name: signupStoreName.trim(),
+        business_type: signupCategory,
+        owner_name: signupOwnerName.trim(),
+        phone: signupPhone.trim(),
+        address: '',
+        pincode: '',
+        gstin: '',
+        upi_id: `${signupPhone.trim()}@upi`,
+        currency: 'INR',
+        language: 'hi',
+        invoice_prefix: 'INV-',
+        next_invoice_number: 1,
+        terms_conditions: 'Thank you for your business!',
+        footer_message: 'Powered by KamaiPlus',
+        is_onboarded: true,
+        created_at: now,
+        updated_at: now,
+        sync_status: 'synced',
+      });
+
+      const user: AuthUser = {
+        id: `usr_${Date.now()}`,
+        name: signupOwnerName.trim(),
+        phone: signupPhone.trim(),
+        business_name: signupStoreName.trim(),
+        role: 'owner',
+        created_at: now,
+        token: `token_${Date.now()}`,
+      };
+      setStoredUser(user);
+      markIntroAsSeen();
+      router.push('/');
     } finally {
       setIsLoading(false);
     }
