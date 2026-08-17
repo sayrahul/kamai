@@ -32,6 +32,7 @@ export function setStoredUser(user: AuthUser | null): void {
   } else {
     localStorage.removeItem(AUTH_USER_KEY);
   }
+  window.dispatchEvent(new Event('auth_changed'));
 }
 
 export function hasSeenIntro(): boolean {

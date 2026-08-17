@@ -199,23 +199,17 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col justify-between p-4 sm:p-6 py-8 relative">
-      {/* Background Glow */}
-      <div className="absolute top-0 -left-20 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 -right-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-4 sm:p-6 py-8 relative">
       {/* Top Header & Tour Button */}
-      <div className="relative z-10 max-w-md mx-auto w-full flex items-center justify-between">
+      <div className="relative z-10 max-w-md mx-auto w-full flex items-center justify-between border-b border-slate-800 pb-3">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-sm shadow-md">
-            K+
-          </div>
-          <span className="font-extrabold text-sm tracking-tight text-white">KamaiPlus</span>
+          <img src="/logo.png" alt="Kamai+" className="w-8 h-8 object-contain flex-shrink-0" />
+          <span className="font-extrabold text-sm tracking-tight text-white">KamaiPlus POS</span>
         </div>
 
         <button
           onClick={() => setShowIntro(true)}
-          className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 px-2.5 py-1 rounded-lg border border-amber-400/20 bg-amber-400/10 transition-colors"
+          className="text-xs font-bold text-amber-400 flex items-center gap-1 px-2.5 py-1 rounded border border-slate-800 bg-slate-900 cursor-pointer"
         >
           <Sparkles className="w-3.5 h-3.5" />
           <span>View Intro Tour</span>
@@ -224,7 +218,7 @@ export default function AuthPage() {
 
       {/* Main Authentication Card */}
       <div className="relative z-10 max-w-md mx-auto w-full my-auto py-6">
-        <div className="bg-slate-900/95 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl space-y-5">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 sm:p-7 space-y-5">
           {/* Header Title */}
           <div className="text-center space-y-1.5">
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
@@ -242,10 +236,10 @@ export default function AuthPage() {
             type="button"
             onClick={handleDemoLogin}
             disabled={isLoading}
-            className="w-full p-3 rounded-2xl bg-gradient-to-r from-amber-400/15 via-amber-400/25 to-amber-400/15 border border-amber-400/40 hover:border-amber-400 flex items-center justify-between text-left transition-all group"
+            className="w-full p-3 rounded-lg bg-slate-950 border border-amber-400/40 flex items-center justify-between text-left cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-xl bg-amber-400 text-slate-950 font-black flex-shrink-0">
+              <div className="p-1.5 rounded bg-amber-400 text-slate-950 font-black flex-shrink-0">
                 <Zap className="w-4 h-4 fill-slate-950" />
               </div>
               <div>
@@ -255,23 +249,23 @@ export default function AuthPage() {
                     INSTANT
                   </span>
                 </div>
-                <div className="text-[10px] text-slate-300 mt-0.5">
-                  Explore full features with 50+ pre-seeded grocery items & Khata
+                <div className="text-[10px] text-slate-400 mt-0.5">
+                  Explore full features with 50+ pre-seeded grocery items & ledger
                 </div>
               </div>
             </div>
-            <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+            <ArrowRight className="w-4 h-4 text-amber-400 flex-shrink-0" />
           </button>
 
           {/* Tab Switcher: Login vs Signup */}
-          <div className="flex items-center p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs font-bold">
+          <div className="flex items-center p-1 bg-slate-950 rounded-lg border border-slate-800 text-xs font-bold">
             <button
               type="button"
               onClick={() => setAuthTab('login')}
-              className={`flex-1 py-2 rounded-lg transition-all text-center ${
+              className={`flex-1 py-1.5 rounded text-center cursor-pointer ${
                 authTab === 'login'
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-slate-800 text-white'
+                  : 'text-slate-400'
               }`}
             >
               Sign In
@@ -279,10 +273,10 @@ export default function AuthPage() {
             <button
               type="button"
               onClick={() => setAuthTab('signup')}
-              className={`flex-1 py-2 rounded-lg transition-all text-center ${
+              className={`flex-1 py-1.5 rounded text-center cursor-pointer ${
                 authTab === 'signup'
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-slate-800 text-white'
+                  : 'text-slate-400'
               }`}
             >
               Register

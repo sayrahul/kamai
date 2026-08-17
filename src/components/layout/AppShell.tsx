@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { db, ensureStarterBusinessIfEmpty } from '@/lib/db';
-import { getStoredUser, hasSeenIntro } from '@/lib/auth';
+import { AuthUser, getStoredUser } from '@/lib/auth';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
@@ -12,12 +12,21 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const pathname = usePathname();
   const router = useRouter();
   const [isClient, setIsClient] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
     setIsClient(true);
-    
-    // Auth route guarding
     const user = getStoredUser();
+    setCurrentUser(user);
+
+    const handleAuthChange = () => {
+      setCurrentUser(getStoredUser());
+    };
+
+    window.addEventListener('auth_changed', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+
+    // Auth route guarding
     const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
     const isPublicRoute = pathname === '/auth' || isCustomerInvoice;
 
@@ -39,17 +48,22 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     };
 
     initDb();
-  }, [pathname, router]);
 
-  // If on onboarding or auth page, render full width without sidebar/navbar
-  if (pathname === '/onboarding' || pathname === '/auth') {
-    return <main className="min-h-screen bg-[#090D16]">{children}</main>;
-  }
+    return () => {
+      window.removeEventListener('auth_changed', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+    };
+  }, [pathname, router]);
 
   // If on public shared customer digital invoice page (e.g. /invoice?d=...), render standalone without merchant shell
   const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
   if (isCustomerInvoice) {
     return <main className="min-h-screen bg-slate-50">{children}</main>;
+  }
+
+  // If on onboarding, auth page, or user is not logged in (viewing intro tour / login screen), hide sidebar, navbar, and menus
+  if (!currentUser || pathname === '/onboarding' || pathname === '/auth') {
+    return <main className="min-h-screen bg-slate-950">{children}</main>;
   }
 
   return (

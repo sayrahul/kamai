@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   title: 'KamaiPlus (Kamai+) | Business Management & Growth Platform',
   description: 'Sell, Manage, and Grow your local Indian business with instant POS billing, offline Khata, inventory, and WhatsApp marketing.',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/icon.png',
+    apple: '/icon-192.png',
+  },
 };
 
 export const viewport: Viewport = {

@@ -121,7 +121,7 @@ export const Sidebar: React.FC = () => {
       {/* Compact App Footer */}
       <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between px-2 text-[11px] text-slate-600 font-semibold bg-white/50 rounded-lg p-1.5">
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <img src="/logo.png" alt="Kamai+" className="w-4 h-4 object-contain" />
           <span className="font-bold text-slate-800">KamaiPlus</span>
         </span>
         <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold border border-slate-200/60">

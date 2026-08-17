@@ -44,11 +44,17 @@ export const Navbar: React.FC = () => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
+    const handleAuthChange = () => {
+      setCurrentUser(getStoredUser());
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('auth_changed', handleAuthChange);
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('auth_changed', handleAuthChange);
     };
   }, []);
 
@@ -72,6 +78,10 @@ export const Navbar: React.FC = () => {
     { code: 'en', label: 'English', flag: '🌐' },
   ];
 
+  const displayStoreName = currentUser?.business_name || business?.name || t('common.appName');
+  const displayOwnerName = currentUser?.name || business?.owner_name || 'Store Owner';
+  const displayType = business?.business_type ? business.business_type.toUpperCase() : 'RETAIL STORE';
+
   return (
     <>
       <header className="sticky top-0 z-40 bg-white text-slate-900 px-4 sm:px-6 py-3 flex items-center justify-between border-b border-slate-200">
@@ -81,7 +91,7 @@ export const Navbar: React.FC = () => {
             {business?.logo_url ? (
               <img
                 src={business.logo_url}
-                alt={business.name}
+                alt={displayStoreName}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -91,7 +101,7 @@ export const Navbar: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
-                {business?.name || t('common.appName')}
+                {displayStoreName}
               </h1>
               <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200">
                 <ShieldCheck className="w-3 h-3 text-slate-600" />
@@ -99,7 +109,7 @@ export const Navbar: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-500 font-normal truncate max-w-[200px] sm:max-w-none">
-              {business?.owner_name ? `${business.owner_name} • ${business.business_type.toUpperCase()}` : t('common.tagline')}
+              {displayOwnerName} • {displayType}
             </p>
           </div>
         </div>
