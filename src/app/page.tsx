@@ -20,6 +20,7 @@ import {
   Cloud,
   FileSpreadsheet,
   Filter,
+  Mic,
   Package,
   Palette,
   QrCode,
