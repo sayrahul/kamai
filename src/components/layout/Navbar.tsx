@@ -48,6 +48,28 @@ export const Navbar: React.FC = () => {
       setCurrentUser(getStoredUser());
     };
 
+    // Auto-restore session from server-side httpOnly cookie via /api/auth/me
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated && data.user) {
+          const authUser: AuthUser = {
+            id: data.user.id,
+            name: data.user.name || 'Store Owner',
+            phone: data.user.phone,
+            role: data.user.role || 'owner',
+            business_id: data.user.business_id,
+            business_name: data.user.business_name,
+            subscription_tier: data.business?.subscription_tier || 'free',
+            subscription_valid_until: data.business?.subscription_valid_until,
+            created_at: new Date().toISOString(),
+          };
+          setStoredUser(authUser);
+          setCurrentUser(authUser);
+        }
+      })
+      .catch((e) => console.warn('Session restore check notice:', e));
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('auth_changed', handleAuthChange);
@@ -58,7 +80,10 @@ export const Navbar: React.FC = () => {
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
     setStoredUser(null);
     router.push('/auth');
   };

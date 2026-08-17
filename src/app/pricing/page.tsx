@@ -679,6 +679,22 @@ export default function PricingPage() {
         </a>
       </div>
 
+      {/* ---------------- LEGAL & COMPLIANCE FOOTER LINKS ---------------- */}
+      <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+        <div>
+          <span>© {new Date().getFullYear()} KamaiPlus by ProVenture. 100% Indian Retail SaaS.</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/privacy-policy" className="hover:text-slate-900 underline font-medium">Privacy Policy</Link>
+          <span className="text-slate-300">•</span>
+          <Link href="/terms-of-service" className="hover:text-slate-900 underline font-medium">Terms of Service</Link>
+          <span className="text-slate-300">•</span>
+          <Link href="/refund-policy" className="hover:text-slate-900 underline font-medium">Refund Policy</Link>
+          <span className="text-slate-300">•</span>
+          <Link href="/contact-us" className="hover:text-slate-900 underline font-medium">Contact Us</Link>
+        </div>
+      </div>
+
       {/* ---------------- UPI PAYMENT MODAL ---------------- */}
       {activeModalTier && (
         <UPIPaymentModal
