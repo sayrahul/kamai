@@ -90,13 +90,31 @@ export default function AuthPage() {
     }
   };
 
-  const handleSendOtp = () => {
+  const handleSendOtp = async () => {
     if (!loginPhone || loginPhone.length < 10) {
       alert('Please enter a valid 10-digit mobile number');
       return;
     }
-    setOtpSent(true);
-    setOtpCode('123456'); // Auto-fill test OTP for frictionless experience
+    try {
+      const res = await fetch('/api/auth/send-whatsapp-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: loginPhone.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setOtpSent(true);
+        if (data.devHint) {
+          setOtpCode(data.devHint);
+        }
+        alert(data.message || 'OTP sent to your WhatsApp!');
+      } else {
+        alert(data.error || 'Failed to send WhatsApp OTP.');
+      }
+    } catch (e: any) {
+      setOtpSent(true);
+      setOtpCode('123456');
+    }
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -108,14 +126,69 @@ export default function AuthPage() {
 
     setIsLoading(true);
     try {
-      // 1. Try Cloud Login via Supabase backend API
+      // 1. If logging in via WhatsApp OTP
+      if (loginMethod === 'otp') {
+        const res = await fetch('/api/auth/verify-whatsapp-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: loginPhone.trim(),
+            otp: otpCode.trim(),
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          if (data.business) {
+            await db.businesses.put({
+              id: data.business.id,
+              name: data.business.name,
+              business_type: data.business.business_type || 'grocery',
+              owner_name: data.business.owner_name || 'Store Owner',
+              phone: data.business.phone || loginPhone.trim(),
+              address: data.business.address || '',
+              pincode: data.business.pincode || '',
+              gstin: data.business.gstin || '',
+              upi_id: data.business.upi_id || `${loginPhone.trim()}@upi`,
+              currency: 'INR',
+              language: 'hi',
+              invoice_prefix: data.business.invoice_prefix || 'INV-',
+              next_invoice_number: data.business.next_invoice_number || 1001,
+              is_onboarded: true,
+              created_at: data.business.created_at || new Date().toISOString(),
+              updated_at: data.business.updated_at || new Date().toISOString(),
+              sync_status: 'synced',
+            });
+          }
+
+          const user: AuthUser = {
+            id: data.user.id,
+            name: data.user.name || 'Store Owner',
+            phone: data.user.phone || loginPhone.trim(),
+            business_id: data.user.business_id,
+            business_name: data.user.business_name,
+            subscription_tier: data.user.subscription_tier || 'free',
+            subscription_valid_until: data.user.subscription_valid_until,
+            role: data.user.role || 'owner',
+            created_at: new Date().toISOString(),
+            token: `token_${Date.now()}`,
+          };
+          setStoredUser(user);
+          markIntroAsSeen();
+          router.push('/');
+          return;
+        } else {
+          alert(data.error || 'Invalid or expired OTP.');
+          return;
+        }
+      }
+
+      // 2. Try Cloud Login via PIN/Password API
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: loginPhone.trim(),
-          password: loginPassword,
-          otpCode,
+          pin: loginPassword,
         }),
       });
 
