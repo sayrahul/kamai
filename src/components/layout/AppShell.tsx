@@ -31,7 +31,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const isPublicRoute = pathname === '/auth' || isCustomerInvoice;
 
     if (!user && !isPublicRoute) {
-      router.push('/auth');
+      router.replace('/auth');
       return;
     }
 
@@ -55,15 +55,28 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     };
   }, [pathname, router]);
 
+  if (!isClient) {
+    return <main className="min-h-screen bg-[#F8FAFC]" />;
+  }
+
   // If on public shared customer digital invoice page (e.g. /invoice?d=...), render standalone without merchant shell
   const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
   if (isCustomerInvoice) {
     return <main className="min-h-screen bg-slate-50">{children}</main>;
   }
 
-  // If on onboarding, auth page, or user is not logged in (viewing intro tour / login screen), hide sidebar, navbar, and menus
-  if (!currentUser || pathname === '/onboarding' || pathname === '/auth') {
+  // If on onboarding or auth page, render clean full-screen wrapper
+  if (pathname === '/onboarding' || pathname === '/auth') {
     return <main className="min-h-screen bg-slate-950">{children}</main>;
+  }
+
+  // If user is not logged in and on a protected route, show a minimal loading spinner while redirecting to /auth
+  if (!currentUser) {
+    return (
+      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400" />
+      </main>
+    );
   }
 
   return (

@@ -29,11 +29,14 @@ import {
   Sparkles,
   Palette
 } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
+import { SupportedLanguage } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 
 export default function SettingsPage() {
+  const { language, setLanguage, t } = useTranslation();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
 
   // Form State
@@ -63,7 +66,7 @@ export default function SettingsPage() {
   // UI state
   const [isSaved, setIsSaved] = useState(false);
   const [liveQrDataUrl, setLiveQrDataUrl] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'profile' | 'upi' | 'invoicing' | 'backup'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'language' | 'upi' | 'invoicing' | 'backup'>('profile');
 
   // Load business data into form
   useEffect(() => {
@@ -278,6 +281,7 @@ export default function SettingsPage() {
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {[
           { id: 'profile', label: 'Shop Profile & Logo', icon: Store },
+          { id: 'language', label: 'Language / भाषा', icon: Globe },
           { id: 'upi', label: 'UPI QR & Bank Accounts', icon: QrCode },
           { id: 'invoicing', label: 'Invoice Terms & Prefix', icon: Receipt },
           { id: 'backup', label: 'Data Backup & Restore', icon: ShieldCheck },
@@ -288,7 +292,7 @@ export default function SettingsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                 isActive
                   ? 'bg-slate-900 text-white'
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -308,6 +312,100 @@ export default function SettingsPage() {
           <span>🎨 Invoice Themes (Vyapar)</span>
         </Link>
       </div>
+
+      {/* Tab: Language Selection */}
+      {activeTab === 'language' && (
+        <div className="space-y-4">
+          <Card className="p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                <Globe className="w-4 h-4 text-slate-800" />
+                <span>Preferred Application Language / भाषा चुनें</span>
+              </span>
+              <p className="text-xs text-slate-500 mt-1">
+                Choose your preferred language for POS billing, invoices, customer khata ledger, reports, and menus.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              {[
+                {
+                  code: 'hi' as SupportedLanguage,
+                  name: 'हिंदी',
+                  englishName: 'Hindi',
+                  flag: '🇮🇳',
+                  desc: 'दुकान बिलिंग, दैनिक बिक्री, इन्वेंटरी और खाता बही हेतु संपूर्ण हिंदी',
+                },
+                {
+                  code: 'mr' as SupportedLanguage,
+                  name: 'मराठी',
+                  englishName: 'Marathi',
+                  flag: '🇮🇳',
+                  desc: 'मराठी भाषेतील सोपे व जलद पीओएस बिलिंग, स्टॉक व उधारी हिशोब',
+                },
+                {
+                  code: 'en' as SupportedLanguage,
+                  name: 'English',
+                  englishName: 'English',
+                  flag: '🌐',
+                  desc: 'Standard English interface for fast POS billing and invoicing',
+                },
+              ].map((langItem) => {
+                const isSelected = language === langItem.code;
+                return (
+                  <button
+                    key={langItem.code}
+                    type="button"
+                    onClick={async () => {
+                      setLanguage(langItem.code);
+                      if (business?.id) {
+                        await db.businesses.update(business.id, {
+                          language: langItem.code,
+                          updated_at: new Date().toISOString(),
+                        });
+                      }
+                      setIsSaved(true);
+                      setTimeout(() => setIsSaved(false), 3000);
+                    }}
+                    className={`p-4 rounded-xl border-2 text-left flex flex-col justify-between transition-all cursor-pointer relative ${
+                      isSelected
+                        ? 'border-slate-900 bg-amber-50/50 shadow-md ring-2 ring-amber-400/30'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-slate-900 text-amber-400 text-[10px] font-black flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-amber-400" />
+                        <span>Active</span>
+                      </div>
+                    )}
+
+                    <div>
+                      <div className="text-2xl mb-2">{langItem.flag}</div>
+                      <div className="text-base font-black text-slate-900">{langItem.name}</div>
+                      <div className="text-xs font-semibold text-slate-500">{langItem.englishName}</div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-600 mt-3 leading-relaxed border-t border-slate-100 pt-2">
+                      {langItem.desc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-600">
+              <span className="font-semibold">
+                Current Active Language: <strong className="text-slate-900">{language === 'hi' ? 'हिंदी (Hindi)' : language === 'mr' ? 'मराठी (Marathi)' : 'English'}</strong>
+              </span>
+              <span className="text-emerald-700 font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Instant Auto-Save</span>
+              </span>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Tab 1: Profile & Logo */}
       {activeTab === 'profile' && (
@@ -439,6 +537,33 @@ export default function SettingsPage() {
                     value={pincode}
                     onChange={(e) => setPincode(e.target.value)}
                   />
+                </div>
+
+                {/* Application Language Preference */}
+                <div className="space-y-1.5 pt-1">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    App & Invoice Language / भाषा
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { code: 'hi' as SupportedLanguage, label: '🇮🇳 हिंदी (Hindi)' },
+                      { code: 'mr' as SupportedLanguage, label: '🇮🇳 मराठी (Marathi)' },
+                      { code: 'en' as SupportedLanguage, label: '🌐 English' },
+                    ].map((l) => (
+                      <button
+                        key={l.code}
+                        type="button"
+                        onClick={() => setLanguage(l.code)}
+                        className={`p-2.5 rounded-lg border text-xs font-bold text-center transition-all cursor-pointer ${
+                          language === l.code
+                            ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="pt-3 border-t border-slate-200 flex justify-end">

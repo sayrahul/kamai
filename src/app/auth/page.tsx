@@ -121,7 +121,13 @@ function OtpInput({
   );
 }
 
-function StatusBanner({ msg }: { msg: StatusMsg }) {
+function StatusBanner({
+  msg,
+  action,
+}: {
+  msg: StatusMsg;
+  action?: { label: string; onClick: () => void };
+}) {
   if (!msg) return null;
   const styles = {
     success: 'bg-emerald-950/80 border-emerald-600/40 text-emerald-300',
@@ -129,13 +135,24 @@ function StatusBanner({ msg }: { msg: StatusMsg }) {
     info: 'bg-amber-950/80 border-amber-600/40 text-amber-300',
   };
   return (
-    <div className={`p-3 rounded-xl text-xs flex items-start gap-2 border ${styles[msg.type]}`}>
-      {msg.type === 'success' ? (
-        <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
-      ) : (
-        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+    <div className={`p-3.5 rounded-xl text-xs flex flex-col gap-2 border ${styles[msg.type]}`}>
+      <div className="flex items-start gap-2">
+        {msg.type === 'success' ? (
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        ) : (
+          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        )}
+        <span className="leading-relaxed flex-1">{msg.text}</span>
+      </div>
+      {action && (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="self-start text-[11px] font-bold px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 hover:bg-amber-300 transition-all cursor-pointer shadow-sm mt-1"
+        >
+          {action.label}
+        </button>
       )}
-      <span className="leading-relaxed">{msg.text}</span>
     </div>
   );
 }
@@ -170,6 +187,7 @@ export default function AuthPage() {
   const [loginPhone, setLoginPhone] = useState('');
   const [loginOtp, setLoginOtp] = useState('');
   const [loginStatus, setLoginStatus] = useState<StatusMsg>(null);
+  const [loginStatusAction, setLoginStatusAction] = useState<{ label: string; onClick: () => void } | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginSending, setLoginSending] = useState(false);
   const [loginCooldown, setLoginCooldown] = useState(0);
@@ -183,6 +201,7 @@ export default function AuthPage() {
   const [signupPin, setSignupPin] = useState('');
   const [signupOtp, setSignupOtp] = useState('');
   const [signupStatus, setSignupStatus] = useState<StatusMsg>(null);
+  const [signupStatusAction, setSignupStatusAction] = useState<{ label: string; onClick: () => void } | null>(null);
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupSending, setSignupSending] = useState(false);
   const [signupCooldown, setSignupCooldown] = useState(0);
@@ -256,10 +275,12 @@ export default function AuthPage() {
     const phone = cleanPhone(loginPhone);
     if (!isValidPhone(phone)) {
       setLoginStatus({ type: 'error', text: 'Please enter a valid 10-digit mobile number starting with 6-9.' });
+      setLoginStatusAction(null);
       return;
     }
     setLoginSending(true);
     setLoginStatus(null);
+    setLoginStatusAction(null);
     try {
       const res = await fetch('/api/auth/send-whatsapp-otp', {
         method: 'POST',
@@ -273,23 +294,55 @@ export default function AuthPage() {
         setLoginOtp('');
         setLoginCooldown(60);
         setLoginStatus({ type: 'success', text: `OTP sent to your WhatsApp (+91 ${phone}).` });
+        setLoginStatusAction(null);
       } else {
         if (data.requireSignup) {
           setLoginStatus({
             type: 'error',
             text: `+91 ${phone} is not registered. Please register your store first.`,
           });
-          setTimeout(() => {
-            setMode('signup');
-            setSignupPhone(phone);
-            setLoginStatus(null);
-          }, 2500);
+          setLoginStatusAction({
+            label: 'Register Store Now →',
+            onClick: () => {
+              resetSignup();
+              setMode('signup');
+              setSignupPhone(phone);
+              setLoginStatus(null);
+            },
+          });
+        } else if (data.devOtp) {
+          // Development/Testing fallback when WhatsApp Cloud API is restricted
+          setLoginStep('otp');
+          setLoginOtp(data.devOtp);
+          setLoginCooldown(60);
+          setLoginStatus({
+            type: 'info',
+            text: `Meta WhatsApp Sandbox Error: Recipient not in Meta test list. Test OTP is: ${data.devOtp}`,
+          });
+          setLoginStatusAction({
+            label: `Auto-Fill Test OTP (${data.devOtp})`,
+            onClick: () => setLoginOtp(data.devOtp),
+          });
+        } else if (data.isAccessDenied) {
+          setLoginStatus({
+            type: 'error',
+            text: data.error || 'WhatsApp Delivery Failed (#131005): Meta App is in Development Mode. Please add this number to the Meta test list or use Demo Mode.',
+          });
+          setLoginStatusAction({
+            label: '⚡ Open Demo Store Instantly',
+            onClick: handleDemoLogin,
+          });
         } else {
           setLoginStatus({ type: 'error', text: data.error || 'Failed to send OTP. Please try again.' });
+          setLoginStatusAction({
+            label: '⚡ Try Demo Mode',
+            onClick: handleDemoLogin,
+          });
         }
       }
     } catch {
       setLoginStatus({ type: 'error', text: 'Network error. Please check your connection and try again.' });
+      setLoginStatusAction(null);
     } finally {
       setLoginSending(false);
     }
@@ -299,10 +352,12 @@ export default function AuthPage() {
     const phone = cleanPhone(loginPhone);
     if (loginOtp.length !== 6) {
       setLoginStatus({ type: 'error', text: 'Please enter the complete 6-digit OTP from WhatsApp.' });
+      setLoginStatusAction(null);
       return;
     }
     setLoginLoading(true);
     setLoginStatus(null);
+    setLoginStatusAction(null);
     try {
       const res = await fetch('/api/auth/verify-whatsapp-otp', {
         method: 'POST',
@@ -320,13 +375,18 @@ export default function AuthPage() {
       } else {
         if (data.requireSignup) {
           setLoginStatus({ type: 'error', text: 'This number is not registered. Please create an account.' });
-          setTimeout(() => { setMode('signup'); setSignupPhone(phone); }, 2200);
+          setLoginStatusAction({
+            label: 'Register Store Now →',
+            onClick: () => { setMode('signup'); setSignupPhone(phone); },
+          });
         } else {
           setLoginStatus({ type: 'error', text: data.error || 'Incorrect OTP. Please try again.' });
+          setLoginStatusAction(null);
         }
       }
     } catch {
       setLoginStatus({ type: 'error', text: 'Network error. Please try again.' });
+      setLoginStatusAction(null);
     } finally {
       setLoginLoading(false);
     }
@@ -349,6 +409,7 @@ export default function AuthPage() {
     const phone = cleanPhone(signupPhone);
     setSignupSending(true);
     setSignupStatus(null);
+    setSignupStatusAction(null);
     try {
       const res = await fetch('/api/auth/send-whatsapp-otp', {
         method: 'POST',
@@ -362,23 +423,53 @@ export default function AuthPage() {
         setSignupOtp('');
         setSignupCooldown(60);
         setSignupStatus({ type: 'success', text: `Verification OTP sent to WhatsApp (+91 ${phone}).` });
+        setSignupStatusAction(null);
       } else {
         if (data.requireLogin) {
           setSignupStatus({
             type: 'error',
             text: `+91 ${phone} is already registered. Please sign in instead.`,
           });
-          setTimeout(() => {
-            setMode('login');
-            setLoginPhone(phone);
-            setSignupStatus(null);
-          }, 2500);
+          setSignupStatusAction({
+            label: 'Sign In Now →',
+            onClick: () => {
+              setMode('login');
+              setLoginPhone(phone);
+              setSignupStatus(null);
+            },
+          });
+        } else if (data.devOtp) {
+          setSignupStep('otp');
+          setSignupOtp(data.devOtp);
+          setSignupCooldown(60);
+          setSignupStatus({
+            type: 'info',
+            text: `Meta WhatsApp Sandbox Error: Recipient not in Meta test list. Test OTP is: ${data.devOtp}`,
+          });
+          setSignupStatusAction({
+            label: `Auto-Fill Test OTP (${data.devOtp})`,
+            onClick: () => setSignupOtp(data.devOtp),
+          });
+        } else if (data.isAccessDenied) {
+          setSignupStatus({
+            type: 'error',
+            text: data.error || 'WhatsApp Delivery Failed (#131005): Meta App is in Development Mode. Please add this number to the Meta test list or use Demo Mode.',
+          });
+          setSignupStatusAction({
+            label: '⚡ Open Demo Store Instantly',
+            onClick: handleDemoLogin,
+          });
         } else {
           setSignupStatus({ type: 'error', text: data.error || 'Failed to send OTP. Please try again.' });
+          setSignupStatusAction({
+            label: '⚡ Try Demo Mode',
+            onClick: handleDemoLogin,
+          });
         }
       }
     } catch {
       setSignupStatus({ type: 'error', text: 'Network error. Please check connection.' });
+      setSignupStatusAction(null);
     } finally {
       setSignupSending(false);
     }
@@ -637,7 +728,7 @@ export default function AuthPage() {
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-2xl">
-            <StatusBanner msg={loginStatus} />
+            <StatusBanner msg={loginStatus} action={loginStatusAction || undefined} />
 
             {loginStep === 'phone' ? (
               <>
@@ -791,7 +882,7 @@ export default function AuthPage() {
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl">
-          <StatusBanner msg={signupStatus} />
+          <StatusBanner msg={signupStatus} action={signupStatusAction || undefined} />
 
           {signupStep === 'details' ? (
             <div className="space-y-4 mt-1">

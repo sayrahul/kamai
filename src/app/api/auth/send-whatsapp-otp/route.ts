@@ -106,10 +106,21 @@ export async function POST(req: NextRequest) {
 
     if (!sendResult.success) {
       console.error('WhatsApp dispatch failed:', sendResult.error);
+      const isDev = process.env.NODE_ENV !== 'production';
+
       return NextResponse.json(
         {
           success: false,
           error: `WhatsApp Delivery Failed: ${sendResult.error}`,
+          errorCode: sendResult.errorCode,
+          isAccessDenied: sendResult.isAccessDenied,
+          devOtp: isDev ? otpCode : undefined,
+          metaDiagnostic: sendResult.isAccessDenied
+            ? {
+                issue: 'Meta App in Development Mode',
+                resolution: `Add +91${clean10Digit} to the "To" test number list in Meta Developer Portal (WhatsApp > API Setup), or switch Meta App to Live Mode.`,
+              }
+            : undefined,
         },
         { status: 502 }
       );

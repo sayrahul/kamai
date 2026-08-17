@@ -8,15 +8,6 @@
     --foreground: 222.2 84% 4.9%;
   }
 
-  /* Disable transitions and animations for crisp, clean, instant UI */
-  *,
-  *::before,
-  *::after {
-    transition: none !important;
-    animation: none !important;
-    -webkit-tap-highlight-color: transparent;
-  }
-
   body {
     @apply bg-[#F8FAFC] text-slate-900 antialiased font-sans;
     min-height: 100vh;
