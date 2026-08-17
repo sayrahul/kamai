@@ -235,7 +235,7 @@ export type MovementType = 'SALE' | 'PURCHASE' | 'RETURN' | 'ADJUSTMENT' | 'DAMA
 
 export interface InventoryMovement {
   id: string;
-  business_id: string;
+  business_id?: string;
   product_id: string;
   product_name: string;
   movement_type: MovementType;
@@ -244,8 +244,9 @@ export interface InventoryMovement {
   new_stock: number;
   reference_id?: string; // sale_id or purchase_id
   reason?: string;
-  created_by: string;
+  created_by?: string;
   created_at: string;
+  sync_status?: 'synced' | 'pending';
 }
 
 export type LedgerPartyType = 'customer' | 'supplier';
@@ -270,6 +271,7 @@ export interface LedgerTransaction {
   notes?: string;
   balance_after: number; // in paise
   created_at: string;
+  sync_status?: 'synced' | 'pending';
 }
 
 export interface CashRegister {
@@ -290,6 +292,7 @@ export interface CashRegister {
   notes?: string;
   opened_by: string;
   closed_by?: string;
+  sync_status?: 'synced' | 'pending';
 }
 
 export interface ReturnItem {

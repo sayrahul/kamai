@@ -266,6 +266,7 @@ export default function InventoryPage() {
     if (stockDiff !== 0) {
       await db.inventory_movements.add({
         id: `mov_${Date.now()}`,
+        business_id: editingProduct.business_id || 'biz_default',
         product_id: editingProduct.id,
         product_name: editingProduct.name,
         quantity: stockDiff,
@@ -273,6 +274,7 @@ export default function InventoryPage() {
         reason: 'Manual batch & stock adjustment',
         previous_stock: editingProduct.current_stock,
         new_stock: newStock,
+        created_by: 'owner',
         created_at: new Date().toISOString(),
         sync_status: 'pending',
       });
