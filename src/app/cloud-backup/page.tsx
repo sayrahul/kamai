@@ -163,7 +163,7 @@ export default function CloudBackupPage() {
             Cloud Backup & 1-Click Database Restore
           </h1>
           <p className="text-xs text-slate-500">
-            Never lose your product catalog, sales bills, or customer Udhar Khata records. Backup securely to Google Drive or download encrypted files.
+            Never lose your product catalog, sales bills, or customer credit records. Backup securely to Google Drive or download encrypted files.
           </p>
         </div>
 
@@ -414,7 +414,7 @@ export default function CloudBackupPage() {
                 <span className="font-mono font-bold text-slate-900">{saleCount} sales</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                <span>Ledger & Udhar Transactions:</span>
+                <span>Ledger & Credit Transactions:</span>
                 <span className="font-mono font-bold text-slate-900">{khataCount} entries</span>
               </div>
               <div className="flex justify-between pt-1 font-bold text-emerald-700">

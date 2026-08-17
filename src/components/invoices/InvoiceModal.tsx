@@ -436,7 +436,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   </div>
                   {sale.balance_due > 0 && (
                     <div className="flex justify-between font-bold text-amber-700 pt-0.5">
-                      <span>Balance Due (Udhar):</span>
+                      <span>Balance Due:</span>
                       <span className="font-mono">{formatINR(sale.balance_due)}</span>
                     </div>
                   )}
@@ -519,7 +519,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 </div>
                 {sale.balance_due > 0 && (
                   <div className="flex justify-between font-bold text-amber-700 text-[10px]">
-                    <span>Udhar Due:</span>
+                    <span>Credit Due:</span>
                     <span>{formatINR(sale.balance_due)}</span>
                   </div>
                 )}

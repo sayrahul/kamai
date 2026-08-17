@@ -350,7 +350,7 @@ function InvoiceContent() {
 
             {data.s_balance > 0 && (
               <div className="flex justify-between font-bold text-amber-700 pt-0.5">
-                <span>Balance Due (Udhar):</span>
+                <span>Balance Due:</span>
                 <span className="font-mono">{formatINR(data.s_balance)}</span>
               </div>
             )}

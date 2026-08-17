@@ -161,7 +161,7 @@ export default function TransactionsPage() {
       'Payment Method',
       'Grand Total (₹)',
       'Amount Received (₹)',
-      'Balance Due / Udhar (₹)',
+      'Balance Due / Credit (₹)',
       'Payment Status',
     ];
 
@@ -220,7 +220,7 @@ export default function TransactionsPage() {
             <span>Transaction History & Sales Ledger</span>
           </h1>
           <p className="text-xs text-slate-500">
-            View, filter, and export all sales invoices, cash entries, UPI payments, and Udhar credit.
+            View, filter, and export all sales invoices, cash entries, UPI payments, and customer credit.
           </p>
         </div>
 
@@ -292,13 +292,13 @@ export default function TransactionsPage() {
         <Card className="p-3.5 bg-white border border-slate-200">
           <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
             <BookOpen className="w-3 h-3 text-amber-600" />
-            <span>Credit / Udhar</span>
+            <span>Customer Credit</span>
           </div>
           <div className="text-lg sm:text-xl font-extrabold text-amber-900 font-mono mt-0.5">
             {formatINR(totalCreditPaise)}
           </div>
           <div className="text-[10px] text-slate-400 mt-0.5 font-semibold">
-            Added to Khata
+            Added to Ledger
           </div>
         </Card>
       </div>
@@ -329,7 +329,7 @@ export default function TransactionsPage() {
               <optgroup label="Registered Customers">
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} {c.phone ? `(${c.phone})` : ''} {c.current_balance > 0 ? `• Udhar: ${formatINR(c.current_balance)}` : ''}
+                    {c.name} {c.phone ? `(${c.phone})` : ''} {c.current_balance > 0 ? `• Balance: ${formatINR(c.current_balance)}` : ''}
                   </option>
                 ))}
               </optgroup>
@@ -602,7 +602,7 @@ export default function TransactionsPage() {
                       </div>
                       {sale.balance_due > 0 ? (
                         <div className="text-[10px] font-bold text-amber-700 font-mono">
-                          Udhar: {formatINR(sale.balance_due)}
+                          Due: {formatINR(sale.balance_due)}
                         </div>
                       ) : (
                         <div className="text-[10px] font-semibold text-emerald-700 flex items-center justify-end gap-0.5">

@@ -637,7 +637,7 @@ export default function SettingsPage() {
             </div>
 
             <p className="text-xs text-slate-600">
-              Instantly populate your store with 50+ real Indian kirana/FMCG products (with barcodes, MRP, tax rates & units), 15 customers with active Udhar balances, 6 wholesale suppliers, and 20 recent sales transactions to test analytics and billing POS.
+              Instantly populate your store with 50+ real Indian kirana/FMCG products (with barcodes, MRP, tax rates & units), 15 customers with active credit balances, 6 wholesale suppliers, and 20 recent sales transactions to test analytics and billing POS.
             </p>
 
             {demoSeedMessage && (
@@ -678,7 +678,7 @@ export default function SettingsPage() {
                 <span>Export Full Shop Database</span>
               </span>
               <p className="text-xs text-slate-500">
-                Download your complete catalog, all sales, customer Udhar Khata ledger, and settings into a secure JSON backup.
+                Download your complete catalog, all sales, customer ledger, and settings into a secure JSON backup.
               </p>
               <Button
                 variant="secondary"

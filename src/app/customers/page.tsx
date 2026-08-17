@@ -130,7 +130,7 @@ export default function CustomersPage() {
                   <div className="font-bold text-slate-800 dark:text-slate-200">{formatINR(c.total_spent)}</div>
                 </div>
                 <div>
-                  <span className="text-slate-400">Udhar / Balance:</span>
+                  <span className="text-slate-400">Balance Due:</span>
                   <div className={`font-black ${c.current_balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                     {formatINR(c.current_balance)}
                   </div>
@@ -150,7 +150,7 @@ export default function CustomersPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title="Add New Customer"
-        description="Save customer details to enable digital Khata and WhatsApp promotions."
+        description="Save customer details to enable digital ledger and WhatsApp promotions."
       >
         <form onSubmit={handleAddCustomer} className="space-y-4">
           <Input label="Customer Full Name" placeholder="e.g. Anand Sharma" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
@@ -159,7 +159,7 @@ export default function CustomersPage() {
             <Input label="Birthday (MM-DD or YYYY-MM-DD)" placeholder="e.g. 08-16 or 1992-08-16" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
           </div>
           <Input label="Address (Optional)" placeholder="e.g. Flat 102, Main Road" value={address} onChange={(e) => setAddress(e.target.value)} />
-          <Input label="Opening Udhar Balance (₹, Optional)" placeholder="0.00" type="number" step="0.01" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} />
+          <Input label="Opening Balance Due (₹, Optional)" placeholder="0.00" type="number" step="0.01" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} />
           <div className="pt-4 flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
             <Button type="submit">Save Customer</Button>

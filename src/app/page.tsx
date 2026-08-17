@@ -63,8 +63,8 @@ export default function HomePage() {
   const lowStockProducts = products.filter((p) => p.current_stock <= p.min_stock_level);
 
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
-  const customersWithUdhar = customers.filter((c) => c.current_balance > 0);
-  const totalOutstandingUdhar = customers.reduce((acc, c) => acc + (c.current_balance > 0 ? c.current_balance : 0), 0);
+  const customersWithCredit = customers.filter((c) => c.current_balance > 0);
+  const totalOutstandingCredit = customers.reduce((acc, c) => acc + (c.current_balance > 0 ? c.current_balance : 0), 0);
 
   const allSales = useLiveQuery(async () => db.sales.toArray()) || [];
   const todayDatePrefix = new Date().toISOString().split('T')[0];
@@ -215,26 +215,26 @@ export default function HomePage() {
                 <div className="flex items-center gap-1 sm:gap-1.5 text-amber-900 font-extrabold text-[10px] sm:text-xs uppercase tracking-tight truncate">
                   <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 flex-shrink-0" />
                   <span className="truncate">
-                    <span className="sm:hidden">Udhar</span>
+                    <span className="sm:hidden">Credit</span>
                     <span className="hidden sm:inline">Total Outstanding</span>
                   </span>
                 </div>
                 <span className="hidden lg:inline-flex px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-950 text-[9px] font-black">
-                  Khata
+                  Ledger
                 </span>
               </div>
 
               <div className="text-sm sm:text-2xl font-black text-amber-950 font-mono tracking-tight mt-1.5 sm:mt-2 truncate">
-                {formatINR(totalOutstandingUdhar)}
+                {formatINR(totalOutstandingCredit)}
               </div>
             </div>
 
             <div className="pt-1.5 sm:pt-2 mt-1.5 sm:mt-2 border-t border-amber-100/80 flex items-center justify-between text-[10px] sm:text-xs">
               <span className="text-slate-500 font-semibold truncate">
-                <strong>{customersWithUdhar.length}</strong> <span className="hidden sm:inline">pending</span><span className="sm:hidden">debtors</span>
+                <strong>{customersWithCredit.length}</strong> <span className="hidden sm:inline">pending</span><span className="sm:hidden">debtors</span>
               </span>
               <span className="text-amber-800 font-bold hidden sm:inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
-                <span>Khata</span>
+                <span>Ledger</span>
                 <ArrowRight className="w-2.5 h-2.5" />
               </span>
             </div>
@@ -590,7 +590,7 @@ export default function HomePage() {
                     <option value="all">All Payment Modes</option>
                     <option value="cash">Cash Only</option>
                     <option value="upi">UPI / QR Only</option>
-                    <option value="credit">Credit / Udhar</option>
+                    <option value="credit">Credit / Ledger</option>
                     <option value="split">Split Multi-Payment</option>
                   </select>
                 </div>

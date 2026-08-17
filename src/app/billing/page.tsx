@@ -498,7 +498,7 @@ export default function BillingPage() {
         amount: balanceDuePaise,
         balance_after: updatedBalance,
         reference_id: saleId,
-        notes: `Udhar on Invoice #${invoiceNumber}`,
+        notes: `Credit on Invoice #${invoiceNumber}`,
         created_at: now,
       });
     }
@@ -739,7 +739,7 @@ export default function BillingPage() {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Udhar / Khata (₹)</label>
+                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Credit / Ledger (₹)</label>
                 <input
                   type="number"
                   step="1"
@@ -774,7 +774,7 @@ export default function BillingPage() {
                     onClick={() => setSplitCredit((prev) => (Math.max(0, (parseFloat(prev || '0') + remainingPaise / 100)).toFixed(2)))}
                     className="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 hover:bg-amber-200 text-[10px] font-bold text-amber-900"
                   >
-                    + Udhar
+                    + Credit
                   </button>
                 )}
               </div>

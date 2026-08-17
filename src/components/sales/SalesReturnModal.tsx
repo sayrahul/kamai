@@ -207,7 +207,7 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
           <span>Sales Return & Credit Notes</span>
         </div>
       }
-      description="Process customer returns, restock inventory items, and issue cash refunds or Udhar Khata credit notes."
+      description="Process customer returns, restock inventory items, and issue cash refunds or customer credit notes."
       size="lg"
     >
       <div className="space-y-4 text-xs">

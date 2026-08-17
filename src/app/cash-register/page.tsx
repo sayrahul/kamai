@@ -219,9 +219,9 @@ export default function CashRegisterPage() {
       enc.hr();
 
       enc.alignLeft();
-      enc.textLine('* DIGITAL / KHATA SALES *');
+      enc.textLine('* DIGITAL / CREDIT SALES *');
       enc.row('UPI / QR Collections:', formatINR(upiSalesTotalPaise));
-      enc.row('Udhar Credit Sales:', formatINR(creditSalesTotalPaise));
+      enc.row('Customer Credit Sales:', formatINR(creditSalesTotalPaise));
       enc.row('Total Bills Generated:', todaySales.length.toString());
       enc.hr();
 
@@ -252,7 +252,7 @@ export default function CashRegisterPage() {
       `⚖️ *Variance:* ${formatINR(cashVariancePaise)} (${cashVariancePaise === 0 ? 'Balanced' : cashVariancePaise > 0 ? 'Surplus' : 'Short'})\n\n` +
       `📱 *NON-CASH SUMMARY:*\n` +
       `• UPI / QR Collections: ${formatINR(upiSalesTotalPaise)}\n` +
-      `• Udhar / Credit Given: ${formatINR(creditSalesTotalPaise)}\n` +
+      `• Customer Credit Extended: ${formatINR(creditSalesTotalPaise)}\n` +
       `• Total Invoices: ${todaySales.length} bills\n\n` +
       `_Generated automatically via KamaiPlus POS_`;
 
@@ -487,7 +487,7 @@ export default function CashRegisterPage() {
           <Card className="p-4 bg-white border border-slate-200 space-y-3 shadow-xs">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
               <TrendingUp className="w-3.5 h-3.5 text-slate-700" />
-              <span>Digital & Udhar Breakdown Today</span>
+              <span>Digital & Credit Breakdown Today</span>
             </h3>
 
             <div className="space-y-2 text-xs">
@@ -502,7 +502,7 @@ export default function CashRegisterPage() {
               <div className="p-2.5 rounded-lg bg-amber-50/60 border border-amber-200 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-amber-950 font-bold">
                   <BookOpen className="w-4 h-4 text-amber-700" />
-                  <span>Udhar Credit Given</span>
+                  <span>Customer Credit Extended</span>
                 </div>
                 <span className="font-mono font-black text-amber-950">{formatINR(creditSalesTotalPaise)}</span>
               </div>

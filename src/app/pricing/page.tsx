@@ -152,7 +152,7 @@ export default function PricingPage() {
     {
       category: 'Customer Khata & Marketing',
       items: [
-        { name: 'Digital Udhar Khata Ledger', tooltip: 'Record customer credit sales, payments and pending balance', gold: true, platinum: true },
+        { name: 'Digital Customer Credit Ledger', tooltip: 'Record customer credit sales, payments and pending balance', gold: true, platinum: true },
         { name: 'Set Credit Limits for Customers', tooltip: 'Alerts cashier when a customer balance exceeds credit limit', gold: true, platinum: true },
         { name: 'Automated WhatsApp Payment Reminders', tooltip: 'Send polite payment balance reminders with UPI link', gold: true, platinum: true },
         { name: 'Bulk WhatsApp Festive & Promotional Campaigns', tooltip: 'Diwali, Eid, New Year and festival broadcast templates', gold: false, platinum: true },
@@ -305,7 +305,7 @@ export default function PricingPage() {
               </div>
               <div className="flex items-center gap-2 font-semibold text-slate-800">
                 <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Customer Udhar Khata Ledger & Reminders</span>
+                <span>Customer Credit Ledger & Reminders</span>
               </div>
               <div className="flex items-center gap-2 font-semibold text-slate-800">
                 <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />

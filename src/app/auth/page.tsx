@@ -232,8 +232,8 @@ export default function AuthPage() {
             </h1>
             <p className="text-xs text-slate-400">
               {authTab === 'login'
-                ? 'Sign in to access your billing POS, Khata ledger, and inventory.'
-                : 'Join 50,000+ Indian merchants managing billing & Udhar effortlessly.'}
+                ? 'Sign in to access your billing POS, store ledger, and inventory.'
+                : 'Join 50,000+ Indian merchants managing billing & customer credit effortlessly.'}
             </p>
           </div>
 
