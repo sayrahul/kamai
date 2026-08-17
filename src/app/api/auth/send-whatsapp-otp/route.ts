@@ -49,15 +49,14 @@ export async function POST(req: NextRequest) {
     const sendResult = await sendWhatsAppOTP(clean10Digit, otpCode);
 
     if (!sendResult.success) {
-      console.warn('WhatsApp dispatch notice:', sendResult.error);
-      // If token not configured or Meta test mode, allow testing
-      return NextResponse.json({
-        success: true,
-        message: 'OTP initiated.',
-        note: sendResult.error,
-        // In local development mode without token, provide test hint
-        devHint: process.env.NODE_ENV !== 'production' ? otpCode : undefined,
-      });
+      console.error('WhatsApp dispatch failed:', sendResult.error);
+      return NextResponse.json(
+        {
+          success: false,
+          error: `WhatsApp Delivery Failed: ${sendResult.error}`,
+        },
+        { status: 502 }
+      );
     }
 
     return NextResponse.json({

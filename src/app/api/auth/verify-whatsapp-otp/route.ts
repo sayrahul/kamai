@@ -50,7 +50,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 1. Look up existing staff record
+    const mode = body.mode || 'login'; // 'login' | 'signup'
+
+    // 1. Look up existing staff record in Supabase
     let { data: staff } = await supabase
       .from('business_staff')
       .select('id, business_id, name, phone, role, is_active')
@@ -66,8 +68,18 @@ export async function POST(req: NextRequest) {
         .eq('id', staff.business_id)
         .maybeSingle();
       business = biz;
+    } else if (mode === 'login') {
+      // If user tries to login without registering first
+      return NextResponse.json(
+        {
+          success: false,
+          error: `No store registered with +91 ${clean10Digit}. Please Register your store first.`,
+          requireSignup: true,
+        },
+        { status: 404 }
+      );
     } else {
-      // 2. Auto-create new business for new phone
+      // 2. Signup Mode: Auto-create new business & owner staff record
       const storeName = body.storeName || `Store ${clean10Digit.slice(-4)}`;
       const ownerName = body.ownerName || 'Store Owner';
 

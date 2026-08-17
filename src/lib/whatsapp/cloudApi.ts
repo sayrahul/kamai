@@ -36,13 +36,24 @@ export async function sendWhatsAppOTP(toPhone: string, otpCode: string): Promise
       to: cleanPhone,
       type: 'template',
       template: {
-        name: 'kamaiplus_login_otp',
+        name: 'kamaiplus_auth_otp',
         language: {
-          code: 'en',
+          code: 'en_US',
         },
         components: [
           {
             type: 'body',
+            parameters: [
+              {
+                type: 'text',
+                text: otpCode,
+              },
+            ],
+          },
+          {
+            type: 'button',
+            sub_type: 'url',
+            index: '0',
             parameters: [
               {
                 type: 'text',
