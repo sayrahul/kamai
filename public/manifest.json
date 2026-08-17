@@ -1,21 +1,57 @@
 {
-  "name": "KamaiPlus (Kamai+) - Business Management & Growth",
+  "id": "/",
+  "name": "KamaiPlus POS - Retail Billing & Khata",
   "short_name": "KamaiPlus",
-  "description": "Free, Offline-First Business Management Platform for Indian Small Businesses",
+  "description": "Lightning-Fast 100% Offline POS Billing, Credit Khata Ledger, Barcode Scanning, and WhatsApp Invoices for Indian Retailers.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#f97316",
+  "display_override": ["standalone", "window-controls-overlay", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "categories": ["business", "finance", "productivity", "utilities"],
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/icon.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Bill POS",
+      "short_name": "Bill POS",
+      "description": "Open POS billing counter",
+      "url": "/billing",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Customer Khata",
+      "short_name": "Khata",
+      "description": "View customer credit balances",
+      "url": "/khata",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Products & Stock",
+      "short_name": "Stock",
+      "description": "View inventory and stock",
+      "url": "/products",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

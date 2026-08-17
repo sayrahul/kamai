@@ -8,13 +8,15 @@ import { sendInvoiceViaWhatsApp } from './whatsappInvoice';
  */
 export async function generateInvoicePdfBlobFromElement(element: HTMLElement, filename = 'invoice.pdf'): Promise<{ blob: Blob; file: File }> {
   const canvas = await html2canvas(element, {
-    scale: 2, // High resolution for crisp text & barcodes
+    scale: 2.5, // Crisp 300 DPI high resolution
     useCORS: true,
     logging: false,
     backgroundColor: '#ffffff',
+    scrollX: 0,
+    scrollY: 0,
   });
 
-  const imgData = canvas.toDataURL('image/png');
+  const imgData = canvas.toDataURL('image/png', 1.0);
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -24,7 +26,7 @@ export async function generateInvoicePdfBlobFromElement(element: HTMLElement, fi
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-  pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+  pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
   const blob = pdf.output('blob');
   const file = new File([blob], filename, { type: 'application/pdf' });
 

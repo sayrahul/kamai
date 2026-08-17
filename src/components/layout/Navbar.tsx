@@ -17,11 +17,13 @@ import {
   ShieldCheck,
   User,
   LogOut,
-  Sparkles
+  Sparkles,
+  Download
 } from 'lucide-react';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
 import { isSoundboxEnabled, setSoundboxEnabled, announcePayment } from '@/lib/voice/paytmSoundbox';
 import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
+import { usePWAInstall } from '@/lib/pwa/usePWAInstall';
 
 export const Navbar: React.FC = () => {
   const router = useRouter();
@@ -32,6 +34,8 @@ export const Navbar: React.FC = () => {
   const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
+  const { isInstalled: isPWAInstalled, triggerInstall } = usePWAInstall();
 
   const business = useLiveQuery(async () => {
     return await db.businesses.toCollection().first();
@@ -116,6 +120,20 @@ export const Navbar: React.FC = () => {
 
         {/* Right: Actions, Soundbox, Network, Language */}
         <div className="flex items-center gap-2">
+          {/* PWA Install Button (if browser supports or not standalone) */}
+          {!isPWAInstalled && (
+            <button
+              type="button"
+              onClick={triggerInstall}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs font-bold"
+              title="Install KamaiPlus on PC / Mobile"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-900" />
+              <span className="hidden md:inline">Install App</span>
+              <span className="md:hidden">Install</span>
+            </button>
+          )}
+
           {/* Upgrade / Pricing Button */}
           <Link href="/pricing">
             <button className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black shadow-xs active:scale-95 transition-all">

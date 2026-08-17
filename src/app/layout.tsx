@@ -4,6 +4,8 @@ import './globals.css';
 import { I18nProvider } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/AppShell';
 
+import { PWAInstallBanner } from '@/components/pwa/PWAInstallBanner';
+
 export const metadata: Metadata = {
   title: 'KamaiPlus (Kamai+) | Business Management & Growth Platform',
   description: 'Sell, Manage, and Grow your local Indian business with instant POS billing, offline Khata, inventory, and WhatsApp marketing.',
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#f97316',
+  themeColor: '#0f172a',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -40,6 +42,7 @@ export default function RootLayout({
           <AppShell>
             {children}
           </AppShell>
+          <PWAInstallBanner />
         </I18nProvider>
       </body>
     </html>

@@ -17,7 +17,8 @@ import {
   Building2,
   HelpCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -32,10 +33,12 @@ import {
   createDemoUser 
 } from '@/lib/auth';
 import { IntroWalkthrough } from '@/components/auth/IntroWalkthrough';
+import { usePWAInstall } from '@/lib/pwa/usePWAInstall';
 import { BusinessType } from '@/types';
 
 export default function AuthPage() {
   const router = useRouter();
+  const { isInstalled: isPWAInstalled, triggerInstall } = usePWAInstall();
   const [showIntro, setShowIntro] = useState<boolean>(false);
   const [isClient, setIsClient] = useState<boolean>(false);
   const [authTab, setAuthTab] = useState<'login' | 'signup'>('login');
@@ -207,13 +210,26 @@ export default function AuthPage() {
           <span className="font-extrabold text-sm tracking-tight text-white">KamaiPlus POS</span>
         </div>
 
-        <button
-          onClick={() => setShowIntro(true)}
-          className="text-xs font-bold text-amber-400 flex items-center gap-1 px-2.5 py-1 rounded border border-slate-800 bg-slate-900 cursor-pointer"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>View Intro Tour</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {!isPWAInstalled && (
+            <button
+              type="button"
+              onClick={triggerInstall}
+              className="text-xs font-bold text-slate-300 flex items-center gap-1 px-2.5 py-1 rounded border border-slate-800 bg-slate-900 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-400" />
+              <span>Install App</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowIntro(true)}
+            className="text-xs font-bold text-amber-400 flex items-center gap-1 px-2.5 py-1 rounded border border-slate-800 bg-slate-900 cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Intro Tour</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Authentication Card */}
@@ -334,33 +350,39 @@ export default function AuthPage() {
 
               {/* OTP Field or Password Field */}
               {loginMethod === 'otp' ? (
-                <div className="space-y-2">
-                  {!otpSent ? (
-                    <Button
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <label className="font-bold text-slate-300">Enter 6-Digit OTP</label>
+                    <button
                       type="button"
-                      variant="outline"
-                      onClick={handleSendOtp}
-                      className="w-full text-xs font-bold border-slate-700 text-slate-200 hover:bg-slate-800"
+                      onClick={() => {
+                        setOtpSent(true);
+                        setOtpCode('123456');
+                      }}
+                      className="text-[11px] font-bold text-amber-400 hover:text-amber-300 underline cursor-pointer"
                     >
-                      <span>Get 6-Digit OTP</span>
-                    </Button>
-                  ) : (
-                    <div className="space-y-1 animate-in fade-in">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-300 font-bold">Enter OTP (One-Time Password)</span>
-                        <span className="text-[10px] text-emerald-400 font-bold">OTP Sent (Test: 123456)</span>
-                      </div>
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="123456"
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value)}
-                        required
-                        className="w-full bg-slate-950 border border-slate-700 text-white text-center tracking-widest rounded-xl py-2.5 text-sm font-mono font-bold focus:outline-none focus:border-amber-400 placeholder:text-slate-600"
-                      />
-                    </div>
-                  )}
+                      {otpSent ? '✓ OTP Ready (123456)' : 'Send / Resend OTP'}
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="123456"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    required
+                    className="w-full bg-slate-950 border border-slate-700 text-amber-400 text-center tracking-[0.4em] rounded-xl py-2.5 text-base font-mono font-black focus:outline-none focus:border-amber-400 placeholder:text-slate-600"
+                  />
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                    <span>Default test OTP code: <strong className="text-slate-200">123456</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => { setOtpCode('123456'); setOtpSent(true); }}
+                      className="text-amber-400 font-bold hover:underline cursor-pointer"
+                    >
+                      Auto-fill 123456
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -386,14 +408,14 @@ export default function AuthPage() {
               )}
 
               {/* Submit Button */}
-              <Button
+              <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-3 rounded-xl border-amber-400 shadow-md gap-2"
+                className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer pt-3"
               >
                 <span>{isLoading ? 'Signing In...' : 'Sign In to My Store'}</span>
                 <ArrowRight className="w-4 h-4" />
-              </Button>
+              </button>
             </form>
           ) : (
             /* ========================================================================= */
