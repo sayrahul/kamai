@@ -71,8 +71,9 @@ export default function HomePage() {
   const todaysSales = allSales.filter((s) => s.created_at.startsWith(todayDatePrefix));
   const todaysSalesTotal = todaysSales.reduce((acc, s) => acc + s.grand_total, 0);
 
-  // Filtered recent sales for home widget
-  const filteredRecentSales = allSales
+  // Filtered recent sales for home widget — sorted newest-first
+  const filteredRecentSales = [...allSales]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .filter((s) => {
       // Date filter
       const saleDate = new Date(s.created_at);
@@ -107,8 +108,7 @@ export default function HomePage() {
       }
 
       return true;
-    })
-    .reverse();
+    });
 
   const displayedSales = filteredRecentSales.slice(0, 10);
 

@@ -136,29 +136,36 @@ export default function BillingPage() {
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
       if (existing) {
+        const newQty = existing.quantity + quantityToAdd;
+        const lineTotal = Math.max(0, newQty * existing.unit_price - (existing.discount_amount || 0));
+        // Recompute tax on the updated line total
+        const taxRate = existing.tax_rate || 0;
+        const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
         return prev.map((item) =>
           item.product_id === product.id
-            ? {
-                ...item,
-                quantity: item.quantity + quantityToAdd,
-                total_amount: Math.max(0, (item.quantity + quantityToAdd) * item.unit_price - (item.discount_amount || 0)),
-              }
+            ? { ...item, quantity: newQty, total_amount: lineTotal, tax_amount: taxAmt }
             : item
         );
       } else {
+        const lineTotal = product.selling_price * quantityToAdd;
+        const taxRate = product.tax_rate || 0;
+        // Tax is inclusive in selling price — extract it
+        const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
         return [
           ...prev,
           {
             product_id: product.id,
             product_name: product.name,
+            hsn_code: product.hsn_code,
+            barcode: product.barcode,
             quantity: quantityToAdd,
             unit: product.unit,
             unit_price: product.selling_price,
             mrp: product.mrp,
             discount_amount: 0,
-            tax_rate: product.tax_rate,
-            tax_amount: 0,
-            total_amount: product.selling_price * quantityToAdd,
+            tax_rate: taxRate,
+            tax_amount: taxAmt,
+            total_amount: lineTotal,
           },
         ];
       }
@@ -172,11 +179,10 @@ export default function BillingPage() {
           if (item.product_id === productId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
-            return {
-              ...item,
-              quantity: newQty,
-              total_amount: Math.max(0, newQty * item.unit_price - (item.discount_amount || 0)),
-            };
+            const lineTotal = Math.max(0, newQty * item.unit_price - (item.discount_amount || 0));
+            const taxRate = item.tax_rate || 0;
+            const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
+            return { ...item, quantity: newQty, total_amount: lineTotal, tax_amount: taxAmt };
           }
           return item;
         })
@@ -204,6 +210,8 @@ export default function BillingPage() {
     const unitPricePaise = parseRupeesToPaise(editItemPrice || '0');
     const discountPaise = parseRupeesToPaise(editItemDiscount || '0');
     const lineTotal = Math.max(0, Math.round(qty * unitPricePaise - discountPaise));
+    const taxRate = editingCartItem.tax_rate || 0;
+    const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
 
     setCart((prev) =>
       prev.map((item) =>
@@ -214,6 +222,7 @@ export default function BillingPage() {
               unit_price: unitPricePaise,
               discount_amount: discountPaise,
               total_amount: lineTotal,
+              tax_amount: taxAmt,
             }
           : item
       )
@@ -370,7 +379,12 @@ export default function BillingPage() {
 
   // Calculations
   const totalItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+  // subtotal = sum of all line totals (each item.total_amount is post-discount, tax-inclusive)
   const subtotalPaise = cart.reduce((acc, item) => acc + item.total_amount, 0);
+  // discount_total = sum of all per-line flat discounts applied
+  const discountTotalPaise = cart.reduce((acc, item) => acc + (item.discount_amount || 0), 0);
+  // tax_total = sum of all per-line GST amounts (extracted from tax-inclusive prices)
+  const taxTotalPaise = cart.reduce((acc, item) => acc + (item.tax_amount || 0), 0);
   const grandTotalPaise = subtotalPaise;
 
   const handleCompleteSale = async () => {
@@ -425,8 +439,8 @@ export default function BillingPage() {
       customer_phone: selectedCustomer?.phone,
       items: [...cart],
       subtotal: subtotalPaise,
-      discount_total: 0,
-      tax_total: 0,
+      discount_total: discountTotalPaise,
+      tax_total: taxTotalPaise,
       grand_total: grandTotalPaise,
       payment_method: paymentMethod,
       payment_split: paymentSplitData,
