@@ -19,7 +19,8 @@ import {
   Calculator,
   Barcode,
   FileSpreadsheet,
-  Cloud
+  Cloud,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -64,6 +65,7 @@ export const Sidebar: React.FC = () => {
         { href: '/gst-reports', label: 'GSTR-1 Reports', icon: FileSpreadsheet, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
         { href: '/invoice-designer', label: 'Invoice Themes', icon: Palette, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
         { href: '/cloud-backup', label: 'Cloud Backup', icon: Cloud, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
+        { href: '/pricing', label: 'Upgrade & Plans', icon: Sparkles, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
         { href: '/settings', label: t('nav.settings'), icon: Settings, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-slate-300' },
       ],
     },

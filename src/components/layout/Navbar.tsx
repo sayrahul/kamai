@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n';
 import { SupportedLanguage } from '@/types';
@@ -105,6 +106,15 @@ export const Navbar: React.FC = () => {
 
         {/* Right: Actions, Soundbox, Network, Language */}
         <div className="flex items-center gap-2">
+          {/* Upgrade / Pricing Button */}
+          <Link href="/pricing">
+            <button className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black shadow-xs active:scale-95 transition-all">
+              <Sparkles className="w-3.5 h-3.5 text-slate-950 fill-slate-950" />
+              <span className="hidden sm:inline">Upgrade / Pro</span>
+              <span className="sm:hidden">Pro</span>
+            </button>
+          </Link>
+
           {/* Quick Merchant QR Code Button */}
           <button
             onClick={() => setIsQrModalOpen(true)}

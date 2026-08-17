@@ -66,6 +66,7 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
         { href: '/gst-reports', title: 'GSTR-1 Reports', desc: 'HSN Tax Filing', icon: FileSpreadsheet, bg: 'bg-indigo-100 text-indigo-900', border: 'border-indigo-300' },
         { href: '/invoice-designer', title: 'Invoice Themes', desc: 'Bill Templates', icon: Palette, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
         { href: '/cloud-backup', title: 'Cloud Backup', desc: 'Google Drive Sync', icon: Cloud, bg: 'bg-sky-100 text-sky-900', border: 'border-sky-300' },
+        { href: '/pricing', title: 'Pricing & Plans', desc: 'Upgrade / Pro Plans', icon: Sparkles, bg: 'bg-amber-100 text-amber-950', border: 'border-amber-400' },
         { href: '/settings', title: 'Settings', desc: 'Shop Profile & UPI', icon: Settings, bg: 'bg-slate-100 text-slate-800', border: 'border-slate-300' },
       ],
     },

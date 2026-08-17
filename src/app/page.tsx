@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   SlidersHorizontal,
+  Sparkles,
   TrendingUp,
   Users,
   Volume2,
@@ -483,6 +484,19 @@ export default function HomePage() {
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">Settings</div>
                 <div className="text-[11px] text-slate-700 font-medium truncate">Backup & profile</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 15: Upgrade & Plans (Gold / Amber) */}
+          <Link href="/pricing" className="group">
+            <div className="bg-white border border-amber-300 hover:border-amber-500 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-amber-50/50 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-950 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Sparkles className="w-4 h-4 text-amber-600 fill-amber-600" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Upgrade & Plans</div>
+                <div className="text-[11px] text-amber-800 font-medium truncate">Pro & Enterprise</div>
               </div>
             </div>
           </Link>
