@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { sendWhatsAppOTP } from '@/lib/whatsapp/cloudApi';
+import { getSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-// In-memory OTP storage for rapid verification (or falls back to database)
-// Key: phone, Value: { code: string, expiresAt: number }
+// In-memory OTP storage with strict expiry
+// Key: phone, Value: { code: string, expiresAt: number, lastRequestedAt: number }
 declare global {
-  var __kamai_otp_store: Map<string, { code: string; expiresAt: number }> | undefined;
+  var __kamai_otp_store: Map<string, { code: string; expiresAt: number; lastRequestedAt: number }> | undefined;
 }
 
 if (!globalThis.__kamai_otp_store) {
@@ -19,6 +21,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const phone = (body.phone || '').replace(/\D/g, '');
+    const mode = body.mode || 'login'; // 'login' | 'signup'
 
     if (!phone || phone.length < 10) {
       return NextResponse.json(
@@ -28,24 +31,77 @@ export async function POST(req: NextRequest) {
     }
 
     const clean10Digit = phone.slice(-10);
-
-    // Rate limit: Check if OTP sent in the last 30 seconds
-    const existing = otpStore.get(clean10Digit);
     const now = Date.now();
-    if (existing && existing.expiresAt - now > 9.5 * 60 * 1000) {
+
+    // 1. Rate Limiting: 60-second cooldown per mobile number
+    const existing = otpStore.get(clean10Digit);
+    if (existing && now - existing.lastRequestedAt < 60 * 1000) {
+      const waitSeconds = Math.ceil((60 * 1000 - (now - existing.lastRequestedAt)) / 1000);
       return NextResponse.json(
-        { success: false, error: 'Please wait 30 seconds before requesting another OTP.' },
+        {
+          success: false,
+          error: `Please wait ${waitSeconds} seconds before requesting another OTP.`,
+        },
         { status: 429 }
       );
     }
 
-    // Generate secure 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = now + 10 * 60 * 1000; // 10 minutes expiry
+    // 2. Database Authorization Checks
+    const supabase = getSupabaseServerClient();
+    if (supabase && isSupabaseServerConfigured()) {
+      const { data: staff } = await supabase
+        .from('business_staff')
+        .select('id, name, is_active')
+        .eq('phone', clean10Digit)
+        .maybeSingle();
 
-    otpStore.set(clean10Digit, { code: otpCode, expiresAt });
+      // On LOGIN: Reject unregistered users before dispatching WhatsApp message (saves cost & prevents unauthorized attempts)
+      if (mode === 'login') {
+        if (!staff) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `No store registered with +91 ${clean10Digit}. Please Register your store first.`,
+              requireSignup: true,
+            },
+            { status: 404 }
+          );
+        }
+        if (!staff.is_active) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'This account has been deactivated. Please contact support.',
+            },
+            { status: 403 }
+          );
+        }
+      }
 
-    // Send via Meta WhatsApp Cloud API
+      // On SIGNUP: Reject if mobile number is already registered
+      if (mode === 'signup' && staff) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `An account with +91 ${clean10Digit} already exists. Please Sign In.`,
+            requireLogin: true,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // 3. Cryptographically Strong 6-Digit OTP
+    const otpCode = crypto.randomInt(100000, 1000000).toString();
+    const expiresAt = now + 10 * 60 * 1000; // 10 minutes lifetime
+
+    otpStore.set(clean10Digit, {
+      code: otpCode,
+      expiresAt,
+      lastRequestedAt: now,
+    });
+
+    // 4. Send Official WhatsApp Authentication Template Message
     const sendResult = await sendWhatsAppOTP(clean10Digit, otpCode);
 
     if (!sendResult.success) {
@@ -61,10 +117,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Verification code sent to WhatsApp (+91 ${clean10Digit}).`,
+      message: `Official OTP sent to your WhatsApp (+91 ${clean10Digit}).`,
     });
   } catch (err: any) {
-    console.error('Send OTP error:', err);
+    console.error('Send OTP exception:', err);
     return NextResponse.json(
       { success: false, error: err.message || 'Failed to send OTP.' },
       { status: 500 }
