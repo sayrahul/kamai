@@ -423,7 +423,11 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                           <td className="py-3 px-3 text-center text-slate-500 font-mono">{idx + 1}</td>
                           <td className="py-3 px-3 font-bold text-slate-950">
                             <div>{item.product_name}</div>
-                            {item.barcode && <div className="text-[10px] text-slate-400 font-mono">Code: {item.barcode}</div>}
+                            {(item.hsn_code || item.barcode) && (
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                {item.hsn_code ? `HSN: ${item.hsn_code}` : `Code: ${item.barcode}`}
+                              </div>
+                            )}
                           </td>
                           <td className="py-3 px-3 text-right font-semibold text-slate-700">
                             {item.quantity} <span className="text-[10px] text-slate-500">{item.unit || 'pcs'}</span>

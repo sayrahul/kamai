@@ -169,6 +169,7 @@ export interface CartItem {
   product_id: string;
   product_name: string;
   hsn_code?: string;
+  barcode?: string;
   quantity: number;
   unit: ProductUnit;
   unit_price: number; // in paise
@@ -199,6 +200,8 @@ export interface Sale {
   customer_id?: string;
   customer_name?: string;
   customer_phone?: string;
+  customer_address?: string;
+  customer_gstin?: string;
   items: CartItem[];
   subtotal: number; // in paise
   discount_total: number; // in paise
