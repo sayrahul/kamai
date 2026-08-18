@@ -280,7 +280,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
         {/* ========================================================================= */}
         {/* INVOICE PREVIEW CONTAINER */}
         {/* ========================================================================= */}
-        <div className="bg-slate-100 p-3 sm:p-6 rounded-xl flex justify-center overflow-x-auto max-h-[55vh] overflow-y-auto">
+        <div className="bg-slate-100 p-3 sm:p-6 rounded-xl flex justify-center overflow-x-auto overflow-y-visible">
           {/* ========================================================================= */}
           {/* ========================================================================= */}
           {/* FORMAT 1: A4 DETAILED GST TAX INVOICE */}
@@ -288,7 +288,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
           {format === 'a4' && (
             <div
               id="modal-printable-invoice"
-              className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl p-6 sm:p-10 space-y-6 text-slate-900 shadow-sm border-t-8 border-t-slate-900 font-sans"
+              className="bg-white border border-slate-200 rounded-2xl w-full min-w-[650px] max-w-3xl p-6 sm:p-10 space-y-6 text-slate-900 shadow-sm border-t-8 border-t-slate-900 font-sans"
             >
               {/* Header Bar */}
               <div className="flex flex-col sm:flex-row justify-between items-start pb-6 border-b border-slate-200 gap-6">

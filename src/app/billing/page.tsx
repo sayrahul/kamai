@@ -37,7 +37,6 @@ import {
   ShoppingCart,
   ChevronUp,
   ChevronDown,
-  Scale,
   Sliders,
   Bluetooth,
   Usb
@@ -49,7 +48,6 @@ import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { VoiceBillingModal } from '@/components/voice/VoiceBillingModal';
 import { HardwareManagerModal } from '@/components/hardware/HardwareManagerModal';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
-import { electronicScale, ScaleReading } from '@/lib/hardware/weighingScale';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { announcePayment } from '@/lib/voice/paytmSoundbox';
 import { Sale } from '@/types';
@@ -84,9 +82,8 @@ export default function BillingPage() {
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCustAddress, setNewCustAddress] = useState('');
 
-  // Hardware Modals & Live Scale State
+  // Hardware Modals
   const [isHardwareModalOpen, setIsHardwareModalOpen] = useState<boolean>(false);
-  const [liveScaleWeight, setLiveScaleWeight] = useState<number>(0);
 
   // Modals
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -130,15 +127,41 @@ export default function BillingPage() {
 
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
 
+  const getCartQuantityForProduct = (productId: string) =>
+    cart.reduce((sum, item) => (item.product_id === productId ? sum + item.quantity : sum), 0);
+
+  const getAvailableStockForProduct = (product: Product) => {
+    const reservedQty = getCartQuantityForProduct(product.id);
+    return Math.max(0, product.current_stock - reservedQty);
+  };
+
   // Cart operations
   const addToCart = (product: Product, quantityToAdd: number = 1) => {
+    if (!product.is_active) return;
+
+    const currentCartQty = getCartQuantityForProduct(product.id);
+    const available = Math.max(0, product.current_stock - currentCartQty);
+    const safeQty = Math.min(quantityToAdd, available);
+
+    if (safeQty <= 0 || product.current_stock <= 0) {
+      alert(`${product.name} is out of stock.`);
+      return;
+    }
+
     playBeepSound('success');
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
+      const cartQtyBeforeAdd = prev.reduce((sum, item) => (item.product_id === product.id ? sum + item.quantity : sum), 0);
+      const availableBeforeAdd = Math.max(0, product.current_stock - cartQtyBeforeAdd);
+      const allowedQty = Math.min(quantityToAdd, availableBeforeAdd);
+
+      if (allowedQty <= 0) {
+        return prev;
+      }
+
       if (existing) {
-        const newQty = existing.quantity + quantityToAdd;
+        const newQty = existing.quantity + allowedQty;
         const lineTotal = Math.max(0, newQty * existing.unit_price - (existing.discount_amount || 0));
-        // Recompute tax on the updated line total
         const taxRate = existing.tax_rate || 0;
         const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
         return prev.map((item) =>
@@ -147,9 +170,8 @@ export default function BillingPage() {
             : item
         );
       } else {
-        const lineTotal = product.selling_price * quantityToAdd;
+        const lineTotal = product.selling_price * allowedQty;
         const taxRate = product.tax_rate || 0;
-        // Tax is inclusive in selling price — extract it
         const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
         return [
           ...prev,
@@ -158,7 +180,7 @@ export default function BillingPage() {
             product_name: product.name,
             hsn_code: product.hsn_code,
             barcode: product.barcode,
-            quantity: quantityToAdd,
+            quantity: allowedQty,
             unit: product.unit,
             unit_price: product.selling_price,
             mrp: product.mrp,
@@ -173,12 +195,19 @@ export default function BillingPage() {
   };
 
   const updateQuantity = (productId: string, delta: number) => {
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+
     setCart((prev) =>
       prev
         .map((item) => {
           if (item.product_id === productId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
+            if (newQty > product.current_stock) {
+              alert(`${product.name} has only ${product.current_stock} units left in stock.`);
+              return item;
+            }
             const lineTotal = Math.max(0, newQty * item.unit_price - (item.discount_amount || 0));
             const taxRate = item.tax_rate || 0;
             const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
@@ -206,7 +235,13 @@ export default function BillingPage() {
     e.preventDefault();
     if (!editingCartItem) return;
 
+    const product = products.find((p) => p.id === editingCartItem.product_id);
     const qty = parseFloat(editItemQty) || 1;
+    if (product && qty > product.current_stock) {
+      alert(`${product.name} has only ${product.current_stock} units left in stock.`);
+      return;
+    }
+
     const unitPricePaise = parseRupeesToPaise(editItemPrice || '0');
     const discountPaise = parseRupeesToPaise(editItemDiscount || '0');
     const lineTotal = Math.max(0, Math.round(qty * unitPricePaise - discountPaise));
@@ -300,35 +335,6 @@ export default function BillingPage() {
     enabled: !isBarcodeModalOpen && !isVoiceModalOpen && !isInvoiceModalOpen,
   });
 
-  // Electronic Scale Real-Time Weight Sync
-  useEffect(() => {
-    const unsubscribe = electronicScale.subscribe((reading) => {
-      setLiveScaleWeight(reading.weightKg);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Apply scale weight to last/selected weighed item in cart
-  const handleApplyWeightToCart = (weightKg: number) => {
-    if (weightKg <= 0) return;
-    setCart((prev) => {
-      if (prev.length === 0) return prev;
-      // Target the last added item
-      const lastIndex = prev.length - 1;
-      return prev.map((item, idx) => {
-        if (idx === lastIndex) {
-          const newQty = weightKg;
-          return {
-            ...item,
-            quantity: newQty,
-            total_amount: Math.max(0, Math.round(newQty * item.unit_price) - (item.discount_amount || 0)),
-          };
-        }
-        return item;
-      });
-    });
-  };
-
   // Save quick-added item from public API into local catalog & add to cart
   const handleSaveQuickAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -389,6 +395,17 @@ export default function BillingPage() {
 
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
+
+    const invalidStockItems = cart.filter((item) => {
+      const product = products.find((p) => p.id === item.product_id);
+      return !product || item.quantity > product.current_stock;
+    });
+
+    if (invalidStockItems.length > 0) {
+      const blocked = invalidStockItems.slice(0, 3).map((item) => item.product_name).join(', ');
+      alert(`Cannot complete sale: ${blocked} exceeds available stock.`);
+      return;
+    }
 
     const businessId = business?.id || 'biz_default';
     const nextNum = business?.next_invoice_number || 1;
@@ -862,22 +879,6 @@ export default function BillingPage() {
                 />
               </div>
 
-              {/* Live Electronic Weighing Scale Button */}
-              <button
-                type="button"
-                onClick={() => setIsHardwareModalOpen(true)}
-                className={cn(
-                  'px-2.5 py-1.5 min-h-[38px] rounded-lg border text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs',
-                  liveScaleWeight > 0
-                    ? 'bg-amber-400 border-amber-500 text-slate-950 ring-2 ring-amber-400/40'
-                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-                )}
-                title="Electronic Weighing Scale: Click to view live scale reading or apply weight to cart item"
-              >
-                <Scale className="w-4 h-4 text-amber-700" />
-                <span className="font-mono">{liveScaleWeight.toFixed(3)} kg</span>
-              </button>
-
               {/* Barcode Camera Scanner Button */}
               <button
                 type="button"
@@ -899,12 +900,12 @@ export default function BillingPage() {
                 <span className="hidden sm:inline">Voice POS</span>
               </button>
 
-              {/* Hardware Manager Button (Bluetooth Thermal, Laser Scanner, Scale) */}
+              {/* Hardware Manager Button */}
               <button
                 type="button"
                 onClick={() => setIsHardwareModalOpen(true)}
                 className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center"
-                title="POS Hardware (Bluetooth Printer, Laser Scanner, Weighing Scale)"
+                title="POS Hardware (Bluetooth Printer, Laser Scanner)"
               >
                 <Sliders className="w-4 h-4 text-white" />
               </button>
@@ -949,16 +950,22 @@ export default function BillingPage() {
               ) : (
                 products.map((p) => {
                   const inCart = cart.find((i) => i.product_id === p.id);
-                  const isLowStock = p.current_stock <= p.min_stock_level;
+                  const availableStock = getAvailableStockForProduct(p);
+                  const isOutOfStock = availableStock <= 0;
+                  const isLowStock = availableStock <= p.min_stock_level;
 
                   return (
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => addToCart(p, 1)}
+                      disabled={isOutOfStock}
+                      onClick={() => !isOutOfStock && addToCart(p, 1)}
                       className={cn(
-                        'p-3 rounded-xl border text-left flex flex-col justify-between cursor-pointer relative overflow-hidden bg-white hover:border-slate-400 transition-all active:scale-[0.98]',
-                        inCart
+                        'p-3 rounded-xl border text-left flex flex-col justify-between relative overflow-hidden transition-all active:scale-[0.98]',
+                        isOutOfStock
+                          ? 'cursor-not-allowed opacity-45 border-slate-200 bg-slate-100'
+                          : 'cursor-pointer bg-white hover:border-slate-400',
+                        inCart && !isOutOfStock
                           ? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-50/40'
                           : 'border-slate-200'
                       )}
@@ -987,9 +994,9 @@ export default function BillingPage() {
                         </div>
                         <span className={cn(
                           "text-[10px] font-semibold",
-                          isLowStock ? "text-amber-700" : "text-slate-400"
+                          isOutOfStock ? "text-rose-700" : isLowStock ? "text-amber-700" : "text-slate-400"
                         )}>
-                          {p.current_stock} left
+                          {isOutOfStock ? 'Out of stock' : `${availableStock} left`}
                         </span>
                       </div>
                     </button>
@@ -1281,11 +1288,10 @@ export default function BillingPage() {
         business={business || null}
       />
 
-      {/* Hardware Manager Modal (Bluetooth Printer, Laser Scanner, Weighing Scale) */}
+      {/* Hardware Manager Modal */}
       <HardwareManagerModal
         isOpen={isHardwareModalOpen}
         onClose={() => setIsHardwareModalOpen(false)}
-        onApplyWeightToSelected={handleApplyWeightToCart}
       />
     </div>
   );
