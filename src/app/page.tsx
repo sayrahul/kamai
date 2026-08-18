@@ -198,42 +198,6 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Right Action Bar */}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={handleTestSoundbox}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold shadow-xs transition-all"
-            title="Test Audio Soundbox Payment Alert"
-          >
-            <Volume2 className="w-3.5 h-3.5 text-slate-600" />
-            <span>Voice Alert</span>
-          </button>
-
-          <button
-            onClick={() => setIsQrModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold shadow-xs transition-all"
-          >
-            <QrCode className="w-3.5 h-3.5 text-slate-600" />
-            <span>Store QR</span>
-          </button>
-
-          {isFree && (
-            <button
-              onClick={() => setIsUpgradeOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-black transition-all cursor-pointer"
-            >
-              <Star className="w-3.5 h-3.5 text-amber-500" />
-              <span>Upgrade</span>
-            </button>
-          )}
-
-          <Link href="/billing">
-            <Button size="md" className="text-xs font-black px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400 shadow-sm">
-              <Receipt className="w-4 h-4 mr-1.5 text-slate-950" />
-              <span>+ New Bill (POS)</span>
-            </Button>
-          </Link>
-        </div>
       </div>
 
       {/* ---------------- TOP-LEVEL SUMMARY CARDS (COMPACT & MOBILE OPTIMIZED) ---------------- */}
