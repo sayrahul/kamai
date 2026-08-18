@@ -84,7 +84,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <Navbar />
       <div className="flex-1 flex w-full max-w-7xl mx-auto">
         <Sidebar />
-        <main className="flex-1 p-4 sm:p-6 pb-20 md:pb-6 overflow-y-auto max-w-full">
+        <main className="flex-1 p-4 sm:p-6 pb-24 md:pb-6 overflow-y-auto max-w-full">
           {children}
         </main>
       </div>

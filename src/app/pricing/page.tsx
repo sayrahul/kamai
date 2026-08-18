@@ -146,7 +146,6 @@ export default function PricingPage() {
         { name: 'Custom Label & Barcode Tag Printing Studio', tooltip: 'Generate 50x25mm, 38x25mm and sheet barcode tags', gold: false, platinum: true },
         { name: '1-Click Low-Stock WhatsApp Purchase Orders', tooltip: 'Generates formatted supplier purchase orders via WhatsApp with 1 tap', gold: false, platinum: true },
         { name: 'Manage Godowns & Warehouse Stock Transfers', tooltip: 'Multi-location warehouse and branch stock tracking', gold: false, platinum: true },
-        { name: 'Weighing Scale USB/Bluetooth Auto-Weight', tooltip: 'Auto-reads weight from electronic weighing scales', gold: false, platinum: true },
       ]
     },
     {

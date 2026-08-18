@@ -14,7 +14,6 @@ import {
   AlertCircle,
   Zap,
   Download,
-  Sparkles,
   RefreshCw,
   ChevronRight,
   Building2,
@@ -23,11 +22,9 @@ import { db, ensureStarterBusinessIfEmpty } from '@/lib/db';
 import {
   AuthUser,
   setStoredUser,
-  hasSeenIntro,
   markIntroAsSeen,
   createDemoUser,
 } from '@/lib/auth';
-import { IntroWalkthrough } from '@/components/auth/IntroWalkthrough';
 import { usePWAInstall } from '@/lib/pwa/usePWAInstall';
 import { BusinessType } from '@/types';
 
@@ -50,7 +47,7 @@ const BUSINESS_TYPES: { value: BusinessType; label: string; emoji: string }[] = 
   { value: 'other', label: 'Other Retail', emoji: '🏢' },
 ];
 
-/* ─── Small Shared Components ─────────────────────────────────── */
+/* ─── Small Shared Components (Android App Style - No Shadow, No Transition, No Animation) ─── */
 function InputField({
   label,
   icon,
@@ -65,11 +62,13 @@ function InputField({
 } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide block">{label}</label>
+      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">{label}</label>
       <div className="relative">
         {prefix && (
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-sm font-mono font-bold">
-            {prefix}
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span className="text-xs font-bold text-slate-300 bg-slate-800/90 px-2 py-1 rounded-md border border-slate-700 font-mono">
+              {prefix}
+            </span>
           </div>
         )}
         {icon && !prefix && (
@@ -79,7 +78,7 @@ function InputField({
         )}
         <input
           {...props}
-          className={`w-full bg-slate-950 border ${error ? 'border-rose-500' : 'border-slate-700 focus:border-amber-400'} text-white rounded-xl ${prefix ? 'pl-12' : icon ? 'pl-10' : 'pl-4'} pr-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 ${error ? 'focus:ring-rose-500/20' : 'focus:ring-amber-400/20'} placeholder:text-slate-600 transition-all`}
+          className={`w-full bg-slate-950 border ${error ? 'border-rose-500' : 'border-slate-800 focus:border-amber-400'} text-white rounded-xl ${prefix ? 'pl-20' : icon ? 'pl-10' : 'pl-4'} pr-4 py-3.5 text-sm font-semibold focus:outline-none placeholder:text-slate-600`}
         />
       </div>
       {error && <p className="text-[11px] text-rose-400 font-medium">{error}</p>}
@@ -103,19 +102,24 @@ function OtpInput({
 
   return (
     <div className="space-y-2">
-      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide block">
-        Enter 6-Digit WhatsApp OTP
-      </label>
+      <div className="flex items-center justify-between">
+        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+          Enter 6-Digit WhatsApp OTP
+        </label>
+        <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
+          WhatsApp Verified
+        </span>
+      </div>
       <input
         ref={inputRef}
         type="tel"
         inputMode="numeric"
         maxLength={6}
-        placeholder="• • • • • •"
+        placeholder="••••••"
         value={value}
         onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
         disabled={disabled}
-        className="w-full bg-slate-950 border border-emerald-500/50 focus:border-emerald-400 text-emerald-300 text-center tracking-[0.6em] rounded-xl py-4 text-2xl font-mono font-black focus:outline-none focus:ring-2 focus:ring-emerald-400/20 placeholder:text-slate-700 placeholder:tracking-[0.3em] transition-all disabled:opacity-50"
+        className="w-full bg-slate-950 border border-emerald-500/70 focus:border-emerald-400 text-emerald-400 text-center tracking-[0.7em] rounded-xl py-3.5 text-2xl font-mono font-black focus:outline-none placeholder:text-slate-700 placeholder:tracking-[0.4em] disabled:opacity-50"
       />
     </div>
   );
@@ -130,9 +134,9 @@ function StatusBanner({
 }) {
   if (!msg) return null;
   const styles = {
-    success: 'bg-emerald-950/80 border-emerald-600/40 text-emerald-300',
-    error: 'bg-rose-950/80 border-rose-600/40 text-rose-300',
-    info: 'bg-amber-950/80 border-amber-600/40 text-amber-300',
+    success: 'bg-emerald-950 border-emerald-700 text-emerald-300',
+    error: 'bg-rose-950 border-rose-700 text-rose-300',
+    info: 'bg-amber-950 border-amber-700 text-amber-300',
   };
   return (
     <div className={`p-3.5 rounded-xl text-xs flex flex-col gap-2 border ${styles[msg.type]}`}>
@@ -148,7 +152,7 @@ function StatusBanner({
         <button
           type="button"
           onClick={action.onClick}
-          className="self-start text-[11px] font-bold px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 hover:bg-amber-300 transition-all cursor-pointer shadow-sm mt-1"
+          className="self-start text-[11px] font-bold px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 hover:bg-amber-300 cursor-pointer mt-1"
         >
           {action.label}
         </button>
@@ -159,15 +163,15 @@ function StatusBanner({
 
 function WhatsAppBadge({ phone }: { phone: string }) {
   return (
-    <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-950/40 border border-emerald-700/30">
-      <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-950/60 border border-emerald-700/60">
+      <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center flex-shrink-0">
         <MessageSquare className="w-4 h-4 text-white" />
       </div>
-      <div>
+      <div className="flex-1 min-w-0">
         <p className="text-xs font-bold text-emerald-300">OTP sent to WhatsApp</p>
-        <p className="text-[11px] text-slate-400">+91 {phone.slice(-10)}</p>
+        <p className="text-[11px] text-slate-400 font-mono">+91 {phone.slice(-10)}</p>
       </div>
-      <CheckCircle2 className="w-4 h-4 text-emerald-400 ml-auto flex-shrink-0" />
+      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
     </div>
   );
 }
@@ -179,8 +183,8 @@ export default function AuthPage() {
   const router = useRouter();
   const { isInstalled: isPWAInstalled, triggerInstall } = usePWAInstall();
   const [isClient, setIsClient] = useState(false);
-  const [showIntro, setShowIntro] = useState(false);
-  const [mode, setMode] = useState<AuthMode>('home');
+  const [activeTab, setActiveTab] = useState<'signin' | 'signup' | 'demo'>('signin');
+  const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
 
   // ─── Login state ───────────────────────────────────────────────
   const [loginStep, setLoginStep] = useState<LoginStep>('phone');
@@ -211,7 +215,6 @@ export default function AuthPage() {
 
   useEffect(() => {
     setIsClient(true);
-    if (!hasSeenIntro()) setShowIntro(true);
   }, []);
 
   // Cooldown timers
@@ -305,19 +308,18 @@ export default function AuthPage() {
             label: 'Register Store Now →',
             onClick: () => {
               resetSignup();
-              setMode('signup');
+              setActiveTab('signup');
               setSignupPhone(phone);
               setLoginStatus(null);
             },
           });
         } else if (data.devOtp) {
-          // Development/Testing fallback when WhatsApp Cloud API is restricted
           setLoginStep('otp');
           setLoginOtp(data.devOtp);
           setLoginCooldown(60);
           setLoginStatus({
             type: 'info',
-            text: `Meta WhatsApp Sandbox Error: Recipient not in Meta test list. Test OTP is: ${data.devOtp}`,
+            text: `Meta Sandbox Mode: Test OTP is ${data.devOtp}`,
           });
           setLoginStatusAction({
             label: `Auto-Fill Test OTP (${data.devOtp})`,
@@ -326,7 +328,7 @@ export default function AuthPage() {
         } else if (data.isAccessDenied) {
           setLoginStatus({
             type: 'error',
-            text: data.error || 'WhatsApp Delivery Failed (#131005): Meta App is in Development Mode. Please add this number to the Meta test list or use Demo Mode.',
+            text: data.error || 'WhatsApp Delivery Failed (#131005): Meta App in Development Mode.',
           });
           setLoginStatusAction({
             label: '⚡ Open Demo Store Instantly',
@@ -341,7 +343,7 @@ export default function AuthPage() {
         }
       }
     } catch {
-      setLoginStatus({ type: 'error', text: 'Network error. Please check your connection and try again.' });
+      setLoginStatus({ type: 'error', text: 'Network error. Please check your connection.' });
       setLoginStatusAction(null);
     } finally {
       setLoginSending(false);
@@ -377,7 +379,7 @@ export default function AuthPage() {
           setLoginStatus({ type: 'error', text: 'This number is not registered. Please create an account.' });
           setLoginStatusAction({
             label: 'Register Store Now →',
-            onClick: () => { setMode('signup'); setSignupPhone(phone); },
+            onClick: () => { setActiveTab('signup'); setSignupPhone(phone); },
           });
         } else {
           setLoginStatus({ type: 'error', text: data.error || 'Incorrect OTP. Please try again.' });
@@ -433,7 +435,7 @@ export default function AuthPage() {
           setSignupStatusAction({
             label: 'Sign In Now →',
             onClick: () => {
-              setMode('login');
+              setActiveTab('signin');
               setLoginPhone(phone);
               setSignupStatus(null);
             },
@@ -444,7 +446,7 @@ export default function AuthPage() {
           setSignupCooldown(60);
           setSignupStatus({
             type: 'info',
-            text: `Meta WhatsApp Sandbox Error: Recipient not in Meta test list. Test OTP is: ${data.devOtp}`,
+            text: `Meta Sandbox Mode: Test OTP is ${data.devOtp}`,
           });
           setSignupStatusAction({
             label: `Auto-Fill Test OTP (${data.devOtp})`,
@@ -453,7 +455,7 @@ export default function AuthPage() {
         } else if (data.isAccessDenied) {
           setSignupStatus({
             type: 'error',
-            text: data.error || 'WhatsApp Delivery Failed (#131005): Meta App is in Development Mode. Please add this number to the Meta test list or use Demo Mode.',
+            text: data.error || 'WhatsApp Delivery Failed (#131005): Meta App in Development Mode.',
           });
           setSignupStatusAction({
             label: '⚡ Open Demo Store Instantly',
@@ -508,7 +510,7 @@ export default function AuthPage() {
       } else {
         if (data.requireLogin) {
           setSignupStatus({ type: 'error', text: 'This number is already registered. Signing you in...' });
-          setTimeout(() => { setMode('login'); setLoginPhone(phone); }, 2200);
+          setTimeout(() => { setActiveTab('signin'); setLoginPhone(phone); }, 1500);
         } else {
           setSignupStatus({ type: 'error', text: data.error || 'Registration failed. Please check your OTP.' });
         }
@@ -535,7 +537,6 @@ export default function AuthPage() {
     }
   };
 
-  /* ─── Reset helpers ──────────────────────────────────────── */
   function resetLogin() {
     setLoginStep('phone');
     setLoginOtp('');
@@ -555,474 +556,504 @@ export default function AuthPage() {
   if (!isClient) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400" />
+        <div className="rounded-full h-8 w-8 border-2 border-slate-700 border-t-amber-400" />
       </div>
     );
   }
 
-  if (showIntro) {
-    return <IntroWalkthrough onComplete={() => { markIntroAsSeen(); setShowIntro(false); }} onSkip={() => { markIntroAsSeen(); setShowIntro(false); }} />;
-  }
+  const loginPhoneClean = cleanPhone(loginPhone);
+  const signupPhoneClean = cleanPhone(signupPhone);
+
+  const features = [
+    { id: 'offline', name: '100% Offline POS', desc: 'Bill continuously without internet. Syncs to cloud when back online.' },
+    { id: 'gst', name: 'GST Invoices', desc: 'Generate B2B / B2C GST compliant bills and direct thermal print receipts.' },
+    { id: 'khata', name: 'Khata Ledger', desc: 'Send automatic WhatsApp payment reminders and collect dues faster.' },
+    { id: 'stock', name: 'Smart Inventory', desc: 'Real-time stock tracking with barcode scanning & low stock alerts.' },
+  ];
 
   /* ═══════════════════════════════════════════════════════════ */
-  /* HOME SCREEN                                                  */
+  /* ANDROID APP STYLE AUTH CONTAINER                            */
   /* ═══════════════════════════════════════════════════════════ */
-  if (mode === 'home') {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col p-5 sm:p-8">
-        {/* Top Bar */}
-        <div className="max-w-md mx-auto w-full flex items-center justify-between mb-8">
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-4 sm:p-6 pb-24 sm:pb-8 select-none font-sans">
+      {/* ─── Android Top System / App Bar ─── */}
+      <div className="max-w-md mx-auto w-full">
+        <div className="flex items-center justify-between py-2 border-b border-slate-800/80 mb-4">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Kamai+" className="w-9 h-9 object-contain" />
+            <div className="w-8 h-8 rounded-lg bg-amber-400 text-slate-950 font-black flex items-center justify-center text-base border border-amber-300">
+              क+
+            </div>
             <div>
-              <div className="text-sm font-black tracking-tight text-white">KamaiPlus</div>
-              <div className="text-[10px] text-slate-500 font-medium">Smart Billing for Indian Stores</div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-black text-white tracking-tight">KamaiPlus</span>
+                <span className="text-[9px] font-bold bg-amber-400/10 text-amber-400 px-1.5 py-0.2 rounded border border-amber-400/30">
+                  POS v2.4
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium">Smart Retail POS for Indian Stores</p>
             </div>
           </div>
-          <div className="flex gap-2">
+
+          <div className="flex items-center gap-1.5">
             {!isPWAInstalled && (
               <button
+                type="button"
                 onClick={triggerInstall}
-                className="text-[11px] font-bold text-slate-300 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 cursor-pointer hover:border-amber-400/40 transition-all"
+                className="text-[11px] font-bold text-slate-300 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 cursor-pointer hover:border-slate-500"
               >
                 <Download className="w-3.5 h-3.5 text-amber-400" />
-                Install
+                App
               </button>
             )}
-            <button
-              onClick={() => setShowIntro(true)}
-              className="text-[11px] font-bold text-amber-400 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-400/30 bg-amber-400/5 cursor-pointer hover:bg-amber-400/10 transition-all"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Tour
-            </button>
           </div>
         </div>
 
-        {/* Hero */}
-        <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center space-y-6">
-          <div className="text-center space-y-3 pt-2">
-            <h1 className="text-3xl sm:text-4xl font-black text-white leading-tight tracking-tight">
-              Billing Made<br />
-              <span className="text-amber-400">Kamai Wala</span> 🚀
-            </h1>
-            <p className="text-sm text-slate-400 leading-relaxed max-w-xs mx-auto">
-              Complete POS system for your store. Works offline. Syncs on cloud.
-            </p>
-          </div>
-
-          {/* Feature pills */}
-          <div className="flex flex-wrap gap-2 justify-center">
-            {['GST Bills', 'Khata (Ledger)', 'Inventory', 'Cloud Backup', 'WhatsApp'].map((f) => (
-              <span key={f} className="text-[11px] font-bold bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1 rounded-full">
-                {f}
-              </span>
-            ))}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-3 pt-2">
-            {/* Register */}
-            <button
-              onClick={() => { resetSignup(); setMode('signup'); }}
-              className="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black py-4 rounded-2xl flex items-center justify-between px-5 cursor-pointer transition-all shadow-lg shadow-amber-400/20 active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-3">
-                <Store className="w-5 h-5" />
-                <div className="text-left">
-                  <div className="text-sm">Register Your Store</div>
-                  <div className="text-[10px] font-semibold opacity-70">New store • WhatsApp verification</div>
-                </div>
-              </div>
-              <ArrowRight className="w-5 h-5" />
-            </button>
-
-            {/* Login */}
-            <button
-              onClick={() => { resetLogin(); setMode('login'); }}
-              className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-amber-400/40 text-white font-bold py-4 rounded-2xl flex items-center justify-between px-5 cursor-pointer transition-all active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-3">
-                <MessageSquare className="w-5 h-5 text-emerald-400" />
-                <div className="text-left">
-                  <div className="text-sm">Sign In to My Store</div>
-                  <div className="text-[10px] font-semibold text-slate-400">Existing account • WhatsApp OTP</div>
-                </div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-slate-400" />
-            </button>
-
-            {/* Demo */}
-            <button
-              onClick={handleDemoLogin}
-              disabled={loginLoading}
-              className="w-full border border-dashed border-slate-700 hover:border-amber-400/50 text-slate-400 hover:text-amber-400 py-3.5 rounded-2xl flex items-center justify-center gap-2.5 cursor-pointer text-sm font-semibold transition-all active:scale-[0.98]"
-            >
-              <Zap className="w-4 h-4" />
-              <span>Explore Demo (No Sign Up)</span>
-            </button>
-          </div>
-
-          {/* Trust badges */}
-          <div className="flex items-center justify-center gap-4 text-[11px] text-slate-600 pt-2">
-            <span className="flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              Offline Billing
-            </span>
-            <span className="text-slate-800">•</span>
-            <span className="flex items-center gap-1">
-              <Building2 className="w-3.5 h-3.5 text-amber-700" />
-              10,000+ Merchants
-            </span>
-            <span className="text-slate-800">•</span>
-            <span className="flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-blue-700" />
-              GST Compliant
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ═══════════════════════════════════════════════════════════ */
-  /* LOGIN FLOW                                                   */
-  /* ═══════════════════════════════════════════════════════════ */
-  if (mode === 'login') {
-    const phone = cleanPhone(loginPhone);
-    return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col p-5 sm:p-8">
-        {/* Back */}
-        <div className="max-w-md mx-auto w-full mb-6">
+        {/* ─── Android Segmented Mode Tabs ─── */}
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-1 grid grid-cols-3 gap-1 mb-5">
           <button
-            onClick={() => { resetLogin(); setMode('home'); }}
-            className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors cursor-pointer"
+            type="button"
+            onClick={() => { setActiveTab('signin'); resetLogin(); }}
+            className={`py-2 px-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'signin'
+                ? 'bg-emerald-500 text-white'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back
+            <MessageSquare className="w-3.5 h-3.5" />
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('signup'); resetSignup(); }}
+            className={`py-2 px-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'signup'
+                ? 'bg-amber-400 text-slate-950 font-black'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Store className="w-3.5 h-3.5" />
+            New Store
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('demo'); }}
+            className={`py-2 px-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'demo'
+                ? 'bg-slate-800 text-amber-400 border border-amber-400/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            Demo
           </button>
         </div>
+      </div>
 
-        <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center">
-          {/* Header */}
-          <div className="mb-6 space-y-1">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                <MessageSquare className="w-5 h-5 text-emerald-400" />
-              </div>
-            </div>
-            <h1 className="text-2xl font-black text-white">
-              {loginStep === 'phone' ? 'Welcome Back!' : 'Verify OTP'}
-            </h1>
-            <p className="text-sm text-slate-400">
-              {loginStep === 'phone'
-                ? 'Sign in with your WhatsApp number.'
-                : `Enter the 6-digit code sent to WhatsApp`}
-            </p>
-          </div>
-
-          {/* Step Progress */}
-          <div className="flex items-center gap-2 mb-6">
-            <div className={`h-1 flex-1 rounded-full transition-all ${loginStep === 'phone' ? 'bg-emerald-500' : 'bg-slate-700'}`} />
-            <div className={`h-1 flex-1 rounded-full transition-all ${loginStep === 'otp' ? 'bg-emerald-500' : 'bg-slate-700'}`} />
-          </div>
-
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-2xl">
-            <StatusBanner msg={loginStatus} action={loginStatusAction || undefined} />
-
-            {loginStep === 'phone' ? (
-              <>
-                <InputField
-                  label="Registered Mobile Number"
-                  prefix="+91"
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={10}
-                  placeholder="9876543210"
-                  value={loginPhone}
-                  onChange={(e) => {
-                    setLoginPhone(e.target.value.replace(/\D/g, '').slice(0, 10));
-                    setLoginStatus(null);
-                  }}
-                  autoFocus
-                />
-
-                <button
-                  type="button"
-                  disabled={loginSending || phone.length < 10}
-                  onClick={handleLoginSendOtp}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.98] text-sm"
-                >
-                  {loginSending ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Sending OTP...
-                    </>
-                  ) : (
-                    <>
-                      <MessageSquare className="w-4 h-4" />
-                      Send WhatsApp OTP
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-
-                <p className="text-center text-[11px] text-slate-500">
-                  New to KamaiPlus?{' '}
-                  <button
-                    onClick={() => { resetSignup(); setMode('signup'); setSignupPhone(loginPhone); }}
-                    className="text-amber-400 font-bold hover:underline cursor-pointer"
-                  >
-                    Register your store →
-                  </button>
-                </p>
-              </>
-            ) : (
-              <>
-                <WhatsAppBadge phone={phone} />
-                <OtpInput value={loginOtp} onChange={setLoginOtp} disabled={loginLoading} />
-
-                <button
-                  type="button"
-                  disabled={loginLoading || loginOtp.length < 6}
-                  onClick={handleLoginVerifyOtp}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.98] text-sm"
-                >
-                  {loginLoading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Verifying...
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="w-4 h-4" />
-                      Verify & Sign In
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-
-                <div className="flex items-center justify-between text-[11px]">
-                  <button
-                    onClick={() => { setLoginStep('phone'); setLoginOtp(''); setLoginStatus(null); }}
-                    className="text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
-                  >
-                    <ArrowLeft className="w-3 h-3" />
-                    Change number
-                  </button>
-                  <button
-                    disabled={loginCooldown > 0 || loginSending}
-                    onClick={handleLoginSendOtp}
-                    className="text-emerald-400 hover:text-emerald-300 font-bold disabled:text-slate-600 cursor-pointer"
-                  >
-                    {loginCooldown > 0 ? `Resend in ${loginCooldown}s` : 'Resend OTP'}
-                  </button>
+      {/* ─── Android Content Card ─── */}
+      <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center my-2">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+          
+          {/* ══════════════════════════════════════════════════ */}
+          {/* TAB 1: SIGN IN (WhatsApp OTP)                      */}
+          {/* ══════════════════════════════════════════════════ */}
+          {activeTab === 'signin' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-800/60">
+                <div>
+                  <h2 className="text-lg font-black text-white">
+                    {loginStep === 'phone' ? 'Store Owner Login' : 'Enter WhatsApp Code'}
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    {loginStep === 'phone'
+                      ? 'Enter registered WhatsApp number'
+                      : `Code sent to +91 ${loginPhoneClean}`}
+                  </p>
                 </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ═══════════════════════════════════════════════════════════ */
-  /* SIGNUP FLOW                                                  */
-  /* ═══════════════════════════════════════════════════════════ */
-  const signupPhoneClean = cleanPhone(signupPhone);
-  return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col p-5 sm:p-8">
-      {/* Back */}
-      <div className="max-w-md mx-auto w-full mb-6">
-        <button
-          onClick={() => {
-            if (signupStep === 'otp') {
-              setSignupStep('details');
-              setSignupStatus(null);
-            } else {
-              resetSignup();
-              setMode('home');
-            }
-          }}
-          className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          {signupStep === 'otp' ? 'Back to Details' : 'Back'}
-        </button>
-      </div>
-
-      <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center">
-        {/* Header */}
-        <div className="mb-6 space-y-1">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center">
-              <Store className="w-5 h-5 text-amber-400" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-black text-white">
-            {signupStep === 'details' ? 'Register Your Store' : 'Verify WhatsApp'}
-          </h1>
-          <p className="text-sm text-slate-400">
-            {signupStep === 'details'
-              ? 'Fill in your store details to get started.'
-              : `Enter the OTP we just sent to +91 ${signupPhoneClean}`}
-          </p>
-        </div>
-
-        {/* Step Progress */}
-        <div className="flex items-center gap-2 mb-6">
-          <div className="h-1 flex-1 rounded-full bg-amber-400" />
-          <div className={`h-1 flex-1 rounded-full transition-all ${signupStep === 'otp' ? 'bg-amber-400' : 'bg-slate-700'}`} />
-        </div>
-
-        {/* Step Labels */}
-        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide mb-5 -mt-3 px-1">
-          <span className="text-amber-400">1. Store Info</span>
-          <span className={signupStep === 'otp' ? 'text-amber-400' : 'text-slate-600'}>2. WhatsApp OTP</span>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl">
-          <StatusBanner msg={signupStatus} action={signupStatusAction || undefined} />
-
-          {signupStep === 'details' ? (
-            <div className="space-y-4 mt-1">
-              <InputField
-                label="Store / Business Name *"
-                icon={<Store className="w-4 h-4" />}
-                type="text"
-                placeholder="e.g. Mahadev Super Market"
-                value={signupStoreName}
-                onChange={(e) => { setSignupStoreName(e.target.value); setFieldErrors((err) => ({ ...err, storeName: '' })); }}
-                error={fieldErrors.storeName}
-                autoFocus
-              />
-
-              <InputField
-                label="Owner Name *"
-                icon={<User className="w-4 h-4" />}
-                type="text"
-                placeholder="e.g. Rahul Patil"
-                value={signupOwnerName}
-                onChange={(e) => { setSignupOwnerName(e.target.value); setFieldErrors((err) => ({ ...err, ownerName: '' })); }}
-                error={fieldErrors.ownerName}
-              />
-
-              <InputField
-                label="WhatsApp Mobile Number *"
-                prefix="+91"
-                type="tel"
-                inputMode="numeric"
-                maxLength={10}
-                placeholder="9876543210"
-                value={signupPhone}
-                onChange={(e) => { setSignupPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); setFieldErrors((err) => ({ ...err, phone: '' })); }}
-                error={fieldErrors.phone}
-              />
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide block">
-                  Business Category
-                </label>
-                <select
-                  value={signupCategory}
-                  onChange={(e) => setSignupCategory(e.target.value as BusinessType)}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 text-white rounded-xl px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400/20 transition-all"
-                >
-                  {BUSINESS_TYPES.map((bt) => (
-                    <option key={bt.value} value={bt.value}>
-                      {bt.emoji} {bt.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                  <MessageSquare className="w-4 h-4 text-emerald-400" />
+                </div>
               </div>
 
-              <InputField
-                label="Security PIN (Optional — 4 to 6 digits)"
-                icon={<ShieldCheck className="w-4 h-4" />}
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="Set a PIN for cashier login"
-                value={signupPin}
-                onChange={(e) => { setSignupPin(e.target.value.replace(/\D/g, '').slice(0, 6)); setFieldErrors((err) => ({ ...err, pin: '' })); }}
-                error={fieldErrors.pin}
-              />
+              <StatusBanner msg={loginStatus} action={loginStatusAction || undefined} />
 
-              <button
-                type="button"
-                disabled={signupSending}
-                onClick={handleSignupSendOtp}
-                className="w-full bg-amber-400 hover:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-amber-400/20 active:scale-[0.98] text-sm"
-              >
-                {signupSending ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Sending OTP to WhatsApp...
-                  </>
-                ) : (
-                  <>
-                    <MessageSquare className="w-4 h-4" />
-                    Continue — Send WhatsApp OTP
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              {loginStep === 'phone' ? (
+                <div className="space-y-3.5">
+                  <InputField
+                    label="Mobile Number"
+                    prefix="🇮🇳 +91"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="9876543210"
+                    value={loginPhone}
+                    onChange={(e) => {
+                      setLoginPhone(e.target.value.replace(/\D/g, '').slice(0, 10));
+                      setLoginStatus(null);
+                    }}
+                    autoFocus
+                  />
 
-              <p className="text-center text-[11px] text-slate-500">
-                Already have an account?{' '}
-                <button
-                  onClick={() => { resetLogin(); setMode('login'); setLoginPhone(signupPhone); }}
-                  className="text-emerald-400 font-bold hover:underline cursor-pointer"
-                >
-                  Sign In →
-                </button>
-              </p>
+                  <button
+                    type="button"
+                    disabled={loginSending || loginPhoneClean.length < 10}
+                    onClick={handleLoginSendOtp}
+                    className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  >
+                    {loginSending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        <span>Sending WhatsApp OTP...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-4 h-4" />
+                        <span>Get WhatsApp OTP</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                  <div className="pt-1 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/60">
+                    <span>New shop or counter?</span>
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab('signup'); resetSignup(); }}
+                      className="text-amber-400 font-bold hover:underline cursor-pointer"
+                    >
+                      Register store →
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  <WhatsAppBadge phone={loginPhoneClean} />
+                  <OtpInput value={loginOtp} onChange={setLoginOtp} disabled={loginLoading} />
+
+                  <button
+                    type="button"
+                    disabled={loginLoading || loginOtp.length < 6}
+                    onClick={handleLoginVerifyOtp}
+                    className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  >
+                    {loginLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Verify & Open POS</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/60">
+                    <button
+                      type="button"
+                      onClick={() => { setLoginStep('phone'); setLoginOtp(''); setLoginStatus(null); }}
+                      className="text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer font-semibold"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      Change number
+                    </button>
+                    <button
+                      type="button"
+                      disabled={loginCooldown > 0 || loginSending}
+                      onClick={handleLoginSendOtp}
+                      className="text-emerald-400 hover:text-emerald-300 font-bold disabled:text-slate-600 cursor-pointer"
+                    >
+                      {loginCooldown > 0 ? `Resend in ${loginCooldown}s` : 'Resend OTP'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="space-y-4 mt-1">
-              <WhatsAppBadge phone={signupPhoneClean} />
-              <OtpInput value={signupOtp} onChange={setSignupOtp} disabled={signupLoading} />
+          )}
+
+          {/* ══════════════════════════════════════════════════ */}
+          {/* TAB 2: REGISTER STORE                               */}
+          {/* ══════════════════════════════════════════════════ */}
+          {activeTab === 'signup' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-800/60">
+                <div>
+                  <h2 className="text-lg font-black text-white">
+                    {signupStep === 'details' ? 'Create Store Profile' : 'Verify WhatsApp'}
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    {signupStep === 'details'
+                      ? 'Instant setup • Works 100% offline'
+                      : `Enter 6-digit OTP sent to +91 ${signupPhoneClean}`}
+                  </p>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-amber-400/10 border border-amber-400/30 flex items-center justify-center">
+                  <Store className="w-4 h-4 text-amber-400" />
+                </div>
+              </div>
+
+              <StatusBanner msg={signupStatus} action={signupStatusAction || undefined} />
+
+              {signupStep === 'details' ? (
+                <div className="space-y-3">
+                  <InputField
+                    label="Store Name *"
+                    icon={<Store className="w-4 h-4" />}
+                    type="text"
+                    placeholder="e.g. Krishna Super Market"
+                    value={signupStoreName}
+                    onChange={(e) => { setSignupStoreName(e.target.value); setFieldErrors((err) => ({ ...err, storeName: '' })); }}
+                    error={fieldErrors.storeName}
+                    autoFocus
+                  />
+
+                  <InputField
+                    label="Owner / Cashier Name *"
+                    icon={<User className="w-4 h-4" />}
+                    type="text"
+                    placeholder="e.g. Rahul Sharma"
+                    value={signupOwnerName}
+                    onChange={(e) => { setSignupOwnerName(e.target.value); setFieldErrors((err) => ({ ...err, ownerName: '' })); }}
+                    error={fieldErrors.ownerName}
+                  />
+
+                  <InputField
+                    label="WhatsApp Number *"
+                    prefix="🇮🇳 +91"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="9876543210"
+                    value={signupPhone}
+                    onChange={(e) => { setSignupPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); setFieldErrors((err) => ({ ...err, phone: '' })); }}
+                    error={fieldErrors.phone}
+                  />
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Business Type
+                    </label>
+                    <select
+                      value={signupCategory}
+                      onChange={(e) => setSignupCategory(e.target.value as BusinessType)}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-400 text-white rounded-xl px-3.5 py-3 text-sm font-semibold focus:outline-none cursor-pointer"
+                    >
+                      {BUSINESS_TYPES.map((bt) => (
+                        <option key={bt.value} value={bt.value} className="bg-slate-900 text-white">
+                          {bt.emoji} {bt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <InputField
+                    label="Cashier PIN (Optional — 4 to 6 digits)"
+                    icon={<ShieldCheck className="w-4 h-4" />}
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="Quick pin for billing lock"
+                    value={signupPin}
+                    onChange={(e) => { setSignupPin(e.target.value.replace(/\D/g, '').slice(0, 6)); setFieldErrors((err) => ({ ...err, pin: '' })); }}
+                    error={fieldErrors.pin}
+                  />
+
+                  <button
+                    type="button"
+                    disabled={signupSending}
+                    onClick={handleSignupSendOtp}
+                    className="w-full bg-amber-400 hover:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  >
+                    {signupSending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        <span>Sending OTP...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-4 h-4" />
+                        <span>Continue with WhatsApp OTP</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                  <div className="pt-1 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/60">
+                    <span>Already registered?</span>
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab('signin'); resetLogin(); setLoginPhone(signupPhone); }}
+                      className="text-emerald-400 font-bold hover:underline cursor-pointer"
+                    >
+                      Sign In →
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  <WhatsAppBadge phone={signupPhoneClean} />
+                  <OtpInput value={signupOtp} onChange={setSignupOtp} disabled={signupLoading} />
+
+                  <button
+                    type="button"
+                    disabled={signupLoading || signupOtp.length < 6}
+                    onClick={handleSignupVerifyOtp}
+                    className="w-full bg-amber-400 hover:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  >
+                    {signupLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        <span>Creating store...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Verify & Launch Store</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/60">
+                    <button
+                      type="button"
+                      onClick={() => { setSignupStep('details'); setSignupOtp(''); setSignupStatus(null); }}
+                      className="text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer font-semibold"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      Edit details
+                    </button>
+                    <button
+                      type="button"
+                      disabled={signupCooldown > 0 || signupSending}
+                      onClick={handleSignupSendOtp}
+                      className="text-amber-400 hover:text-amber-300 font-bold disabled:text-slate-600 cursor-pointer"
+                    >
+                      {signupCooldown > 0 ? `Resend in ${signupCooldown}s` : 'Resend OTP'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════ */}
+          {/* TAB 3: DEMO MODE (Instant Access)                  */}
+          {/* ══════════════════════════════════════════════════ */}
+          {activeTab === 'demo' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-800/60">
+                <div>
+                  <h2 className="text-lg font-black text-white">Instant Demo Store</h2>
+                  <p className="text-xs text-slate-400">Explore complete POS with sample data</p>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-amber-400/10 border border-amber-400/30 flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="text-xs font-bold text-slate-200">Included in Demo Store:</div>
+                <ul className="text-xs text-slate-400 space-y-1.5 list-disc list-inside">
+                  <li>Preloaded Grocery & Retail sample items</li>
+                  <li>Instant Barcode Scanner & Quick POS Billing</li>
+                  <li>Thermal Receipt Generator (58mm & 80mm)</li>
+                  <li>Customer Khata Ledger with WhatsApp reminders</li>
+                </ul>
+              </div>
 
               <button
                 type="button"
-                disabled={signupLoading || signupOtp.length < 6}
-                onClick={handleSignupVerifyOtp}
-                className="w-full bg-amber-400 hover:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-amber-400/20 active:scale-[0.98] text-sm"
+                onClick={handleDemoLogin}
+                disabled={loginLoading}
+                className="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-sm"
               >
-                {signupLoading ? (
+                {loginLoading ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Creating your store...
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Loading Demo...</span>
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    Verify & Open My Store
+                    <Zap className="w-4 h-4" />
+                    <span>Enter Demo Store (No Sign Up)</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
 
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/60">
+                <span className="text-slate-500">Ready to use your own data?</span>
                 <button
-                  onClick={() => { setSignupStep('details'); setSignupOtp(''); setSignupStatus(null); }}
-                  className="text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
+                  type="button"
+                  onClick={() => { setActiveTab('signup'); resetSignup(); }}
+                  className="text-amber-400 font-bold hover:underline cursor-pointer"
                 >
-                  <ArrowLeft className="w-3 h-3" />
-                  Edit details
-                </button>
-                <button
-                  disabled={signupCooldown > 0 || signupSending}
-                  onClick={handleSignupSendOtp}
-                  className="text-amber-400 hover:text-amber-300 font-bold disabled:text-slate-600 cursor-pointer"
-                >
-                  {signupCooldown > 0 ? `Resend in ${signupCooldown}s` : 'Resend OTP'}
+                  Register Store →
                 </button>
               </div>
             </div>
           )}
+
+        </div>
+
+        {/* ─── Interactive Feature Explorer (Android Chips) ─── */}
+        <div className="mt-4 space-y-2">
+          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-1">
+            Tap features to explore
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {features.map((f) => {
+              const isSelected = selectedFeature === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setSelectedFeature(isSelected ? null : f.id)}
+                  className={`p-2.5 rounded-xl border text-left cursor-pointer ${
+                    isSelected
+                      ? 'bg-slate-800 border-amber-400 text-white'
+                      : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="text-xs font-bold flex items-center justify-between">
+                    <span>{f.name}</span>
+                    <ChevronRight className={`w-3.5 h-3.5 ${isSelected ? 'text-amber-400 rotate-90' : 'text-slate-500'}`} />
+                  </div>
+                  {isSelected && (
+                    <p className="text-[10px] text-slate-300 mt-1.5 leading-relaxed pt-1.5 border-t border-slate-700">
+                      {f.desc}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Android Minimalist Footer ─── */}
+      <div className="max-w-md mx-auto w-full pt-3 pb-1 border-t border-slate-800/80">
+        <div className="flex items-center justify-between text-[11px] text-slate-400">
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="font-semibold text-slate-300">100% Offline Safe</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Building2 className="w-3.5 h-3.5 text-amber-400" />
+            <span className="font-semibold text-slate-300">10k+ Indian Shops</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />
+            <span className="font-semibold text-slate-300">GST Ready</span>
+          </div>
+        </div>
+        <div className="text-center text-[10px] text-slate-600 mt-2 font-medium">
+          Made with ❤️ for Indian Retailers & Kirana Stores
         </div>
       </div>
     </div>
   );
 }
+

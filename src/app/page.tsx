@@ -168,37 +168,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ---------------- STORE HERO HEADER BAR ---------------- */}
-      <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">
-              Live Business Health
-            </span>
-            <span className="text-xs text-slate-500 font-medium">
-              {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-            </span>
-            {/* Subscription Tier Badge */}
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-black border ${
-              subscriptionTier === 'enterprise'
-                ? 'bg-violet-100 text-violet-700 border-violet-200'
-                : subscriptionTier === 'pro'
-                ? 'bg-amber-100 text-amber-700 border-amber-200'
-                : 'bg-slate-100 text-slate-500 border-slate-200'
-            }`}>
-              {subscriptionTier === 'enterprise' ? '👑' : subscriptionTier === 'pro' ? '⚡' : '🆓'} {tierLabel}
-            </span>
-          </div>
-
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            {business?.name || 'My Business'}
-          </h1>
-          {business?.tagline && (
-            <p className="text-xs text-slate-500 italic">{business.tagline}</p>
-          )}
-        </div>
-
-      </div>
 
       {/* ---------------- TOP-LEVEL SUMMARY CARDS (COMPACT & MOBILE OPTIMIZED) ---------------- */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4">

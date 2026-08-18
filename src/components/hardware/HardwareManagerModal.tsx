@@ -4,16 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   Printer, 
   Barcode, 
-  Scale, 
   Bluetooth, 
   Usb, 
   CheckCircle2, 
-  AlertCircle, 
-  X, 
   Play, 
   Volume2, 
-  Zap, 
-  RefreshCw,
   Sliders,
   Sparkles
 } from 'lucide-react';
@@ -21,20 +16,17 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { playSupermarketBeep } from '@/lib/hardware/barcodeScannerListener';
-import { electronicScale, ScaleReading } from '@/lib/hardware/weighingScale';
 
 interface HardwareManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onApplyWeightToSelected?: (weightKg: number) => void;
 }
 
 export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
   isOpen,
   onClose,
-  onApplyWeightToSelected,
 }) => {
-  const [activeTab, setActiveTab] = useState<'printer' | 'scanner' | 'scale'>('printer');
+  const [activeTab, setActiveTab] = useState<'printer' | 'scanner'>('printer');
 
   // Printer State
   const [printerConnected, setPrinterConnected] = useState<boolean>(false);
@@ -45,28 +37,9 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
   // Scanner Test State
   const [lastScannedBarcode, setLastScannedBarcode] = useState<string>('');
 
-  // Scale State
-  const [scaleReading, setScaleReading] = useState<ScaleReading>({
-    weightKg: 0,
-    unit: 'kg',
-    isStable: true,
-    rawString: '0.000 kg',
-    timestamp: Date.now(),
-  });
-  const [scaleConnected, setScaleConnected] = useState<boolean>(false);
-  const [customWeightInput, setCustomWeightInput] = useState<string>('1.250');
-
   useEffect(() => {
     setPrinterConnected(bluetoothPrinter.isConnected());
     setPrinterName(bluetoothPrinter.getDeviceName());
-
-    const unsubscribe = electronicScale.subscribe((reading) => {
-      setScaleReading(reading);
-    });
-
-    return () => {
-      unsubscribe();
-    };
   }, [isOpen]);
 
   // Connect Bluetooth Printer
@@ -126,21 +99,6 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
     }
   };
 
-  // Connect Serial Scale
-  const handleConnectSerialScale = async () => {
-    try {
-      await electronicScale.connectSerial(9600);
-      setScaleConnected(true);
-    } catch (err: any) {
-      alert(err.message || 'Scale connection failed.');
-    }
-  };
-
-  // Manual Set Scale Weight
-  const handleSetSimulatedWeight = (wt: number) => {
-    electronicScale.setManualWeight(wt);
-  };
-
   return (
     <Modal
       isOpen={isOpen}
@@ -151,7 +109,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
           <span>POS Hardware & Peripherals Manager</span>
         </div>
       }
-      description="Connect Bluetooth thermal receipt printers, laser barcode guns, and digital weighing scales."
+      description="Connect Bluetooth thermal receipt printers and laser barcode guns."
       size="lg"
     >
       <div className="space-y-4">
@@ -175,16 +133,6 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
           >
             <Barcode className="w-3.5 h-3.5" />
             <span>Barcode Gun / PDA</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('scale')}
-            className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-              activeTab === 'scale' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Scale className="w-3.5 h-3.5" />
-            <span>Weighing Scale</span>
           </button>
         </div>
 
@@ -301,76 +249,6 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 3: ELECTRONIC WEIGHING SCALE */}
-        {/* ========================================================================= */}
-        {activeTab === 'scale' && (
-          <div className="space-y-4 animate-in fade-in">
-            {/* Live Digital Weight Indicator */}
-            <div className="p-5 rounded-2xl bg-slate-950 text-white flex items-center justify-between shadow-lg">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
-                  <Scale className="w-4 h-4 text-amber-400" />
-                  <span>Live Digital Scale Indicator</span>
-                </div>
-                <div className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-amber-400">
-                  {scaleReading.weightKg.toFixed(3)} <span className="text-lg text-white font-sans">kg</span>
-                </div>
-                <div className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" />
-                  <span>{scaleReading.isStable ? 'Stable Weight' : 'Stabilizing...'}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 text-right">
-                <Button
-                  size="sm"
-                  onClick={handleConnectSerialScale}
-                  className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs"
-                >
-                  <Usb className="w-3.5 h-3.5 mr-1" />
-                  <span>Connect Serial Scale</span>
-                </Button>
-
-                <button
-                  onClick={() => handleSetSimulatedWeight(0)}
-                  className="text-xs font-bold text-slate-400 hover:text-white"
-                >
-                  Tare (Zero Out)
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Weight Presets & Simulator */}
-            <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-2">
-              <span className="text-xs font-bold text-slate-800 block">Quick Weight Presets (for loose veggies, grains, dal):</span>
-              <div className="flex flex-wrap items-center gap-2">
-                {[0.25, 0.5, 1.0, 1.5, 2.0, 5.0].map((wt) => (
-                  <button
-                    key={wt}
-                    onClick={() => handleSetSimulatedWeight(wt)}
-                    className="px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-amber-100 hover:border-amber-400 text-slate-900 font-mono font-bold text-xs transition-all"
-                  >
-                    {wt >= 1 ? `${wt.toFixed(1)} kg` : `${wt * 1000} g`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {onApplyWeightToSelected && (
-              <Button
-                onClick={() => {
-                  onApplyWeightToSelected(scaleReading.weightKg);
-                  onClose();
-                }}
-                disabled={scaleReading.weightKg <= 0}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5"
-              >
-                <span>Apply {scaleReading.weightKg.toFixed(3)} kg to Current Cart Item</span>
-              </Button>
-            )}
-          </div>
-        )}
       </div>
     </Modal>
   );
