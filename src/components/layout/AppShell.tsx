@@ -20,7 +20,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [isClient, setIsClient] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
-  // --- EXISTING AUTH & INIT LOGIC ---
+  // --- AUTH & INIT LOGIC ---
   useEffect(() => {
     setIsClient(true);
     const user = getStoredUser();
@@ -70,19 +70,24 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     // 1. THE "PUSH" ENGINE (Local -> Cloud)
     const performBackgroundSync = async () => {
       try {
+        console.log("Background sync triggered. Checking for offline data...");
+
         const pendingProducts = await localDb.products.toArray();
         if (pendingProducts.length > 0) {
           await SyncEngine.pushToCloud('products', pendingProducts);
+          console.log(`Synced ${pendingProducts.length} products to the cloud.`);
         }
 
         const pendingSales = await localDb.sales.toArray();
         if (pendingSales.length > 0) {
           await SyncEngine.pushToCloud('sales', pendingSales);
+          console.log(`Synced ${pendingSales.length} sales to the cloud.`);
         }
 
         const pendingCustomers = await localDb.customers.toArray();
         if (pendingCustomers.length > 0) {
           await SyncEngine.pushToCloud('customers', pendingCustomers);
+          console.log(`Synced ${pendingCustomers.length} customers to the cloud.`);
         }
       } catch (error) {
         console.error("Background push failed:", error);
@@ -96,32 +101,33 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
 
     // 2. THE "PULL" ENGINE (Cloud -> Local Real-Time)
+    // Using block bodies `{ await ... }` prevents returning Dexie IDs, ensuring Promise<void>
     const unsubscribeProducts = SyncEngine.startRealtimeSync(
       'products',
-      async (data): Promise<void> => {
+      async (data) => {
         await localDb.products.put(data);
       },
-      async (id): Promise<void> => {
+      async (id) => {
         await localDb.products.delete(id);
       }
     );
 
     const unsubscribeSales = SyncEngine.startRealtimeSync(
       'sales',
-      async (data): Promise<void> => {
+      async (data) => {
         await localDb.sales.put(data);
       },
-      async (id): Promise<void> => {
+      async (id) => {
         await localDb.sales.delete(id);
       }
     );
 
     const unsubscribeCustomers = SyncEngine.startRealtimeSync(
       'customers',
-      async (data): Promise<void> => {
+      async (data) => {
         await localDb.customers.put(data);
       },
-      async (id): Promise<void> => {
+      async (id) => {
         await localDb.customers.delete(id);
       }
     );
@@ -138,11 +144,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-[#F8FAFC]" />;
   }
 
+  // Standalone view for public customer invoice link
   const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
   if (isCustomerInvoice) {
     return <main className="min-h-screen bg-slate-50">{children}</main>;
   }
 
+  // Full screen view for onboarding / auth
   if (pathname === '/onboarding' || pathname === '/auth') {
     return <main className="min-h-screen bg-slate-950">{children}</main>;
   }

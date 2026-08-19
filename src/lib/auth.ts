@@ -11,6 +11,9 @@ export interface AuthUser {
     role?: string;
 }
 
+/**
+ * Retrieves the currently logged-in user from browser local storage safely.
+ */
 export const getStoredUser = (): AuthUser | null => {
     if (typeof window === 'undefined') return null;
     try {
@@ -27,6 +30,9 @@ export const getStoredUser = (): AuthUser | null => {
     }
 };
 
+/**
+ * Saves or clears the authenticated user session in local storage and triggers state updates.
+ */
 export const setStoredUser = (user: AuthUser | null) => {
     if (typeof window === 'undefined') return;
     if (!user) {
@@ -38,6 +44,9 @@ export const setStoredUser = (user: AuthUser | null) => {
     window.dispatchEvent(new Event('storage'));
 };
 
+/**
+ * Logs out the current user session.
+ */
 export const logoutUser = () => {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('kamai_user');
