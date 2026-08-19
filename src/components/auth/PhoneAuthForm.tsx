@@ -5,7 +5,7 @@ import { auth } from '@/lib/db/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Store, Phone, ShieldCheck, ArrowRight, RefreshCw } from 'lucide-react';
-import { syncProfileToCloud } from '@/lib/sync/syncEngine';
+import { syncProfileToCloud, fetchProfileFromCloud } from '@/lib/sync/syncEngine';
 
 export const PhoneAuthForm: React.FC = () => {
     const [phoneNumber, setPhoneNumber] = useState('');
@@ -72,22 +72,36 @@ export const PhoneAuthForm: React.FC = () => {
             const result = await confirmationResult.confirm(otp);
             const user = result.user;
 
-            const randomBusinessId = `biz_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`;
+            // Check if this phone/uid already has a merchant profile in the cloud.
+            // Without this check, every login used to mint a brand-new business_id,
+            // silently disconnecting the returning user from their existing shop data.
+            const existingProfile = await fetchProfileFromCloud(user.uid);
 
-            const userData = {
-                uid: user.uid,
-                phone: user.phoneNumber || phoneNumber,
-                name: 'Shop Merchant',
-                business_id: randomBusinessId,
-                shop_name: 'My Retail Store',
-                role: 'admin',
-                createdAt: new Date().toISOString()
-            };
+            const userData = existingProfile
+                ? {
+                    uid: user.uid,
+                    phone: user.phoneNumber || phoneNumber,
+                    name: (existingProfile as any).name || 'Shop Merchant',
+                    business_id: (existingProfile as any).business_id,
+                    shop_name: (existingProfile as any).shop_name || 'My Retail Store',
+                    role: (existingProfile as any).role || 'admin',
+                    createdAt: (existingProfile as any).createdAt || new Date().toISOString(),
+                }
+                : {
+                    uid: user.uid,
+                    phone: user.phoneNumber || phoneNumber,
+                    name: 'Shop Merchant',
+                    business_id: `biz_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`,
+                    shop_name: 'My Retail Store',
+                    role: 'admin',
+                    createdAt: new Date().toISOString(),
+                };
 
             // Save session locally
             localStorage.setItem('kamai_user', JSON.stringify(userData));
 
             // Push profile up to Firebase Firestore for multi-device sync
+            // (no-op write for existing users, just refreshes lastSyncedAt)
             await syncProfileToCloud(userData);
 
             // Trigger global auth events

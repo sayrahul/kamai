@@ -33,3 +33,6 @@ next-env.d.ts
 # repomix
 repomix-output.*
 
+
+.vercel
+.env*
