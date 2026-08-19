@@ -101,22 +101,41 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
 
     // 2. THE "PULL" ENGINE (Cloud -> Local Real-Time)
+    // Wrapped with explicit void returns to satisfy TypeScript Promise<void> expectations
     const unsubscribeProducts = SyncEngine.startRealtimeSync(
       'products',
-      async (data) => { await localDb.products.put(data); },
-      async (id) => { await localDb.products.delete(id); }
+      async (data) => {
+        await localDb.products.put(data);
+        return;
+      },
+      async (id) => {
+        await localDb.products.delete(id);
+        return;
+      }
     );
 
     const unsubscribeSales = SyncEngine.startRealtimeSync(
       'sales',
-      async (data) => { await localDb.sales.put(data); },
-      async (id) => { await localDb.sales.delete(id); }
+      async (data) => {
+        await localDb.sales.put(data);
+        return;
+      },
+      async (id) => {
+        await localDb.sales.delete(id);
+        return;
+      }
     );
 
     const unsubscribeCustomers = SyncEngine.startRealtimeSync(
       'customers',
-      async (data) => { await localDb.customers.put(data); },
-      async (id) => { await localDb.customers.delete(id); }
+      async (data) => {
+        await localDb.customers.put(data);
+        return;
+      },
+      async (id) => {
+        await localDb.customers.delete(id);
+        return;
+      }
     );
 
     // 3. CLEANUP
