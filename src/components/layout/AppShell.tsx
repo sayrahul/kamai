@@ -70,8 +70,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     // 1. THE "PUSH" ENGINE (Local -> Cloud)
     const performBackgroundSync = async () => {
       try {
-        console.log("Background sync triggered. Checking for offline data...");
-
         const pendingProducts = await localDb.products.toArray();
         if (pendingProducts.length > 0) {
           await SyncEngine.pushToCloud('products', pendingProducts);
@@ -98,7 +96,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
 
     // 2. THE "PULL" ENGINE (Cloud -> Local Real-Time)
-    // Explicitly casting / returning void to resolve TS2322 Promise<string> mismatch
     const unsubscribeProducts = SyncEngine.startRealtimeSync(
       'products',
       async (data): Promise<void> => {
@@ -141,18 +138,15 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-[#F8FAFC]" />;
   }
 
-  // If on public shared customer digital invoice page, render standalone without merchant shell
   const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
   if (isCustomerInvoice) {
     return <main className="min-h-screen bg-slate-50">{children}</main>;
   }
 
-  // If on onboarding or auth page, render clean full-screen wrapper
   if (pathname === '/onboarding' || pathname === '/auth') {
     return <main className="min-h-screen bg-slate-950">{children}</main>;
   }
 
-  // If user is not logged in and on a protected route, show a minimal loading spinner while redirecting
   if (!currentUser) {
     return (
       <main className="min-h-screen bg-slate-950 flex items-center justify-center">
