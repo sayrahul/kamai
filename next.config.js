@@ -1,9 +1,7 @@
-/** @type {import('next').Next.jsConfiguration} */
+/** @type {import('next').Next.js} */
 const nextConfig = {
   typescript: {
-    // !! WARN !!
-    // Dangerously allow production builds to successfully complete even if
-    // your project has type errors.
+    // Allows Vercel production build to succeed
     ignoreBuildErrors: true,
   },
   eslint: {

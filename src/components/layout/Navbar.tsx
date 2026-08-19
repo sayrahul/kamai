@@ -5,15 +5,15 @@ import { useTranslation } from '@/lib/i18n';
 import { SupportedLanguage } from '@/types';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { 
-  Wifi, 
-  WifiOff, 
-  Globe, 
-  Store, 
-  CheckCircle2, 
-  QrCode, 
-  Volume2, 
-  VolumeX, 
+import {
+  Wifi,
+  WifiOff,
+  Globe,
+  Store,
+  CheckCircle2,
+  QrCode,
+  Volume2,
+  VolumeX,
   ShieldCheck,
   User,
   LogOut,
@@ -48,28 +48,6 @@ export const Navbar: React.FC = () => {
       setCurrentUser(getStoredUser());
     };
 
-    // Auto-restore session from server-side httpOnly cookie via /api/auth/me
-    fetch('/api/auth/me')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.authenticated && data.user) {
-          const authUser: AuthUser = {
-            id: data.user.id,
-            name: data.user.name || 'Store Owner',
-            phone: data.user.phone,
-            role: data.user.role || 'owner',
-            business_id: data.user.business_id,
-            business_name: data.user.business_name,
-            subscription_tier: data.business?.subscription_tier || 'free',
-            subscription_valid_until: data.business?.subscription_valid_until,
-            created_at: new Date().toISOString(),
-          };
-          setStoredUser(authUser);
-          setCurrentUser(authUser);
-        }
-      })
-      .catch((e) => console.warn('Session restore check notice:', e));
-
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('auth_changed', handleAuthChange);
@@ -83,7 +61,7 @@ export const Navbar: React.FC = () => {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
+    } catch { }
     setStoredUser(null);
     router.push('/auth');
   };
@@ -162,11 +140,10 @@ export const Navbar: React.FC = () => {
           {/* Soundbox Voice Alert Toggle */}
           <button
             onClick={toggleSoundbox}
-            className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 ${
-              soundEnabled
-                ? 'bg-slate-100 border-slate-300 text-slate-900'
-                : 'bg-white border-slate-200 text-slate-400'
-            }`}
+            className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 ${soundEnabled
+              ? 'bg-slate-100 border-slate-300 text-slate-900'
+              : 'bg-white border-slate-200 text-slate-400'
+              }`}
             title={soundEnabled ? 'Voice Alert Active' : 'Voice Alert Muted'}
           >
             {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-slate-800" /> : <VolumeX className="w-3.5 h-3.5" />}
@@ -227,14 +204,13 @@ export const Navbar: React.FC = () => {
                         onClick={() => {
                           setLanguage(l.code);
                           if (business?.id) {
-                            db.businesses.update(business.id, { language: l.code }).catch(() => {});
+                            db.businesses.update(business.id, { language: l.code }).catch(() => { });
                           }
                         }}
-                        className={`px-2 py-1.5 rounded-lg text-[11px] font-bold text-center transition-all cursor-pointer ${
-                          language === l.code
-                            ? 'bg-slate-900 text-white shadow-xs'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        }`}
+                        className={`px-2 py-1.5 rounded-lg text-[11px] font-bold text-center transition-all cursor-pointer ${language === l.code
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
                       >
                         {l.code === 'hi' ? 'हिंदी' : l.code === 'mr' ? 'मराठी' : 'EN'}
                       </button>
