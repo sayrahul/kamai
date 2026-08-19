@@ -22,6 +22,8 @@ import {
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
 import { isSoundboxEnabled, setSoundboxEnabled, announcePayment } from '@/lib/voice/paytmSoundbox';
 import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
+import { SyncStatusBadge } from '@/components/common/SyncStatusBadge';
+
 
 export const Navbar: React.FC = () => {
   const router = useRouter();
@@ -84,6 +86,17 @@ export const Navbar: React.FC = () => {
   const displayStoreName = currentUser?.business_name || business?.name || t('common.appName');
   const displayOwnerName = currentUser?.name || business?.owner_name || 'Store Owner';
   const displayType = business?.business_type ? business.business_type.toUpperCase() : 'RETAIL STORE';
+
+  {/* Right Actions Container */ }
+  <div className="flex items-center space-x-3">
+    {/* 👇 ADD THE SYNC BADGE HERE */}
+    <SyncStatusBadge />
+
+    {/* Existing Profile / Shop Name / Settings */}
+    <div className="flex items-center space-x-2">
+      {/* ... your existing merchant dropdown / business details ... */}
+    </div>
+  </div>
 
   return (
     <>

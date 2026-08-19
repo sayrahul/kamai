@@ -1,93 +1,147 @@
 // src/lib/db/syncEngine.ts
-import { db as firebaseDb } from './firebase';
-import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { db as firestoreDb } from '@/lib/db/firebase';
+import {
+    collection,
+    doc,
+    setDoc,
+    deleteDoc,
+    onSnapshot,
+    writeBatch,
+    Unsubscribe
+} from 'firebase/firestore';
+import { getStoredUser } from '@/lib/auth';
 
-/**
- * HELPER FUNCTION: Strips out any 'undefined' values recursively or shallowly
- * so Firebase Firestore doesn't crash.
- */
-const sanitizeForFirebase = (obj: any) => {
-    if (!obj || typeof obj !== 'object') return obj;
-
-    const sanitized = Array.isArray(obj) ? [] : { ...obj };
-
-    Object.keys(sanitized).forEach((key) => {
-        const value = (sanitized as any)[key];
-        if (value === undefined) {
-            delete (sanitized as any)[key]; // Remove undefined keys
-        } else if (value !== null && typeof value === 'object') {
-            (sanitized as any)[key] = sanitizeForFirebase(value); // Deep clean nested objects/arrays
-        }
-    });
-
-    return sanitized;
-};
+type SyncTable = 'products' | 'sales' | 'customers';
 
 export class SyncEngine {
     /**
-     * Pushes local data to Firebase when the app comes online.
+     * Helper to resolve active merchant business_id
      */
-    static async pushToCloud(tableName: string, data: any[]) {
-        if (!navigator.onLine) return;
+    private static getBusinessId(): string | null {
+        const user = getStoredUser();
+        return user?.business_id || null;
+    }
+
+    /**
+     * PUSH: Uploads a list of records from local Dexie to Firestore in batches
+     */
+    public static async pushToCloud(table: SyncTable, items: any[]): Promise<void> {
+        const businessId = this.getBusinessId();
+        if (!businessId || !items || items.length === 0) return;
 
         try {
-            const collectionRef = collection(firebaseDb, tableName);
+            // Process in batches of 400 (Firestore maximum batch size is 500)
+            const batchSize = 400;
+            for (let i = 0; i < items.length; i += batchSize) {
+                const chunk = items.slice(i, i + batchSize);
+                const batch = writeBatch(firestoreDb);
 
-            for (const item of data) {
-                const docRef = doc(collectionRef, String(item.id || item.business_id || Date.now()));
+                chunk.forEach((item) => {
+                    const docId = String(item.id || item.uid || item._id);
+                    if (!docId) return;
 
-                // Clean the item to remove any 'undefined' properties
-                const cleanItem = sanitizeForFirebase(item);
+                    const docRef = doc(firestoreDb, `businesses/${businessId}/${table}`, docId);
+                    batch.set(docRef, {
+                        ...item,
+                        business_id: businessId,
+                        synced_at: new Date().toISOString(),
+                    }, { merge: true });
+                });
 
-                await setDoc(docRef, {
-                    ...cleanItem,
-                    lastSyncedAt: new Date().toISOString()
-                }, { merge: true });
+                await batch.commit();
             }
-        } catch (error) {
-            console.error(`Error syncing ${tableName} to cloud:`, error);
+            console.log(`[SyncEngine] Successfully pushed ${items.length} ${table} to cloud.`);
+        } catch (err) {
+            console.error(`[SyncEngine] Failed pushing ${table} to cloud:`, err);
         }
     }
 
     /**
-     * Listens for the browser regaining internet connection and triggers a sync.
+     * PUSH SINGLE: Push or update a single record immediately
      */
-    static initializeNetworkListener(triggerSyncCallback: () => void) {
-        window.addEventListener('online', () => {
-            console.log('Network connected! Initiating background cloud push...');
-            triggerSyncCallback();
-        });
+    public static async pushSingleRecord(table: SyncTable, item: any): Promise<void> {
+        const businessId = this.getBusinessId();
+        const docId = String(item.id || item.uid);
+        if (!businessId || !docId) return;
+
+        try {
+            const docRef = doc(firestoreDb, `businesses/${businessId}/${table}`, docId);
+            await setDoc(docRef, {
+                ...item,
+                business_id: businessId,
+                synced_at: new Date().toISOString(),
+            }, { merge: true });
+        } catch (err) {
+            console.error(`[SyncEngine] Failed pushing single ${table} record:`, err);
+        }
     }
 
     /**
-     * Subscribes to real-time changes from Firebase (The "Pull" Engine)
+     * DELETE: Delete record from Firestore when deleted locally
      */
-    static startRealtimeSync(
-        tableName: string,
-        onDataAddedOrModified: (data: any) => Promise<void>,
-        onDataRemoved: (id: string) => Promise<void>
-    ) {
-        const collectionRef = collection(firebaseDb, tableName);
+    public static async deleteFromCloud(table: SyncTable, id: string | number): Promise<void> {
+        const businessId = this.getBusinessId();
+        if (!businessId || !id) return;
 
-        const unsubscribe = onSnapshot(collectionRef, (snapshot) => {
-            snapshot.docChanges().forEach(async (change) => {
-                const data = change.doc.data();
+        try {
+            const docRef = doc(firestoreDb, `businesses/${businessId}/${table}`, String(id));
+            await deleteDoc(docRef);
+            console.log(`[SyncEngine] Deleted ${table} record ${id} from cloud.`);
+        } catch (err) {
+            console.error(`[SyncEngine] Failed deleting ${table} from cloud:`, err);
+        }
+    }
 
-                try {
-                    if (change.type === "added" || change.type === "modified") {
-                        await onDataAddedOrModified(data);
+    /**
+     * PULL / REAL-TIME: Listen for live changes from Firestore and sync them into local Dexie
+     */
+    public static startRealtimeSync(
+        table: SyncTable,
+        onUpsert: (data: any) => Promise<void>,
+        onDelete: (id: string) => Promise<void>
+    ): Unsubscribe {
+        const businessId = this.getBusinessId();
+        if (!businessId) {
+            return () => { };
+        }
+
+        const colRef = collection(firestoreDb, `businesses/${businessId}/${table}`);
+
+        const unsubscribe = onSnapshot(
+            colRef,
+            (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    const data = change.doc.data();
+                    const docId = change.doc.id;
+
+                    try {
+                        if (change.type === 'added' || change.type === 'modified') {
+                            await onUpsert({ ...data, id: data.id || docId });
+                        } else if (change.type === 'removed') {
+                            await onDelete(docId);
+                        }
+                    } catch (error) {
+                        console.warn(`[SyncEngine] Real-time pull error on ${table}:`, error);
                     }
-                    if (change.type === "removed") {
-                        await onDataRemoved(change.doc.id);
-                    }
-                } catch (error) {
-                    console.error(`Failed to apply real-time update for ${tableName}:`, error);
-                }
-            });
-        }, (error) => {
-            console.warn(`Snapshot listener warning for ${tableName}:`, error.message);
-        });
+                });
+            },
+            (error) => {
+                console.warn(`[SyncEngine] Real-time listener warning for ${table}:`, error.message);
+            }
+        );
 
         return unsubscribe;
+    }
+
+    /**
+     * NETWORK LISTENER: Automatically trigger sync when browser reconnects to internet
+     */
+    public static initializeNetworkListener(onReconnect: () => Promise<void>): void {
+        if (typeof window === 'undefined') return;
+
+        window.addEventListener('online', () => {
+            console.log('[SyncEngine] Internet connection restored. Initiating sync...');
+            onReconnect().catch((err) => console.error('[SyncEngine] Reconnect sync error:', err));
+        });
     }
 }
