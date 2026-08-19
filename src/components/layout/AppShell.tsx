@@ -2,13 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { db, ensureStarterBusinessIfEmpty } from '@/lib/db';
+import { ensureStarterBusinessIfEmpty } from '@/lib/db';
 import { AuthUser, getStoredUser } from '@/lib/auth';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 
-// 1. Import local database
+// 1. Import local database (Dexie)
 import { db as localDb } from '@/lib/db';
 
 // 2. Import the SyncEngine
@@ -45,7 +45,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     // If database is completely empty and on dashboard, ensure default starter shop
     const initDb = async () => {
       try {
-        const count = await db.businesses.count();
+        const count = await localDb.businesses.count();
         if (count === 0 && pathname !== '/onboarding' && pathname !== '/auth') {
           await ensureStarterBusinessIfEmpty();
         }
@@ -62,7 +62,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     };
   }, [pathname, router]);
 
-  // --- NEW BACKGROUND SYNC ENGINE (PUSH + PULL) ---
+  // --- BACKGROUND SYNC ENGINE (PUSH + PULL) ---
   useEffect(() => {
     // Only run the sync engine if a user is logged in
     if (!currentUser) return;
@@ -78,7 +78,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           console.log(`Synced ${pendingProducts.length} products to the cloud.`);
         }
 
-        // FIXED: Changed 'invoices' to 'sales'
         const pendingSales = await localDb.sales.toArray();
         if (pendingSales.length > 0) {
           await SyncEngine.pushToCloud('sales', pendingSales);
@@ -97,36 +96,34 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     // Initialize Network Listeners & Initial Push
     SyncEngine.initializeNetworkListener(performBackgroundSync);
-    if (navigator.onLine) {
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
       performBackgroundSync();
     }
 
     // 2. THE "PULL" ENGINE (Cloud -> Local Real-Time)
-    // FIXED: Removed the Number() wrapper around IDs since your schema uses string UUIDs
     const unsubscribeProducts = SyncEngine.startRealtimeSync(
       'products',
-      async (data) => await localDb.products.put(data),
-      async (id) => await localDb.products.delete(id)
+      async (data) => { await localDb.products.put(data); },
+      async (id) => { await localDb.products.delete(id); }
     );
 
-    // FIXED: Changed 'invoices' to 'sales'
     const unsubscribeSales = SyncEngine.startRealtimeSync(
       'sales',
-      async (data) => await localDb.sales.put(data),
-      async (id) => await localDb.sales.delete(id)
+      async (data) => { await localDb.sales.put(data); },
+      async (id) => { await localDb.sales.delete(id); }
     );
 
     const unsubscribeCustomers = SyncEngine.startRealtimeSync(
       'customers',
-      async (data) => await localDb.customers.put(data),
-      async (id) => await localDb.customers.delete(id)
+      async (data) => { await localDb.customers.put(data); },
+      async (id) => { await localDb.customers.delete(id); }
     );
 
     // 3. CLEANUP
     return () => {
-      unsubscribeProducts();
-      unsubscribeSales();
-      unsubscribeCustomers();
+      if (unsubscribeProducts) unsubscribeProducts();
+      if (unsubscribeSales) unsubscribeSales();
+      if (unsubscribeCustomers) unsubscribeCustomers();
     };
   }, [currentUser]);
 
@@ -134,7 +131,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-[#F8FAFC]" />;
   }
 
-  // If on public shared customer digital invoice page (e.g. /invoice?d=...), render standalone without merchant shell
+  // If on public shared customer digital invoice page, render standalone without merchant shell
   const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
   if (isCustomerInvoice) {
     return <main className="min-h-screen bg-slate-50">{children}</main>;
@@ -145,7 +142,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-slate-950">{children}</main>;
   }
 
-  // If user is not logged in and on a protected route, show a minimal loading spinner while redirecting to /auth
+  // If user is not logged in and on a protected route, show a minimal loading spinner while redirecting
   if (!currentUser) {
     return (
       <main className="min-h-screen bg-slate-950 flex items-center justify-center">
