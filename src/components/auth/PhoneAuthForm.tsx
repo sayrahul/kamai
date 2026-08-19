@@ -5,6 +5,7 @@ import { auth } from '@/lib/db/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Store, Phone, ShieldCheck, ArrowRight, RefreshCw } from 'lucide-react';
+import { syncProfileToCloud } from '@/lib/sync/syncEngine';
 
 export const PhoneAuthForm: React.FC = () => {
     const [phoneNumber, setPhoneNumber] = useState('');
@@ -59,7 +60,7 @@ export const PhoneAuthForm: React.FC = () => {
         }
     };
 
-    // Handler 2: Verify OTP & Initialize Random/Unique Shop Profile
+    // Handler 2: Verify OTP & Initialize Unique Shop Profile
     const handleVerifyOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!confirmationResult) return;
@@ -71,7 +72,6 @@ export const PhoneAuthForm: React.FC = () => {
             const result = await confirmationResult.confirm(otp);
             const user = result.user;
 
-            // Generate a unique random business ID and default shop configuration for new signups
             const randomBusinessId = `biz_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`;
 
             const userData = {
@@ -84,14 +84,16 @@ export const PhoneAuthForm: React.FC = () => {
                 createdAt: new Date().toISOString()
             };
 
-            // Store session securely
+            // Save session locally
             localStorage.setItem('kamai_user', JSON.stringify(userData));
 
-            // Dispatch events to refresh layout state instantly
+            // Push profile up to Firebase Firestore for multi-device sync
+            await syncProfileToCloud(userData);
+
+            // Trigger global auth events
             window.dispatchEvent(new Event('auth_changed'));
             window.dispatchEvent(new Event('storage'));
 
-            // Navigate into the main application dashboard
             router.replace('/');
         } catch (err: any) {
             console.error('OTP verification error:', err);
