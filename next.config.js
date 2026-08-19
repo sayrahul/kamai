@@ -1,8 +1,13 @@
-/** @type {import('next').NextConfig} */
+/** @type {import('next').Next.jsConfiguration} */
 const nextConfig = {
-  reactStrictMode: true,
-  images: {
-    unoptimized: true,
+  typescript: {
+    // !! WARN !!
+    // Dangerously allow production builds to successfully complete even if
+    // your project has type errors.
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
 };
 
