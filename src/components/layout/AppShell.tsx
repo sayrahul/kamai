@@ -20,7 +20,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [isClient, setIsClient] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
-  // --- AUTH & INIT LOGIC ---
+  // --- AUTH & INITIALIZATION LOGIC ---
   useEffect(() => {
     setIsClient(true);
     const user = getStoredUser();
@@ -42,9 +42,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       return;
     }
 
-    // If database is completely empty and on dashboard, ensure default starter shop
+    // Ensure default starter business exists if DB is completely empty
     const initDb = async () => {
       try {
+        if (!localDb.isOpen()) {
+          await localDb.open();
+        }
         const count = await localDb.businesses.count();
         if (count === 0 && pathname !== '/onboarding' && pathname !== '/auth') {
           await ensureStarterBusinessIfEmpty();
@@ -64,71 +67,99 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   // --- BACKGROUND SYNC ENGINE (PUSH + PULL) ---
   useEffect(() => {
-    // Only run the sync engine if a user is logged in
     if (!currentUser) return;
 
-    // 1. THE "PUSH" ENGINE (Local -> Cloud)
+    // 1. THE "PUSH" ENGINE (Local Dexie -> Firestore Cloud)
     const performBackgroundSync = async () => {
       try {
-        console.log("Background sync triggered. Checking for offline data...");
+        if (!localDb.isOpen()) {
+          await localDb.open();
+        }
 
         const pendingProducts = await localDb.products.toArray();
         if (pendingProducts.length > 0) {
           await SyncEngine.pushToCloud('products', pendingProducts);
-          console.log(`Synced ${pendingProducts.length} products to the cloud.`);
         }
 
         const pendingSales = await localDb.sales.toArray();
         if (pendingSales.length > 0) {
           await SyncEngine.pushToCloud('sales', pendingSales);
-          console.log(`Synced ${pendingSales.length} sales to the cloud.`);
         }
 
         const pendingCustomers = await localDb.customers.toArray();
         if (pendingCustomers.length > 0) {
           await SyncEngine.pushToCloud('customers', pendingCustomers);
-          console.log(`Synced ${pendingCustomers.length} customers to the cloud.`);
         }
       } catch (error) {
-        console.error("Background push failed:", error);
+        console.error("Background sync push failed:", error);
       }
     };
 
-    // Initialize Network Listeners & Initial Push
+    // Initialize network listener & trigger initial sync if online
     SyncEngine.initializeNetworkListener(performBackgroundSync);
     if (typeof navigator !== 'undefined' && navigator.onLine) {
       performBackgroundSync();
     }
 
-    // 2. THE "PULL" ENGINE (Cloud -> Local Real-Time)
-    // Using block bodies `{ await ... }` prevents returning Dexie IDs, ensuring Promise<void>
+    // 2. THE "PULL" ENGINE (Cloud -> Local Real-Time Listeners)
+    // Explicit Promise<void> return types resolve TS2322 build errors
     const unsubscribeProducts = SyncEngine.startRealtimeSync(
       'products',
-      async (data) => {
-        await localDb.products.put(data);
+      async (data): Promise<void> => {
+        try {
+          if (!localDb.isOpen()) await localDb.open();
+          await localDb.products.put(data);
+        } catch (e) {
+          console.warn('Sync put product error:', e);
+        }
       },
-      async (id) => {
-        await localDb.products.delete(id);
+      async (id): Promise<void> => {
+        try {
+          if (!localDb.isOpen()) await localDb.open();
+          await localDb.products.delete(id);
+        } catch (e) {
+          console.warn('Sync delete product error:', e);
+        }
       }
     );
 
     const unsubscribeSales = SyncEngine.startRealtimeSync(
       'sales',
-      async (data) => {
-        await localDb.sales.put(data);
+      async (data): Promise<void> => {
+        try {
+          if (!localDb.isOpen()) await localDb.open();
+          await localDb.sales.put(data);
+        } catch (e) {
+          console.warn('Sync put sales error:', e);
+        }
       },
-      async (id) => {
-        await localDb.sales.delete(id);
+      async (id): Promise<void> => {
+        try {
+          if (!localDb.isOpen()) await localDb.open();
+          await localDb.sales.delete(id);
+        } catch (e) {
+          console.warn('Sync delete sales error:', e);
+        }
       }
     );
 
     const unsubscribeCustomers = SyncEngine.startRealtimeSync(
       'customers',
-      async (data) => {
-        await localDb.customers.put(data);
+      async (data): Promise<void> => {
+        try {
+          if (!localDb.isOpen()) await localDb.open();
+          await localDb.customers.put(data);
+        } catch (e) {
+          console.warn('Sync put customer error:', e);
+        }
       },
-      async (id) => {
-        await localDb.customers.delete(id);
+      async (id): Promise<void> => {
+        try {
+          if (!localDb.isOpen()) await localDb.open();
+          await localDb.customers.delete(id);
+        } catch (e) {
+          console.warn('Sync delete customer error:', e);
+        }
       }
     );
 
@@ -144,17 +175,18 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-[#F8FAFC]" />;
   }
 
-  // Standalone view for public customer invoice link
+  // Standalone layout for public customer digital invoice links
   const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
   if (isCustomerInvoice) {
     return <main className="min-h-screen bg-slate-50">{children}</main>;
   }
 
-  // Full screen view for onboarding / auth
+  // Standalone full-screen layout for onboarding & authentication screens
   if (pathname === '/onboarding' || pathname === '/auth') {
     return <main className="min-h-screen bg-slate-950">{children}</main>;
   }
 
+  // Loading state while verifying user session on protected routes
   if (!currentUser) {
     return (
       <main className="min-h-screen bg-slate-950 flex items-center justify-center">
