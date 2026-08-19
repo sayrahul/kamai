@@ -75,19 +75,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         const pendingProducts = await localDb.products.toArray();
         if (pendingProducts.length > 0) {
           await SyncEngine.pushToCloud('products', pendingProducts);
-          console.log(`Synced ${pendingProducts.length} products to the cloud.`);
         }
 
         const pendingSales = await localDb.sales.toArray();
         if (pendingSales.length > 0) {
           await SyncEngine.pushToCloud('sales', pendingSales);
-          console.log(`Synced ${pendingSales.length} sales to the cloud.`);
         }
 
         const pendingCustomers = await localDb.customers.toArray();
         if (pendingCustomers.length > 0) {
           await SyncEngine.pushToCloud('customers', pendingCustomers);
-          console.log(`Synced ${pendingCustomers.length} customers to the cloud.`);
         }
       } catch (error) {
         console.error("Background push failed:", error);
@@ -101,40 +98,34 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
 
     // 2. THE "PULL" ENGINE (Cloud -> Local Real-Time)
-    // Wrapped with explicit void returns to satisfy TypeScript Promise<void> expectations
+    // Explicitly casting / returning void to resolve TS2322 Promise<string> mismatch
     const unsubscribeProducts = SyncEngine.startRealtimeSync(
       'products',
-      async (data) => {
+      async (data): Promise<void> => {
         await localDb.products.put(data);
-        return;
       },
-      async (id) => {
+      async (id): Promise<void> => {
         await localDb.products.delete(id);
-        return;
       }
     );
 
     const unsubscribeSales = SyncEngine.startRealtimeSync(
       'sales',
-      async (data) => {
+      async (data): Promise<void> => {
         await localDb.sales.put(data);
-        return;
       },
-      async (id) => {
+      async (id): Promise<void> => {
         await localDb.sales.delete(id);
-        return;
       }
     );
 
     const unsubscribeCustomers = SyncEngine.startRealtimeSync(
       'customers',
-      async (data) => {
+      async (data): Promise<void> => {
         await localDb.customers.put(data);
-        return;
       },
-      async (id) => {
+      async (id): Promise<void> => {
         await localDb.customers.delete(id);
-        return;
       }
     );
 
