@@ -8,6 +8,7 @@ import { Product, Customer, CartItem, PaymentMethod } from '@/types';
 import { formatINR, generateWhatsAppReceiptLink, parseRupeesToPaise, cn } from '@/lib/utils';
 import { lookupPublicBarcode, PublicProductInfo } from '@/lib/api/publicBarcodeLookup';
 import { playBeepSound } from '@/lib/voice/speechParser';
+import { PlatformAnalytics } from '@/lib/firebase/analytics';
 import { 
   Search, 
   Receipt, 
@@ -686,6 +687,16 @@ export default function BillingPage() {
 
     // 1. Save Sale in Dexie DB
     await db.sales.put(newSale);
+
+    // Track sale creation in Firebase Analytics for Platform Owner
+    PlatformAnalytics.invoiceCreated({
+      invoiceNumber: newSale.invoice_number,
+      totalAmountPaise: newSale.grand_total,
+      paymentMode: newSale.payment_method,
+      itemCount: newSale.items.length,
+      businessId: newSale.business_id,
+      isGstBill: (newSale.tax_total || 0) > 0,
+    });
 
     // 2. Increment business invoice number counter
     if (business) {

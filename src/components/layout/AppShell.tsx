@@ -7,6 +7,8 @@ import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
+import { useFirebasePageTracking } from '@/lib/firebase/analytics';
+import { initFirebaseAppCheck } from '@/lib/firebase/appCheck';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -14,9 +16,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [isClient, setIsClient] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
+  // Auto Page View Analytics for Platform Owner
+  useFirebasePageTracking();
+
   // --- AUTH & SESSION VERIFICATION LOGIC ---
   useEffect(() => {
     setIsClient(true);
+    initFirebaseAppCheck();
     const cachedUser = getStoredUser();
     setCurrentUser(cachedUser);
 
