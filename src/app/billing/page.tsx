@@ -39,7 +39,9 @@ import {
   ChevronDown,
   Sliders,
   Bluetooth,
-  Usb
+  Usb,
+  PauseCircle,
+  PlayCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -52,20 +54,184 @@ import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { announcePayment } from '@/lib/voice/paytmSoundbox';
 import { Sale } from '@/types';
 
+export interface BillTab {
+  id: string;
+  tabNumber: number;
+  cart: CartItem[];
+  selectedCustomerId: string;
+  paymentMethod: PaymentMethod;
+  amountReceivedInput: string;
+  splitCash: string;
+  splitUpi: string;
+  splitCard: string;
+  splitCredit: string;
+  isHeld: boolean;
+  heldAt?: string;
+  holdNote?: string;
+}
+
+const TABS_STORAGE_KEY = 'kamai_pos_tabs';
+
+function getInitialTabs(): { tabs: BillTab[]; activeTabId: string } {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem(TABS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return { tabs: parsed, activeTabId: parsed[0].id };
+        }
+      }
+    } catch {}
+  }
+  const defaultTab: BillTab = {
+    id: 'tab_1',
+    tabNumber: 1,
+    cart: [],
+    selectedCustomerId: '',
+    paymentMethod: 'cash',
+    amountReceivedInput: '',
+    splitCash: '',
+    splitUpi: '',
+    splitCard: '',
+    splitCredit: '',
+    isHeld: false,
+  };
+  return { tabs: [defaultTab], activeTabId: 'tab_1' };
+}
+
 export default function BillingPage() {
   const { language, t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
-  const [amountReceivedInput, setAmountReceivedInput] = useState<string>('');
 
-  // Split Payment Breakdown (Rupees)
-  const [splitCash, setSplitCash] = useState<string>('');
-  const [splitUpi, setSplitUpi] = useState<string>('');
-  const [splitCard, setSplitCard] = useState<string>('');
-  const [splitCredit, setSplitCredit] = useState<string>('');
+  // Multi-Bill Tabs State
+  const [tabs, setTabs] = useState<BillTab[]>(() => getInitialTabs().tabs);
+  const [activeTabId, setActiveTabId] = useState<string>(() => getInitialTabs().activeTabId);
+
+  // Sync active tab state helpers
+  const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0];
+  const cart = activeTab.cart;
+  const selectedCustomerId = activeTab.selectedCustomerId;
+  const paymentMethod = activeTab.paymentMethod;
+  const amountReceivedInput = activeTab.amountReceivedInput;
+  const splitCash = activeTab.splitCash;
+  const splitUpi = activeTab.splitUpi;
+  const splitCard = activeTab.splitCard;
+  const splitCredit = activeTab.splitCredit;
+
+  // Persist tabs in localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify(tabs));
+    } catch {}
+  }, [tabs]);
+
+  const updateActiveTab = (updater: (prevTab: BillTab) => BillTab) => {
+    setTabs((prev) =>
+      prev.map((t) => (t.id === activeTabId ? updater(t) : t))
+    );
+  };
+
+  const setCart = (action: CartItem[] | ((prev: CartItem[]) => CartItem[])) => {
+    updateActiveTab((tab) => ({
+      ...tab,
+      cart: typeof action === 'function' ? action(tab.cart) : action,
+    }));
+  };
+
+  const setSelectedCustomerId = (id: string) => {
+    updateActiveTab((tab) => ({ ...tab, selectedCustomerId: id }));
+  };
+
+  const setPaymentMethod = (method: PaymentMethod) => {
+    updateActiveTab((tab) => ({ ...tab, paymentMethod: method }));
+  };
+
+  const setAmountReceivedInput = (val: string) => {
+    updateActiveTab((tab) => ({ ...tab, amountReceivedInput: val }));
+  };
+
+  const setSplitCash = (val: string | ((p: string) => string)) => {
+    updateActiveTab((tab) => ({ ...tab, splitCash: typeof val === 'function' ? val(tab.splitCash) : val }));
+  };
+
+  const setSplitUpi = (val: string | ((p: string) => string)) => {
+    updateActiveTab((tab) => ({ ...tab, splitUpi: typeof val === 'function' ? val(tab.splitUpi) : val }));
+  };
+
+  const setSplitCard = (val: string | ((p: string) => string)) => {
+    updateActiveTab((tab) => ({ ...tab, splitCard: typeof val === 'function' ? val(tab.splitCard) : val }));
+  };
+
+  const setSplitCredit = (val: string | ((p: string) => string)) => {
+    updateActiveTab((tab) => ({ ...tab, splitCredit: typeof val === 'function' ? val(tab.splitCredit) : val }));
+  };
+
+  // Tab Actions: Create New Tab, Hold Tab, Close Tab
+  const handleCreateNewTab = () => {
+    const nextNum = (tabs.reduce((max, t) => Math.max(max, t.tabNumber), 0) || tabs.length) + 1;
+    const newTabId = `tab_${Date.now()}`;
+    const newTab: BillTab = {
+      id: newTabId,
+      tabNumber: nextNum,
+      cart: [],
+      selectedCustomerId: '',
+      paymentMethod: 'cash',
+      amountReceivedInput: '',
+      splitCash: '',
+      splitUpi: '',
+      splitCard: '',
+      splitCredit: '',
+      isHeld: false,
+    };
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newTabId);
+  };
+
+  const handleHoldActiveTab = () => {
+    updateActiveTab((tab) => ({
+      ...tab,
+      isHeld: true,
+      heldAt: new Date().toISOString(),
+    }));
+
+    // Find if another unheld tab exists, otherwise open a fresh one
+    const otherUnheld = tabs.find((t) => t.id !== activeTabId && !t.isHeld);
+    if (otherUnheld) {
+      setActiveTabId(otherUnheld.id);
+    } else {
+      handleCreateNewTab();
+    }
+  };
+
+  const handleCloseTab = (tabId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (tabs.length === 1) {
+      // Reset single tab
+      setTabs([{
+        id: 'tab_1',
+        tabNumber: 1,
+        cart: [],
+        selectedCustomerId: '',
+        paymentMethod: 'cash',
+        amountReceivedInput: '',
+        splitCash: '',
+        splitUpi: '',
+        splitCard: '',
+        splitCredit: '',
+        isHeld: false,
+      }]);
+      setActiveTabId('tab_1');
+      return;
+    }
+
+    const remaining = tabs.filter((t) => t.id !== tabId);
+    setTabs(remaining);
+    if (activeTabId === tabId) {
+      setActiveTabId(remaining[0].id);
+    }
+  };
 
   // Mobile Bottom Drawer State
   const [isMobileCartOpen, setIsMobileCartOpen] = useState<boolean>(false);
@@ -205,7 +371,7 @@ export default function BillingPage() {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
             if (newQty > product.current_stock) {
-              alert(`${product.name} has only ${product.current_stock} units left in stock.`);
+              alert(`Cannot add more. Available stock for ${product.name} is ${product.current_stock}`);
               return item;
             }
             const lineTotal = Math.max(0, newQty * item.unit_price - (item.discount_amount || 0));
@@ -223,28 +389,32 @@ export default function BillingPage() {
     setCart((prev) => prev.filter((item) => item.product_id !== productId));
   };
 
-  // Open Edit Item Modal for item in cart
   const handleOpenEditItem = (item: CartItem) => {
     setEditingCartItem(item);
     setEditItemQty(item.quantity.toString());
     setEditItemPrice((item.unit_price / 100).toString());
-    setEditItemDiscount((item.discount_amount ? item.discount_amount / 100 : 0).toString());
+    setEditItemDiscount(((item.discount_amount || 0) / 100).toString());
   };
 
-  const handleSaveEditedItem = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveEditItem = () => {
     if (!editingCartItem) return;
+    const qty = parseFloat(editItemQty);
+    const unitPricePaise = Math.round(parseFloat(editItemPrice || '0') * 100);
+    const discountPaise = Math.round(parseFloat(editItemDiscount || '0') * 100);
 
-    const product = products.find((p) => p.id === editingCartItem.product_id);
-    const qty = parseFloat(editItemQty) || 1;
-    if (product && qty > product.current_stock) {
-      alert(`${product.name} has only ${product.current_stock} units left in stock.`);
+    if (isNaN(qty) || qty <= 0 || isNaN(unitPricePaise) || unitPricePaise < 0) {
+      alert('Please enter valid numeric values.');
       return;
     }
 
-    const unitPricePaise = parseRupeesToPaise(editItemPrice || '0');
-    const discountPaise = parseRupeesToPaise(editItemDiscount || '0');
-    const lineTotal = Math.max(0, Math.round(qty * unitPricePaise - discountPaise));
+    const product = products.find((p) => p.id === editingCartItem.product_id);
+    if (product && qty > product.current_stock) {
+      alert(`Entered quantity (${qty}) exceeds available stock (${product.current_stock}).`);
+      return;
+    }
+
+    const rawTotal = qty * unitPricePaise;
+    const lineTotal = Math.max(0, rawTotal - discountPaise);
     const taxRate = editingCartItem.tax_rate || 0;
     const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
 
@@ -297,12 +467,11 @@ export default function BillingPage() {
     setNewCustAddress('');
   };
 
-  // Barcode scanned handler (Supports both camera scan & hardware laser gun)
+  // Barcode scanned handler
   const handleBarcodeScanned = async (barcode: string) => {
     const clean = barcode.trim();
     if (!clean) return;
 
-    // 1. Search in local product catalog by Barcode or ID
     let localMatch = await db.products.where('barcode').equals(clean).first();
     if (!localMatch) {
       localMatch = await db.products.get(clean);
@@ -313,7 +482,6 @@ export default function BillingPage() {
       return;
     }
 
-    // 2. If not found locally, query free Open Food Facts Public API
     setScannedUnknownBarcode(clean);
     setIsLookingUpPublicApi(true);
     setIsQuickAddModalOpen(true);
@@ -329,13 +497,11 @@ export default function BillingPage() {
     }
   };
 
-  // Hardware Laser Barcode Gun / Zebra PDA Global Keydown Interception
   useHardwareBarcodeScanner({
     onScan: handleBarcodeScanned,
     enabled: !isBarcodeModalOpen && !isVoiceModalOpen && !isInvoiceModalOpen,
   });
 
-  // Save quick-added item from public API into local catalog & add to cart
   const handleSaveQuickAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickAddName.trim() || !quickAddPrice) return;
@@ -376,7 +542,6 @@ export default function BillingPage() {
     setPublicProductData(null);
   };
 
-  // Voice batch items added handler
   const handleAddVoiceItems = (items: Array<{ product: Product; quantity: number }>) => {
     for (const item of items) {
       addToCart(item.product, item.quantity);
@@ -385,11 +550,8 @@ export default function BillingPage() {
 
   // Calculations
   const totalItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
-  // subtotal = sum of all line totals (each item.total_amount is post-discount, tax-inclusive)
   const subtotalPaise = cart.reduce((acc, item) => acc + item.total_amount, 0);
-  // discount_total = sum of all per-line flat discounts applied
   const discountTotalPaise = cart.reduce((acc, item) => acc + (item.discount_amount || 0), 0);
-  // tax_total = sum of all per-line GST amounts (extracted from tax-inclusive prices)
   const taxTotalPaise = cart.reduce((acc, item) => acc + (item.tax_amount || 0), 0);
   const grandTotalPaise = subtotalPaise;
 
@@ -425,7 +587,6 @@ export default function BillingPage() {
       const creditP = splitCredit ? Math.round(parseFloat(splitCredit) * 100) : 0;
       
       const allocatedP = cashP + upiP + cardP + creditP;
-      // Auto-assign any remaining balance to Udhar if customer selected, else cash
       const unassigned = Math.max(0, grandTotalPaise - allocatedP);
       const finalCreditP = creditP + (selectedCustomer ? unassigned : 0);
       const finalCashP = cashP + (!selectedCustomer ? unassigned : 0);
@@ -553,13 +714,80 @@ export default function BillingPage() {
 
     setIsInvoiceModalOpen(true);
     setIsMobileCartOpen(false);
-    setCart([]);
-    setAmountReceivedInput('');
+
+    // 7. Remove completed tab or reset if single
+    if (tabs.length > 1) {
+      const remainingTabs = tabs.filter((t) => t.id !== activeTabId);
+      setTabs(remainingTabs);
+      setActiveTabId(remainingTabs[0].id);
+    } else {
+      setCart([]);
+      setAmountReceivedInput('');
+    }
   };
 
   // Reusable Checkout Panel Component for Desktop side-panel and Mobile Bottom Drawer
   const renderCheckoutPanel = () => (
     <div className="space-y-3">
+      {/* Multi-Bill Tab Bar */}
+      <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 overflow-x-auto border border-slate-200">
+        {tabs.map((tab) => {
+          const isActive = tab.id === activeTabId;
+          const count = tab.cart.reduce((s, i) => s + i.quantity, 0);
+          const cust = customers.find((c) => c.id === tab.selectedCustomerId);
+          const tabTitle = cust ? cust.name.split(' ')[0] : `Bill #${tab.tabNumber}`;
+
+          return (
+            <div
+              key={tab.id}
+              onClick={() => setActiveTabId(tab.id)}
+              className={cn(
+                'px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer select-none transition-all flex-shrink-0',
+                isActive
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-300'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              )}
+            >
+              <span>{tabTitle}</span>
+              {count > 0 && (
+                <span className={cn(
+                  'px-1.5 py-0.2 rounded-full text-[10px] font-extrabold',
+                  isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 text-slate-700'
+                )}>
+                  {count}
+                </span>
+              )}
+              {tab.isHeld && (
+                <span className="text-[10px] text-amber-600" title="Bill is on hold">
+                  ⏸️
+                </span>
+              )}
+              {tabs.length > 1 && (
+                <button
+                  type="button"
+                  onClick={(e) => handleCloseTab(tab.id, e)}
+                  className="hover:text-rose-600 text-slate-400 p-0.5 rounded-full"
+                  title="Close this bill tab"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Add New Tab Button */}
+        <button
+          type="button"
+          onClick={handleCreateNewTab}
+          className="p-1.5 rounded-lg text-slate-600 hover:text-slate-950 hover:bg-slate-200 text-xs font-bold flex items-center gap-1 flex-shrink-0 transition-colors"
+          title="Open New Parallel Bill Cart"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span className="text-[11px] hidden sm:inline">New</span>
+        </button>
+      </div>
+
       {/* Customer Picker & Quick Add */}
       <div>
         <div className="flex items-center justify-between mb-1">
@@ -590,19 +818,39 @@ export default function BillingPage() {
         </select>
       </div>
 
-      {/* Cart Header */}
+      {/* Cart Header with Hold Bill Button */}
       <div className="flex items-center justify-between pt-1">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
-          Cart Items ({totalItemCount})
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+          <span>Cart Items ({totalItemCount})</span>
+          {activeTab.isHeld && (
+            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+              ⏸️ On Hold
+            </span>
+          )}
         </span>
-        {cart.length > 0 && (
-          <button
-            onClick={() => setCart([])}
-            className="text-[11px] font-bold text-rose-600 hover:text-rose-700"
-          >
-            Clear Cart
-          </button>
-        )}
+
+        <div className="flex items-center gap-2">
+          {cart.length > 0 && (
+            <button
+              type="button"
+              onClick={handleHoldActiveTab}
+              className="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1"
+              title="Park / Hold this bill and start a new one"
+            >
+              <PauseCircle className="w-3 h-3" />
+              <span>Hold Bill</span>
+            </button>
+          )}
+
+          {cart.length > 0 && (
+            <button
+              onClick={() => setCart([])}
+              className="text-[11px] font-bold text-rose-600 hover:text-rose-700"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Cart Items List with Inline / Popover Edit */}
@@ -694,7 +942,6 @@ export default function BillingPage() {
                 onClick={() => {
                   setPaymentMethod(m.id as PaymentMethod);
                   if (m.id === 'split' && !splitCash && !splitUpi) {
-                    // Default half/half or full to cash
                     setSplitCash((grandTotalPaise / 200).toString());
                     setSplitUpi((grandTotalPaise / 200).toString());
                   }
@@ -758,7 +1005,7 @@ export default function BillingPage() {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Card / POS (₹)</label>
+                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Card (₹)</label>
                 <input
                   type="number"
                   step="1"
@@ -770,7 +1017,7 @@ export default function BillingPage() {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Credit / Ledger (₹)</label>
+                <label className="text-[10px] font-bold text-slate-600 uppercase block mb-0.5">Credit / Udhar (₹)</label>
                 <input
                   type="number"
                   step="1"
@@ -781,35 +1028,6 @@ export default function BillingPage() {
                 />
               </div>
             </div>
-
-            {remainingPaise !== 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="text-[10px] text-slate-500 font-semibold">Assign Remaining to:</span>
-                <button
-                  type="button"
-                  onClick={() => setSplitCash((prev) => (Math.max(0, (parseFloat(prev || '0') + remainingPaise / 100)).toFixed(2)))}
-                  className="px-2 py-0.5 rounded bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-800"
-                >
-                  + Cash
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSplitUpi((prev) => (Math.max(0, (parseFloat(prev || '0') + remainingPaise / 100)).toFixed(2)))}
-                  className="px-2 py-0.5 rounded bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-800"
-                >
-                  + UPI
-                </button>
-                {selectedCustomer && (
-                  <button
-                    type="button"
-                    onClick={() => setSplitCredit((prev) => (Math.max(0, (parseFloat(prev || '0') + remainingPaise / 100)).toFixed(2)))}
-                    className="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 hover:bg-amber-200 text-[10px] font-bold text-amber-900"
-                  >
-                    + Credit
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         );
       })()}
@@ -852,7 +1070,7 @@ export default function BillingPage() {
           size="lg"
           disabled={cart.length === 0}
           onClick={handleCompleteSale}
-          className="w-full text-xs font-bold py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400"
+          className="w-full text-xs font-bold py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400 shadow-sm cursor-pointer"
         >
           <Receipt className="w-4 h-4 mr-1.5 text-slate-950" />
           <span>Complete Sale & Generate Bill</span>
@@ -864,7 +1082,7 @@ export default function BillingPage() {
   return (
     <div className="relative pb-24 md:pb-0">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left: Product Selection Catalog (7 cols on desktop, full width on mobile) */}
+        {/* Left: Product Selection Catalog */}
         <div className="lg:col-span-7 space-y-3">
           <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
             {/* Search & Actions Bar */}
@@ -883,7 +1101,7 @@ export default function BillingPage() {
               <button
                 type="button"
                 onClick={() => setIsBarcodeModalOpen(true)}
-                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center"
+                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center cursor-pointer"
                 title="Scan Barcode via Camera"
               >
                 <Camera className="w-4 h-4 text-slate-800" />
@@ -893,7 +1111,7 @@ export default function BillingPage() {
               <button
                 type="button"
                 onClick={() => setIsVoiceModalOpen(true)}
-                className="px-3 py-2 min-h-[38px] rounded-lg bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                className="px-3 py-2 min-h-[38px] rounded-lg bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
                 title="Voice Bill Entry"
               >
                 <Mic className="w-4 h-4 text-slate-950" />
@@ -904,7 +1122,7 @@ export default function BillingPage() {
               <button
                 type="button"
                 onClick={() => setIsHardwareModalOpen(true)}
-                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center"
+                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center cursor-pointer"
                 title="POS Hardware (Bluetooth Printer, Laser Scanner)"
               >
                 <Sliders className="w-4 h-4 text-white" />
@@ -916,7 +1134,7 @@ export default function BillingPage() {
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap',
+                  'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer',
                   selectedCategory === 'all'
                     ? 'bg-slate-900 text-white'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -929,7 +1147,7 @@ export default function BillingPage() {
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
                   className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1',
+                    'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1 cursor-pointer',
                     selectedCategory === cat.id
                       ? 'bg-slate-900 text-white font-bold'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -1007,196 +1225,201 @@ export default function BillingPage() {
           </div>
         </div>
 
-        {/* Right: Cart, Customer & Checkout (5 cols on Desktop) */}
-        <div className="hidden lg:block lg:col-span-5 space-y-3">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col min-h-[calc(100vh-140px)] justify-between">
+        {/* Right: Checkout Side Panel (Desktop only, 5 cols) */}
+        <div className="hidden lg:block lg:col-span-5">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 sticky top-4 shadow-sm">
             {renderCheckoutPanel()}
           </div>
         </div>
       </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* ANDROID FLOATING MINI CART BAR (Docked above Bottom Navbar) */}
-      {/* ------------------------------------------------------------- */}
-      {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-[64px] left-3 right-3 z-40">
-          <div 
-            onClick={() => setIsMobileCartOpen(true)}
-            className="bg-slate-900 text-white rounded-xl p-3 shadow-2xl border border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xs shadow-sm flex-shrink-0">
+      {/* Mobile Floating Bottom Sticky Cart Button */}
+      <div className="lg:hidden fixed bottom-16 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 shadow-lg flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold relative">
+            <ShoppingCart className="w-5 h-5" />
+            {totalItemCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center border-2 border-white">
                 {totalItemCount}
-              </div>
-
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold font-mono text-sm text-white">
-                    {formatINR(grandTotalPaise)}
-                  </span>
-                  <span className="text-slate-400 text-[10px] font-medium">
-                    ({cart.length} {cart.length === 1 ? 'item' : 'items'})
-                  </span>
-                </div>
-                <div className="text-[10px] text-slate-300 truncate max-w-[180px] sm:max-w-[280px]">
-                  {cart.map(i => `${i.product_name} (${i.quantity})`).join(', ')}
-                </div>
-              </div>
+              </span>
+            )}
+          </div>
+          <div>
+            <div className="text-xs text-slate-500 font-medium">
+              {tabs.length > 1 ? `Bill #${activeTab.tabNumber} • ` : ''}{totalItemCount} items
             </div>
-
-            <div className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 text-xs font-extrabold shadow-sm">
-              <span>View Cart</span>
-              <ChevronUp className="w-3.5 h-3.5" />
+            <div className="text-base font-extrabold text-slate-900 font-mono">
+              {formatINR(grandTotalPaise)}
             </div>
           </div>
         </div>
-      )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* MOBILE BOTTOM SHEET CART DRAWER */}
-      {/* ------------------------------------------------------------- */}
-      {isMobileCartOpen && (
-        <div className="lg:hidden fixed inset-0 z-[60] flex flex-col justify-end bg-slate-900/60 backdrop-blur-[2px]">
-          <div 
-            className="fixed inset-0"
-            onClick={() => setIsMobileCartOpen(false)}
-          />
+        <Button
+          size="md"
+          disabled={cart.length === 0}
+          onClick={() => setIsMobileCartOpen(true)}
+          className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl border-none shadow-md shadow-amber-400/20"
+        >
+          <span>View Cart & Pay</span>
+          <ArrowRight className="w-4 h-4 ml-1" />
+        </Button>
+      </div>
 
-          <div className="relative bg-white rounded-t-2xl border-t border-slate-200 shadow-2xl max-h-[90vh] flex flex-col z-10 overflow-hidden">
-            {/* Drawer Header Handle */}
-            <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
-                  {totalItemCount}
-                </div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                  Cart Breakdown & Checkout
-                </h3>
-              </div>
-
-              <button
-                onClick={() => setIsMobileCartOpen(false)}
-                className="p-1 rounded-lg hover:bg-slate-200 text-slate-500"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Drawer Body with extra bottom padding for mobile safe area */}
-            <div className="p-4 pb-10 overflow-y-auto flex-1 overscroll-contain">
-              {renderCheckoutPanel()}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Item in Cart Modal */}
+      {/* Mobile Checkout Drawer Modal */}
       <Modal
-        isOpen={!!editingCartItem}
+        isOpen={isMobileCartOpen}
+        onClose={() => setIsMobileCartOpen(false)}
+        title={`POS Checkout — Bill #${activeTab.tabNumber}`}
+        size="lg"
+      >
+        <div className="p-1">
+          {renderCheckoutPanel()}
+        </div>
+      </Modal>
+
+      {/* Quick Edit Cart Item Modal */}
+      <Modal
+        isOpen={Boolean(editingCartItem)}
         onClose={() => setEditingCartItem(null)}
-        title={
-          <div className="flex items-center gap-1.5">
-            <Edit2 className="w-4 h-4 text-slate-800" />
-            <span>Edit Item: {editingCartItem?.product_name}</span>
-          </div>
-        }
-        description="Adjust quantity, selling price or apply a discount for this line item."
+        title={`Edit Item: ${editingCartItem?.product_name || ''}`}
         size="sm"
       >
-        <form onSubmit={handleSaveEditedItem} className="space-y-3">
-          <Input
-            label="Quantity"
-            type="number"
-            step="0.01"
-            value={editItemQty}
-            onChange={(e) => setEditItemQty(e.target.value)}
-            required
-            autoFocus
-          />
-
-          <Input
-            label="Unit Selling Price (₹)"
-            type="number"
-            step="0.01"
-            value={editItemPrice}
-            onChange={(e) => setEditItemPrice(e.target.value)}
-            leftIcon={<span className="text-xs font-bold text-slate-500">₹</span>}
-            required
-          />
-
-          <Input
-            label="Discount on this Item (₹)"
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            value={editItemDiscount}
-            onChange={(e) => setEditItemDiscount(e.target.value)}
-            leftIcon={<span className="text-xs font-bold text-slate-500">₹</span>}
-          />
-
-          <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between text-xs font-bold">
-            <span className="text-slate-600">Calculated Line Total:</span>
-            <span className="font-mono text-sm text-slate-900">
-              {formatINR(
-                Math.max(
-                  0,
-                  Math.round(
-                    (parseFloat(editItemQty) || 0) * parseRupeesToPaise(editItemPrice || '0') -
-                      parseRupeesToPaise(editItemDiscount || '0')
-                  )
-                )
-              )}
-            </span>
+        <div className="space-y-3 p-2">
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Quantity</label>
+            <Input
+              type="number"
+              step="1"
+              value={editItemQty}
+              onChange={(e) => setEditItemQty(e.target.value)}
+              autoFocus
+            />
           </div>
 
-          <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={() => setEditingCartItem(null)}>
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Unit Price (₹)</label>
+            <Input
+              type="number"
+              step="0.01"
+              value={editItemPrice}
+              onChange={(e) => setEditItemPrice(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Flat Discount (₹)</label>
+            <Input
+              type="number"
+              step="0.01"
+              value={editItemDiscount}
+              onChange={(e) => setEditItemDiscount(e.target.value)}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setEditingCartItem(null)}>
               Cancel
             </Button>
-            <Button type="submit" size="sm">
-              Update Cart Item
+            <Button size="sm" onClick={handleSaveEditItem} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
+              Update Line Item
             </Button>
           </div>
-        </form>
+        </div>
       </Modal>
 
       {/* Quick Add Customer Modal */}
       <Modal
         isOpen={isAddCustomerModalOpen}
         onClose={() => setIsAddCustomerModalOpen(false)}
-        title="Add New Customer"
-        description="Enter customer name and contact details to link with this invoice."
-        size="sm"
+        title="Quick Add Customer"
+        size="md"
       >
-        <form onSubmit={handleSaveQuickCustomer} className="space-y-3">
-          <Input
-            label="Customer Name"
-            placeholder="e.g. Ramesh Kumar"
-            value={newCustName}
-            onChange={(e) => setNewCustName(e.target.value)}
-            required
-            autoFocus
-          />
-          <Input
-            label="Mobile Number (for WhatsApp Invoice)"
-            placeholder="e.g. 9876543210"
-            type="tel"
-            value={newCustPhone}
-            onChange={(e) => setNewCustPhone(e.target.value)}
-          />
-          <Input
-            label="Address / Area (Optional)"
-            placeholder="e.g. Shop #4, Market Road"
-            value={newCustAddress}
-            onChange={(e) => setNewCustAddress(e.target.value)}
-          />
+        <form onSubmit={handleSaveQuickCustomer} className="space-y-3 p-1">
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Customer Name *</label>
+            <Input
+              placeholder="e.g. Anil Verma"
+              value={newCustName}
+              onChange={(e) => setNewCustName(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
 
-          <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsAddCustomerModalOpen(false)}>
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">WhatsApp / Phone Number</label>
+            <Input
+              placeholder="e.g. 9876543210"
+              value={newCustPhone}
+              onChange={(e) => setNewCustPhone(e.target.value)}
+              type="tel"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Address / Landmark</label>
+            <Input
+              placeholder="e.g. Flat 201, Green Society"
+              value={newCustAddress}
+              onChange={(e) => setNewCustAddress(e.target.value)}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" type="button" onClick={() => setIsAddCustomerModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="sm">
-              Save Customer
+            <Button size="sm" type="submit" className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
+              Save & Select Customer
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Quick Add Scanned Product Modal */}
+      <Modal
+        isOpen={isQuickAddModalOpen}
+        onClose={() => setIsQuickAddModalOpen(false)}
+        title={`Add Scanned Barcode (${scannedUnknownBarcode || ''})`}
+        size="md"
+      >
+        <form onSubmit={handleSaveQuickAddItem} className="space-y-3 p-1">
+          {isLookingUpPublicApi && (
+            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-600 animate-spin" />
+              <span>Looking up product name from global barcode database...</span>
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Product Name *</label>
+            <Input
+              value={quickAddName}
+              onChange={(e) => setQuickAddName(e.target.value)}
+              placeholder="e.g. Parle-G Biscuit 250g"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Selling Price (₹) *</label>
+            <Input
+              type="number"
+              step="0.01"
+              value={quickAddPrice}
+              onChange={(e) => setQuickAddPrice(e.target.value)}
+              placeholder="e.g. 25"
+              required
+              autoFocus
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" type="button" onClick={() => setIsQuickAddModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" type="submit" className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
+              Save to Catalog & Add to Cart
             </Button>
           </div>
         </form>
@@ -1207,85 +1430,14 @@ export default function BillingPage() {
         isOpen={isBarcodeModalOpen}
         onClose={() => setIsBarcodeModalOpen(false)}
         onScan={handleBarcodeScanned}
-        title="Scan Item to Add to Bill"
       />
 
       {/* Voice Assistant Modal */}
       <VoiceBillingModal
         isOpen={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}
-        catalog={products}
+        products={products}
         onAddItemsToCart={handleAddVoiceItems}
-      />
-
-      {/* Unknown Barcode Quick Add from Public API Modal */}
-      <Modal
-        isOpen={isQuickAddModalOpen}
-        onClose={() => setIsQuickAddModalOpen(false)}
-        title={
-          <span className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-slate-800" />
-            <span>New Barcode Item Detected</span>
-          </span>
-        }
-        description="Barcode was not found in your local catalog. Set a selling price to add it to your shop and bill it immediately."
-      >
-        <form onSubmit={handleSaveQuickAddItem} className="space-y-3">
-          {isLookingUpPublicApi ? (
-            <div className="p-3 bg-slate-50 rounded-lg text-center text-xs text-slate-600 flex items-center justify-center gap-2">
-              <div className="w-3.5 h-3.5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
-              <span>Looking up product details from Open Food Facts...</span>
-            </div>
-          ) : publicProductData ? (
-            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center gap-2 font-bold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span>Auto-matched from Open Food Facts database!</span>
-            </div>
-          ) : null}
-
-          <Input
-            label="Product Name"
-            value={quickAddName}
-            onChange={(e) => setQuickAddName(e.target.value)}
-            required
-            autoFocus
-          />
-
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              label="Selling Price (₹)"
-              placeholder="e.g. 50.00"
-              type="number"
-              step="0.01"
-              value={quickAddPrice}
-              onChange={(e) => setQuickAddPrice(e.target.value)}
-              required
-            />
-            <Input
-              label="Barcode"
-              value={scannedUnknownBarcode || ''}
-              disabled
-              className="bg-slate-100 font-mono text-xs"
-            />
-          </div>
-
-          <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsQuickAddModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" size="sm">
-              Save & Add to Bill
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Full Thermal / A4 GST Invoice & Receipt Modal */}
-      <InvoiceModal
-        isOpen={isInvoiceModalOpen}
-        onClose={() => setIsInvoiceModalOpen(false)}
-        sale={activeSaleForInvoice}
-        business={business || null}
       />
 
       {/* Hardware Manager Modal */}
@@ -1293,6 +1445,19 @@ export default function BillingPage() {
         isOpen={isHardwareModalOpen}
         onClose={() => setIsHardwareModalOpen(false)}
       />
+
+      {/* Invoice Modal for Completed Sale */}
+      {activeSaleForInvoice && (
+        <InvoiceModal
+          isOpen={isInvoiceModalOpen}
+          onClose={() => {
+            setIsInvoiceModalOpen(false);
+            setActiveSaleForInvoice(null);
+          }}
+          sale={activeSaleForInvoice}
+          business={business || null}
+        />
+      )}
     </div>
   );
 }

@@ -25,13 +25,15 @@ import {
   CheckCircle2,
   Clock,
   ChevronRight,
-  RotateCcw
+  RotateCcw,
+  Edit3
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { SalesReturnModal } from '@/components/sales/SalesReturnModal';
+import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 
 export type DatePreset = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 export type PaymentFilter = 'all' | 'cash' | 'upi' | 'credit';
@@ -54,6 +56,8 @@ export default function TransactionsPage() {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [returnSaleId, setReturnSaleId] = useState<string | undefined>(undefined);
+  const [editSale, setEditSale] = useState<Sale | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Queries
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -614,7 +618,20 @@ export default function TransactionsPage() {
 
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditSale(sale);
+                          setIsEditModalOpen(true);
+                        }}
+                        title="Edit Past Invoice & Items"
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-950 text-slate-600"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-slate-700" />
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setReturnSaleId(sale.id);
                           setIsReturnModalOpen(true);
                         }}
@@ -654,6 +671,16 @@ export default function TransactionsPage() {
         onClose={() => setIsInvoiceModalOpen(false)}
         sale={activeSaleForInvoice}
         business={business || null}
+      />
+
+      {/* Edit Invoice Modal */}
+      <EditInvoiceModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditSale(null);
+        }}
+        sale={editSale}
       />
 
       {/* Sales Return Modal */}

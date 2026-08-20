@@ -21,13 +21,15 @@ import {
   Sparkles,
   ArrowUpDown,
   Tag,
-  Camera
+  Camera,
+  Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
+import { RapidBarcodeInwardModal } from '@/components/products/RapidBarcodeInwardModal';
 
 export default function ProductsPage() {
   const { t } = useTranslation();
@@ -36,6 +38,7 @@ export default function ProductsPage() {
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isRapidInwardOpen, setIsRapidInwardOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // Form State
@@ -231,6 +234,16 @@ export default function ProductsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            onClick={() => setIsRapidInwardOpen(true)}
+            size="md"
+            className="gap-1.5 text-xs font-black bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400 shadow-xs cursor-pointer"
+          >
+            <Zap className="w-4 h-4 text-slate-950" />
+            <span>Rapid Barcode Inward ⚡</span>
+          </Button>
+
           <Button onClick={handleOpenAddModal} size="md" className="gap-2 text-xs font-bold">
             <Plus className="w-4 h-4" />
             <span>{t('products.addProduct')}</span>
@@ -618,6 +631,12 @@ export default function ProductsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Rapid Barcode Inward Intake Modal */}
+      <RapidBarcodeInwardModal
+        isOpen={isRapidInwardOpen}
+        onClose={() => setIsRapidInwardOpen(false)}
+      />
     </div>
   );
 }

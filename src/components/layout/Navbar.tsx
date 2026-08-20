@@ -20,9 +20,10 @@ import {
   Sparkles
 } from 'lucide-react';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { subscriptionService } from '@/lib/subscription/subscriptionService';
 import { isSoundboxEnabled, setSoundboxEnabled, announcePayment } from '@/lib/voice/paytmSoundbox';
 import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
-
 
 export const Navbar: React.FC = () => {
   const router = useRouter();
@@ -31,6 +32,8 @@ export const Navbar: React.FC = () => {
   const [showLangMenu, setShowLangMenu] = useState<boolean>(false);
   const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState<boolean>(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
@@ -42,6 +45,8 @@ export const Navbar: React.FC = () => {
     setCurrentUser(getStoredUser());
     setSoundEnabled(isSoundboxEnabled());
     setIsOnline(navigator.onLine);
+    setSubscriptionTier(subscriptionService.getSubscription().tier);
+
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
@@ -49,13 +54,19 @@ export const Navbar: React.FC = () => {
       setCurrentUser(getStoredUser());
     };
 
+    const handleSubChange = () => {
+      setSubscriptionTier(subscriptionService.getSubscription().tier);
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('auth_changed', handleAuthChange);
+    window.addEventListener('subscription_changed', handleSubChange);
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('auth_changed', handleAuthChange);
+      window.removeEventListener('subscription_changed', handleSubChange);
     };
   }, []);
 
@@ -76,36 +87,29 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  const languages: Array<{ code: SupportedLanguage; label: string; flag: string }> = [
-    { code: 'hi', label: 'हिंदी (Hindi)', flag: '🇮🇳' },
-    { code: 'mr', label: 'मराठी (Marathi)', flag: '🇮🇳' },
-    { code: 'en', label: 'English', flag: '🌐' },
+  const languages: { code: SupportedLanguage; label: string }[] = [
+    { code: 'en', label: 'English' },
+    { code: 'hi', label: 'हिंदी' },
+    { code: 'mr', label: 'मराठी' },
   ];
 
-  const displayStoreName = currentUser?.business_name || business?.name || t('common.appName');
-  const displayOwnerName = currentUser?.name || business?.owner_name || 'Store Owner';
-  const displayType = business?.business_type ? business.business_type.toUpperCase() : 'RETAIL STORE';
+  const displayBusinessName = business?.name || 'My Store';
+  const displayOwnerName = business?.owner_name || currentUser?.name || 'Owner';
+  const displayType = business?.business_type || 'Retail POS';
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white text-slate-900 px-4 sm:px-6 py-3 flex items-center justify-between border-b border-slate-200">
-        {/* Left: Clean Corporate Shop Profile */}
+      <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+        {/* Left: Brand / Store Profile Info */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden border border-slate-200">
-            {business?.logo_url ? (
-              <img
-                src={business.logo_url}
-                alt={displayStoreName}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Store className="w-4 h-4 text-white" />
-            )}
+          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-sm flex-shrink-0 shadow-xs">
+            <Store className="w-5 h-5 text-amber-400" />
           </div>
-          <div>
+
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
-                {displayStoreName}
+              <h1 className="text-sm sm:text-base font-extrabold text-slate-900 truncate leading-tight tracking-tight">
+                {displayBusinessName}
               </h1>
               <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200">
                 <ShieldCheck className="w-3 h-3 text-slate-600" />
@@ -120,19 +124,20 @@ export const Navbar: React.FC = () => {
 
         {/* Right: Actions, Soundbox, Network, Language */}
         <div className="flex items-center gap-2">
-          {/* Upgrade / Pricing Button */}
-          <Link href="/pricing">
-            <button className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black shadow-xs active:scale-95 transition-all">
-              <Sparkles className="w-3.5 h-3.5 text-slate-950 fill-slate-950" />
-              <span className="hidden sm:inline">Upgrade / Pro</span>
-              <span className="sm:hidden">Pro</span>
-            </button>
-          </Link>
+          {/* Upgrade / Pricing Button - Opens UpgradeModal directly */}
+          <button 
+            onClick={() => setIsUpgradeModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black shadow-xs active:scale-95 transition-all cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-slate-950 fill-slate-950" />
+            <span className="hidden sm:inline">Upgrade / Pro</span>
+            <span className="sm:hidden">Pro</span>
+          </button>
 
           {/* Quick Merchant QR Code Button */}
           <button
             onClick={() => setIsQrModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer"
           >
             <QrCode className="w-3.5 h-3.5 text-slate-700" />
             <span className="hidden sm:inline">Store QR</span>
@@ -141,7 +146,7 @@ export const Navbar: React.FC = () => {
           {/* Soundbox Voice Alert Toggle */}
           <button
             onClick={toggleSoundbox}
-            className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 ${soundEnabled
+            className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${soundEnabled
               ? 'bg-slate-100 border-slate-300 text-slate-900'
               : 'bg-white border-slate-200 text-slate-400'
               }`}
@@ -251,6 +256,15 @@ export const Navbar: React.FC = () => {
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
         business={business || null}
+      />
+
+      {/* Upgrade Pro Modal (Same Modal as Home page banner) */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        currentTier={subscriptionTier}
+        businessName={business?.name}
+        onUpgradeSuccess={(tier) => setSubscriptionTier(tier)}
       />
     </>
   );

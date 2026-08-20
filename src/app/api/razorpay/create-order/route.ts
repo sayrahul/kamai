@@ -10,8 +10,9 @@ const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
 
 // Plan pricing in paise (1 INR = 100 paise)
 const PLANS: Record<string, { amount: number; label: string; durationDays: number }> = {
-  pro: { amount: 29900, label: 'Pro Plan', durationDays: 30 },
-  enterprise: { amount: 79900, label: 'Enterprise Plan', durationDays: 30 },
+  pro_annual: { amount: 210000, label: 'Kamai+ Pro (Annual)', durationDays: 365 },
+  pro_monthly: { amount: 24900, label: 'Kamai+ Pro (Monthly)', durationDays: 30 },
+  pro: { amount: 210000, label: 'Kamai+ Pro (Annual)', durationDays: 365 },
 };
 
 export async function POST(req: NextRequest) {
@@ -28,11 +29,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const plan = body.plan as string;
+    const plan = body.plan as string || 'pro';
+    const billingCycle = body.billingCycle === 'monthly' ? 'monthly' : 'annual';
+    const planKey = `${plan}_${billingCycle}`;
 
-    if (!PLANS[plan]) {
-      return NextResponse.json({ success: false, error: 'Invalid plan selected.' }, { status: 400 });
-    }
+    const planDetails = PLANS[planKey] || PLANS[plan] || PLANS.pro_annual;
 
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
       return NextResponse.json(
@@ -40,8 +41,6 @@ export async function POST(req: NextRequest) {
         { status: 503 }
       );
     }
-
-    const planDetails = PLANS[plan];
 
     // 2. Create Razorpay order via REST API (avoids SDK import issues)
     const orderPayload = {
@@ -52,6 +51,7 @@ export async function POST(req: NextRequest) {
         business_id: payload.business_id,
         staff_id: payload.staff_id,
         plan,
+        billing_cycle: billingCycle,
         phone: payload.phone,
       },
     };

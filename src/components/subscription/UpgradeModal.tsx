@@ -5,16 +5,13 @@ import {
   X,
   Check,
   Zap,
-  Crown,
-  Star,
-  ArrowRight,
+  Sparkles,
   RefreshCw,
   ShieldCheck,
   AlertCircle,
+  Crown
 } from 'lucide-react';
-
-/* ─── Types ──────────────────────────────────────────────────── */
-type Plan = 'pro' | 'enterprise';
+import { subscriptionService } from '@/lib/subscription/subscriptionService';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -24,58 +21,12 @@ interface UpgradeModalProps {
   onUpgradeSuccess?: (tier: string) => void;
 }
 
-/* ─── Plan Config ─────────────────────────────────────────────── */
-const PLANS = [
-  {
-    id: 'pro' as Plan,
-    name: 'Pro',
-    price: 299,
-    originalPrice: 499,
-    icon: Zap,
-    color: 'amber',
-    badge: 'Most Popular',
-    tagline: 'For growing stores',
-    features: [
-      'Unlimited bills per month',
-      'Cloud backup & sync',
-      'WhatsApp bill sharing',
-      'Up to 3 devices',
-      '1 year bill history',
-      'GST reports & export',
-      'Priority support',
-    ],
-    notIncluded: ['Multiple staff accounts', 'Custom branding'],
-  },
-  {
-    id: 'enterprise' as Plan,
-    name: 'Enterprise',
-    price: 799,
-    originalPrice: 1299,
-    icon: Crown,
-    color: 'violet',
-    badge: 'Full Power',
-    tagline: 'For established businesses',
-    features: [
-      'Everything in Pro',
-      'Unlimited devices',
-      'Up to 10 staff accounts',
-      'Custom invoice branding',
-      'Unlimited bill history',
-      'Advanced analytics',
-      'Bulk product import',
-      'Dedicated support',
-    ],
-    notIncluded: [],
-  },
-];
-
 declare global {
   interface Window {
     Razorpay: any;
   }
 }
 
-/* ─── Load Razorpay script dynamically ───────────────────────── */
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
     if (window.Razorpay) return resolve(true);
@@ -87,11 +38,13 @@ function loadRazorpayScript(): Promise<boolean> {
   });
 }
 
-/* ═══════════════════════════════════════════════════════════════ */
 export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessName = 'Your Store', onUpgradeSuccess }: UpgradeModalProps) {
-  const [selectedPlan, setSelectedPlan] = useState<Plan>('pro');
+  const [billingCycle, setBillingCycle] = useState<'annual' | 'monthly'>('annual');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const priceAmount = billingCycle === 'annual' ? 2100 : 249;
+  const originalPrice = billingCycle === 'annual' ? 3999 : 399;
 
   const handleUpgrade = useCallback(async () => {
     setLoading(true);
@@ -110,7 +63,10 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
       const orderRes = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: selectedPlan }),
+        body: JSON.stringify({ 
+          plan: 'pro',
+          billingCycle,
+        }),
       });
       const orderData = await orderRes.json();
 
@@ -125,17 +81,14 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
         key: orderData.keyId,
         amount: orderData.amount,
         currency: orderData.currency,
-        name: 'KamaiPlus',
-        description: orderData.planLabel,
+        name: 'KamaiPlus (Kamai+)',
+        description: `Kamai+ Pro (${billingCycle === 'annual' ? 'Annual Plan' : 'Monthly Plan'})`,
         order_id: orderData.orderId,
         prefill: {
           contact: orderData.phone ? `+91${orderData.phone}` : '',
         },
-        notes: {
-          plan: selectedPlan,
-        },
         theme: {
-          color: selectedPlan === 'pro' ? '#F59E0B' : '#8B5CF6',
+          color: '#F59E0B',
           backdrop_color: '#0f172a',
         },
         modal: {
@@ -148,7 +101,6 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
           razorpay_payment_id: string;
           razorpay_signature: string;
         }) => {
-          // 4. Verify payment on our server
           try {
             const verifyRes = await fetch('/api/razorpay/verify', {
               method: 'POST',
@@ -157,19 +109,23 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                plan: selectedPlan,
+                tier: 'pro',
+                billingCycle,
               }),
             });
+
             const verifyData = await verifyRes.json();
 
             if (verifyRes.ok && verifyData.success) {
-              onUpgradeSuccess?.(verifyData.tier);
+              subscriptionService.activateSubscription('pro', billingCycle, response.razorpay_payment_id);
+              onUpgradeSuccess?.('pro');
               onClose();
             } else {
-              setError(verifyData.error || 'Payment verification failed. Please contact support.');
+              setError('Payment signature verification failed. Please contact support.');
             }
-          } catch {
-            setError('Network error during verification. Your payment may have succeeded — please contact support.');
+          } catch (err) {
+            console.error('Verify error:', err);
+            setError('Error verifying payment. Please reach out to support.');
           } finally {
             setLoading(false);
           }
@@ -177,186 +133,137 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
       };
 
       const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', (response: any) => {
-        setError(`Payment failed: ${response.error?.description || 'Please try again.'}`);
+      rzp.on('payment.failed', (resp: any) => {
+        setError(resp.error?.description || 'Payment was declined or cancelled.');
         setLoading(false);
       });
       rzp.open();
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+      console.error('Upgrade flow error:', err);
+      setError('Something went wrong. Please try again.');
       setLoading(false);
     }
-  }, [selectedPlan, onClose, onUpgradeSuccess]);
+  }, [billingCycle, onUpgradeSuccess, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div className="relative w-full sm:max-w-2xl bg-slate-900 border border-slate-700 rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[95vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden text-slate-900">
+        {/* Top Header */}
+        <div className="p-6 pb-4 bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent border-b border-slate-100 flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-black text-white">Upgrade {businessName}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Current: <span className="text-amber-400 font-bold capitalize">{currentTier}</span> Plan
-            </p>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider mb-2">
+              <Sparkles className="w-3 h-3 text-slate-950" />
+              <span>Unlock Full POS Power</span>
+            </div>
+            <h2 className="text-xl font-black text-slate-900">Upgrade to Kamai+ Pro</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{businessName}</p>
           </div>
+
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-all cursor-pointer"
+            className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-5 space-y-5">
-          {/* Error */}
+        {/* Content */}
+        <div className="p-6 space-y-4">
+          {/* Cycle Switcher */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setBillingCycle('annual')}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
+                billingCycle === 'annual'
+                  ? 'bg-white text-slate-950 shadow-xs border border-slate-300'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Annual (₹2,100 / yr - 50% Off) 🔥
+            </button>
+            <button
+              onClick={() => setBillingCycle('monthly')}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
+                billingCycle === 'monthly'
+                  ? 'bg-white text-slate-950 shadow-xs border border-slate-300'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Monthly (₹249 / mo)
+            </button>
+          </div>
+
+          {/* Price Box */}
+          <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 text-center">
+            <div className="flex items-baseline justify-center gap-2">
+              <span className="text-xs text-slate-400 line-through font-mono font-bold">
+                ₹{originalPrice}
+              </span>
+              <span className="text-3xl font-black text-slate-950 font-mono">
+                ₹{priceAmount}
+              </span>
+              <span className="text-xs text-slate-600 font-bold">
+                / {billingCycle === 'annual' ? 'year' : 'month'}
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-900 font-extrabold mt-1">
+              {billingCycle === 'annual' ? 'Just ₹175 / month • Instant Activation' : 'Billed monthly • Cancel anytime'}
+            </p>
+          </div>
+
+          {/* Features Checklist */}
+          <div className="space-y-2 text-xs py-1">
+            <div className="flex items-center gap-2 font-bold text-slate-900">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>Automatic Cloud Backup & Multi-Device Sync</span>
+            </div>
+            <div className="flex items-center gap-2 font-bold text-slate-900">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>Batch Numbers & Expiry Date Radar (15/30 Days Alert)</span>
+            </div>
+            <div className="flex items-center gap-2 font-bold text-slate-900">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>Government GSTR-1 & HSN Tax Filing Reports</span>
+            </div>
+            <div className="flex items-center gap-2 font-bold text-slate-900">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>Custom Barcode Sticker Label Printing Studio</span>
+            </div>
+            <div className="flex items-center gap-2 font-bold text-slate-900">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>24/7 Dedicated Phone & WhatsApp Support</span>
+            </div>
+          </div>
+
+          {/* Error Banner */}
           {error && (
-            <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-950/60 border border-rose-600/40 text-rose-300 text-sm">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+              <p className="flex-1 font-medium">{error}</p>
             </div>
           )}
 
-          {/* Plan Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {PLANS.map((plan) => {
-              const Icon = plan.icon;
-              const isSelected = selectedPlan === plan.id;
-              const isPro = plan.id === 'pro';
-
-              return (
-                <button
-                  key={plan.id}
-                  type="button"
-                  onClick={() => setSelectedPlan(plan.id)}
-                  className={`relative text-left p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-                    isSelected
-                      ? isPro
-                        ? 'border-amber-400 bg-amber-400/5 shadow-lg shadow-amber-400/10'
-                        : 'border-violet-500 bg-violet-500/5 shadow-lg shadow-violet-500/10'
-                      : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
-                  }`}
-                >
-                  {/* Badge */}
-                  <div className="absolute -top-2.5 left-4">
-                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
-                      isPro ? 'bg-amber-400 text-slate-950' : 'bg-violet-500 text-white'
-                    }`}>
-                      {plan.badge}
-                    </span>
-                  </div>
-
-                  {/* Plan header */}
-                  <div className="flex items-start justify-between mt-1 mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                        isPro ? 'bg-amber-400/20 text-amber-400' : 'bg-violet-500/20 text-violet-400'
-                      }`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-black text-white">{plan.name}</div>
-                        <div className="text-[10px] text-slate-500">{plan.tagline}</div>
-                      </div>
-                    </div>
-                    {isSelected && (
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        isPro ? 'bg-amber-400' : 'bg-violet-500'
-                      }`}>
-                        <Check className="w-3 h-3 text-slate-950" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Price */}
-                  <div className="mb-3">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className={`text-2xl font-black ${isPro ? 'text-amber-400' : 'text-violet-400'}`}>
-                        ₹{plan.price}
-                      </span>
-                      <span className="text-slate-500 text-xs">/month</span>
-                      <span className="text-slate-600 text-xs line-through">₹{plan.originalPrice}</span>
-                    </div>
-                  </div>
-
-                  {/* Features */}
-                  <ul className="space-y-1.5">
-                    {plan.features.slice(0, 5).map((f) => (
-                      <li key={f} className="flex items-center gap-1.5 text-[11px] text-slate-300">
-                        <Check className={`w-3 h-3 flex-shrink-0 ${isPro ? 'text-amber-400' : 'text-violet-400'}`} />
-                        {f}
-                      </li>
-                    ))}
-                    {plan.features.length > 5 && (
-                      <li className="text-[11px] text-slate-500 pl-4.5">
-                        +{plan.features.length - 5} more features
-                      </li>
-                    )}
-                  </ul>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Full feature list for selected plan */}
-          <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-4">
-            <div className="text-xs font-bold text-slate-300 mb-2.5">
-              All features in {selectedPlan === 'pro' ? 'Pro' : 'Enterprise'}:
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {PLANS.find((p) => p.id === selectedPlan)?.features.map((f) => (
-                <div key={f} className="flex items-center gap-1.5 text-[11px] text-slate-300">
-                  <Check className={`w-3 h-3 flex-shrink-0 ${selectedPlan === 'pro' ? 'text-amber-400' : 'text-violet-400'}`} />
-                  {f}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Pay Button */}
+          {/* Upgrade Button */}
           <button
-            type="button"
-            disabled={loading}
             onClick={handleUpgrade}
-            className={`w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed shadow-lg ${
-              selectedPlan === 'pro'
-                ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-400/25'
-                : 'bg-violet-500 hover:bg-violet-400 text-white shadow-violet-500/25'
-            }`}
+            disabled={loading}
+            className="w-full py-3.5 bg-amber-400 hover:bg-amber-500 active:scale-[0.99] text-slate-950 font-black text-xs rounded-xl transition shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             {loading ? (
-              <>
+              <span className="flex items-center gap-2">
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                Opening Payment...
-              </>
+                <span>Connecting to Gateway...</span>
+              </span>
             ) : (
-              <>
-                <Star className="w-4 h-4" />
-                Pay ₹{PLANS.find((p) => p.id === selectedPlan)?.price}/month
-                <ArrowRight className="w-4 h-4" />
-              </>
+              <span>Upgrade to Kamai+ Pro (₹{priceAmount}) 🚀</span>
             )}
           </button>
 
-          {/* Trust line */}
-          <div className="flex items-center justify-center gap-4 text-[10px] text-slate-600">
-            <span className="flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3 text-emerald-700" />
-              Secured by Razorpay
-            </span>
-            <span>•</span>
-            <span>UPI • Card • Netbanking • Wallet</span>
-            <span>•</span>
-            <span>Cancel anytime</span>
-          </div>
+          <p className="text-center text-[10px] text-slate-400">
+            🔒 256-bit Secure Payment via Razorpay UPI & Cards • Instant Invoice with 18% GST ITC
+          </p>
         </div>
       </div>
     </div>
