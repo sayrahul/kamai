@@ -51,6 +51,7 @@ import { VoiceBillingModal } from '@/components/voice/VoiceBillingModal';
 import { HardwareManagerModal } from '@/components/hardware/HardwareManagerModal';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
+import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
 import { announcePayment } from '@/lib/voice/paytmSoundbox';
 import { Sale } from '@/types';
 
@@ -804,18 +805,17 @@ export default function BillingPage() {
           </button>
         </div>
 
-        <select
-          value={selectedCustomerId}
-          onChange={(e) => setSelectedCustomerId(e.target.value)}
-          className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
-        >
-          <option value="">Walk-in Cash Customer</option>
-          {customers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} {c.phone ? `(${c.phone})` : ''} {c.current_balance > 0 ? `• Credit: ${formatINR(c.current_balance)}` : ''}
-            </option>
-          ))}
-        </select>
+        <CustomerSearchAutocomplete
+          customers={customers}
+          selectedCustomerId={selectedCustomerId}
+          onSelectCustomer={setSelectedCustomerId}
+          onOpenNewCustomerModal={(initialPhone) => {
+            if (initialPhone) {
+              setNewCustPhone(initialPhone);
+            }
+            setIsAddCustomerModalOpen(true);
+          }}
+        />
       </div>
 
       {/* Cart Header with Hold Bill Button */}
@@ -1080,7 +1080,7 @@ export default function BillingPage() {
   );
 
   return (
-    <div className="relative pb-24 md:pb-0">
+    <div className="relative pb-40 lg:pb-6">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Left: Product Selection Catalog */}
         <div className="lg:col-span-7 space-y-3">
@@ -1160,9 +1160,9 @@ export default function BillingPage() {
             </div>
 
             {/* Products Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
               {products.length === 0 ? (
-                <div className="col-span-full py-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
+                <div className="col-span-full py-10 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
                   No items found. Adjust your search or add new products in the Products catalog.
                 </div>
               ) : (
@@ -1179,39 +1179,39 @@ export default function BillingPage() {
                       disabled={isOutOfStock}
                       onClick={() => !isOutOfStock && addToCart(p, 1)}
                       className={cn(
-                        'p-3 rounded-xl border text-left flex flex-col justify-between relative overflow-hidden transition-all active:scale-[0.98]',
+                        'p-2 sm:p-2.5 rounded-xl border text-left flex flex-col justify-between relative overflow-hidden transition-all active:scale-[0.98] min-h-[76px] sm:min-h-[82px]',
                         isOutOfStock
                           ? 'cursor-not-allowed opacity-45 border-slate-200 bg-slate-100'
-                          : 'cursor-pointer bg-white hover:border-slate-400',
+                          : 'cursor-pointer bg-white hover:border-slate-400 shadow-2xs',
                         inCart && !isOutOfStock
-                          ? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-50/40'
+                          ? 'border-amber-400 ring-1.5 ring-amber-400/50 bg-amber-50/35'
                           : 'border-slate-200'
                       )}
                     >
                       {inCart && (
-                        <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-950 text-[10px] font-black shadow-sm">
+                        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-md bg-amber-400 text-slate-950 text-[9px] font-black shadow-xs">
                           {inCart.quantity} in cart
                         </div>
                       )}
 
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-400">
+                      <div className="pr-12">
+                        <span className="text-[9px] uppercase font-extrabold tracking-wider text-slate-400 block leading-tight">
                           {p.category_name || 'Item'}
                         </span>
-                        <h4 className="text-xs font-bold text-slate-900 line-clamp-2 mt-0.5">
+                        <h4 className="text-xs font-bold text-slate-900 line-clamp-1 mt-0.5 leading-snug">
                           {p.name}
                         </h4>
                       </div>
 
-                      <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-baseline justify-between">
-                        <div>
-                          <span className="text-sm font-extrabold text-slate-900 font-mono">
+                      <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-baseline justify-between gap-1">
+                        <div className="truncate">
+                          <span className="text-xs sm:text-sm font-black text-slate-900 font-mono">
                             {formatINR(p.selling_price)}
                           </span>
-                          <span className="text-[10px] text-slate-500 font-medium">/{p.unit}</span>
+                          <span className="text-[10px] text-slate-500 font-medium ml-0.5">/{p.unit}</span>
                         </div>
                         <span className={cn(
-                          "text-[10px] font-semibold",
+                          "text-[10px] font-semibold flex-shrink-0",
                           isOutOfStock ? "text-rose-700" : isLowStock ? "text-amber-700" : "text-slate-400"
                         )}>
                           {isOutOfStock ? 'Out of stock' : `${availableStock} left`}
@@ -1233,10 +1233,10 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* Mobile Floating Bottom Sticky Cart Button */}
-      <div className="lg:hidden fixed bottom-16 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 shadow-lg flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold relative">
+      {/* Mobile Floating Bottom Sticky Cart Button (Elevated cleanly above bottom nav bar) */}
+      <div className="lg:hidden fixed bottom-[88px] left-3 right-3 sm:left-6 sm:right-6 max-w-md mx-auto p-3 bg-white/95 backdrop-blur-md border border-slate-300 rounded-2xl z-30 shadow-2xl shadow-slate-900/15 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black relative flex-shrink-0 shadow-xs">
             <ShoppingCart className="w-5 h-5" />
             {totalItemCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center border-2 border-white">
@@ -1244,11 +1244,11 @@ export default function BillingPage() {
               </span>
             )}
           </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">
-              {tabs.length > 1 ? `Bill #${activeTab.tabNumber} • ` : ''}{totalItemCount} items
+          <div className="min-w-0">
+            <div className="text-[11px] text-slate-500 font-bold truncate">
+              {tabs.length > 1 ? `Bill #${activeTab.tabNumber} • ` : ''}{totalItemCount} {totalItemCount === 1 ? 'item' : 'items'}
             </div>
-            <div className="text-base font-extrabold text-slate-900 font-mono">
+            <div className="text-base font-black text-slate-900 font-mono leading-tight">
               {formatINR(grandTotalPaise)}
             </div>
           </div>
@@ -1258,7 +1258,7 @@ export default function BillingPage() {
           size="md"
           disabled={cart.length === 0}
           onClick={() => setIsMobileCartOpen(true)}
-          className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl border-none shadow-md shadow-amber-400/20"
+          className="bg-amber-400 hover:bg-amber-500 active:scale-95 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl border-none shadow-md shadow-amber-400/25 flex-shrink-0 cursor-pointer"
         >
           <span>View Cart & Pay</span>
           <ArrowRight className="w-4 h-4 ml-1" />

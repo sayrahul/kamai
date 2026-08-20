@@ -21,9 +21,9 @@ import {
   Cloud, 
   Settings,
   Sparkles,
-  Zap
+  Zap,
+  Globe
 } from 'lucide-react';
-import { Modal } from '@/components/ui/Modal';
 
 interface MobileMenuCardsModalProps {
   isOpen: boolean;
@@ -33,15 +33,15 @@ interface MobileMenuCardsModalProps {
 export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
 
+  // Exactly 4 sections with 4 items each (perfect 2x2 grid per section)
   const menuSections = [
     {
       title: 'Daily Billing & Counter',
       items: [
         { href: '/', title: 'Home', desc: 'Overview & KPIs', icon: Home, bg: 'bg-slate-100 text-slate-800', border: 'border-slate-300' },
         { href: '/billing', title: 'Billing (POS)', desc: 'Fast Checkout', icon: Receipt, bg: 'bg-emerald-100 text-emerald-800', border: 'border-emerald-300', highlight: true },
-        { href: '/cash-register', title: 'Cash Register', desc: 'Shift Closing & Z-Report', icon: Calculator, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
-        { href: '/barcode-generator', title: 'Barcode Studio', desc: 'Price Stickers', icon: Barcode, bg: 'bg-purple-100 text-purple-900', border: 'border-purple-300' },
         { href: '/transactions', title: 'Transactions', desc: 'History & Returns', icon: ShieldCheck, bg: 'bg-teal-100 text-teal-900', border: 'border-teal-300' },
+        { href: '/cash-register', title: 'Cash Register', desc: 'Shift Closing & Z-Report', icon: Calculator, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
       ],
     },
     {
@@ -50,6 +50,7 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
         { href: '/products', title: 'Products', desc: 'Item Catalog', icon: Package, bg: 'bg-blue-100 text-blue-900', border: 'border-blue-300' },
         { href: '/inventory', title: 'Inventory & Expiry', desc: 'Batches & Low Stock', icon: Boxes, bg: 'bg-cyan-100 text-cyan-900', border: 'border-cyan-300' },
         { href: '/purchases', title: 'Purchases', desc: 'Restock Orders', icon: ShoppingBag, bg: 'bg-rose-100 text-rose-900', border: 'border-rose-300' },
+        { href: '/barcode-generator', title: 'Barcode Studio', desc: 'Price Stickers & Tags', icon: Barcode, bg: 'bg-purple-100 text-purple-900', border: 'border-purple-300' },
       ],
     },
     {
@@ -58,6 +59,7 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
         { href: '/khata', title: 'Khata Ledger', desc: 'Customer Credit', icon: BookOpen, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
         { href: '/customers', title: 'Customers', desc: 'Profiles & Loyalty', icon: Users, bg: 'bg-indigo-100 text-indigo-900', border: 'border-indigo-300' },
         { href: '/growth', title: 'WhatsApp Growth', desc: 'Festival Greetings', icon: TrendingUp, bg: 'bg-emerald-100 text-emerald-900', border: 'border-emerald-300' },
+        { href: '/online-store', title: 'Digital Store', desc: 'WhatsApp Catalog', icon: Globe, bg: 'bg-sky-100 text-sky-900', border: 'border-sky-300' },
       ],
     },
     {
@@ -66,7 +68,6 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
         { href: '/gst-reports', title: 'GSTR-1 Reports', desc: 'HSN Tax Filing', icon: FileSpreadsheet, bg: 'bg-indigo-100 text-indigo-900', border: 'border-indigo-300' },
         { href: '/invoice-designer', title: 'Invoice Themes', desc: 'Bill Templates', icon: Palette, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
         { href: '/cloud-backup', title: 'Cloud Backup', desc: 'Google Drive Sync', icon: Cloud, bg: 'bg-sky-100 text-sky-900', border: 'border-sky-300' },
-        { href: '/pricing', title: 'Pricing & Plans', desc: 'Upgrade / Pro Plans', icon: Sparkles, bg: 'bg-amber-100 text-amber-950', border: 'border-amber-400' },
         { href: '/settings', title: 'Settings', desc: 'Shop Profile & UPI', icon: Settings, bg: 'bg-slate-100 text-slate-800', border: 'border-slate-300' },
       ],
     },
@@ -90,13 +91,13 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Scrollable Card Menu */}
+        {/* Scrollable Card Menu - 2x2 Grid per Section */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {menuSections.map((sec, secIdx) => (
             <div key={secIdx} className="space-y-2">
@@ -104,6 +105,7 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
                 {sec.title}
               </div>
 
+              {/* 2x2 grid layout */}
               <div className="grid grid-cols-2 gap-2.5">
                 {sec.items.map((item) => {
                   const Icon = item.icon;

@@ -62,15 +62,21 @@ export default function CustomersPage() {
   const customers = useLiveQuery(async () => {
     let list = await db.customers.toArray();
     
-    // Search filter
+    // Search filter (Supports Name, GSTIN, Address, and Partial/Last digits of Phone like Android Dialer)
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(c => 
-        c.name.toLowerCase().includes(q) || 
-        (c.phone && c.phone.includes(q)) ||
-        (c.address && c.address.toLowerCase().includes(q)) ||
-        (c.gstin && c.gstin.toLowerCase().includes(q))
-      );
+      const q = searchQuery.toLowerCase().trim();
+      const cleanDigits = q.replace(/\D/g, '');
+      list = list.filter((c) => {
+        const cleanPhone = (c.phone || '').replace(/\D/g, '');
+        const phoneDigitsMatch = cleanDigits && cleanPhone ? cleanPhone.includes(cleanDigits) : false;
+        return (
+          c.name.toLowerCase().includes(q) || 
+          (c.phone && c.phone.toLowerCase().includes(q)) ||
+          phoneDigitsMatch ||
+          (c.address && c.address.toLowerCase().includes(q)) ||
+          (c.gstin && c.gstin.toLowerCase().includes(q))
+        );
+      });
     }
 
     // Category filter
@@ -270,7 +276,7 @@ export default function CustomersPage() {
       <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
         <div className="w-full sm:flex-1">
           <Input
-            placeholder="Search by customer name, phone, GSTIN, or locality..."
+            placeholder="Search by customer name, or any phone digits (e.g. 7711)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             leftIcon={<Search className="w-4 h-4 text-slate-400" />}
