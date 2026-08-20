@@ -49,6 +49,8 @@ export default function ProductsPage() {
   const [formSellingPrice, setFormSellingPrice] = useState('');
   const [formWholesalePrice, setFormWholesalePrice] = useState('');
   const [formWholesaleMinQty, setFormWholesaleMinQty] = useState('5');
+  const [formIsLooseItem, setFormIsLooseItem] = useState(false);
+  const [formIsUnlimitedStock, setFormIsUnlimitedStock] = useState(false);
   const [formMrp, setFormMrp] = useState('');
   const [formTaxRate, setFormTaxRate] = useState<number>(0);
   const [formStock, setFormStock] = useState('');
@@ -78,7 +80,7 @@ export default function ProductsPage() {
     }
 
     if (showLowStockOnly) {
-      prods = prods.filter((p) => p.current_stock <= p.min_stock_level);
+      prods = prods.filter((p) => !p.is_unlimited_stock && p.current_stock <= p.min_stock_level);
     }
 
     return prods;
@@ -93,6 +95,8 @@ export default function ProductsPage() {
     setFormSellingPrice('');
     setFormWholesalePrice('');
     setFormWholesaleMinQty('5');
+    setFormIsLooseItem(false);
+    setFormIsUnlimitedStock(false);
     setFormMrp('');
     setFormTaxRate(0);
     setFormStock('10');
@@ -111,6 +115,8 @@ export default function ProductsPage() {
     setFormSellingPrice((p.selling_price / 100).toString());
     setFormWholesalePrice(p.wholesale_price ? (p.wholesale_price / 100).toString() : '');
     setFormWholesaleMinQty(p.wholesale_min_qty ? p.wholesale_min_qty.toString() : '5');
+    setFormIsLooseItem(Boolean(p.is_loose_item));
+    setFormIsUnlimitedStock(Boolean(p.is_unlimited_stock));
     setFormMrp((p.mrp / 100).toString());
     setFormTaxRate(p.tax_rate);
     setFormStock(p.current_stock.toString());
@@ -145,10 +151,13 @@ export default function ProductsPage() {
       selling_price: sellingPaise,
       wholesale_price: wholesalePaise,
       wholesale_min_qty: wholesaleMinQtyNum,
+      is_loose_item: formIsLooseItem,
+      allow_decimal: formIsLooseItem || ['kg', 'gram', 'litre', 'ml', 'meter'].includes(formUnit),
+      is_unlimited_stock: formIsUnlimitedStock,
       mrp: mrpPaise,
       tax_rate: formTaxRate,
       is_tax_inclusive: true,
-      current_stock: stockNum,
+      current_stock: formIsUnlimitedStock ? 999999 : stockNum,
       min_stock_level: minStockNum,
       barcode: formBarcode.trim() || undefined,
       is_favorite: formIsFavorite,
@@ -638,6 +647,39 @@ export default function ProductsPage() {
                 }
               />
             </div>
+          </div>
+
+          {/* Kirana Loose & Unlimited Stock Options */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formIsLooseItem}
+                onChange={(e) => setFormIsLooseItem(e.target.checked)}
+                className="mt-0.5 rounded text-slate-900 focus:ring-0 cursor-pointer"
+              />
+              <div>
+                <span className="font-bold text-slate-900 block">⚖️ Loose Item / Sold by Weight</span>
+                <span className="text-[10px] text-slate-500 block">
+                  Allows custom fractional weights (e.g. 50g, 250g, 0.5 kg) in billing.
+                </span>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formIsUnlimitedStock}
+                onChange={(e) => setFormIsUnlimitedStock(e.target.checked)}
+                className="mt-0.5 rounded text-slate-900 focus:ring-0 cursor-pointer"
+              />
+              <div>
+                <span className="font-bold text-slate-900 block">♾️ Unlimited / Untracked Stock</span>
+                <span className="text-[10px] text-slate-500 block">
+                  Bypasses stock limits for items where counting is difficult or open.
+                </span>
+              </div>
+            </label>
           </div>
 
           {/* Pin to favorites */}

@@ -61,18 +61,25 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   const [isBluetoothPrinting, setIsBluetoothPrinting] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
 
+  const [selectedUpiIndex, setSelectedUpiIndex] = useState<number>(0);
+
   useEffect(() => {
     setSale(initialSale);
   }, [initialSale]);
+
+  const activeUpi = (business?.upi_ids && business.upi_ids[selectedUpiIndex])
+    ? business.upi_ids[selectedUpiIndex]
+    : { id: 'def', label: 'Primary Shop QR', upi_id: business?.upi_id || '', is_default: true };
 
   useEffect(() => {
     if (isOpen && sale && business) {
       setRecipientPhone(sale.customer_phone || '');
       setShowPhoneInput(!sale.customer_phone);
 
-      if (business.upi_id) {
+      const upiTarget = activeUpi.upi_id || business.upi_id;
+      if (upiTarget) {
         const upiUrl = generateUPILink(
-          business.upi_id,
+          upiTarget,
           business.name,
           sale.balance_due > 0 ? sale.balance_due : sale.grand_total,
           sale.invoice_number
@@ -88,7 +95,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
     } else {
       setQrDataUrl('');
     }
-  }, [isOpen, sale, business]);
+  }, [isOpen, sale, business, selectedUpiIndex]);
 
   if (!sale || !business) return null;
 
@@ -351,10 +358,26 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
 
                   <div className="text-right flex-shrink-0">
                     <span className="inline-block px-3 py-1 bg-white/20 rounded-lg text-xs font-black uppercase text-white tracking-wider">
-                      {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).custom_title || 'TAX INVOICE'}
+                      {sale.status === 'returned'
+                        ? 'SALES RETURN / CREDIT NOTE'
+                        : (business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).custom_title || 'TAX INVOICE'}
                     </span>
                     <p className="text-sm font-black font-mono mt-1 text-white">#{sale.invoice_number}</p>
                     <p className="text-[11px] text-white/80 mt-0.5">{saleDateFormatted}</p>
+                    {sale.status === 'returned' && (
+                      <div className="mt-1">
+                        <span className="px-2 py-0.5 bg-rose-600 text-white font-black text-[9px] rounded uppercase tracking-wider shadow-xs">
+                          RETURNED / CANCELLED
+                        </span>
+                      </div>
+                    )}
+                    {sale.status === 'partial_return' && (
+                      <div className="mt-1">
+                        <span className="px-2 py-0.5 bg-amber-400 text-slate-950 font-black text-[9px] rounded uppercase tracking-wider shadow-xs">
+                          PARTIAL RETURN (-{formatINR(sale.returned_amount || 0)})
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -425,12 +448,39 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 <div className="grid grid-cols-2 gap-4 pt-3 border-t-2 border-slate-800">
                   <div>
                     {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_upi_qr && qrDataUrl && (
-                      <div className="flex items-center gap-3">
-                        <img src={qrDataUrl} alt="UPI QR" className="w-20 h-20 border border-slate-200 rounded p-1" />
-                        <div className="text-[10px] text-slate-600">
-                          <p className="font-bold text-slate-900">Scan & Pay via UPI</p>
-                          <p className="font-mono">{business.upi_id}</p>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                          <img src={qrDataUrl} alt="UPI QR" className="w-20 h-20 border border-slate-200 rounded p-1 bg-white" />
+                          <div className="text-[10px] text-slate-600">
+                            <p className="font-bold text-slate-900 flex items-center gap-1">
+                              <QrCode className="w-3 h-3 text-emerald-700" />
+                              <span>{activeUpi.label || 'Scan & Pay via UPI'}</span>
+                            </p>
+                            <p className="font-mono text-slate-800 font-bold mt-0.5">{activeUpi.upi_id}</p>
+                            <p className="text-[9px] text-slate-400">Zero transaction charges</p>
+                          </div>
                         </div>
+
+                        {/* Multiple UPI Account Switcher Chips (Hidden during printing) */}
+                        {business.upi_ids && business.upi_ids.length > 1 && (
+                          <div className="flex items-center gap-1 pt-1 print:hidden">
+                            <span className="text-[8px] font-bold text-slate-400 uppercase">QR:</span>
+                            {business.upi_ids.map((u, i) => (
+                              <button
+                                key={u.id}
+                                type="button"
+                                onClick={() => setSelectedUpiIndex(i)}
+                                className={`px-1.5 py-0.5 rounded text-[8px] font-bold transition-all ${
+                                  selectedUpiIndex === i
+                                    ? 'bg-slate-900 text-white shadow-xs'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+                                }`}
+                              >
+                                {u.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                     <p className="text-[10px] text-slate-500 italic mt-2">Amount in words: {amountWords}</p>
@@ -470,6 +520,27 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   </div>
                 </div>
 
+                {/* Bottom Platform Advertisement Banner (Free Tier Only) */}
+                {(!business.subscription_tier || business.subscription_tier === 'free') && (
+                  <div 
+                    className="p-2.5 rounded-lg text-white flex items-center justify-between gap-2 shadow-xs"
+                    style={{ backgroundColor: (business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).primary_color }}
+                  >
+                    <div>
+                      <div className="font-black text-xs leading-tight flex items-center gap-1.5">
+                        <span>⚡ Billed with KamaiPlus POS</span>
+                        <span className="text-[9px] font-normal opacity-85">• Free Retail Invoicing &amp; Khata</span>
+                      </div>
+                      <div className="text-[9.5px] text-white/90 mt-0.5">
+                        Get your free GST billing &amp; WhatsApp invoicing app • <span className="font-bold underline">kamaiplus.proventure.in</span>
+                      </div>
+                    </div>
+                    <span className="px-1.5 py-0.5 rounded bg-white/20 text-[9px] font-black uppercase tracking-wider flex-shrink-0">
+                      Kamai+
+                    </span>
+                  </div>
+                )}
+
                 {/* Footer terms */}
                 <div className="pt-3 pb-1 border-t border-slate-200 text-center text-[10px] text-slate-500 space-y-0.5">
                   <p>{(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).custom_terms || business.terms_conditions || 'Thank you for your business!'}</p>
@@ -500,6 +571,16 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                     <span>Cust: {sale.customer_name || 'Cash'}</span>
                     <span>{new Date(sale.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
+                  {sale.status === 'returned' && (
+                    <div className="text-center font-bold text-rose-700 pt-1 text-[10px]">
+                      *** RETURNED / CANCELLED ***
+                    </div>
+                  )}
+                  {sale.status === 'partial_return' && (
+                    <div className="text-center font-bold text-amber-800 pt-1 text-[10px]">
+                      *** PARTIAL RETURN (-{formatINR(sale.returned_amount || 0)}) ***
+                    </div>
+                  )}
                 </div>
 
                 {/* Items */}
@@ -544,14 +625,20 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 {qrDataUrl && (
                   <div className="flex flex-col items-center py-1">
                     <img src={qrDataUrl} alt="UPI QR" className="w-24 h-24" />
-                    <div className="text-[9px] font-bold text-slate-700 mt-1">Scan to Pay via UPI</div>
-                    <div className="text-[8px] font-mono text-slate-500">{business.upi_id}</div>
+                    <div className="text-[9px] font-bold text-slate-700 mt-1">{activeUpi.label || 'Scan to Pay via UPI'}</div>
+                    <div className="text-[8px] font-mono text-slate-500">{activeUpi.upi_id || business.upi_id}</div>
                   </div>
                 )}
 
                 <div className="text-center text-[10px] text-slate-500 pt-1">
                   {business.footer_message || 'Thank you! Visit again.'}
                 </div>
+
+                {(!business.subscription_tier || business.subscription_tier === 'free') && (
+                  <div className="text-center text-[8.5px] text-slate-400 pt-1 border-t border-dashed border-slate-200">
+                    Billed via KamaiPlus POS • kamaiplus.proventure.in
+                  </div>
+                )}
               </div>
             )}
           </div>

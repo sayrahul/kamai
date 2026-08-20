@@ -21,13 +21,13 @@ interface I18nContextType {
 }
 
 const I18nContext = createContext<I18nContextType>({
-  language: 'hi',
+  language: 'en',
   setLanguage: () => {},
   t: (path: string) => path,
 });
 
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguageState] = useState<SupportedLanguage>('hi');
+  const [language, setLanguageState] = useState<SupportedLanguage>('en');
 
   useEffect(() => {
     const saved = localStorage.getItem('vyapar_language') as SupportedLanguage;

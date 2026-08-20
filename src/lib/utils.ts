@@ -69,16 +69,33 @@ export function calculateTax(
 }
 
 /**
- * Generates an instant UPI Payment deep link or dynamic QR payload
+ * Generates an instant UPI Payment deep link or dynamic QR payload.
+ * Supports direct URLs (https://...), deep links (upi://...), or UPI VPA IDs (name@upi).
  */
 export function generateUPILink(
-  vpa: string,
+  vpaOrLink: string,
   payeeName: string,
   amountPaise?: number,
   invoiceNumber?: string
 ): string {
-  const encodedName = encodeURIComponent(payeeName);
-  let link = `upi://pay?pa=${vpa}&pn=${encodedName}&cu=INR`;
+  if (!vpaOrLink || !vpaOrLink.trim()) return '';
+  const trimmed = vpaOrLink.trim();
+
+  // If already a full URL or custom deep link (https, http, paytm, upi, etc.)
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('upi://') ||
+    trimmed.startsWith('paytmmp://') ||
+    trimmed.startsWith('phonepe://') ||
+    trimmed.startsWith('gpay://')
+  ) {
+    return trimmed;
+  }
+
+  // Standard UPI VPA format (e.g. merchant@icici, 9876543210@paytm)
+  const encodedName = encodeURIComponent(payeeName || 'Store');
+  let link = `upi://pay?pa=${trimmed}&pn=${encodedName}&cu=INR`;
   if (amountPaise && amountPaise > 0) {
     const amountRupees = (amountPaise / 100).toFixed(2);
     link += `&am=${amountRupees}`;

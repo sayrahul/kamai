@@ -26,6 +26,13 @@ export type InvoiceThemeId =
   | 'compact_kirana' 
   | 'thermal_minimal';
 
+export interface UpiAccount {
+  id: string;
+  label: string;
+  upi_id: string;
+  is_default: boolean;
+}
+
 export interface InvoiceThemeConfig {
   theme_id: InvoiceThemeId;
   primary_color: string;
@@ -39,6 +46,9 @@ export interface InvoiceThemeConfig {
   show_mrp_savings: boolean;
   show_terms: boolean;
   show_signature: boolean;
+  show_ad_banner?: boolean;
+  custom_ad_banner_text?: string;
+  custom_ad_banner_subtext?: string;
   custom_title?: string;
   custom_footer?: string;
   custom_terms?: string;
@@ -57,6 +67,7 @@ export interface Business {
   pincode?: string;
   gstin?: string;
   upi_id?: string;
+  upi_ids?: UpiAccount[];
   bank_name?: string;
   bank_account_no?: string;
   bank_ifsc?: string;
@@ -68,6 +79,8 @@ export interface Business {
   terms_conditions?: string;
   footer_message?: string;
   invoice_theme_config?: InvoiceThemeConfig;
+  subscription_tier?: 'free' | 'pro' | 'enterprise';
+  subscription_valid_until?: string;
   is_onboarded: boolean;
   created_at: string;
   updated_at: string;
@@ -109,6 +122,9 @@ export interface Product {
   selling_price: number; // in paise (Retail MRP/Standard)
   wholesale_price?: number; // in paise (Thok Bhav / Bulk Rate)
   wholesale_min_qty?: number; // minimum quantity to trigger wholesale pricing
+  is_loose_item?: boolean; // Kirana loose item sold by open weight
+  allow_decimal?: boolean; // allows decimal quantities (0.25 kg, 0.5 kg, etc.)
+  is_unlimited_stock?: boolean; // bypasses zero stock block
   mrp: number; // in paise
   tax_rate: number; // percentage (0, 5, 12, 18, 28)
   is_tax_inclusive: boolean;
@@ -188,7 +204,7 @@ export interface CartItem {
 
 export type PaymentMethod = 'cash' | 'upi' | 'card' | 'bank_transfer' | 'credit' | 'split';
 export type PaymentStatus = 'paid' | 'partial' | 'unpaid';
-export type SaleStatus = 'completed' | 'cancelled' | 'draft';
+export type SaleStatus = 'completed' | 'cancelled' | 'returned' | 'partial_return' | 'draft';
 
 export interface PaymentSplit {
   cash_amount: number; // in paise
@@ -219,6 +235,9 @@ export interface Sale {
   change_returned: number; // in paise
   payment_status: PaymentStatus;
   status: SaleStatus;
+  has_return?: boolean;
+  returned_amount?: number; // in paise
+  return_id?: string;
   notes?: string;
   created_by: string;
   created_at: string;

@@ -27,11 +27,14 @@
     "dashboard": "मुख्यपृष्ठ",
     "sell": "विक्री (POS)",
     "products": "वस्तू यादी",
-    "inventory": "साठा (Stock)",
-    "khata": "खातेवही (उधार)",
+    "inventory": "स्टॉक",
+    "khata": "खाते (उधार)",
     "customers": "ग्राहक",
     "purchases": "खरेदी",
-    "growth": "व्हॉट्सॲप आणि वाढ",
+    "transactions": "विक्री इतिहास (Transactions)",
+    "backup": "डेटा बॅकअप व सुरक्षा",
+    "gst": "GST व टॅक्स रिपोर्ट्स",
+    "growth": "व्हॉट्सॲप व वाढ",
     "settings": "सेटिंग्ज"
   },
   "onboarding": {

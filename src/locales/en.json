@@ -31,6 +31,9 @@
     "khata": "Khata (Udhar)",
     "customers": "Customers",
     "purchases": "Purchases",
+    "transactions": "Transaction History",
+    "backup": "Data Backup & Restore",
+    "gst": "GST & Tax Reports",
     "growth": "Growth & WhatsApp",
     "settings": "Settings"
   },

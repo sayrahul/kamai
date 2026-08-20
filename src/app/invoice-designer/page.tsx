@@ -7,8 +7,7 @@ import {
   InvoiceThemeConfig, 
   InvoiceThemeId, 
   Business, 
-  Sale, 
-  CartItem 
+  UpiAccount 
 } from '@/types';
 import { 
   INVOICE_THEME_PRESETS, 
@@ -25,18 +24,15 @@ import {
   Palette, 
   CheckCircle2, 
   Save, 
-  Share2, 
   Download, 
-  Printer, 
   Sparkles, 
-  Store, 
-  FileText, 
   QrCode, 
   Eye, 
   ShieldCheck, 
-  MessageCircle,
-  HelpCircle,
-  Undo2
+  Plus,
+  Trash2,
+  Megaphone,
+  CreditCard
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -45,6 +41,9 @@ export default function InvoiceDesignerPage() {
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
 
   const [config, setConfig] = useState<InvoiceThemeConfig>(DEFAULT_INVOICE_THEME_CONFIG);
+  const [upiList, setUpiList] = useState<UpiAccount[]>([]);
+  const [selectedUpiIndex, setSelectedUpiIndex] = useState<number>(0);
+
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [sampleQrUrl, setSampleQrUrl] = useState<string>('');
@@ -59,18 +58,31 @@ export default function InvoiceDesignerPage() {
         });
       }
 
-      // Generate Sample UPI QR Code
-      const upiLink = generateUPILink(
-        business.upi_id || 'merchant@upi',
-        business.name || 'Store',
-        88500, // Rs. 885.00
-        'INV-SAMPLE'
-      );
-      QRCode.toDataURL(upiLink, { width: 140, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
-        .then(setSampleQrUrl)
-        .catch(() => setSampleQrUrl(''));
+      const initialUpiList: UpiAccount[] = business.upi_ids && business.upi_ids.length > 0
+        ? business.upi_ids
+        : business.upi_id
+        ? [{ id: 'upi_def', label: 'Primary Shop QR', upi_id: business.upi_id, is_default: true }]
+        : [{ id: 'upi_def', label: 'Primary Shop QR', upi_id: 'merchant@upi', is_default: true }];
+
+      setUpiList(initialUpiList);
     }
   }, [business]);
+
+  // Update Sample QR when active UPI or config changes
+  useEffect(() => {
+    const activeUpi = upiList[selectedUpiIndex] || upiList[0];
+    const upiString = activeUpi?.upi_id || business?.upi_id || 'merchant@upi';
+
+    const upiLink = generateUPILink(
+      upiString,
+      business?.name || 'Store',
+      88500, // Rs. 885.00
+      'INV-SAMPLE'
+    );
+    QRCode.toDataURL(upiLink, { width: 140, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
+      .then(setSampleQrUrl)
+      .catch(() => setSampleQrUrl(''));
+  }, [selectedUpiIndex, upiList, business]);
 
   // Handle Preset Change
   const handleSelectPreset = (presetId: InvoiceThemeId) => {
@@ -87,8 +99,11 @@ export default function InvoiceDesignerPage() {
   const handleSave = async () => {
     if (!business) return;
     try {
+      const primaryUpi = upiList.find((u) => u.is_default)?.upi_id || upiList[0]?.upi_id || business.upi_id;
       await db.businesses.update(business.id, {
         invoice_theme_config: config,
+        upi_id: primaryUpi,
+        upi_ids: upiList,
         terms_conditions: config.custom_terms || business.terms_conditions,
         footer_message: config.custom_footer || business.footer_message,
         updated_at: new Date().toISOString(),
@@ -119,14 +134,16 @@ export default function InvoiceDesignerPage() {
   const sampleItems = [
     { name: 'Aashirvaad Shudh Chakki Atta (5kg)', hsn: '1101', qty: 2, mrp: 28000, price: 25500, gst: 5, total: 51000 },
     { name: 'Fortune Sunlite Sunflower Oil (1L)', hsn: '1512', qty: 2, mrp: 16500, price: 14500, gst: 5, total: 29000 },
-    { name: 'Tata Salt Vacuum Evaporated (1kg)', hsn: '2501', qty: 3, mrp: 3000, price: 2800, gst: 0, total: 8400 },
+    { name: 'Loose Basmati Rice Premium (1.5 kg)', hsn: '1006', qty: 1.5, mrp: 15000, price: 13000, gst: 0, total: 19500 },
   ];
 
-  const subtotalPaise = sampleItems.reduce((acc, i) => acc + i.total, 0); // 88400 paise = Rs. 884.00
-  const gstPaise = Math.round(subtotalPaise * 0.05); // Rs. 44.20
-  const grandTotalPaise = subtotalPaise + gstPaise; // Rs. 928.20
-  const totalMrpPaise = sampleItems.reduce((acc, i) => acc + i.mrp * i.qty, 0); // Rs. 980.00
-  const totalSavingsPaise = totalMrpPaise - subtotalPaise; // Rs. 96.00
+  const subtotalPaise = sampleItems.reduce((acc, i) => acc + i.total, 0); // 99500 paise = Rs. 995.00
+  const gstPaise = Math.round(subtotalPaise * 0.05); // Rs. 49.75
+  const grandTotalPaise = subtotalPaise + gstPaise; // Rs. 1044.75
+  const totalMrpPaise = sampleItems.reduce((acc, i) => acc + i.mrp * i.qty, 0);
+  const totalSavingsPaise = totalMrpPaise - subtotalPaise;
+
+  const activeUpi = upiList[selectedUpiIndex] || upiList[0];
 
   return (
     <div className="space-y-5 pb-10">
@@ -139,44 +156,48 @@ export default function InvoiceDesignerPage() {
               <span>Vyapar Style Designer</span>
             </span>
             <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-              Custom PDF & WhatsApp Invoice Templates
+              Custom PDF, Multi-UPI &amp; Promo Banner Templates
             </span>
           </div>
 
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Invoice Themes & Design
+            Invoice Themes &amp; Design
           </h1>
           <p className="text-xs text-slate-500">
-            Choose your brand colors, layout, tax headers, and UPI QR codes. Selected template applies automatically to WhatsApp shares and PDF prints.
+            Choose your brand colors, layout, tax headers, multiple UPI QR codes, and bottom advertisement banner.
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Top Actions */}
+        <div className="flex items-center gap-2.5">
           <Button
             variant="outline"
             size="sm"
             onClick={handleDownloadSamplePdf}
             disabled={isExporting}
-            className="text-xs font-bold gap-1"
+            className="text-xs font-bold gap-1.5"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Sample PDF</span>
+            <span>{isExporting ? 'Generating PDF...' : 'Sample PDF'}</span>
           </Button>
 
           <Button
             size="sm"
             onClick={handleSave}
-            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 px-4 shadow-sm"
+            className={`font-black text-xs gap-1.5 shadow-sm transition-all ${
+              isSaved
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : 'bg-slate-900 hover:bg-slate-800 text-white'
+            }`}
           >
             {isSaved ? (
               <>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Template Saved!</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                <span>Saved Live!</span>
               </>
             ) : (
               <>
-                <Save className="w-4 h-4" />
+                <Save className="w-3.5 h-3.5" />
                 <span>Save Template</span>
               </>
             )}
@@ -187,10 +208,10 @@ export default function InvoiceDesignerPage() {
       {/* ---------------- MAIN DESIGNER LAYOUT (2 COLUMNS) ---------------- */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ========================================================================= */}
-        {/* LEFT COLUMN: CUSTOMIZATION CONTROLS (7 Cols on Desktop) */}
+        {/* LEFT COLUMN: CUSTOMIZATION CONTROLS (6 Cols on Desktop) */}
         {/* ========================================================================= */}
         <div className="lg:col-span-6 space-y-5">
-          {/* STEP 1: PRESET THEMES SELECTION */}
+          {/* STEP 1: PRESET THEMES SELECTION (100% Full Width Color Bar Fix) */}
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -207,44 +228,46 @@ export default function InvoiceDesignerPage() {
                   <div
                     key={preset.id}
                     onClick={() => handleSelectPreset(preset.id)}
-                    className={`p-3 rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
+                    className={`rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
                       isSelected
-                        ? 'border-slate-900 bg-slate-50 shadow-sm ring-2 ring-slate-900/10'
+                        ? 'border-slate-900 bg-slate-50/70 shadow-sm ring-2 ring-slate-900/10'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
-                    {/* Top Color Accent Strip */}
+                    {/* 100% Full Width Edge-to-Edge Color Bar */}
                     <div
-                      className="h-2 w-full rounded-t -mt-3 -mx-3 mb-2.5 px-3"
+                      className="h-2.5 w-full block flex-shrink-0"
                       style={{ backgroundColor: preset.primaryColor }}
                     />
 
-                    <div>
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-extrabold text-slate-900 truncate">
-                          {preset.name}
-                        </span>
-                        {isSelected && (
-                          <CheckCircle2 className="w-4 h-4 text-slate-900 flex-shrink-0" />
-                        )}
+                    <div className="p-3 pt-2.5 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-extrabold text-slate-900 truncate">
+                            {preset.name}
+                          </span>
+                          {isSelected && (
+                            <CheckCircle2 className="w-4 h-4 text-slate-900 flex-shrink-0" />
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-bold mt-0.5 uppercase tracking-wide">
+                          {preset.badge} Layout
+                        </div>
+                        <p className="text-[10px] text-slate-600 mt-1 line-clamp-2 leading-relaxed">
+                          {preset.description}
+                        </p>
                       </div>
-                      <div className="text-[10px] text-slate-500 font-bold mt-0.5 uppercase tracking-wide">
-                        {preset.badge} Layout
-                      </div>
-                      <p className="text-[10px] text-slate-600 mt-1 line-clamp-2 leading-relaxed">
-                        {preset.description}
-                      </p>
-                    </div>
 
-                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[9px] px-1.5 py-0.2 rounded font-extrabold bg-slate-200 text-slate-800">
-                        {preset.badge}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="w-3.5 h-3.5 rounded-full border border-slate-300"
-                          style={{ backgroundColor: preset.primaryColor }}
-                        />
+                      <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-[9px] px-1.5 py-0.2 rounded font-extrabold bg-slate-200 text-slate-800">
+                          {preset.badge}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-slate-300"
+                            style={{ backgroundColor: preset.primaryColor }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -296,11 +319,11 @@ export default function InvoiceDesignerPage() {
             </div>
           </Card>
 
-          {/* STEP 3: HEADER, BRANDING & TITLE */}
+          {/* STEP 3: HEADER & INVOICE DISPLAY OPTIONS */}
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">3</span>
-              <span>Header & Branding Toggles</span>
+              <span>Header &amp; Invoice Display Options</span>
             </h2>
 
             <div className="space-y-3">
@@ -326,9 +349,9 @@ export default function InvoiceDesignerPage() {
               </div>
 
               {/* Toggle Switches */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 {[
-                  { id: 'show_logo', label: 'Show Store Logo', desc: 'Display business logo at top left' },
+                  { id: 'show_logo', label: 'Show Store Logo', desc: 'Display logo at top left' },
                   { id: 'show_tagline', label: 'Show Tagline', desc: 'Display store motto or category' },
                   { id: 'show_owner', label: 'Show Owner & Phone', desc: 'Display contact details in header' },
                   { id: 'show_upi_qr', label: 'Show Dynamic UPI QR', desc: 'Auto payment QR code for customers' },
@@ -370,22 +393,57 @@ export default function InvoiceDesignerPage() {
             </div>
           </Card>
 
-          {/* STEP 4: FOOTER TERMS & CONDITIONS */}
+          {/* STEP 4: PLATFORM BRANDING & PROMO BANNER (FREE PLAN) */}
+          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">4</span>
+                <span className="flex items-center gap-1.5">
+                  <Megaphone className="w-4 h-4 text-amber-600" />
+                  <span>Platform Branding &amp; Promo Banner</span>
+                </span>
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                {business?.subscription_tier === 'pro' || business?.subscription_tier === 'enterprise' ? 'Pro (White-Label)' : 'Free Tier Active'}
+              </span>
+            </div>
+
+            <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs space-y-1.5">
+              <div className="font-bold text-amber-950 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                <span>Free Plan Footer Promotion</span>
+              </div>
+              <p className="text-[11px] text-amber-900 leading-relaxed">
+                Invoices on the <strong>Free Tier</strong> include the KamaiPlus platform footer promotion strip.
+                {business?.subscription_tier === 'pro' || business?.subscription_tier === 'enterprise' ? (
+                  <span className="text-emerald-700 font-bold block mt-1">
+                    ✅ Your account is Pro/Enterprise — White-label enabled (platform ads are hidden on your customer invoices).
+                  </span>
+                ) : (
+                  <span className="text-slate-600 block mt-1">
+                    Upgrade to <strong>Pro</strong> or <strong>Enterprise</strong> to remove platform branding and get 100% custom white-label invoices.
+                  </span>
+                )}
+              </p>
+            </div>
+          </Card>
+
+          {/* STEP 5: FOOTER TERMS & CONDITIONS */}
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">4</span>
-              <span>Terms & Footer Note</span>
+              <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">5</span>
+              <span>Terms &amp; Footer Note</span>
             </h2>
 
             <div className="space-y-3">
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 block">Terms & Conditions</label>
+                <label className="text-xs font-bold text-slate-700 block">Terms &amp; Conditions</label>
                 <textarea
                   rows={2}
                   value={config.custom_terms || ''}
                   onChange={(e) => setConfig((prev) => ({ ...prev, custom_terms: e.target.value }))}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-slate-900"
-                  placeholder="e.g. 1. Goods once sold will be replaced within 7 days. 2. Subject to Mumbai jurisdiction."
+                  placeholder="e.g. 1. Goods once sold will be replaced within 7 days. 2. Subject to local jurisdiction."
                 />
               </div>
 
@@ -404,7 +462,7 @@ export default function InvoiceDesignerPage() {
         </div>
 
         {/* ========================================================================= */}
-        {/* RIGHT COLUMN: LIVE INTERACTIVE PREVIEW (6 Cols on Desktop) */}
+        {/* RIGHT COLUMN: LIVE INTERACTIVE PREVIEW (Full Width Unclipped Canvas) */}
         {/* ========================================================================= */}
         <div className="lg:col-span-6 sticky top-20 space-y-3">
           <div className="flex items-center justify-between px-1">
@@ -415,37 +473,37 @@ export default function InvoiceDesignerPage() {
             <span className="text-[11px] text-slate-500 font-medium">A4 High-Res Format</span>
           </div>
 
-          {/* INVOICE PREVIEW CONTAINER */}
-          <div className="bg-slate-200/80 p-3 sm:p-5 rounded-2xl border border-slate-300 max-h-[85vh] overflow-y-auto flex justify-center shadow-inner">
+          {/* INVOICE PREVIEW CONTAINER (Complete Full Sheet Without Scrollbars) */}
+          <div className="bg-slate-100/90 p-2 sm:p-3 rounded-2xl border border-slate-300 shadow-inner flex justify-center overflow-hidden">
             <div
               id="preview-live-invoice"
-              className="bg-white border rounded-xl w-full max-w-lg p-5 sm:p-6 space-y-4 text-slate-900 shadow-md text-xs"
+              className="bg-white border rounded-xl w-full max-w-full p-3 sm:p-3.5 space-y-2 text-slate-900 shadow-md text-[10.5px] leading-tight box-border"
               style={{ borderColor: config.primary_color }}
             >
               {/* THEME HEADER BANNER */}
               <div
-                className="p-3.5 rounded-lg text-white flex justify-between items-start gap-3"
+                className="p-2.5 rounded-lg text-white flex justify-between items-start gap-2"
                 style={{ backgroundColor: config.primary_color }}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-2.5">
                   {config.show_logo && business?.logo_url && (
                     <img
                       src={business.logo_url}
                       alt="Logo"
-                      className="w-12 h-12 rounded object-contain bg-white p-0.5 flex-shrink-0"
+                      className="w-9 h-9 rounded object-contain bg-white p-0.5 flex-shrink-0"
                     />
                   )}
                   <div>
-                    <h3 className="font-extrabold text-base tracking-tight text-white leading-tight">
+                    <h3 className="font-black text-sm tracking-tight text-white leading-tight">
                       {business?.name || 'Mahadev Super Mart'}
                     </h3>
                     {config.show_tagline && (
-                      <p className="text-[10px] text-white/80 italic mt-0.5">
+                      <p className="text-[9px] text-white/80 italic mt-0.5">
                         {business?.tagline || 'Complete Kirana & FMCG Store'}
                       </p>
                     )}
                     {config.show_owner && (
-                      <div className="text-[10px] text-white/90 mt-1">
+                      <div className="text-[9px] text-white/90 mt-0.5">
                         <span>{business?.owner_name || 'Ramesh Patel'}</span> • <span>{business?.phone || '9876543210'}</span>
                       </div>
                     )}
@@ -453,34 +511,34 @@ export default function InvoiceDesignerPage() {
                 </div>
 
                 <div className="text-right">
-                  <span className="px-2 py-0.5 rounded bg-white/20 text-white font-black text-[11px] tracking-wider uppercase">
+                  <span className="px-2 py-0.5 rounded bg-white/20 text-white font-black text-[10px] tracking-wider uppercase">
                     {config.custom_title || 'TAX INVOICE'}
                   </span>
-                  <div className="text-[10px] text-white/80 font-mono mt-1">
+                  <div className="text-[9px] text-white/80 font-mono mt-0.5">
                     #INV-SAMPLE-01
                   </div>
-                  <div className="text-[10px] text-white/70">
+                  <div className="text-[9px] text-white/70">
                     {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </div>
                 </div>
               </div>
 
               {/* BILLED TO & PAYMENT SUMMARY ROW */}
-              <div className="grid grid-cols-2 gap-3 p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px]">
+              <div className="grid grid-cols-2 gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 text-[10px]">
                 <div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Billed To:</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Billed To:</span>
                   <div className="font-bold text-slate-900 mt-0.5">Sunil Verma</div>
-                  <div className="text-slate-500 font-mono text-[10px]">+91 98234 56789</div>
-                  <div className="text-slate-500 text-[10px]">Shop 4, Market Road</div>
+                  <div className="text-slate-500 font-mono text-[9px]">+91 98234 56789</div>
+                  <div className="text-slate-500 text-[9px]">Shop 4, Market Road</div>
                 </div>
 
                 <div className="text-right">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Payment Mode:</span>
-                  <span className="inline-block mt-0.5 px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Payment Mode:</span>
+                  <span className="inline-block mt-0.5 px-2 py-0.5 rounded font-bold text-[9px] bg-emerald-100 text-emerald-900 border border-emerald-300">
                     PAID (UPI)
                   </span>
                   {config.show_mrp_savings && (
-                    <div className="text-[10px] text-emerald-700 font-bold mt-1">
+                    <div className="text-[9px] text-emerald-700 font-bold mt-0.5">
                       You Saved: {formatINR(totalSavingsPaise)}
                     </div>
                   )}
@@ -488,30 +546,30 @@ export default function InvoiceDesignerPage() {
               </div>
 
               {/* ITEMS TABLE */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px]">
+              <div className="overflow-hidden">
+                <table className="w-full text-left text-[10px]">
                   <thead>
                     <tr
-                      className="border-b-2 text-white font-bold"
+                      className="text-white font-bold"
                       style={{ backgroundColor: config.primary_color }}
                     >
-                      <th className="py-1.5 px-2 rounded-l">Item Description</th>
-                      {config.show_hsn_code && <th className="py-1.5 px-1.5 text-center">HSN</th>}
-                      <th className="py-1.5 px-1.5 text-center">Qty</th>
-                      <th className="py-1.5 px-1.5 text-right">Price</th>
-                      {config.show_gst_breakup && <th className="py-1.5 px-1.5 text-center">GST</th>}
-                      <th className="py-1.5 px-2 text-right rounded-r">Amount</th>
+                      <th className="py-1 px-1.5 rounded-l">Item Description</th>
+                      {config.show_hsn_code && <th className="py-1 px-1 text-center w-12">HSN</th>}
+                      <th className="py-1 px-1 text-center w-10">Qty</th>
+                      <th className="py-1 px-1.5 text-right w-16">Price</th>
+                      {config.show_gst_breakup && <th className="py-1 px-1 text-center w-10">GST</th>}
+                      <th className="py-1 px-1.5 text-right w-16 rounded-r">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
                     {sampleItems.map((item, idx) => (
                       <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                        <td className="py-1.5 px-2 text-slate-900 font-semibold">{item.name}</td>
-                        {config.show_hsn_code && <td className="py-1.5 px-1.5 text-center text-slate-400 font-mono">{item.hsn}</td>}
-                        <td className="py-1.5 px-1.5 text-center font-bold">{item.qty}</td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-slate-600">{formatINR(item.price)}</td>
-                        {config.show_gst_breakup && <td className="py-1.5 px-1.5 text-center text-slate-500 font-bold">{item.gst}%</td>}
-                        <td className="py-1.5 px-2 text-right font-mono font-bold text-slate-900">{formatINR(item.total)}</td>
+                        <td className="py-1 px-1.5 text-slate-900 font-semibold">{item.name}</td>
+                        {config.show_hsn_code && <td className="py-1 px-1 text-center text-slate-400 font-mono text-[9px]">{item.hsn}</td>}
+                        <td className="py-1 px-1 text-center font-bold">{item.qty}</td>
+                        <td className="py-1 px-1.5 text-right font-mono text-slate-600">{formatINR(item.price)}</td>
+                        {config.show_gst_breakup && <td className="py-1 px-1 text-center text-slate-500 font-bold">{item.gst}%</td>}
+                        <td className="py-1 px-1.5 text-right font-mono font-bold text-slate-900">{formatINR(item.total)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -519,50 +577,50 @@ export default function InvoiceDesignerPage() {
               </div>
 
               {/* TOTALS & UPI QR CODE ROW */}
-              <div className="pt-2 border-t border-slate-200 grid grid-cols-12 gap-3 items-end">
+              <div className="pt-1.5 border-t border-slate-200 grid grid-cols-12 gap-2 items-center">
                 {/* Left: Dynamic UPI QR Code */}
-                <div className="col-span-7 space-y-1">
+                <div className="col-span-7">
                   {config.show_upi_qr && (
-                    <div className="flex items-center gap-2.5 p-2 rounded-lg bg-slate-50 border border-slate-200">
+                    <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-2">
                       {sampleQrUrl ? (
                         <img
                           src={sampleQrUrl}
                           alt="UPI QR"
-                          className="w-14 h-14 object-contain rounded border border-slate-300 p-0.5 bg-white flex-shrink-0"
+                          className="w-11 h-11 object-contain rounded border border-slate-300 p-0.5 bg-white flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-14 h-14 bg-slate-200 rounded flex items-center justify-center text-[9px] font-bold text-slate-500">
-                          UPI QR
+                        <div className="w-11 h-11 bg-slate-200 rounded flex items-center justify-center text-[8px] font-bold text-slate-500 flex-shrink-0">
+                          QR
                         </div>
                       )}
-                      <div>
-                        <div className="text-[10px] font-black text-slate-900 flex items-center gap-1">
-                          <QrCode className="w-3 h-3 text-emerald-700" />
-                          <span>Scan & Pay with UPI</span>
+                      <div className="min-w-0">
+                        <div className="text-[9.5px] font-black text-slate-900 flex items-center gap-1">
+                          <QrCode className="w-2.5 h-2.5 text-emerald-700 flex-shrink-0" />
+                          <span className="truncate">{activeUpi?.label || 'Scan & Pay via UPI'}</span>
                         </div>
-                        <div className="text-[9px] text-slate-500 font-mono mt-0.5">
-                          {business?.upi_id || '9876543210@upi'}
+                        <div className="text-[8.5px] text-slate-600 font-mono font-bold truncate">
+                          {activeUpi?.upi_id || business?.upi_id || 'merchant@upi'}
                         </div>
-                        <div className="text-[8px] text-slate-400">Zero transaction charges</div>
+                        <div className="text-[7.5px] text-slate-400">Zero transaction charges</div>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Right: Subtotal, GST, Grand Total */}
-                <div className="col-span-5 space-y-1 text-right text-[11px]">
+                <div className="col-span-5 space-y-0.5 text-right text-[10px]">
                   <div className="flex justify-between text-slate-600">
                     <span>Subtotal:</span>
                     <span className="font-mono font-semibold">{formatINR(subtotalPaise)}</span>
                   </div>
                   {config.show_gst_breakup && (
-                    <div className="flex justify-between text-slate-600">
+                    <div className="flex justify-between text-slate-600 text-[9px]">
                       <span>GST (CGST+SGST):</span>
                       <span className="font-mono font-semibold">{formatINR(gstPaise)}</span>
                     </div>
                   )}
                   <div
-                    className="flex justify-between font-black text-xs pt-1 border-t text-white p-1 rounded"
+                    className="flex justify-between font-black text-[11px] pt-0.5 border-t text-white px-1.5 py-0.5 rounded mt-0.5"
                     style={{ backgroundColor: config.primary_color }}
                   >
                     <span>Grand Total:</span>
@@ -571,26 +629,47 @@ export default function InvoiceDesignerPage() {
                 </div>
               </div>
 
+              {/* BOTTOM PLATFORM ADVERTISEMENT BANNER (Shown on Free Tier) */}
+              {(!business?.subscription_tier || business?.subscription_tier === 'free') && (
+                <div 
+                  className="p-2 rounded-lg text-white flex items-center justify-between gap-1.5 shadow-xs"
+                  style={{ backgroundColor: config.primary_color }}
+                >
+                  <div>
+                    <div className="font-black text-[10px] leading-tight flex items-center gap-1">
+                      <span>⚡ Billed with KamaiPlus POS</span>
+                      <span className="text-[8.5px] font-normal opacity-85">• Free Invoicing</span>
+                    </div>
+                    <div className="text-[8.5px] text-white/90 mt-0.5">
+                      GST billing &amp; WhatsApp invoices • <span className="font-bold underline">kamaiplus.proventure.in</span>
+                    </div>
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded bg-white/20 text-[8.5px] font-black uppercase tracking-wider flex-shrink-0">
+                    Kamai+
+                  </span>
+                </div>
+              )}
+
               {/* FOOTER & TERMS & SIGNATURE */}
-              <div className="pt-3 border-t border-slate-200 flex items-end justify-between gap-4 text-[10px]">
-                <div className="space-y-1 flex-1">
+              <div className="pt-1.5 border-t border-slate-200 flex items-end justify-between gap-2 text-[9px]">
+                <div className="space-y-0.5 flex-1 min-w-0">
                   {config.show_terms && (
                     <div>
-                      <span className="font-bold text-slate-700 block">Terms & Conditions:</span>
-                      <p className="text-slate-500 text-[9px] whitespace-pre-line leading-tight">
+                      <span className="font-bold text-slate-700 block text-[8.5px]">Terms &amp; Conditions:</span>
+                      <p className="text-slate-500 text-[8px] whitespace-pre-line leading-tight">
                         {config.custom_terms || 'Goods once sold will not be returned after 7 days.'}
                       </p>
                     </div>
                   )}
-                  <p className="text-slate-400 italic text-[9px]">
+                  <p className="text-slate-400 italic text-[8px] truncate">
                     {config.custom_footer || 'Thank you for your business! Please visit again.'}
                   </p>
                 </div>
 
                 {config.show_signature && (
-                  <div className="text-center w-28 flex-shrink-0">
-                    <div className="h-8 border-b border-dashed border-slate-400 mb-1" />
-                    <span className="text-[9px] font-bold text-slate-700 block uppercase">
+                  <div className="text-center w-24 flex-shrink-0">
+                    <div className="h-5 border-b border-dashed border-slate-400 mb-0.5" />
+                    <span className="text-[8px] font-bold text-slate-700 block uppercase">
                       Authorised Signatory
                     </span>
                   </div>

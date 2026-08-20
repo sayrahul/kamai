@@ -8,21 +8,23 @@ import {
   restoreDatabaseFromPayload, 
   FullBackupPayload 
 } from '@/lib/backup/cloudBackupService';
+import { generateTallyPrimeXML } from '@/lib/tally/tallyXmlGenerator';
+import { generateCASalesRegisterCSV } from '@/lib/tally/caExcelGenerator';
 import { 
   Download, 
   Upload, 
   CheckCircle2, 
-  Clock, 
-  ShieldCheck, 
-  Database, 
   HardDrive,
   FileDown,
-  RefreshCw,
+  FileSpreadsheet,
+  BookOpen,
+  ArrowRight,
   Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
+import Link from 'next/link';
 
 export default function CloudBackupPage() {
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -30,6 +32,9 @@ export default function CloudBackupPage() {
   const customerCount = useLiveQuery(async () => db.customers.count()) || 0;
   const saleCount = useLiveQuery(async () => db.sales.count()) || 0;
   const khataCount = useLiveQuery(async () => db.ledger_transactions.count()) || 0;
+
+  const sales = useLiveQuery(async () => db.sales.toArray()) || [];
+  const customers = useLiveQuery(async () => db.customers.toArray()) || [];
 
   const totalRecords = productCount + customerCount + saleCount + khataCount;
 
@@ -70,6 +75,45 @@ export default function CloudBackupPage() {
     }
   };
 
+  // Export 1-Click Tally Prime XML
+  const handleExportTallyXML = () => {
+    if (sales.length === 0) {
+      alert('No sales transactions recorded yet.');
+      return;
+    }
+    const { xml, filename } = generateTallyPrimeXML({
+      business,
+      sales,
+      customers,
+    });
+    const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Export CA Master Excel CSV
+  const handleExportCAMasterCSV = () => {
+    if (sales.length === 0) {
+      alert('No sales transactions recorded yet.');
+      return;
+    }
+    const { csv, filename } = generateCASalesRegisterCSV({
+      business,
+      sales,
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Handle file select for restore
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -89,7 +133,7 @@ export default function CloudBackupPage() {
       }
     };
     reader.readAsText(file);
-    e.target.value = ''; // reset
+    e.target.value = '';
   };
 
   // Confirm Restore
@@ -117,14 +161,14 @@ export default function CloudBackupPage() {
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1.5">
               <HardDrive className="w-3.5 h-3.5 text-amber-700" />
-              <span>Store Data Protection</span>
+              <span>Store Data Protection &amp; Tax Exports</span>
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Backup & Restore Database
+            Data Backup &amp; Tax Reports
           </h1>
           <p className="text-xs text-slate-500">
-            Download an offline backup file of all products, sales and customer khata to restore anytime.
+            Download offline JSON database snapshots, official Tally Prime XML, and CA Master Sales Registers.
           </p>
         </div>
 
@@ -138,7 +182,7 @@ export default function CloudBackupPage() {
         </Button>
       </div>
 
-      {/* ---------------- COMPACT 1-LINE STATUS BADGE (MINIMALIST) ---------------- */}
+      {/* ---------------- COMPACT STATUS BADGE ---------------- */}
       <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-semibold text-slate-700">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0 animate-pulse" />
@@ -169,50 +213,142 @@ export default function CloudBackupPage() {
         </div>
       )}
 
-      {/* ---------------- 2 COMPACT MINIMALIST ACTION CARDS ---------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* CARD 1: EXPORT / DOWNLOAD */}
-        <div className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-3 hover:border-slate-300 transition-all">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold flex-shrink-0">
-              <Download className="w-4 h-4 text-amber-800" />
+      {/* ---------------- SECTION 1: DATABASE BACKUP & RESTORE ---------------- */}
+      <div className="space-y-3">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          Database Snapshot &amp; Restore
+        </h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* CARD 1: EXPORT / DOWNLOAD */}
+          <div className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-3 hover:border-slate-300 transition-all">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold flex-shrink-0">
+                <Download className="w-4 h-4 text-amber-800" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-xs font-bold text-slate-900 leading-tight">Export Full Backup</h3>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">Save .json snapshot file</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <h3 className="text-xs font-bold text-slate-900 leading-tight">Export Backup</h3>
-              <p className="text-[11px] text-slate-500 truncate mt-0.5">Save .json snapshot file</p>
-            </div>
+
+            <Button
+              size="sm"
+              onClick={handleDownloadBackup}
+              disabled={isBackingUp}
+              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg flex-shrink-0 cursor-pointer h-8"
+            >
+              <Download className="w-3 h-3 mr-1 text-amber-400" />
+              <span>{isBackingUp ? 'Saving...' : 'Download'}</span>
+            </Button>
           </div>
 
-          <Button
-            size="sm"
-            onClick={handleDownloadBackup}
-            disabled={isBackingUp}
-            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg flex-shrink-0 cursor-pointer h-8"
-          >
-            <Download className="w-3 h-3 mr-1 text-amber-400" />
-            <span>{isBackingUp ? 'Saving...' : 'Download'}</span>
-          </Button>
+          {/* CARD 2: RESTORE DATABASE */}
+          <div className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-3 hover:border-slate-300 transition-all">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center font-bold flex-shrink-0">
+                <Upload className="w-4 h-4 text-slate-700" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-xs font-bold text-slate-900 leading-tight">Restore Database</h3>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">Upload .json backup file</p>
+              </div>
+            </div>
+
+            <label className="cursor-pointer flex-shrink-0">
+              <div className="px-3 py-1.5 border border-slate-300 hover:bg-slate-50 rounded-lg text-slate-800 font-bold text-xs flex items-center gap-1 transition-colors h-8">
+                <Upload className="w-3 h-3 text-slate-700" />
+                <span>Select File</span>
+              </div>
+              <input type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
+            </label>
+          </div>
         </div>
+      </div>
 
-        {/* CARD 2: RESTORE DATABASE */}
-        <div className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-3 hover:border-slate-300 transition-all">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center font-bold flex-shrink-0">
-              <Upload className="w-4 h-4 text-slate-700" />
+      {/* ---------------- SECTION 2: TALLY PRIME & CA MASTER EXCEL BRIDGE ---------------- */}
+      <div className="space-y-3 pt-2">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          Accounting Software &amp; Tax Exports
+        </h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* TALLY PRIME XML */}
+          <div className="p-4 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-white border border-amber-300/80 rounded-xl space-y-3 shadow-2xs">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xs shadow-xs">
+                  T
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-900">Tally Prime XML Export</h3>
+                  <p className="text-[11px] text-slate-500">1-Click Vouchers &amp; Sundry Debtors</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-200 text-amber-950">
+                Tally ERP 9
+              </span>
             </div>
-            <div className="min-w-0">
-              <h3 className="text-xs font-bold text-slate-900 leading-tight">Restore Database</h3>
-              <p className="text-[11px] text-slate-500 truncate mt-0.5">Upload .json backup file</p>
-            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Generates official standard Tally Prime XML vouchers with output CGST/SGST/IGST tax ledgers.
+            </p>
+
+            <Button
+              size="sm"
+              onClick={handleExportTallyXML}
+              disabled={sales.length === 0}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 h-8.5"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-400" />
+              <span>Export Tally XML ({sales.length} Invoices)</span>
+            </Button>
           </div>
 
-          <label className="cursor-pointer flex-shrink-0">
-            <div className="px-3 py-1.5 border border-slate-300 hover:bg-slate-50 rounded-lg text-slate-800 font-bold text-xs flex items-center gap-1 transition-colors h-8">
-              <Upload className="w-3 h-3 text-slate-700" />
-              <span>Select File</span>
+          {/* CA MASTER EXCEL / GSTR-1 */}
+          <div className="p-4 bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white border border-indigo-200 rounded-xl space-y-3 shadow-2xs">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                  <FileSpreadsheet className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-900">CA Master Sales Register</h3>
+                  <p className="text-[11px] text-slate-500">GSTR-1 Ready Excel / CSV Table</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-indigo-100 text-indigo-900">
+                CA Format
+              </span>
             </div>
-            <input type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
-          </label>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Complete invoice breakdown with GSTIN, taxable subtotal, rate-wise tax, and discount for GSTR-1.
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={handleExportCAMasterCSV}
+                disabled={sales.length === 0}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1.5 h-8.5"
+              >
+                <Download className="w-3.5 h-3.5 text-white" />
+                <span>Export CA CSV</span>
+              </Button>
+
+              <Link href="/gst-reports" className="flex-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs font-bold gap-1 border-indigo-200 text-indigo-900 hover:bg-indigo-50 h-8.5"
+                >
+                  <span>GSTR-1 Hub</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -275,7 +411,7 @@ export default function CloudBackupPage() {
                     className="mt-0.5"
                   />
                   <div>
-                    <div className="font-bold text-slate-900">Merge & Append</div>
+                    <div className="font-bold text-slate-900">Merge &amp; Append</div>
                     <div className="text-[10px] text-slate-500">
                       Appends missing products and sales without deleting new records.
                     </div>

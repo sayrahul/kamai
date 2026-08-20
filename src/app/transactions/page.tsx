@@ -27,11 +27,13 @@ import {
   Clock,
   ChevronRight,
   RotateCcw,
-  Edit3
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { SalesReturnModal } from '@/components/sales/SalesReturnModal';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
@@ -59,6 +61,8 @@ export default function TransactionsPage() {
   const [returnSaleId, setReturnSaleId] = useState<string | undefined>(undefined);
   const [editSale, setEditSale] = useState<Sale | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
+  const [clearConfirmInput, setClearConfirmInput] = useState('');
 
   // Queries
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -235,6 +239,31 @@ export default function TransactionsPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Clear All Transaction History
+  const handleClearAllHistory = async () => {
+    if (clearConfirmInput.toUpperCase() !== 'DELETE') {
+      alert("Please type 'DELETE' to confirm.");
+      return;
+    }
+
+    try {
+      await db.sales.clear();
+      await db.sales_returns.clear();
+      if (business) {
+        await db.businesses.update(business.id, {
+          next_invoice_number: 1,
+          updated_at: new Date().toISOString(),
+        });
+      }
+      setIsClearHistoryModalOpen(false);
+      setClearConfirmInput('');
+      alert('All transaction history has been cleared successfully.');
+    } catch (err) {
+      console.error('Failed to clear history:', err);
+      alert('Failed to clear transaction history.');
+    }
+  };
+
   return (
     <div className="space-y-4 pb-12">
       {/* Top Header */}
@@ -283,6 +312,19 @@ export default function TransactionsPage() {
             <Download className="w-3.5 h-3.5 text-slate-950" />
             <span>Tally Prime XML</span>
           </Button>
+
+          {allSales.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsClearHistoryModalOpen(true)}
+              className="text-xs font-bold text-rose-600 hover:bg-rose-50 border-rose-200 gap-1"
+              title="Delete / Reset All Transaction History"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Clear History</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -610,6 +652,16 @@ export default function TransactionsPage() {
                         )}>
                           {sale.payment_method}
                         </span>
+                        {sale.status === 'returned' && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 border border-rose-300">
+                            ↩️ Returned
+                          </span>
+                        )}
+                        {sale.status === 'partial_return' && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                            ↩️ Partial Return (-{formatINR(sale.returned_amount || 0)})
+                          </span>
+                        )}
                       </div>
 
                       <div className="text-slate-800 font-semibold mt-0.5">
@@ -632,10 +684,17 @@ export default function TransactionsPage() {
                   {/* Right: Amounts & Quick Actions */}
                   <div className="flex items-center justify-between sm:justify-end gap-4 text-right">
                     <div>
-                      <div className="font-extrabold text-sm font-mono text-slate-900">
+                      <div className={cn(
+                        "font-extrabold text-sm font-mono",
+                        sale.status === 'returned' ? "line-through text-slate-400" : "text-slate-900"
+                      )}>
                         {formatINR(sale.grand_total)}
                       </div>
-                      {sale.balance_due > 0 ? (
+                      {sale.status === 'returned' ? (
+                        <div className="text-[10px] font-bold text-rose-600">
+                          Refunded in Full
+                        </div>
+                      ) : sale.balance_due > 0 ? (
                         <div className="text-[10px] font-bold text-amber-700 font-mono">
                           Due: {formatINR(sale.balance_due)}
                         </div>
@@ -723,6 +782,50 @@ export default function TransactionsPage() {
         }}
         initialSaleId={returnSaleId}
       />
+
+      {/* Clear All History Confirmation Modal */}
+      <Modal
+        isOpen={isClearHistoryModalOpen}
+        onClose={() => setIsClearHistoryModalOpen(false)}
+        title="⚠️ Clear All Transaction History"
+        description="This will permanently delete all past invoices, credit sales records, and sales returns. The invoice number counter will be reset to 1."
+      >
+        <div className="space-y-3">
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 space-y-1">
+            <div className="font-bold">Total Invoices to Delete: {allSales.length}</div>
+            <div>Total Revenue: {formatINR(totalRevenuePaise)}</div>
+            <div className="text-[11px] text-rose-700">This action cannot be undone. We recommend exporting Tally XML or CSV before wiping.</div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              Type <span className="text-rose-600 font-mono font-black">DELETE</span> to confirm:
+            </label>
+            <Input
+              type="text"
+              placeholder="DELETE"
+              value={clearConfirmInput}
+              onChange={(e) => setClearConfirmInput(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsClearHistoryModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={clearConfirmInput.toUpperCase() !== 'DELETE'}
+              onClick={handleClearAllHistory}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+            >
+              Confirm Wipe History
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

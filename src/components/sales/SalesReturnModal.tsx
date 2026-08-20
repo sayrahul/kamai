@@ -181,6 +181,18 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({
       };
 
       await db.sales_returns.put(newReturn);
+
+      // 4. Update Original Sale status & mark return metadata
+      const newTotalReturned = (selectedSale.returned_amount || 0) + totalRefundPaise;
+      const isFullReturn = newTotalReturned >= selectedSale.grand_total;
+      await db.sales.update(selectedSale.id, {
+        has_return: true,
+        returned_amount: newTotalReturned,
+        status: isFullReturn ? 'returned' : 'partial_return',
+        return_id: returnId,
+        updated_at: now,
+      });
+
       setCompletedReturn(newReturn);
       if (onReturnCompleted) onReturnCompleted(newReturn);
     } catch (err) {

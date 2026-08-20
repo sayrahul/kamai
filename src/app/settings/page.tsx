@@ -1,42 +1,32 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { db, seedComprehensiveDemoData } from '@/lib/db';
+import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import QRCode from 'qrcode';
 import { generateUPILink } from '@/lib/utils';
+import { UpiAccount } from '@/types';
 import Link from 'next/link';
 import { 
   Settings, 
   Store, 
-  ShieldCheck, 
-  Download, 
-  Upload, 
-  Globe, 
   CheckCircle2, 
   QrCode, 
-  FileText, 
+  Receipt, 
+  Building2, 
   Camera, 
   Trash2, 
-  Building2, 
-  Receipt, 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  HelpCircle, 
-  ExternalLink, 
-  Sparkles,
-  Palette
+  Palette,
+  HardDrive,
+  Plus,
+  Star,
+  Layers
 } from 'lucide-react';
-import { useTranslation } from '@/lib/i18n';
-import { SupportedLanguage } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 
 export default function SettingsPage() {
-  const { language, setLanguage, t } = useTranslation();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
 
   // Form State
@@ -50,8 +40,13 @@ export default function SettingsPage() {
   const [pincode, setPincode] = useState('');
   const [gstin, setGstin] = useState('');
   
-  // UPI & Banking
-  const [upiId, setUpiId] = useState('');
+  // Multiple UPI Management State
+  const [upiList, setUpiList] = useState<UpiAccount[]>([]);
+  const [selectedPreviewUpiIndex, setSelectedPreviewUpiIndex] = useState<number>(0);
+  const [newUpiLabel, setNewUpiLabel] = useState('');
+  const [newUpiId, setNewUpiId] = useState('');
+
+  // Banking
   const [bankName, setBankName] = useState('');
   const [bankAccountNo, setBankAccountNo] = useState('');
   const [bankIfsc, setBankIfsc] = useState('');
@@ -66,7 +61,7 @@ export default function SettingsPage() {
   // UI state
   const [isSaved, setIsSaved] = useState(false);
   const [liveQrDataUrl, setLiveQrDataUrl] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'profile' | 'language' | 'upi' | 'invoicing' | 'backup'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'upi' | 'invoicing'>('upi');
 
   // Load business data into form
   useEffect(() => {
@@ -80,7 +75,15 @@ export default function SettingsPage() {
       setAddress(business.address || '');
       setPincode(business.pincode || '');
       setGstin(business.gstin || '');
-      setUpiId(business.upi_id || '');
+      
+      const initialUpiList: UpiAccount[] = business.upi_ids && business.upi_ids.length > 0
+        ? business.upi_ids
+        : business.upi_id
+        ? [{ id: 'upi_def', label: 'Shop Primary QR', upi_id: business.upi_id, is_default: true }]
+        : [{ id: 'upi_def', label: 'Shop Primary QR', upi_id: '8669997711@upi', is_default: true }];
+
+      setUpiList(initialUpiList);
+
       setBankName(business.bank_name || '');
       setBankAccountNo(business.bank_account_no || '');
       setBankIfsc(business.bank_ifsc || '');
@@ -92,10 +95,13 @@ export default function SettingsPage() {
     }
   }, [business]);
 
-  // Generate live UPI QR Code whenever upiId or store name changes
+  // Generate live UPI QR Code for the active preview selection
   useEffect(() => {
-    if (upiId && upiId.trim()) {
-      const upiUrl = generateUPILink(upiId.trim(), name.trim() || 'Store');
+    const activeUpi = upiList[selectedPreviewUpiIndex] || upiList[0];
+    const upiString = activeUpi?.upi_id;
+
+    if (upiString && upiString.trim()) {
+      const upiUrl = generateUPILink(upiString.trim(), name.trim() || 'Store');
       QRCode.toDataURL(upiUrl, {
         width: 220,
         margin: 1,
@@ -106,9 +112,9 @@ export default function SettingsPage() {
     } else {
       setLiveQrDataUrl('');
     }
-  }, [upiId, name]);
+  }, [selectedPreviewUpiIndex, upiList, name]);
 
-  // Handle Logo Upload (Converts image to compact Data URL string)
+  // Logo Upload
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -126,14 +132,56 @@ export default function SettingsPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleRemoveLogo = () => {
-    setLogoUrl('');
+  // Add New UPI ID
+  const handleAddUpiAccount = () => {
+    if (!newUpiLabel.trim() || !newUpiId.trim()) {
+      alert('Please enter both a Label (e.g. Counter 2) and a valid UPI ID (e.g. name@upi).');
+      return;
+    }
+    const newEntry: UpiAccount = {
+      id: `upi_${Date.now()}`,
+      label: newUpiLabel.trim(),
+      upi_id: newUpiId.trim(),
+      is_default: upiList.length === 0,
+    };
+    setUpiList((prev) => [...prev, newEntry]);
+    setSelectedPreviewUpiIndex(upiList.length);
+    setNewUpiLabel('');
+    setNewUpiId('');
+  };
+
+  // Set Default UPI ID
+  const handleSetDefaultUpi = (id: string) => {
+    setUpiList((prev) =>
+      prev.map((u) => ({
+        ...u,
+        is_default: u.id === id,
+      }))
+    );
+  };
+
+  // Delete UPI ID
+  const handleDeleteUpi = (id: string) => {
+    if (upiList.length <= 1) {
+      alert('You must keep at least one UPI address.');
+      return;
+    }
+    setUpiList((prev) => {
+      const filtered = prev.filter((u) => u.id !== id);
+      if (filtered.length > 0 && !filtered.some((u) => u.is_default)) {
+        filtered[0].is_default = true;
+      }
+      return filtered;
+    });
+    setSelectedPreviewUpiIndex(0);
   };
 
   // Save Settings to IndexedDB
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!business) return;
+
+    const primaryUpi = upiList.find((u) => u.is_default)?.upi_id || upiList[0]?.upi_id || 'merchant@upi';
 
     await db.businesses.update(business.id, {
       name: name.trim(),
@@ -145,7 +193,8 @@ export default function SettingsPage() {
       address: address.trim(),
       pincode: pincode.trim() || undefined,
       gstin: gstin.trim() || undefined,
-      upi_id: upiId.trim() || undefined,
+      upi_id: primaryUpi,
+      upi_ids: upiList,
       bank_name: bankName.trim() || undefined,
       bank_account_no: bankAccountNo.trim() || undefined,
       bank_ifsc: bankIfsc.trim() || undefined,
@@ -161,413 +210,197 @@ export default function SettingsPage() {
     setTimeout(() => setIsSaved(false), 3500);
   };
 
-  // Data Export
-  const handleExportBackup = async () => {
-    try {
-      const backupData = {
-        version: 1,
-        exported_at: new Date().toISOString(),
-        businesses: await db.businesses.toArray(),
-        products: await db.products.toArray(),
-        categories: await db.categories.toArray(),
-        customers: await db.customers.toArray(),
-        suppliers: await db.suppliers.toArray(),
-        sales: await db.sales.toArray(),
-        inventory_movements: await db.inventory_movements.toArray(),
-        ledger_transactions: await db.ledger_transactions.toArray(),
-      };
-
-      const jsonStr = JSON.stringify(backupData, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `kamai_backup_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to export backup.');
-    }
-  };
-
-  // Data Import / Restore
-  const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const text = event.target?.result as string;
-        const backup = JSON.parse(text);
-
-        if (backup.version === 1 && backup.products && backup.businesses) {
-          if (confirm('Restoring this backup will merge with existing shop records. Continue?')) {
-            if (backup.businesses.length > 0) await db.businesses.bulkPut(backup.businesses);
-            if (backup.categories?.length > 0) await db.categories.bulkPut(backup.categories);
-            if (backup.products?.length > 0) await db.products.bulkPut(backup.products);
-            if (backup.customers?.length > 0) await db.customers.bulkPut(backup.customers);
-            if (backup.suppliers?.length > 0) await db.suppliers.bulkPut(backup.suppliers);
-            if (backup.sales?.length > 0) await db.sales.bulkPut(backup.sales);
-            if (backup.inventory_movements?.length > 0) await db.inventory_movements.bulkPut(backup.inventory_movements);
-            if (backup.ledger_transactions?.length > 0) await db.ledger_transactions.bulkPut(backup.ledger_transactions);
-
-            alert('Backup data restored successfully!');
-            window.location.reload();
-          }
-        } else {
-          alert('Invalid backup file format.');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Failed to read backup file.');
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // Load 50+ Test Demo Data
-  const [isSeedingDemo, setIsSeedingDemo] = useState(false);
-  const [demoSeedMessage, setDemoSeedMessage] = useState('');
-
-  const handleLoadDemoData = async (clearExisting = false) => {
-    if (!business?.id) {
-      alert('Store not loaded yet. Please wait a moment.');
-      return;
-    }
-
-    if (clearExisting && !confirm('This will replace current demo catalog, sales, customers & suppliers with fresh 50+ test records. Proceed?')) {
-      return;
-    }
-
-    setIsSeedingDemo(true);
-    setDemoSeedMessage('');
-    try {
-      const res = await seedComprehensiveDemoData(business.id, clearExisting);
-      setDemoSeedMessage(`Successfully loaded ${res.productsCount} products, ${res.customersCount} customers, ${res.suppliersCount} suppliers, and ${res.salesCount} sales records!`);
-      setTimeout(() => setDemoSeedMessage(''), 6000);
-    } catch (err) {
-      console.error('Demo data seed error:', err);
-      alert('Failed to load demo data. Check console for details.');
-    } finally {
-      setIsSeedingDemo(false);
-    }
-  };
+  const activePreviewUpi = upiList[selectedPreviewUpiIndex] || upiList[0];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-12 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
         <div>
           <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <Settings className="w-5 h-5 text-slate-800" />
-            <span>Store Profile & System Settings</span>
+            <span>Store Profile &amp; Settings</span>
           </h1>
           <p className="text-xs text-slate-500">
-            Manage your shop logo, contact info, dynamic UPI payment QR, and billing settings.
+            Manage store info, multiple dynamic UPI QR codes, bank accounts, and invoice sequence.
           </p>
         </div>
 
         {isSaved && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold animate-in fade-in">
             <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-            <span>Settings Saved Successfully!</span>
+            <span>Saved Successfully!</span>
           </div>
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {[
-          { id: 'profile', label: 'Shop Profile & Logo', icon: Store },
-          { id: 'language', label: 'Language / भाषा', icon: Globe },
-          { id: 'upi', label: 'UPI QR & Bank Accounts', icon: QrCode },
-          { id: 'invoicing', label: 'Invoice Terms & Prefix', icon: Receipt },
-          { id: 'backup', label: 'Data Backup & Restore', icon: ShieldCheck },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+      {/* Navigation Tabs & Quick Links */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          {[
+            { id: 'profile', label: 'Shop Profile & Logo', icon: Store },
+            { id: 'upi', label: 'Multiple UPI QRs & Banking', icon: QrCode },
+            { id: 'invoicing', label: 'Invoice Prefix & Sequence', icon: Receipt },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-        <Link
-          href="/invoice-designer"
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap bg-amber-400 hover:bg-amber-500 text-slate-950 border border-amber-400 shadow-xs transition-all"
-        >
-          <Palette className="w-3.5 h-3.5 text-slate-950" />
-          <span>🎨 Invoice Themes (Vyapar)</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/invoice-designer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-400 hover:bg-amber-500 text-slate-950 border border-amber-400 shadow-xs transition-all"
+          >
+            <Palette className="w-3.5 h-3.5 text-slate-950" />
+            <span>Invoice Themes</span>
+          </Link>
+
+          <Link
+            href="/cloud-backup"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-all"
+          >
+            <HardDrive className="w-3.5 h-3.5 text-slate-700" />
+            <span>Backup &amp; Restore</span>
+          </Link>
+        </div>
       </div>
 
-      {/* Tab: Language Selection */}
-      {activeTab === 'language' && (
-        <div className="space-y-4">
-          <Card className="p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-                <Globe className="w-4 h-4 text-slate-800" />
-                <span>Preferred Application Language / भाषा चुनें</span>
-              </span>
-              <p className="text-xs text-slate-500 mt-1">
-                Choose your preferred language for POS billing, invoices, customer khata ledger, reports, and menus.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              {[
-                {
-                  code: 'hi' as SupportedLanguage,
-                  name: 'हिंदी',
-                  englishName: 'Hindi',
-                  flag: '🇮🇳',
-                  desc: 'दुकान बिलिंग, दैनिक बिक्री, इन्वेंटरी और खाता बही हेतु संपूर्ण हिंदी',
-                },
-                {
-                  code: 'mr' as SupportedLanguage,
-                  name: 'मराठी',
-                  englishName: 'Marathi',
-                  flag: '🇮🇳',
-                  desc: 'मराठी भाषेतील सोपे व जलद पीओएस बिलिंग, स्टॉक व उधारी हिशोब',
-                },
-                {
-                  code: 'en' as SupportedLanguage,
-                  name: 'English',
-                  englishName: 'English',
-                  flag: '🌐',
-                  desc: 'Standard English interface for fast POS billing and invoicing',
-                },
-              ].map((langItem) => {
-                const isSelected = language === langItem.code;
-                return (
-                  <button
-                    key={langItem.code}
-                    type="button"
-                    onClick={async () => {
-                      setLanguage(langItem.code);
-                      if (business?.id) {
-                        await db.businesses.update(business.id, {
-                          language: langItem.code,
-                          updated_at: new Date().toISOString(),
-                        });
-                      }
-                      setIsSaved(true);
-                      setTimeout(() => setIsSaved(false), 3000);
-                    }}
-                    className={`p-4 rounded-xl border-2 text-left flex flex-col justify-between transition-all cursor-pointer relative ${
-                      isSelected
-                        ? 'border-slate-900 bg-amber-50/50 shadow-md ring-2 ring-amber-400/30'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    {isSelected && (
-                      <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-slate-900 text-amber-400 text-[10px] font-black flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-amber-400" />
-                        <span>Active</span>
-                      </div>
-                    )}
-
-                    <div>
-                      <div className="text-2xl mb-2">{langItem.flag}</div>
-                      <div className="text-base font-black text-slate-900">{langItem.name}</div>
-                      <div className="text-xs font-semibold text-slate-500">{langItem.englishName}</div>
-                    </div>
-
-                    <p className="text-[11px] text-slate-600 mt-3 leading-relaxed border-t border-slate-100 pt-2">
-                      {langItem.desc}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-600">
-              <span className="font-semibold">
-                Current Active Language: <strong className="text-slate-900">{language === 'hi' ? 'हिंदी (Hindi)' : language === 'mr' ? 'मराठी (Marathi)' : 'English'}</strong>
-              </span>
-              <span className="text-emerald-700 font-bold flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Instant Auto-Save</span>
-              </span>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Tab 1: Profile & Logo */}
+      {/* Tab 1: Store Profile & Logo */}
       {activeTab === 'profile' && (
         <form onSubmit={handleSaveSettings} className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             {/* Logo Upload Card */}
             <div className="lg:col-span-4">
-              <Card className="p-4 bg-white border border-slate-200 flex flex-col items-center text-center space-y-3">
+              <Card className="p-4 bg-white border border-slate-200 flex flex-col items-center text-center space-y-3 shadow-xs">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                  Shop Logo (Appears on Invoices)
+                  Store Logo
                 </span>
 
-                <div className="relative group w-32 h-32 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden">
+                <div className="relative w-32 h-32 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden group">
                   {logoUrl ? (
-                    <img
-                      src={logoUrl}
-                      alt="Shop Logo Preview"
-                      className="w-full h-full object-contain p-2"
-                    />
+                    <img src={logoUrl} alt="Store Logo" className="w-full h-full object-contain p-2" />
                   ) : (
-                    <div className="text-center p-3 text-slate-400">
-                      <Camera className="w-8 h-8 mx-auto mb-1 text-slate-400" />
-                      <span className="text-[10px] font-semibold">No Logo Uploaded</span>
+                    <div className="text-center p-2 text-slate-400">
+                      <Camera className="w-8 h-8 mx-auto mb-1 opacity-60" />
+                      <span className="text-[10px] font-bold block leading-tight">Click to upload logo</span>
                     </div>
                   )}
-                </div>
 
-                <div className="flex flex-col w-full gap-2">
-                  <label className="w-full">
-                    <span className="sr-only">Choose logo file</span>
-                    <div className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs cursor-pointer shadow-sm">
-                      <Camera className="w-3.5 h-3.5" />
-                      <span>{logoUrl ? 'Change Shop Logo' : 'Upload Shop Logo'}</span>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      className="hidden"
-                    />
+                  <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity text-white text-xs font-bold">
+                    <span>Change</span>
+                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                   </label>
-
-                  {logoUrl && (
-                    <button
-                      type="button"
-                      onClick={handleRemoveLogo}
-                      className="w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-rose-300 text-rose-600 text-xs font-semibold hover:bg-rose-50"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>Remove Logo</span>
-                    </button>
-                  )}
                 </div>
 
-                <p className="text-[10px] text-slate-400">
-                  Supported formats: PNG, JPG, WebP. High resolution square or rectangular logo recommended.
+                {logoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setLogoUrl('')}
+                    className="text-xs text-rose-600 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Remove Logo</span>
+                  </button>
+                )}
+
+                <p className="text-[11px] text-slate-400 leading-tight">
+                  Recommended: Square PNG/JPG under 2MB. Appears on bills and invoices.
                 </p>
               </Card>
             </div>
 
-            {/* Business Contact Form */}
+            {/* Business Information Card */}
             <div className="lg:col-span-8">
-              <Card className="p-4 bg-white border border-slate-200 space-y-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-900 block mb-2">
-                  Business & Owner Information
+              <Card className="p-4 bg-white border border-slate-200 space-y-4 shadow-xs">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-900 block">
+                  Store &amp; Tax Information
                 </span>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
-                    label="Shop / Business Name"
-                    placeholder="e.g. Laxmi Kirana & General Store"
+                    label="Store / Business Name"
+                    placeholder="e.g. Mahadev Super Mart"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
                   />
+
                   <Input
-                    label="Shop Tagline (Optional)"
-                    placeholder="e.g. Your Friendly Daily Kirana"
+                    label="Tagline / Motto"
+                    placeholder="e.g. Complete Kirana & FMCG Store"
                     value={tagline}
                     onChange={(e) => setTagline(e.target.value)}
                   />
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
-                    label="Owner Full Name"
-                    placeholder="e.g. Ramesh Chandra"
+                    label="Owner / Contact Person"
+                    placeholder="e.g. Ramesh Patel"
                     value={ownerName}
                     onChange={(e) => setOwnerName(e.target.value)}
+                    required
                   />
+
                   <Input
-                    label="Primary Contact Mobile (WhatsApp Number)"
+                    label="Primary Mobile Phone"
                     placeholder="e.g. 9876543210"
-                    type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     required
                   />
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
-                    label="Business Email (Optional)"
-                    placeholder="shop@example.com"
+                    label="Email Address (Optional)"
                     type="email"
+                    placeholder="e.g. shop@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
+
                   <Input
                     label="GSTIN Number (Optional)"
-                    placeholder="e.g. 27ABCDE1234F1Z5"
+                    placeholder="e.g. 27AAAAA0000A1Z5"
                     value={gstin}
-                    onChange={(e) => setGstin(e.target.value)}
+                    onChange={(e) => setGstin(e.target.value.toUpperCase())}
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-2">
                     <Input
-                      label="Store Full Physical Address"
-                      placeholder="Shop #12, Main Market, Station Road"
+                      label="Store Address"
+                      placeholder="Shop No. 4, Market Road, Near Temple"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
+                      required
                     />
                   </div>
-                  <Input
-                    label="PIN Code"
-                    placeholder="e.g. 400001"
-                    value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
-                  />
-                </div>
-
-                {/* Application Language Preference */}
-                <div className="space-y-1.5 pt-1">
-                  <label className="text-xs font-bold text-slate-700 block">
-                    App & Invoice Language / भाषा
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { code: 'hi' as SupportedLanguage, label: '🇮🇳 हिंदी (Hindi)' },
-                      { code: 'mr' as SupportedLanguage, label: '🇮🇳 मराठी (Marathi)' },
-                      { code: 'en' as SupportedLanguage, label: '🌐 English' },
-                    ].map((l) => (
-                      <button
-                        key={l.code}
-                        type="button"
-                        onClick={() => setLanguage(l.code)}
-                        className={`p-2.5 rounded-lg border text-xs font-bold text-center transition-all cursor-pointer ${
-                          language === l.code
-                            ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
-                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        {l.label}
-                      </button>
-                    ))}
+                  <div>
+                    <Input
+                      label="Pincode"
+                      placeholder="e.g. 400001"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                    />
                   </div>
                 </div>
 
                 <div className="pt-3 border-t border-slate-200 flex justify-end">
-                  <Button type="submit" size="sm" className="font-bold text-xs">
+                  <Button type="submit" size="sm" className="font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white">
                     Save Profile Details
                   </Button>
                 </div>
@@ -577,18 +410,44 @@ export default function SettingsPage() {
         </form>
       )}
 
-      {/* Tab 2: UPI QR & Banking */}
+      {/* Tab 2: Multiple UPI QRs & Banking */}
       {activeTab === 'upi' && (
         <form onSubmit={handleSaveSettings} className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Live QR Preview Card */}
+            {/* Live QR Preview Card (Swipeable / Clickable Carousel) */}
             <div className="lg:col-span-5">
-              <Card className="p-4 bg-white border border-slate-200 flex flex-col items-center text-center space-y-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                  Dynamic UPI Payment QR Preview
-                </span>
+              <Card className="p-4 bg-white border border-slate-200 flex flex-col items-center text-center space-y-3 shadow-xs">
+                <div className="w-full flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                    Dynamic UPI Payment QR Preview
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-bold">
+                    {upiList.length} {upiList.length === 1 ? 'QR' : 'QRs'}
+                  </span>
+                </div>
 
-                <div className="p-4 rounded-xl border-2 border-slate-900 bg-white flex flex-col items-center shadow-sm">
+                {/* Multiple QR Selector Chips / Tabs */}
+                {upiList.length > 1 && (
+                  <div className="w-full flex items-center gap-1.5 overflow-x-auto pb-1">
+                    {upiList.map((u, idx) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => setSelectedPreviewUpiIndex(idx)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                          selectedPreviewUpiIndex === idx
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        <span>{u.label}</span>
+                        {u.is_default && <span className="ml-1 text-[9px] text-amber-300 font-black">★</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="p-4 rounded-xl border-2 border-slate-900 bg-white flex flex-col items-center shadow-sm w-full max-w-[260px]">
                   {liveQrDataUrl ? (
                     <img
                       src={liveQrDataUrl}
@@ -602,9 +461,16 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  <div className="mt-2 text-center">
-                    <span className="text-xs font-extrabold text-slate-900 block">{name || 'Your Store'}</span>
-                    <span className="text-[11px] font-mono text-slate-600 block mt-0.5">{upiId || 'No UPI ID set'}</span>
+                  <div className="mt-2 text-center w-full">
+                    <span className="text-xs font-extrabold text-slate-900 block truncate">
+                      {name || 'Your Store'}
+                    </span>
+                    <span className="text-[11px] font-bold text-amber-700 block mt-0.5">
+                      {activePreviewUpi?.label || 'Primary QR'}
+                    </span>
+                    <span className="text-[11px] font-mono text-slate-600 block mt-0.5 truncate">
+                      {activePreviewUpi?.upi_id || 'No UPI ID set'}
+                    </span>
                     <div className="mt-2 flex items-center justify-center gap-1.5">
                       <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-extrabold text-[10px] border border-amber-300">
                         BHIM UPI / GPay / PhonePe / Paytm
@@ -613,33 +479,133 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-500">
-                  ⚡ When you change your UPI ID below, this QR Code updates automatically in real-time across all customer invoices!
+                {/* Swipeable Carousel Dots */}
+                {upiList.length > 1 && (
+                  <div className="flex items-center justify-center gap-1.5 pt-1">
+                    {upiList.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setSelectedPreviewUpiIndex(i)}
+                        className={`h-2 rounded-full transition-all cursor-pointer ${
+                          selectedPreviewUpiIndex === i ? 'bg-slate-900 w-5' : 'bg-slate-300 hover:bg-slate-400 w-2'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  ⚡ Customers can scan this QR code on physical bills, PDF invoices, and POS screens.
                 </p>
               </Card>
             </div>
 
-            {/* UPI & Bank Details Input Card */}
-            <div className="lg:col-span-7">
-              <Card className="p-4 bg-white border border-slate-200 space-y-4">
+            {/* Multiple UPI Manager & Bank Details Card */}
+            <div className="lg:col-span-7 space-y-4">
+              <Card className="p-4 bg-white border border-slate-200 space-y-4 shadow-xs">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-900 block mb-1">
-                    UPI Payment Address (VPA)
-                  </span>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-emerald-600" />
+                      <span>Configured Store UPI Addresses ({upiList.length})</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-medium">Add multiple shop / owner QRs</span>
+                  </div>
                   <p className="text-xs text-slate-500 mb-3">
-                    Customer scans on A4/Thermal bills and online invoice links will directly transfer money to this account.
+                    Add multiple UPI VPAs for counter staff, owner account, or different UPI apps. Select which one is Primary.
                   </p>
 
-                  <Input
-                    label="Store UPI ID / VPA"
-                    placeholder="e.g. yourname@okhdfcbank, 9876543210@paytm, shop@ybl"
-                    value={upiId}
-                    onChange={(e) => setUpiId(e.target.value)}
-                    leftIcon={<QrCode className="w-4 h-4 text-slate-700" />}
-                    helperText="Valid examples: merchant@icici, mobile@upi, store@oksbi"
-                  />
+                  {/* List of Configured UPIs */}
+                  <div className="space-y-2">
+                    {upiList.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                          item.is_default
+                            ? 'border-emerald-400 bg-emerald-50/60 shadow-xs'
+                            : 'border-slate-200 bg-white hover:bg-slate-50/70'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                            item.is_default ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {idx + 1}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-slate-900 truncate">{item.label}</span>
+                              {item.is_default && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-emerald-200 text-emerald-950 border border-emerald-300">
+                                  ★ Primary Default
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-600 font-mono font-bold mt-0.5 truncate">{item.upi_id}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {!item.is_default && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetDefaultUpi(item.id)}
+                              className="px-2 py-1 rounded-md text-[10px] font-bold border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer"
+                            >
+                              Make Default
+                            </button>
+                          )}
+
+                          {upiList.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUpi(item.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md cursor-pointer hover:bg-rose-50"
+                              title="Delete UPI Account"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add New UPI Address Inputs */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 mt-3">
+                    <span className="text-xs font-bold text-slate-800 block">Add Another Store UPI QR</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                      <div className="sm:col-span-5">
+                        <Input
+                          placeholder="Label (e.g. Counter 2, PhonePe)"
+                          value={newUpiLabel}
+                          onChange={(e) => setNewUpiLabel(e.target.value)}
+                        />
+                      </div>
+                      <div className="sm:col-span-5">
+                        <Input
+                          placeholder="UPI ID (e.g. shop2@okaxis)"
+                          value={newUpiId}
+                          onChange={(e) => setNewUpiId(e.target.value)}
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Button
+                          type="button"
+                          onClick={handleAddUpiAccount}
+                          size="md"
+                          className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1 h-[38px]"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
+                {/* Bank Account Details */}
                 <div className="pt-3 border-t border-slate-200 space-y-3">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-900 block">
                     Bank Account Details (Optional for B2B Invoicing)
@@ -678,8 +644,8 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="pt-3 border-t border-slate-200 flex justify-end">
-                  <Button type="submit" size="sm" className="font-bold text-xs">
-                    Save UPI & Banking Settings
+                  <Button type="submit" size="sm" className="font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white">
+                    Save UPI &amp; Banking Settings
                   </Button>
                 </div>
               </Card>
@@ -691,9 +657,9 @@ export default function SettingsPage() {
       {/* Tab 3: Invoicing Preferences */}
       {activeTab === 'invoicing' && (
         <form onSubmit={handleSaveSettings} className="space-y-4">
-          <Card className="p-4 bg-white border border-slate-200 space-y-4">
+          <Card className="p-4 bg-white border border-slate-200 space-y-4 shadow-xs">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-900 block">
-              Invoice Numbering & Terms Configuration
+              Invoice Numbering &amp; Terms Configuration
             </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -715,7 +681,7 @@ export default function SettingsPage() {
 
             <div>
               <label className="text-xs font-bold text-slate-900 block mb-1">
-                Terms & Conditions / Return Policy
+                Terms &amp; Conditions / Return Policy
               </label>
               <textarea
                 rows={3}
@@ -738,103 +704,12 @@ export default function SettingsPage() {
             </div>
 
             <div className="pt-3 border-t border-slate-200 flex justify-end">
-              <Button type="submit" size="sm" className="font-bold text-xs">
+              <Button type="submit" size="sm" className="font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white">
                 Save Invoicing Preferences
               </Button>
             </div>
           </Card>
         </form>
-      )}
-
-      {/* Tab 4: Backup & Restore & Demo Data */}
-      {activeTab === 'backup' && (
-        <div className="space-y-4">
-          {/* Demo Data Seeder Card */}
-          <Card className="p-4 bg-amber-50/60 border border-amber-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                <span>Test Demo Data (50+ Sample Items)</span>
-              </span>
-              <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
-                For Testing & QA
-              </span>
-            </div>
-
-            <p className="text-xs text-slate-600">
-              Instantly populate your store with 50+ real Indian kirana/FMCG products (with barcodes, MRP, tax rates & units), 15 customers with active credit balances, 6 wholesale suppliers, and 20 recent sales transactions to test analytics and billing POS.
-            </p>
-
-            {demoSeedMessage && (
-              <div className="p-2.5 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
-                <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0" />
-                <span>{demoSeedMessage}</span>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-2 pt-1">
-              <Button
-                variant="primary"
-                onClick={() => handleLoadDemoData(false)}
-                disabled={isSeedingDemo}
-                size="sm"
-                className="font-bold text-xs justify-center bg-slate-900 text-white hover:bg-slate-800"
-              >
-                <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
-                <span>{isSeedingDemo ? 'Loading 50+ Test Items...' : '⚡ Append 50+ Test Demo Data'}</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => handleLoadDemoData(true)}
-                disabled={isSeedingDemo}
-                size="sm"
-                className="font-bold text-xs justify-center border-rose-300 text-rose-700 hover:bg-rose-50"
-              >
-                <span>Reset & Fresh Seed 50+ Data</span>
-              </Button>
-            </div>
-          </Card>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="p-4 bg-white border border-slate-200 space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                <Download className="w-4 h-4 text-slate-700" />
-                <span>Export Full Shop Database</span>
-              </span>
-              <p className="text-xs text-slate-500">
-                Download your complete catalog, all sales, customer ledger, and settings into a secure JSON backup.
-              </p>
-              <Button
-                variant="secondary"
-                onClick={handleExportBackup}
-                size="sm"
-                className="w-full font-bold text-xs justify-center"
-              >
-                <Download className="w-3.5 h-3.5 mr-1.5" />
-                <span>Download Backup JSON</span>
-              </Button>
-            </Card>
-
-            <Card className="p-4 bg-white border border-slate-200 space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                <Upload className="w-4 h-4 text-slate-700" />
-                <span>Restore Database from Backup</span>
-              </span>
-              <p className="text-xs text-slate-500">
-                Import a previously exported JSON backup file to restore all your products and ledger records.
-              </p>
-              <label className="block w-full">
-                <span className="sr-only">Choose backup file</span>
-                <div className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-800 hover:bg-slate-50 cursor-pointer">
-                  <Upload className="w-3.5 h-3.5 text-slate-700" />
-                  <span>Select & Restore Backup File</span>
-                </div>
-                <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
-              </label>
-            </Card>
-          </div>
-        </div>
       )}
     </div>
   );

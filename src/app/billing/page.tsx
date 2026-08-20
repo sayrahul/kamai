@@ -47,12 +47,10 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
-import { VoiceBillingModal } from '@/components/voice/VoiceBillingModal';
 import { HardwareManagerModal } from '@/components/hardware/HardwareManagerModal';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
-import { announcePayment } from '@/lib/voice/paytmSoundbox';
 import { Sale } from '@/types';
 
 export interface BillTab {
@@ -256,7 +254,6 @@ export default function BillingPage() {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [activeSaleForInvoice, setActiveSaleForInvoice] = useState<Sale | null>(null);
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
-  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
   const [scannedUnknownBarcode, setScannedUnknownBarcode] = useState<string | null>(null);
   const [publicProductData, setPublicProductData] = useState<PublicProductInfo | null>(null);
@@ -335,6 +332,7 @@ export default function BillingPage() {
   };
 
   const getAvailableStockForProduct = (product: Product) => {
+    if (product.is_unlimited_stock) return 999999;
     const reservedQty = getCartQuantityForProduct(product.id);
     return Math.max(0, product.current_stock - reservedQty);
   };
@@ -342,22 +340,23 @@ export default function BillingPage() {
   // Cart operations
   const addToCart = (product: Product, quantityToAdd: number = 1) => {
     if (!product.is_active) return;
+    const isUnlimited = Boolean(product.is_unlimited_stock);
 
-    const currentCartQty = getCartQuantityForProduct(product.id);
-    const available = Math.max(0, product.current_stock - currentCartQty);
-    const safeQty = Math.min(quantityToAdd, available);
+    if (!isUnlimited) {
+      const currentCartQty = getCartQuantityForProduct(product.id);
+      const available = Math.max(0, product.current_stock - currentCartQty);
+      const safeQty = Math.min(quantityToAdd, available);
 
-    if (safeQty <= 0 || product.current_stock <= 0) {
-      alert(`${product.name} is out of stock.`);
-      return;
+      if (safeQty <= 0 || product.current_stock <= 0) {
+        alert(`${product.name} is out of stock.`);
+        return;
+      }
     }
 
     playBeepSound('success');
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
-      const cartQtyBeforeAdd = prev.reduce((sum, item) => (item.product_id === product.id ? sum + item.quantity : sum), 0);
-      const availableBeforeAdd = Math.max(0, product.current_stock - cartQtyBeforeAdd);
-      const allowedQty = Math.min(quantityToAdd, availableBeforeAdd);
+      const allowedQty = quantityToAdd;
 
       if (allowedQty <= 0) {
         return prev;
@@ -466,7 +465,7 @@ export default function BillingPage() {
     }
 
     const product = products.find((p) => p.id === editingCartItem.product_id);
-    if (product && qty > product.current_stock) {
+    if (product && !product.is_unlimited_stock && qty > product.current_stock) {
       alert(`Entered quantity (${qty}) exceeds available stock (${product.current_stock}).`);
       return;
     }
@@ -557,7 +556,7 @@ export default function BillingPage() {
 
   useHardwareBarcodeScanner({
     onScan: handleBarcodeScanned,
-    enabled: !isBarcodeModalOpen && !isVoiceModalOpen && !isInvoiceModalOpen,
+    enabled: !isBarcodeModalOpen && !isInvoiceModalOpen,
   });
 
   const handleSaveQuickAddItem = async (e: React.FormEvent) => {
@@ -598,12 +597,6 @@ export default function BillingPage() {
     setQuickAddPrice('');
     setQuickAddName('');
     setPublicProductData(null);
-  };
-
-  const handleAddVoiceItems = (items: Array<{ product: Product; quantity: number }>) => {
-    for (const item of items) {
-      addToCart(item.product, item.quantity);
-    }
   };
 
   // Calculations
@@ -753,13 +746,7 @@ export default function BillingPage() {
       });
     }
 
-    // 5. Trigger Soundbox Voice Announcement
-    announcePayment(
-      receivedPaise > 0 ? receivedPaise : grandTotalPaise,
-      language
-    );
-
-    // 6. Open detailed Invoice & thermal receipt modal
+    // 5. Open detailed Invoice & thermal receipt modal
     setActiveSaleForInvoice(newSale);
     setCompletedSaleDetails({
       invoiceNumber,
@@ -1164,17 +1151,6 @@ export default function BillingPage() {
                 <Camera className="w-4 h-4 text-slate-800" />
               </button>
 
-              {/* Voice Assistant Microphone Button */}
-              <button
-                type="button"
-                onClick={() => setIsVoiceModalOpen(true)}
-                className="px-3 py-2 min-h-[38px] rounded-lg bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
-                title="Voice Bill Entry"
-              >
-                <Mic className="w-4 h-4 text-slate-950" />
-                <span className="hidden sm:inline">Voice POS</span>
-              </button>
-
               {/* Pricing Mode Toggle: Retail vs Wholesale */}
               <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-300 flex-shrink-0">
                 <button
@@ -1383,14 +1359,39 @@ export default function BillingPage() {
       >
         <div className="space-y-3 p-2">
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Quantity</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700 block">Quantity / Weight</label>
+              <span className="text-[10px] text-slate-500 font-semibold">Decimals supported</span>
+            </div>
             <Input
               type="number"
-              step="1"
+              step="any"
+              placeholder="e.g. 0.25, 0.5, 1"
               value={editItemQty}
               onChange={(e) => setEditItemQty(e.target.value)}
               autoFocus
             />
+            {/* Quick Weight Chips for Kirana Loose Selling */}
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {[
+                { label: '50g', val: '0.05' },
+                { label: '100g', val: '0.1' },
+                { label: '250g', val: '0.25' },
+                { label: '500g', val: '0.5' },
+                { label: '1 kg', val: '1' },
+                { label: '2 kg', val: '2' },
+                { label: '5 kg', val: '5' },
+              ].map((chip) => (
+                <button
+                  key={chip.val}
+                  type="button"
+                  onClick={() => setEditItemQty(chip.val)}
+                  className="px-2 py-0.5 rounded bg-slate-100 hover:bg-amber-100 hover:text-amber-950 border border-slate-200 text-[11px] font-bold text-slate-700 transition-colors"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>
@@ -1527,14 +1528,6 @@ export default function BillingPage() {
         isOpen={isBarcodeModalOpen}
         onClose={() => setIsBarcodeModalOpen(false)}
         onScan={handleBarcodeScanned}
-      />
-
-      {/* Voice Assistant Modal */}
-      <VoiceBillingModal
-        isOpen={isVoiceModalOpen}
-        onClose={() => setIsVoiceModalOpen(false)}
-        products={products}
-        onAddItemsToCart={handleAddVoiceItems}
       />
 
       {/* Hardware Manager Modal */}

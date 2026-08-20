@@ -153,19 +153,6 @@ export const Navbar: React.FC = () => {
             <span className="hidden sm:inline">Store QR</span>
           </button>
 
-          {/* Soundbox Voice Alert Toggle */}
-          <button
-            onClick={toggleSoundbox}
-            className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${soundEnabled
-              ? 'bg-slate-100 border-slate-300 text-slate-900'
-              : 'bg-white border-slate-200 text-slate-400'
-              }`}
-            title={soundEnabled ? 'Voice Alert Active' : 'Voice Alert Muted'}
-          >
-            {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-slate-800" /> : <VolumeX className="w-3.5 h-3.5" />}
-            <span className="hidden md:inline text-[11px]">Audio</span>
-          </button>
-
           {/* Network Status Badge */}
           {isOnline ? (
             <div className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-medium">
