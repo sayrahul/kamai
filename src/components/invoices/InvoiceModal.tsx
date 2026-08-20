@@ -177,88 +177,87 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
       >
         <div className="space-y-4">
           {/* Top Format Selector & Quick Action Bar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
-            {/* Format Tabs */}
-            <div className="flex items-center gap-1 w-full sm:w-auto">
+          {/* Top Bar: Segmented Format Switch + Clean Action Cluster */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-2 border-b border-slate-200">
+            {/* Format Tabs (Sleek Segmented Pill) */}
+            <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80 self-start sm:self-auto">
               <button
                 onClick={() => setFormat('a4')}
-                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   format === 'a4'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                    ? 'bg-white text-slate-950 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                A4 Detailed Bill
+                A4 Bill
               </button>
               <button
                 onClick={() => setFormat('thermal-80')}
-                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   format === 'thermal-80'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                    ? 'bg-white text-slate-950 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 80mm Thermal
               </button>
               <button
                 onClick={() => setFormat('thermal-58')}
-                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   format === 'thermal-58'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                    ? 'bg-white text-slate-950 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                58mm Thermal
+                58mm
               </button>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-              {/* Edit Invoice Button */}
+            {/* Action Buttons in 1 Clean Single Line */}
+            <div className="flex flex-wrap items-center gap-1.5 justify-end">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsEditModalOpen(true)}
-                className="text-xs font-bold gap-1 text-amber-900 border-amber-300 bg-amber-50 hover:bg-amber-100"
-                title="Edit past invoice items, customer or payment"
+                className="text-xs font-bold gap-1 rounded-xl h-8 text-slate-700 hover:bg-slate-50 border-slate-300 cursor-pointer"
+                title="Edit past invoice items or payment"
               >
-                <Edit3 className="w-3.5 h-3.5 text-amber-700" />
-                <span>Edit Bill</span>
+                <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                <span>Edit</span>
               </Button>
 
               <Link href="/invoice-designer">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-xs font-bold gap-1 text-slate-700 hover:text-slate-950"
-                  title="Customize Invoice Theme & Layout"
+                  className="text-xs font-bold gap-1 rounded-xl h-8 text-slate-700 hover:bg-slate-50 border-slate-300 cursor-pointer"
+                  title="Customize Invoice Theme & Colors"
                 >
-                  <Palette className="w-3.5 h-3.5 text-amber-600" />
-                  <span className="hidden sm:inline">Themes</span>
+                  <Palette className="w-3.5 h-3.5 text-purple-600" />
+                  <span className="hidden sm:inline">Theme</span>
                 </Button>
               </Link>
 
-              {/* Bluetooth ESC/POS Fast Print Button */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleBluetoothEscPosPrint}
                 disabled={isBluetoothPrinting}
-                className="text-xs font-bold gap-1 bg-sky-50 text-sky-900 border-sky-300 hover:bg-sky-100"
-                title="1-Click Direct Bluetooth ESC/POS Printing"
+                className="text-xs font-bold gap-1 rounded-xl h-8 text-sky-800 bg-sky-50 border-sky-200 hover:bg-sky-100 cursor-pointer"
+                title="Direct Bluetooth POS Printing"
               >
-                <Bluetooth className="w-3.5 h-3.5 text-sky-700" />
-                <span>{isBluetoothPrinting ? 'Printing...' : 'BT Print'}</span>
+                <Bluetooth className="w-3.5 h-3.5 text-sky-600" />
+                <span className="hidden sm:inline">BT</span>
               </Button>
 
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handlePrint}
-                className="text-xs font-bold gap-1"
+                className="text-xs font-bold gap-1 rounded-xl h-8 text-slate-800 hover:bg-slate-50 border-slate-300 cursor-pointer"
               >
-                <Printer className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Print</span>
+                <Printer className="w-3.5 h-3.5 text-slate-600" />
+                <span>Print</span>
               </Button>
 
               <Button
@@ -266,20 +265,20 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 size="sm"
                 onClick={handleDownloadPdf}
                 disabled={isGeneratingPdf}
-                className="text-xs font-bold gap-1"
+                className="text-xs font-bold gap-1 rounded-xl h-8 bg-slate-900 text-white hover:bg-slate-800 border-slate-900 cursor-pointer shadow-xs"
               >
-                <Download className="w-3.5 h-3.5" />
-                <span>{isGeneratingPdf ? 'Generating...' : 'PDF'}</span>
+                <Download className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isGeneratingPdf ? 'Saving...' : 'PDF'}</span>
               </Button>
 
               <Button
                 size="sm"
                 onClick={handleWhatsAppSend}
                 disabled={isGeneratingPdf}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 text-xs font-bold gap-1 shadow-sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black gap-1 rounded-xl h-8 shadow-sm cursor-pointer"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
-                <span>Send WhatsApp</span>
+                <span>WhatsApp</span>
               </Button>
             </div>
           </div>
@@ -292,34 +291,33 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
             </div>
           )}
 
-          {/* WhatsApp Recipient Phone Input (if missing) */}
+          {/* WhatsApp Recipient Phone Input (Clean neutral single bar) */}
           {showPhoneInput && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
-              <Phone className="w-4 h-4 text-amber-700 flex-shrink-0" />
+            <div className="flex items-center gap-2 p-1.5 px-3 bg-slate-50 border border-slate-200 rounded-xl">
+              <Phone className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
               <input
                 type="tel"
-                placeholder="Enter customer WhatsApp number..."
+                placeholder="Customer WhatsApp number (e.g. 9876543210)..."
                 value={recipientPhone}
                 onChange={(e) => setRecipientPhone(e.target.value)}
-                className="flex-1 text-xs bg-white border border-amber-300 rounded-lg px-3 py-1.5 text-slate-900 focus:outline-none focus:border-amber-500"
+                className="flex-1 text-xs bg-transparent border-0 text-slate-900 font-mono font-medium focus:outline-none placeholder:text-slate-400"
               />
               <button
                 onClick={handleWhatsAppSend}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg whitespace-nowrap"
+                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg whitespace-nowrap cursor-pointer shadow-xs"
               >
-                Dispatch Bill
+                Send
               </button>
             </div>
           )}
 
-          {/* Printable Invoice Container */}
-          <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-inner max-h-[60vh] overflow-y-auto p-4 flex justify-center">
+          {/* Printable Invoice Container (Clean Slate Canvas with Smooth Scroll) */}
+          <div className="bg-slate-100/70 p-2 sm:p-5 rounded-2xl border border-slate-200/80 max-h-[62vh] overflow-auto shadow-inner">
             {format === 'a4' ? (
-              /* A4 Format with Dynamic Theme Config */
+              /* A4 Format with Dynamic Theme Config (Solid Full Paper Canvas) */
               <div
                 id="modal-printable-invoice"
-                className="w-full max-w-[720px] bg-white p-6 pb-6 rounded-xl text-slate-900 text-xs space-y-4 border-2 box-border shadow-xs"
-                style={{ borderColor: (business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).primary_color }}
+                className="w-full min-w-[620px] max-w-[680px] mx-auto bg-white p-5 sm:p-6 pb-6 rounded-xl text-slate-900 text-xs space-y-4 border border-slate-200 shadow-md box-border"
               >
                 {/* Header Banner Styled with Theme Color */}
                 <div 

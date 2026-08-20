@@ -5,46 +5,48 @@ import { formatINR } from '@/lib/utils';
 import { sendInvoiceViaWhatsApp } from './whatsappInvoice';
 
 /**
- * Renders an HTML element to a full, un-cropped high-resolution PDF Blob with true Multi-Page A4 support
+ * Renders an HTML element to a full, un-cropped high-resolution PDF Blob
+ * Fully normalized across Mobile, Tablet, and Desktop screens
  */
 export async function generateInvoicePdfBlobFromElement(
   element: HTMLElement,
   filename = 'invoice.pdf'
 ): Promise<{ blob: Blob; file: File }> {
   // 1. Detect if this is a thermal receipt or standard A4 invoice
-  const isThermal58 = element.classList.contains('max-w-[270px]') || element.offsetWidth < 300;
-  const isThermal80 = element.classList.contains('max-w-[350px]') || (element.offsetWidth < 420 && !isThermal58);
+  const isThermal58 = element.classList.contains('w-[260px]') || element.classList.contains('max-w-[270px]');
+  const isThermal80 = element.classList.contains('w-[320px]') || element.classList.contains('max-w-[350px]');
   const isThermal = isThermal58 || isThermal80;
 
-  // 2. Capture full un-clipped element using html2canvas
-  const fullHeight = (element.scrollHeight || element.offsetHeight || 1000) + 16; // Add safety padding so borders are never clipped
-  const fullWidth = (element.scrollWidth || element.offsetWidth || 800) + 8;
+  // Master rendering width to normalize output across Mobile and Desktop
+  const targetRenderWidth = isThermal58 ? 260 : isThermal80 ? 320 : 760;
 
+  // 2. Capture un-clipped element using html2canvas in a virtual desktop viewport
   const canvas = await html2canvas(element, {
     scale: 2.5, // Crisp 300 DPI high resolution
     useCORS: true,
     logging: false,
     backgroundColor: '#ffffff',
-    scrollX: 0,
-    scrollY: 0,
-    height: fullHeight,
-    width: fullWidth,
-    windowWidth: Math.max(fullWidth + 100, 1200),
-    windowHeight: Math.max(fullHeight + 200, 1600),
+    windowWidth: 1280, // Always use a desktop viewport so mobile doesn't squeeze the layout
     onclone: (clonedDoc, clonedElement) => {
+      // Force master dimensions on cloned element regardless of device screen size
+      clonedElement.style.width = `${targetRenderWidth}px`;
+      clonedElement.style.minWidth = `${targetRenderWidth}px`;
+      clonedElement.style.maxWidth = `${targetRenderWidth}px`;
       clonedElement.style.maxHeight = 'none';
       clonedElement.style.height = 'auto';
       clonedElement.style.overflow = 'visible';
       clonedElement.style.position = 'relative';
       clonedElement.style.transform = 'none';
       clonedElement.style.boxShadow = 'none';
-      clonedElement.style.paddingBottom = '16px'; // Extra breathing room inside clone
+      clonedElement.style.paddingBottom = '24px'; // Safety bottom padding
 
       let parent = clonedElement.parentElement;
       while (parent && parent !== clonedDoc.body) {
         parent.style.maxHeight = 'none';
         parent.style.height = 'auto';
         parent.style.overflow = 'visible';
+        parent.style.width = 'auto';
+        parent.style.maxWidth = 'none';
         parent = parent.parentElement;
       }
     },
