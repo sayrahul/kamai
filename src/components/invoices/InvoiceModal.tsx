@@ -32,6 +32,7 @@ import { downloadInvoicePdfFromElement, shareInvoicePdfDirect } from '@/lib/invo
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { Bluetooth, Zap } from 'lucide-react';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
+import { DEFAULT_INVOICE_THEME_CONFIG } from '@/lib/invoices/themeDefaults';
 
 export type InvoiceFormat = 'thermal-58' | 'thermal-80' | 'a4';
 
@@ -314,75 +315,118 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
           {/* Printable Invoice Container */}
           <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-inner max-h-[60vh] overflow-y-auto p-4 flex justify-center">
             {format === 'a4' ? (
-              /* A4 Format */
+              /* A4 Format with Dynamic Theme Config */
               <div
                 id="modal-printable-invoice"
-                className="w-full max-w-[700px] bg-white p-6 rounded-lg text-slate-900 text-xs space-y-4"
+                className="w-full max-w-[720px] bg-white p-6 pb-6 rounded-xl text-slate-900 text-xs space-y-4 border-2 box-border shadow-xs"
+                style={{ borderColor: (business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).primary_color }}
               >
-                {/* Header */}
-                <div className="flex justify-between items-start pb-4 border-b border-slate-200">
-                  <div>
-                    <h2 className="text-xl font-black text-slate-900">{business.name}</h2>
-                    {business.tagline && <p className="text-[11px] text-slate-500">{business.tagline}</p>}
-                    <p className="text-[11px] text-slate-600 mt-1 max-w-xs">{business.address}</p>
-                    <p className="text-[11px] text-slate-600">Phone: {business.phone}</p>
-                    {business.gstin && <p className="text-[11px] font-mono font-bold text-slate-800">GSTIN: {business.gstin}</p>}
+                {/* Header Banner Styled with Theme Color */}
+                <div 
+                  className="p-4 rounded-xl text-white flex justify-between items-start gap-4"
+                  style={{ backgroundColor: (business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).primary_color }}
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_logo && business.logo_url && (
+                      <img
+                        src={business.logo_url}
+                        alt="Logo"
+                        className="w-12 h-12 rounded object-contain bg-white p-0.5 flex-shrink-0"
+                      />
+                    )}
+                    <div>
+                      <h2 className="text-xl font-black text-white leading-tight">{business.name}</h2>
+                      {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_tagline && business.tagline && (
+                        <p className="text-[11px] text-white/80 italic mt-0.5">{business.tagline}</p>
+                      )}
+                      <p className="text-[11px] text-white/90 mt-1 max-w-xs">{business.address}</p>
+                      {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_owner && (
+                        <p className="text-[11px] text-white/90">
+                          {business.owner_name ? `Owner: ${business.owner_name} • ` : ''}Phone: {business.phone}
+                        </p>
+                      )}
+                      {business.gstin && (
+                        <p className="text-[11px] font-bold text-amber-300">GSTIN: {business.gstin}</p>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="text-right">
-                    <div className="inline-block px-3 py-1 bg-slate-100 rounded-lg text-xs font-black uppercase text-slate-800 border border-slate-300">
-                      TAX INVOICE
-                    </div>
-                    <p className="text-sm font-black font-mono mt-1">#{sale.invoice_number}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{saleDateFormatted}</p>
+                  <div className="text-right flex-shrink-0">
+                    <span className="inline-block px-3 py-1 bg-white/20 rounded-lg text-xs font-black uppercase text-white tracking-wider">
+                      {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).custom_title || 'TAX INVOICE'}
+                    </span>
+                    <p className="text-sm font-black font-mono mt-1 text-white">#{sale.invoice_number}</p>
+                    <p className="text-[11px] text-white/80 mt-0.5">{saleDateFormatted}</p>
                   </div>
                 </div>
 
                 {/* Bill To Info */}
-                <div className="grid grid-cols-2 gap-4 py-2 bg-slate-50 p-3 rounded-lg text-[11px]">
+                <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px]">
                   <div>
                     <span className="font-bold text-slate-500 uppercase text-[10px]">Billed To:</span>
-                    <p className="font-bold text-slate-900 text-xs mt-0.5">{sale.customer_name || 'Walk-in Cash Customer'}</p>
-                    {sale.customer_phone && <p className="text-slate-600">Phone: {sale.customer_phone}</p>}
+                    <p className="font-bold text-slate-900 text-xs mt-0.5">{sale.customer_name || 'Cash Customer'}</p>
+                    {sale.customer_phone && <p className="text-slate-600 font-mono">Phone: {sale.customer_phone}</p>}
                     {sale.customer_address && <p className="text-slate-600">{sale.customer_address}</p>}
                   </div>
                   <div className="text-right">
                     <span className="font-bold text-slate-500 uppercase text-[10px]">Payment Details:</span>
                     <p className="font-bold uppercase text-xs mt-0.5">{sale.payment_method}</p>
                     <p className="font-semibold text-emerald-700">Status: {sale.payment_status.toUpperCase()}</p>
+                    {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_mrp_savings && sale.discount_total > 0 && (
+                      <p className="text-[10px] text-emerald-700 font-bold mt-0.5">
+                        Saved: {formatINR(sale.discount_total)}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {/* Items Table */}
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b-2 border-slate-800 text-slate-600 font-bold uppercase text-[10px]">
-                      <th className="py-1.5">#</th>
-                      <th className="py-1.5">Item Name</th>
-                      <th className="py-1.5 text-right">Price</th>
-                      <th className="py-1.5 text-center">Qty</th>
-                      <th className="py-1.5 text-right">Disc</th>
-                      <th className="py-1.5 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {sale.items.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="py-2 text-slate-400 font-mono">{idx + 1}</td>
-                        <td className="py-2 font-bold text-slate-900">{item.product_name}</td>
-                        <td className="py-2 text-right font-mono">{formatINR(item.unit_price)}</td>
-                        <td className="py-2 text-center font-mono font-bold">{item.quantity} {item.unit}</td>
-                        <td className="py-2 text-right font-mono text-slate-500">{item.discount_amount ? formatINR(item.discount_amount) : '—'}</td>
-                        <td className="py-2 text-right font-mono font-bold text-slate-900">{formatINR(item.total_amount)}</td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse table-auto">
+                    <thead>
+                      <tr 
+                        className="text-white font-bold uppercase text-[10px]"
+                        style={{ backgroundColor: (business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).primary_color }}
+                      >
+                        <th className="py-2 px-2 text-center w-7 rounded-l">#</th>
+                        <th className="py-2 px-2.5">Item Name</th>
+                        {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_hsn_code && (
+                          <th className="py-2 px-2 text-center w-14">HSN</th>
+                        )}
+                        <th className="py-2 px-2 text-right w-20">Price</th>
+                        <th className="py-2 px-2 text-center w-16">Qty</th>
+                        {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_gst_breakup && (
+                          <th className="py-2 px-2 text-center w-12">GST</th>
+                        )}
+                        <th className="py-2 px-2 text-right w-14">Disc</th>
+                        <th className="py-2 px-2.5 text-right w-24 rounded-r">Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {sale.items.map((item, idx) => (
+                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                          <td className="py-1.5 px-2 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                          <td className="py-1.5 px-2.5 font-bold text-slate-900 leading-snug">{item.product_name}</td>
+                          {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_hsn_code && (
+                            <td className="py-1.5 px-2 text-center text-slate-400 font-mono text-[11px]">—</td>
+                          )}
+                          <td className="py-1.5 px-2 text-right font-medium text-slate-700 tabular-nums">{formatINR(item.unit_price)}</td>
+                          <td className="py-1.5 px-2 text-center font-bold text-slate-900 tabular-nums">{item.quantity} {item.unit}</td>
+                          {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_gst_breakup && (
+                            <td className="py-1.5 px-2 text-center text-slate-500 font-semibold text-[11px]">{item.tax_rate || 0}%</td>
+                          )}
+                          <td className="py-1.5 px-2 text-right font-medium text-slate-500 tabular-nums">{item.discount_amount ? formatINR(item.discount_amount) : '—'}</td>
+                          <td className="py-1.5 px-2.5 text-right font-bold text-slate-900 tabular-nums">{formatINR(item.total_amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
                 {/* Totals & QR Section */}
                 <div className="grid grid-cols-2 gap-4 pt-3 border-t-2 border-slate-800">
                   <div>
-                    {qrDataUrl && (
+                    {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_upi_qr && qrDataUrl && (
                       <div className="flex items-center gap-3">
                         <img src={qrDataUrl} alt="UPI QR" className="w-20 h-20 border border-slate-200 rounded p-1" />
                         <div className="text-[10px] text-slate-600">
@@ -397,41 +441,41 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   <div className="space-y-1.5 text-right text-xs">
                     <div className="flex justify-between text-slate-600">
                       <span>Subtotal:</span>
-                      <span className="font-mono">{formatINR(sale.subtotal)}</span>
+                      <span className="font-semibold text-slate-800 tabular-nums">{formatINR(sale.subtotal)}</span>
                     </div>
                     {sale.discount_total > 0 && (
                       <div className="flex justify-between text-emerald-700">
                         <span>Total Discount:</span>
-                        <span className="font-mono">-{formatINR(sale.discount_total)}</span>
+                        <span className="font-semibold text-emerald-700 tabular-nums">-{formatINR(sale.discount_total)}</span>
                       </div>
                     )}
                     {sale.tax_total > 0 && (
                       <div className="flex justify-between text-slate-600">
                         <span>Total GST:</span>
-                        <span className="font-mono">{formatINR(sale.tax_total)}</span>
+                        <span className="font-semibold text-slate-800 tabular-nums">{formatINR(sale.tax_total)}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-base font-black text-slate-900 pt-1.5 border-t border-slate-300">
                       <span>Grand Total:</span>
-                      <span className="font-mono">{formatINR(sale.grand_total)}</span>
+                      <span className="font-black text-slate-950 tabular-nums">{formatINR(sale.grand_total)}</span>
                     </div>
                     <div className="flex justify-between text-xs text-slate-600 pt-1">
                       <span>Amount Received:</span>
-                      <span className="font-mono font-bold">{formatINR(sale.amount_received)}</span>
+                      <span className="font-bold text-slate-900 tabular-nums">{formatINR(sale.amount_received)}</span>
                     </div>
                     {sale.balance_due > 0 && (
                       <div className="flex justify-between text-xs font-bold text-rose-700">
                         <span>Balance Due (Udhar):</span>
-                        <span className="font-mono">{formatINR(sale.balance_due)}</span>
+                        <span className="font-bold text-rose-700 tabular-nums">{formatINR(sale.balance_due)}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Footer terms */}
-                <div className="pt-4 border-t border-slate-200 text-center text-[10px] text-slate-500">
-                  <p>{business.terms_conditions || 'Thank you for your business!'}</p>
-                  <p className="mt-0.5">{business.footer_message || 'Powered by Kamai+ Digital POS'}</p>
+                <div className="pt-3 pb-1 border-t border-slate-200 text-center text-[10px] text-slate-500 space-y-0.5">
+                  <p>{(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).custom_terms || business.terms_conditions || 'Thank you for your business!'}</p>
+                  <p className="text-slate-400">{(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).custom_footer || business.footer_message || 'Powered by Kamai+ Digital POS'}</p>
                 </div>
               </div>
             ) : (

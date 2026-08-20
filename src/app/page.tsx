@@ -37,12 +37,15 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingReportModal';
 import { Sale } from '@/types';
+import { MessageCircle } from 'lucide-react';
 
 export default function HomePage() {
   const { t, language } = useTranslation();
   const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState<boolean>(false);
+  const [isClosingReportOpen, setIsClosingReportOpen] = useState<boolean>(false);
   const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
 
   // Recent Transactions Filter & Collapse States
@@ -52,6 +55,7 @@ export default function HomePage() {
   const [recentSearchQuery, setRecentSearchQuery] = useState<string>('');
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const allExpenses = useLiveQuery(async () => db.cash_expenses.toArray()) || [];
 
   // Metrics Queries
   const products = useLiveQuery(async () => db.products.toArray()) || [];
@@ -127,24 +131,6 @@ export default function HomePage() {
         businessName={business?.name}
         onUpgradeSuccess={(tier) => setSubscriptionTier(tier)}
       />
-
-      {/* Free plan upgrade nudge banner (High contrast light styling) */}
-      {isFree && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <Zap className="w-4 h-4 text-amber-600 flex-shrink-0" />
-            <span className="text-xs font-bold text-amber-950">
-              Kamai+ Free Edition — Upgrade for unlimited cloud backup & automatic WhatsApp bills
-            </span>
-          </div>
-          <button
-            onClick={() => setIsUpgradeOpen(true)}
-            className="flex-shrink-0 text-[11px] font-black bg-amber-400 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-lg cursor-pointer transition-all shadow-xs"
-          >
-            Upgrade →
-          </button>
-        </div>
-      )}
 
       {/* ---------------- TOP-LEVEL METRIC SUMMARY CARDS (COMPACT PREVIOUS STYLE) ---------------- */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
@@ -258,6 +244,37 @@ export default function HomePage() {
             </div>
           </Card>
         </Link>
+      </div>
+
+      {/* ---------------- 1-TAP DAY-END WHATSAPP SALES SUMMARY BANNER ---------------- */}
+      <div 
+        onClick={() => setIsClosingReportOpen(true)}
+        className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-md shadow-emerald-600/15 cursor-pointer active:scale-[0.99] transition-all border border-emerald-500/30"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold flex-shrink-0">
+            <MessageCircle className="w-5 h-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs sm:text-sm font-black truncate flex items-center gap-2">
+              <span>1-Tap Day-End WhatsApp Sales Summary</span>
+              <span className="px-2 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase">
+                Store Closing
+              </span>
+            </div>
+            <div className="text-[11px] text-emerald-100 font-medium truncate">
+              Instant hisab-kitab breakdown (Total Sales, Cash, UPI &amp; Udhar) to WhatsApp
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="px-3.5 py-1.5 rounded-xl bg-white text-slate-950 font-black text-xs flex items-center gap-1.5 flex-shrink-0 shadow-xs hover:bg-emerald-50 transition"
+        >
+          <span>Send Report</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* ---------------- PRIMARY DAILY OPERATIONS (COMPACT, HIGH CONTRAST LIGHT CARDS) ---------------- */}
@@ -603,6 +620,15 @@ export default function HomePage() {
           business={business || null}
         />
       )}
+
+      {/* 1-Tap Day-End WhatsApp Sales Summary Modal */}
+      <DayEndClosingReportModal
+        isOpen={isClosingReportOpen}
+        onClose={() => setIsClosingReportOpen(false)}
+        business={business}
+        sales={allSales}
+        expenses={allExpenses}
+      />
     </div>
   );
 }

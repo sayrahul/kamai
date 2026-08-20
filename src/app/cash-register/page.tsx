@@ -36,6 +36,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingReportModal';
 
 export default function CashRegisterPage() {
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -67,6 +68,7 @@ export default function CashRegisterPage() {
   const [isOpeningModalOpen, setIsOpeningModalOpen] = useState<boolean>(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState<boolean>(false);
   const [isClosingModalOpen, setIsClosingModalOpen] = useState<boolean>(false);
+  const [isClosingReportModalOpen, setIsClosingReportModalOpen] = useState<boolean>(false);
 
   // New Expense Form
   const [expenseTitle, setExpenseTitle] = useState('');
@@ -194,7 +196,7 @@ export default function CashRegisterPage() {
     });
 
     setIsClosingModalOpen(false);
-    alert('Day shift closed successfully! Daily Z-Report archived.');
+    setIsClosingReportModalOpen(true);
   };
 
   // 1-Click Print Z-Report Slip over Bluetooth ESC/POS
@@ -290,13 +292,23 @@ export default function CashRegisterPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* 1-Tap WhatsApp Summary Action Button */}
+          <Button
+            size="sm"
+            onClick={() => setIsClosingReportModalOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-sm cursor-pointer"
+          >
+            <MessageCircle className="w-3.5 h-3.5 text-white" />
+            <span>WhatsApp Day Summary</span>
+          </Button>
+
           {activeShift ? (
             <>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsExpenseModalOpen(true)}
-                className="text-xs font-bold gap-1 bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100"
+                className="text-xs font-bold gap-1 bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 text-rose-700" />
                 <span>Add Expense</span>
@@ -305,7 +317,7 @@ export default function CashRegisterPage() {
               <Button
                 size="sm"
                 onClick={() => setIsClosingModalOpen(true)}
-                className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 shadow-sm"
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 shadow-sm cursor-pointer"
               >
                 <Calculator className="w-4 h-4 text-amber-400" />
                 <span>Count & Close Shift</span>
@@ -315,7 +327,7 @@ export default function CashRegisterPage() {
             <Button
               size="sm"
               onClick={() => setIsOpeningModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-sm cursor-pointer"
             >
               <Unlock className="w-4 h-4" />
               <span>Open Cash Register</span>
@@ -702,6 +714,15 @@ export default function CashRegisterPage() {
           </div>
         </div>
       </Modal>
+
+      {/* 1-Tap Day-End WhatsApp Sales Summary Modal */}
+      <DayEndClosingReportModal
+        isOpen={isClosingReportModalOpen}
+        onClose={() => setIsClosingReportModalOpen(false)}
+        business={business}
+        sales={todaySales}
+        expenses={todayExpenses}
+      />
     </div>
   );
 }

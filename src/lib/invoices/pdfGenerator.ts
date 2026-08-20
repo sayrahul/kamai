@@ -1,10 +1,11 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Sale, Business } from '@/types';
+import { formatINR } from '@/lib/utils';
 import { sendInvoiceViaWhatsApp } from './whatsappInvoice';
 
 /**
- * Renders an HTML element to a full, un-cropped high-resolution PDF Blob
+ * Renders an HTML element to a full, un-cropped high-resolution PDF Blob with true Multi-Page A4 support
  */
 export async function generateInvoicePdfBlobFromElement(
   element: HTMLElement,
@@ -16,9 +17,8 @@ export async function generateInvoicePdfBlobFromElement(
   const isThermal = isThermal58 || isThermal80;
 
   // 2. Capture full un-clipped element using html2canvas
-  const originalScrollTop = element.scrollTop;
-  const fullHeight = element.scrollHeight || element.offsetHeight || 1000;
-  const fullWidth = element.scrollWidth || element.offsetWidth || 800;
+  const fullHeight = (element.scrollHeight || element.offsetHeight || 1000) + 16; // Add safety padding so borders are never clipped
+  const fullWidth = (element.scrollWidth || element.offsetWidth || 800) + 8;
 
   const canvas = await html2canvas(element, {
     scale: 2.5, // Crisp 300 DPI high resolution
@@ -32,13 +32,13 @@ export async function generateInvoicePdfBlobFromElement(
     windowWidth: Math.max(fullWidth + 100, 1200),
     windowHeight: Math.max(fullHeight + 200, 1600),
     onclone: (clonedDoc, clonedElement) => {
-      // Ensure the cloned element and all ancestors have no height/overflow constraints
       clonedElement.style.maxHeight = 'none';
       clonedElement.style.height = 'auto';
       clonedElement.style.overflow = 'visible';
       clonedElement.style.position = 'relative';
       clonedElement.style.transform = 'none';
       clonedElement.style.boxShadow = 'none';
+      clonedElement.style.paddingBottom = '16px'; // Extra breathing room inside clone
 
       let parent = clonedElement.parentElement;
       while (parent && parent !== clonedDoc.body) {
@@ -56,7 +56,7 @@ export async function generateInvoicePdfBlobFromElement(
   let pdf: jsPDF;
 
   if (isThermal) {
-    // Continuous Thermal Receipt PDF (Custom height to fit 100% of the receipt on 1 page)
+    // Continuous Thermal Receipt PDF (Custom height to fit 100% of the receipt on 1 continuous strip)
     const thermalWidth = isThermal58 ? 58 : 80; // mm
     const thermalHeight = Math.max(80, Math.ceil((canvas.height * thermalWidth) / canvas.width) + 8);
 
@@ -69,14 +69,14 @@ export async function generateInvoicePdfBlobFromElement(
     const renderedHeight = (canvas.height * thermalWidth) / canvas.width;
     pdf.addImage(imgData, 'PNG', 0, 4, thermalWidth, renderedHeight, undefined, 'FAST');
   } else {
-    // Standard A4 Invoice: scale the full preview to fit a single page
-    // This preserves the invoice layout and avoids clipping or offset rendering
-    // that happened when the HTML was partially reflowed across multiple pages.
+    // Standard A4 Invoice (210mm x 297mm)
     const pageWidth = 210; // mm
     const pageHeight = 297; // mm
     const margin = 8; // mm margin
-    const contentWidth = pageWidth - margin * 2;
-    const contentHeight = pageHeight - margin * 2;
+    const contentWidth = pageWidth - margin * 2; // 194 mm
+    const contentHeight = pageHeight - margin * 2; // 281 mm
+
+    const imgHeightInPdf = (canvas.height * contentWidth) / canvas.width;
 
     pdf = new jsPDF({
       orientation: 'portrait',
@@ -84,13 +84,59 @@ export async function generateInvoicePdfBlobFromElement(
       format: 'a4',
     });
 
-    const scale = Math.min(contentWidth / canvas.width, contentHeight / canvas.height, 1);
-    const scaledWidth = canvas.width * scale;
-    const scaledHeight = canvas.height * scale;
-    const offsetX = (pageWidth - scaledWidth) / 2;
-    const offsetY = margin;
+    if (imgHeightInPdf <= contentHeight) {
+      // Fits on a single A4 page with default margins
+      const offsetX = margin;
+      const offsetY = margin;
+      pdf.addImage(imgData, 'PNG', offsetX, offsetY, contentWidth, imgHeightInPdf, undefined, 'FAST');
+    } else if (imgHeightInPdf <= contentHeight * 1.15) {
+      // 1-Page Smart Fit: If invoice is slightly taller (12-16 items), scale down slightly (<15%) to fit on 1 complete page with zero border clipping!
+      const fitScale = contentHeight / imgHeightInPdf;
+      const fitWidth = contentWidth * fitScale;
+      const fitHeight = contentHeight;
+      const offsetX = margin + (contentWidth - fitWidth) / 2;
+      const offsetY = margin;
+      pdf.addImage(imgData, 'PNG', offsetX, offsetY, fitWidth, fitHeight, undefined, 'FAST');
+    } else {
+      // Multi-Page A4 Invoice (17+ items): slice canvas height across Page 1, Page 2, Page 3, etc.
+      const canvasPageHeight = (contentHeight * canvas.width) / contentWidth;
+      const totalPages = Math.ceil(canvas.height / canvasPageHeight);
 
-    pdf.addImage(imgData, 'PNG', offsetX, offsetY, scaledWidth, scaledHeight, undefined, 'FAST');
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) {
+          pdf.addPage();
+        }
+
+        // Create page-specific canvas slice
+        const sourceY = page * canvasPageHeight;
+        const sliceHeight = Math.min(canvasPageHeight, canvas.height - sourceY);
+
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sliceHeight;
+        const pageCtx = pageCanvas.getContext('2d');
+
+        if (pageCtx) {
+          pageCtx.fillStyle = '#ffffff';
+          pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          pageCtx.drawImage(
+            canvas,
+            0,
+            sourceY,
+            canvas.width,
+            sliceHeight,
+            0,
+            0,
+            canvas.width,
+            sliceHeight
+          );
+
+          const pageImgData = pageCanvas.toDataURL('image/png', 1.0);
+          const renderedSliceHeight = (sliceHeight * contentWidth) / canvas.width;
+          pdf.addImage(pageImgData, 'PNG', margin, margin, contentWidth, renderedSliceHeight, undefined, 'FAST');
+        }
+      }
+    }
   }
 
   const blob = pdf.output('blob');
@@ -133,24 +179,21 @@ export async function shareInvoicePdfDirect(
       const { file } = await generateInvoicePdfBlobFromElement(element, filename);
       if (navigator.canShare({ files: [file] })) {
         await navigator.share({
-          title: `Invoice #${sale.invoice_number} from ${business.name}`,
-          text: `Tax Invoice #${sale.invoice_number} from ${business.name}`,
           files: [file],
+          title: `Invoice ${sale.invoice_number} from ${business.name}`,
+          text: `Here is your tax invoice #${sale.invoice_number} from ${business.name}. Total: ${formatINR(sale.grand_total)}. Thank you for your business!`,
         });
         return { shared: true, method: 'native-share' };
       }
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        console.warn('Native PDF share failed, falling back to WhatsApp link:', err);
-      } else {
-        // User cancelled share dialog
-        return { shared: false, method: 'native-share' };
+    } catch (shareErr: any) {
+      if (shareErr.name === 'AbortError') {
+        return { shared: false, method: 'native-share' }; // User cancelled the share dialog
       }
+      console.warn('Web Share API failed, falling back to WhatsApp Web Link:', shareErr);
     }
   }
 
-  // 2. Fallback: Open WhatsApp with rich message & digital PDF invoice link
+  // 2. Fallback: Open formatted WhatsApp chat message
   sendInvoiceViaWhatsApp(recipientPhone || sale.customer_phone || '', sale, business);
   return { shared: true, method: 'whatsapp-link' };
 }
-
