@@ -5,7 +5,6 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { 
   downloadBackupJSON, 
-  exportDatabaseSnapshot, 
   restoreDatabaseFromPayload, 
   FullBackupPayload 
 } from '@/lib/backup/cloudBackupService';
@@ -16,9 +15,10 @@ import {
   Clock, 
   ShieldCheck, 
   Database, 
-  Sliders,
-  Sparkles,
-  HardDrive
+  HardDrive,
+  FileDown,
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -28,15 +28,15 @@ export default function CloudBackupPage() {
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const productCount = useLiveQuery(async () => db.products.count()) || 0;
   const customerCount = useLiveQuery(async () => db.customers.count()) || 0;
-  const supplierCount = useLiveQuery(async () => db.suppliers.count()) || 0;
   const saleCount = useLiveQuery(async () => db.sales.count()) || 0;
   const khataCount = useLiveQuery(async () => db.ledger_transactions.count()) || 0;
+
+  const totalRecords = productCount + customerCount + saleCount + khataCount;
 
   // State
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [backupSuccessMessage, setBackupSuccessMessage] = useState<string | null>(null);
   const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
-  const [lastBackupType, setLastBackupType] = useState<string | null>(null);
 
   // Restore State
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
@@ -45,46 +45,23 @@ export default function CloudBackupPage() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreSuccessMessage, setRestoreSuccessMessage] = useState<string | null>(null);
 
-  // Automated Backup Preferences State (persisted in localStorage)
-  const [autoBackupOnShiftClose, setAutoBackupOnShiftClose] = useState(true);
-  const [dailyAutoBackup, setDailyAutoBackup] = useState(true);
-
   // Load last backup timestamp on mount
   useEffect(() => {
     try {
       const lastTime = localStorage.getItem('kamai_last_backup_time');
-      const lastType = localStorage.getItem('kamai_last_backup_type');
       if (lastTime) setLastBackupTime(lastTime);
-      if (lastType) setLastBackupType(lastType);
     } catch (e) {}
   }, []);
 
-  // 1-Click Database Snapshot Export
-  const handleExportSnapshot = async () => {
-    setIsBackingUp(true);
-    try {
-      const res = await exportDatabaseSnapshot();
-      const now = new Date().toISOString();
-      setLastBackupTime(now);
-      setLastBackupType('local_snapshot');
-      setBackupSuccessMessage(`Database snapshot exported successfully: ${res.filename}`);
-      setTimeout(() => setBackupSuccessMessage(null), 5000);
-    } catch (err: any) {
-      alert(err.message || 'Snapshot export failed.');
-    } finally {
-      setIsBackingUp(false);
-    }
-  };
-
   // 1-Click Local File Download
-  const handleDownloadJSON = async () => {
+  const handleDownloadBackup = async () => {
     setIsBackingUp(true);
     try {
       const filename = await downloadBackupJSON();
       const now = new Date().toISOString();
       setLastBackupTime(now);
-      setLastBackupType('local_file');
-      setBackupSuccessMessage(`Database backup downloaded: ${filename}`);
+      localStorage.setItem('kamai_last_backup_time', now);
+      setBackupSuccessMessage(`Backup successfully downloaded: ${filename}`);
       setTimeout(() => setBackupSuccessMessage(null), 5000);
     } catch (err: any) {
       alert(err.message || 'Download failed.');
@@ -133,289 +110,113 @@ export default function CloudBackupPage() {
   };
 
   return (
-    <div className="space-y-6 pb-16">
+    <div className="max-w-4xl mx-auto space-y-5 pb-16">
       {/* ---------------- TOP HEADER ---------------- */}
-      <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 flex items-center gap-1.5">
-              <HardDrive className="w-3.5 h-3.5 text-amber-400" />
-              <span>Offline-First Store Data Protection</span>
-            </span>
-            <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-              Disaster Recovery & Data Export
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1.5">
+              <HardDrive className="w-3.5 h-3.5 text-amber-700" />
+              <span>Store Data Protection</span>
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Database Backup & 1-Click Snapshot Restore
+            Backup & Restore Database
           </h1>
           <p className="text-xs text-slate-500">
-            Never lose your product catalog, sales invoices, or customer credit records. Export encrypted JSON snapshots and restore them on any device anytime.
+            Download an offline backup file of all products, sales and customer khata to restore anytime.
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            onClick={handleExportSnapshot}
-            disabled={isBackingUp}
-            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 shadow-sm"
-          >
-            <Download className="w-3.5 h-3.5 text-amber-400" />
-            <span>{isBackingUp ? 'Exporting...' : 'Export Snapshot (.JSON)'}</span>
-          </Button>
+        <Button
+          onClick={handleDownloadBackup}
+          disabled={isBackingUp}
+          className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-xs border-amber-400 gap-1.5 cursor-pointer"
+        >
+          <FileDown className="w-4 h-4 text-slate-950" />
+          <span>{isBackingUp ? 'Generating Backup...' : 'Download Backup (.JSON)'}</span>
+        </Button>
+      </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDownloadJSON}
-            disabled={isBackingUp}
-            className="text-xs font-bold gap-1.5 bg-slate-50 text-slate-800 border-slate-300 hover:bg-slate-100"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-700" />
-            <span>Download Backup File</span>
-          </Button>
+      {/* ---------------- COMPACT 1-LINE STATUS BADGE (MINIMALIST) ---------------- */}
+      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-semibold text-slate-700">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0 animate-pulse" />
+          <span className="font-bold text-slate-900">IndexedDB Active (100% Offline)</span>
+          <span className="text-slate-400">•</span>
+          <span className="text-slate-600">
+            {totalRecords} protected entries ({productCount} products, {customerCount} customers, {saleCount} bills)
+          </span>
+        </div>
+
+        <div className="text-[11px] text-slate-500 font-mono">
+          Last Backup: {lastBackupTime ? new Date(lastBackupTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Not taken yet'}
         </div>
       </div>
 
       {/* FEEDBACK BANNERS */}
       {backupSuccessMessage && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold flex items-center gap-2 shadow-xs animate-in fade-in">
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold flex items-center gap-2 shadow-xs animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0" />
           <span>{backupSuccessMessage}</span>
         </div>
       )}
 
       {restoreSuccessMessage && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold flex items-center gap-2 shadow-xs animate-in fade-in">
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold flex items-center gap-2 shadow-xs animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0" />
           <span>{restoreSuccessMessage}</span>
         </div>
       )}
 
-      {/* ---------------- DATA INTEGRITY STATUS CARDS ---------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        {/* Card 1: Local Offline Storage */}
-        <Card className="p-4 bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-xl shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-            <span>Local Offline Storage</span>
-            <HardDrive className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="text-base font-black text-slate-950 mt-1 flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span>IndexedDB Active</span>
-          </div>
-          <div className="text-[11px] text-slate-500 font-medium">
-            100% offline billing & local persistence
-          </div>
-        </Card>
-
-        {/* Card 2: Last Backup Time */}
-        <Card className="p-4 bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-xl shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-            <span>Last Backup Taken</span>
-            <Clock className="w-4 h-4 text-slate-400" />
-          </div>
-          <div className="text-base font-black text-slate-900 mt-1 font-mono">
-            {lastBackupTime ? new Date(lastBackupTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Not yet taken'}
-          </div>
-          <div className="text-[11px] text-slate-500 font-medium">
-            {lastBackupTime ? `${new Date(lastBackupTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} (JSON Snapshot)` : 'Click export above'}
-          </div>
-        </Card>
-
-        {/* Card 3: Protected Records */}
-        <Card className="p-4 bg-gradient-to-br from-slate-900 to-slate-950 text-white border border-slate-800 rounded-xl shadow-md space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-400">
-            <span>Protected Records Count</span>
-            <ShieldCheck className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="text-base font-black text-amber-400 mt-1 font-mono">
-            {productCount + customerCount + saleCount + khataCount} Entries
-          </div>
-          <div className="text-[11px] text-slate-400 font-medium">
-            {productCount} products • {customerCount} customers • {saleCount} bills
-          </div>
-        </Card>
-      </div>
-
-      {/* ---------------- 2-COLUMN MAIN BACKUP & RESTORE INTERFACE ---------------- */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* ========================================================================= */}
-        {/* LEFT COLUMN: BACKUP & RESTORE ACTIONS (7 Cols) */}
-        {/* ========================================================================= */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* CARD 1: 1-CLICK BACKUP OPTIONS */}
-          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                <Database className="w-4 h-4 text-slate-700" />
-                <span>Export Store Database Snapshot</span>
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Create a full, tamper-proof JSON snapshot of your store data that can be restored onto any phone, tablet, or PC.
-              </p>
+      {/* ---------------- 2 COMPACT MINIMALIST ACTION CARDS ---------------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* CARD 1: EXPORT / DOWNLOAD */}
+        <div className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-3 hover:border-slate-300 transition-all">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold flex-shrink-0">
+              <Download className="w-4 h-4 text-amber-800" />
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              {/* Option A: Full Snapshot */}
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5 flex flex-col justify-between">
-                <div>
-                  <div className="font-black text-slate-900 flex items-center gap-1.5">
-                    <Database className="w-4 h-4 text-slate-800" />
-                    <span>Full Store Snapshot</span>
-                  </div>
-                  <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                    Exports all products, customers, transactions, and cash register shifts in a structured JSON payload.
-                  </p>
-                </div>
-
-                <Button
-                  size="sm"
-                  onClick={handleExportSnapshot}
-                  disabled={isBackingUp}
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs justify-center"
-                >
-                  <Download className="w-3.5 h-3.5 mr-1 text-amber-400" />
-                  <span>Export Snapshot</span>
-                </Button>
-              </div>
-
-              {/* Option B: Download File */}
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5 flex flex-col justify-between">
-                <div>
-                  <div className="font-black text-slate-900 flex items-center gap-1.5">
-                    <Download className="w-4 h-4 text-slate-700" />
-                    <span>JSON Backup File</span>
-                  </div>
-                  <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                    Download a timestamped file for offline archival, pen-drive storage, or sharing with your accountant.
-                  </p>
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDownloadJSON}
-                  disabled={isBackingUp}
-                  className="w-full font-bold text-xs justify-center bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
-                >
-                  <Download className="w-3.5 h-3.5 mr-1" />
-                  <span>Download File</span>
-                </Button>
-              </div>
+            <div className="min-w-0">
+              <h3 className="text-xs font-bold text-slate-900 leading-tight">Export Backup</h3>
+              <p className="text-[11px] text-slate-500 truncate mt-0.5">Save .json snapshot file</p>
             </div>
-          </Card>
+          </div>
 
-          {/* CARD 2: RESTORE DATABASE */}
-          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3.5 shadow-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                <Upload className="w-4 h-4 text-slate-700" />
-                <span>Restore Store Database from Backup File</span>
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Select a previously exported `.json` backup file to restore your entire product catalog, transactions, and customer balances.
-              </p>
-            </div>
-
-            <label className="block w-full">
-              <span className="sr-only">Choose backup file</span>
-              <div className="w-full p-6 border-2 border-dashed border-slate-300 hover:border-slate-500 rounded-xl bg-slate-50 hover:bg-slate-100/70 transition-colors flex flex-col items-center justify-center text-center cursor-pointer space-y-2">
-                <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center">
-                  <Upload className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-xs font-extrabold text-slate-900">Click to Select Backup JSON File</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">Supports all KamaiPlus backup snapshots</div>
-                </div>
-              </div>
-              <input type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
-            </label>
-          </Card>
+          <Button
+            size="sm"
+            onClick={handleDownloadBackup}
+            disabled={isBackingUp}
+            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg flex-shrink-0 cursor-pointer h-8"
+          >
+            <Download className="w-3 h-3 mr-1 text-amber-400" />
+            <span>{isBackingUp ? 'Saving...' : 'Download'}</span>
+          </Button>
         </div>
 
-        {/* ========================================================================= */}
-        {/* RIGHT COLUMN: AUTOMATED BACKUP SETTINGS & BREAKDOWN (5 Cols) */}
-        {/* ========================================================================= */}
-        <div className="lg:col-span-5 space-y-4">
-          {/* CARD 3: AUTOMATED BACKUP PREFERENCES */}
-          <Card className="p-4 bg-white border border-slate-200 space-y-3.5 shadow-xs text-xs">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-              <Sliders className="w-4 h-4 text-slate-700" />
-              <span>Backup Reminders & Preferences</span>
-            </h3>
-
-            <div className="space-y-3">
-              <label className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={autoBackupOnShiftClose}
-                  onChange={(e) => setAutoBackupOnShiftClose(e.target.checked)}
-                  className="mt-0.5 rounded text-slate-900"
-                />
-                <div>
-                  <div className="font-bold text-slate-900">Prompt Export on Day-End Close</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
-                    Prompts to export database snapshot whenever cashier closes register & generates Z-Report.
-                  </div>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={dailyAutoBackup}
-                  onChange={(e) => setDailyAutoBackup(e.target.checked)}
-                  className="mt-0.5 rounded text-slate-900"
-                />
-                <div>
-                  <div className="font-bold text-slate-900">Daily Reminder at Business Close</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
-                    Reminds you to download an updated copy of all daily transactions at the end of each business day.
-                  </div>
-                </div>
-              </label>
+        {/* CARD 2: RESTORE DATABASE */}
+        <div className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-3 hover:border-slate-300 transition-all">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center font-bold flex-shrink-0">
+              <Upload className="w-4 h-4 text-slate-700" />
             </div>
-          </Card>
-
-          {/* CARD 4: LIVE DATABASE METRICS BREAKDOWN */}
-          <Card className="p-4 bg-white border border-slate-200 space-y-3 shadow-xs text-xs">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-              <Database className="w-4 h-4 text-slate-700" />
-              <span>Current Database Inventory</span>
-            </h3>
-
-            <div className="space-y-2">
-              <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                <span>Products in Catalog:</span>
-                <span className="font-mono font-bold text-slate-900">{productCount} items</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                <span>Customers & Khata:</span>
-                <span className="font-mono font-bold text-slate-900">{customerCount} customers</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                <span>Total Invoices Issued:</span>
-                <span className="font-mono font-bold text-slate-900">{saleCount} sales</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                <span>Ledger & Credit Transactions:</span>
-                <span className="font-mono font-bold text-slate-900">{khataCount} entries</span>
-              </div>
-              <div className="flex justify-between pt-1 font-bold text-emerald-700">
-                <span>Disaster Recovery Status:</span>
-                <span>✓ 100% Protected Locally</span>
-              </div>
+            <div className="min-w-0">
+              <h3 className="text-xs font-bold text-slate-900 leading-tight">Restore Database</h3>
+              <p className="text-[11px] text-slate-500 truncate mt-0.5">Upload .json backup file</p>
             </div>
-          </Card>
+          </div>
+
+          <label className="cursor-pointer flex-shrink-0">
+            <div className="px-3 py-1.5 border border-slate-300 hover:bg-slate-50 rounded-lg text-slate-800 font-bold text-xs flex items-center gap-1 transition-colors h-8">
+              <Upload className="w-3 h-3 text-slate-700" />
+              <span>Select File</span>
+            </div>
+            <input type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
+          </label>
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* RESTORE CONFIRMATION MODAL */}
-      {/* ========================================================================= */}
+      {/* ---------------- RESTORE CONFIRMATION MODAL ---------------- */}
       {restorePayload && (
         <Modal
           isOpen={isRestoreModalOpen}
@@ -424,22 +225,23 @@ export default function CloudBackupPage() {
             setRestorePayload(null);
           }}
           title="Verify & Confirm Database Restore"
-          description="Review the contents of the selected backup file before applying to your store database."
+          description="Review backup file contents before restoring onto your store."
+          size="md"
         >
-          <div className="space-y-4 text-xs">
+          <div className="space-y-4 text-xs p-1">
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <div className="font-black text-slate-900 text-sm">
                 Store: {restorePayload.metadata.business_name}
               </div>
-              <div className="text-[11px] text-slate-500">
-                Backup Created: {new Date(restorePayload.metadata.created_at).toLocaleString('en-IN')}
+              <div className="text-[11px] text-slate-500 font-mono">
+                Date: {new Date(restorePayload.metadata.created_at).toLocaleString('en-IN')}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 font-mono text-[11px]">
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 font-mono text-[11px] text-slate-700">
                 <div>• Products: {restorePayload.metadata.counts.products}</div>
                 <div>• Customers: {restorePayload.metadata.counts.customers}</div>
-                <div>• Sales Bills: {restorePayload.metadata.counts.sales}</div>
-                <div>• Ledger Records: {restorePayload.metadata.counts.ledger_transactions}</div>
+                <div>• Bills: {restorePayload.metadata.counts.sales}</div>
+                <div>• Khata: {restorePayload.metadata.counts.ledger_transactions}</div>
               </div>
             </div>
 
@@ -448,7 +250,7 @@ export default function CloudBackupPage() {
                 Choose Restore Strategy:
               </label>
               <div className="space-y-2">
-                <label className="flex items-start gap-2 p-2.5 rounded-lg border border-slate-300 cursor-pointer bg-white">
+                <label className="flex items-start gap-2 p-2.5 rounded-xl border border-slate-300 cursor-pointer bg-white">
                   <input
                     type="radio"
                     name="restoreMode"
@@ -457,14 +259,14 @@ export default function CloudBackupPage() {
                     className="mt-0.5"
                   />
                   <div>
-                    <div className="font-bold text-slate-900">Clean Fresh Restore (Recommended)</div>
+                    <div className="font-bold text-slate-900">Clean Replace (Recommended)</div>
                     <div className="text-[10px] text-slate-500">
-                      Replaces existing database completely with the exact state from this backup.
+                      Replaces existing database completely with the exact state from this backup file.
                     </div>
                   </div>
                 </label>
 
-                <label className="flex items-start gap-2 p-2.5 rounded-lg border border-slate-300 cursor-pointer bg-white">
+                <label className="flex items-start gap-2 p-2.5 rounded-xl border border-slate-300 cursor-pointer bg-white">
                   <input
                     type="radio"
                     name="restoreMode"
@@ -473,9 +275,9 @@ export default function CloudBackupPage() {
                     className="mt-0.5"
                   />
                   <div>
-                    <div className="font-bold text-slate-900">Smart Merge & Append</div>
+                    <div className="font-bold text-slate-900">Merge & Append</div>
                     <div className="text-[10px] text-slate-500">
-                      Appends missing products and sales without deleting newly created records.
+                      Appends missing products and sales without deleting new records.
                     </div>
                   </div>
                 </label>
@@ -497,9 +299,9 @@ export default function CloudBackupPage() {
                 size="sm"
                 onClick={handleConfirmRestore}
                 disabled={isRestoring}
-                className="bg-slate-900 text-white font-bold"
+                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold"
               >
-                {isRestoring ? 'Restoring...' : 'Confirm & Apply Restore'}
+                {isRestoring ? 'Restoring...' : 'Confirm & Restore'}
               </Button>
             </div>
           </div>
