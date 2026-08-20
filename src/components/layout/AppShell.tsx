@@ -34,7 +34,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     window.addEventListener('storage', handleAuthChange);
 
     const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
-    const isPublicRoute = pathname === '/auth' || pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || isCustomerInvoice;
+    const isPublicRoute = pathname === '/admin' || pathname.startsWith('/admin') || pathname === '/auth' || pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || isCustomerInvoice;
 
     // Verify session with server API (/api/auth/me)
     const checkServerSession = async () => {
@@ -98,8 +98,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-slate-50">{children}</main>;
   }
 
-  // Standalone full-screen layout for onboarding, auth, and legal policy pages
-  if (pathname === '/onboarding' || pathname === '/auth' || pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us') {
+  // Standalone full-screen layout for admin, onboarding, auth, and legal policy pages
+  if (pathname === '/admin' || pathname.startsWith('/admin') || pathname === '/onboarding' || pathname === '/auth' || pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us') {
     return <main className="min-h-screen bg-slate-950">{children}</main>;
   }
 
