@@ -9,6 +9,7 @@ import { Business, Sale, CartItem } from '@/types';
 import { formatINR, generateUPILink } from '@/lib/utils';
 import { calculateGstSummary, numberToWordsINR } from '@/lib/invoices/gstCalculator';
 import { sendInvoiceViaWhatsApp, generateWhatsAppInvoiceMessage } from '@/lib/invoices/whatsappInvoice';
+import { usePlatformPromoConfig } from '@/lib/firebase/remoteConfig';
 import Link from 'next/link';
 import { 
   Printer, 
@@ -60,8 +61,9 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   const [shareSuccessMsg, setShareSuccessMsg] = useState<string>('');
   const [isBluetoothPrinting, setIsBluetoothPrinting] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
-
   const [selectedUpiIndex, setSelectedUpiIndex] = useState<number>(0);
+
+  const platformPromo = usePlatformPromoConfig();
 
   useEffect(() => {
     setSale(initialSale);
@@ -521,22 +523,24 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 </div>
 
                 {/* Bottom Platform Advertisement Banner (Free Tier Only) */}
-                {(!business.subscription_tier || business.subscription_tier === 'free') && (
+                {(!business.subscription_tier || business.subscription_tier === 'free') && platformPromo.enabled && (
                   <div 
                     className="p-2.5 rounded-lg text-white flex items-center justify-between gap-2 shadow-xs"
                     style={{ backgroundColor: (business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).primary_color }}
                   >
                     <div>
                       <div className="font-black text-xs leading-tight flex items-center gap-1.5">
-                        <span>⚡ Billed with KamaiPlus POS</span>
-                        <span className="text-[9px] font-normal opacity-85">• Free Retail Invoicing &amp; Khata</span>
+                        <span>{platformPromo.title}</span>
+                        {platformPromo.subtitle && (
+                          <span className="text-[9px] font-normal opacity-85">• {platformPromo.subtitle}</span>
+                        )}
                       </div>
                       <div className="text-[9.5px] text-white/90 mt-0.5">
-                        Get your free GST billing &amp; WhatsApp invoicing app • <span className="font-bold underline">kamaiplus.proventure.in</span>
+                        {platformPromo.desc}
                       </div>
                     </div>
                     <span className="px-1.5 py-0.5 rounded bg-white/20 text-[9px] font-black uppercase tracking-wider flex-shrink-0">
-                      Kamai+
+                      {platformPromo.badge}
                     </span>
                   </div>
                 )}

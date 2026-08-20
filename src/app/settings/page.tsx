@@ -26,6 +26,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 
+import { compressImageFile } from '@/lib/utils/imageCompressor';
+import { uploadStoreLogoToStorage } from '@/lib/firebase/storage';
+
 export default function SettingsPage() {
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
 
@@ -114,22 +117,34 @@ export default function SettingsPage() {
     }
   }, [selectedPreviewUpiIndex, upiList, name]);
 
-  // Logo Upload
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Logo Upload with In-Browser Compression & Cloud Storage
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Logo image size should be less than 2MB.');
-      return;
-    }
+    try {
+      // 1. In-browser compression (Max 512x512, WebP, quality 0.82) -> typically reduces 4MB to ~30KB
+      const { dataUrl } = await compressImageFile(file, {
+        maxWidth: 512,
+        maxHeight: 512,
+        quality: 0.82,
+        mimeType: 'image/webp',
+      });
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      setLogoUrl(result);
-    };
-    reader.readAsDataURL(file);
+      // Immediate responsive UI update
+      setLogoUrl(dataUrl);
+
+      // 2. Cloud Storage upload
+      try {
+        const { url } = await uploadStoreLogoToStorage(file, business?.id || 'biz_default');
+        setLogoUrl(url);
+      } catch (err) {
+        console.log('Firebase Storage not configured or offline, using compressed image data:', err);
+      }
+    } catch (err) {
+      console.error('Logo compression failed:', err);
+      alert('Failed to process image. Please try another file.');
+    }
   };
 
   // Add New UPI ID

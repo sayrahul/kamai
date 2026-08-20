@@ -19,8 +19,12 @@ import {
   FileSpreadsheet,
   BookOpen,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Cloud,
+  RefreshCw,
+  Smartphone
 } from 'lucide-react';
+import { syncLocalDexieToFirestore, restoreFirestoreToLocalDexie } from '@/lib/firebase/firestoreSync';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
@@ -50,6 +54,10 @@ export default function CloudBackupPage() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreSuccessMessage, setRestoreSuccessMessage] = useState<string | null>(null);
 
+  // Firestore Live Cloud Sync State
+  const [isFirestoreSyncing, setIsFirestoreSyncing] = useState(false);
+  const [isFirestoreRestoring, setIsFirestoreRestoring] = useState(false);
+
   // Load last backup timestamp on mount
   useEffect(() => {
     try {
@@ -57,6 +65,43 @@ export default function CloudBackupPage() {
       if (lastTime) setLastBackupTime(lastTime);
     } catch (e) {}
   }, []);
+
+  const handleSyncToFirestore = async () => {
+    if (!business) {
+      alert('Please setup your business profile first.');
+      return;
+    }
+    setIsFirestoreSyncing(true);
+    try {
+      const res = await syncLocalDexieToFirestore(business.id);
+      setBackupSuccessMessage(`Cloud Firestore Synced: ${res.stats.sales} sales, ${res.stats.products} products, ${res.stats.customers} customers, ${res.stats.ledger} khata records.`);
+      setTimeout(() => setBackupSuccessMessage(null), 6000);
+    } catch (err: any) {
+      alert(`Firestore sync error: ${err.message || 'Check connection'}`);
+    } finally {
+      setIsFirestoreSyncing(false);
+    }
+  };
+
+  const handleRestoreFromFirestore = async () => {
+    if (!business) {
+      alert('Please setup your business profile first.');
+      return;
+    }
+    if (!confirm('Restore all products, sales, customers, and ledger records from Cloud Firestore into your local database?')) {
+      return;
+    }
+    setIsFirestoreRestoring(true);
+    try {
+      const res = await restoreFirestoreToLocalDexie(business.id);
+      setRestoreSuccessMessage(`Successfully restored from Cloud Firestore: ${res.stats.products} products, ${res.stats.sales} sales.`);
+      setTimeout(() => setRestoreSuccessMessage(null), 6000);
+    } catch (err: any) {
+      alert(`Firestore restore error: ${err.message || 'Check connection'}`);
+    } finally {
+      setIsFirestoreRestoring(false);
+    }
+  };
 
   // 1-Click Local File Download
   const handleDownloadBackup = async () => {
@@ -262,6 +307,51 @@ export default function CloudBackupPage() {
               </div>
               <input type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
             </label>
+          </div>
+        </div>
+
+        {/* CARD 3: CLOUD FIRESTORE REAL-TIME SYNC */}
+        <div className="p-4 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-white border border-amber-300/80 rounded-xl shadow-2xs space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-xs flex-shrink-0">
+                <Cloud className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-black text-slate-900">Cloud Firestore Real-Time Sync</h3>
+                  <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                    Multi-Device Ready
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Sync sales, products, and Khata ledger across multiple billing counters and shop owner mobile dashboard.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-200/60 justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRestoreFromFirestore}
+              disabled={isFirestoreRestoring || isFirestoreSyncing}
+              className="text-xs font-bold gap-1.5 rounded-lg h-8 border-slate-300 hover:bg-white cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isFirestoreRestoring ? 'animate-spin' : ''}`} />
+              <span>{isFirestoreRestoring ? 'Restoring...' : 'Restore from Cloud'}</span>
+            </Button>
+
+            <Button
+              size="sm"
+              onClick={handleSyncToFirestore}
+              disabled={isFirestoreSyncing || isFirestoreRestoring}
+              className="text-xs font-bold gap-1.5 rounded-lg h-8 bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
+            >
+              <Cloud className={`w-3.5 h-3.5 text-amber-400 ${isFirestoreSyncing ? 'animate-pulse' : ''}`} />
+              <span>{isFirestoreSyncing ? 'Syncing to Cloud...' : 'Sync to Firestore'}</span>
+            </Button>
           </div>
         </div>
       </div>

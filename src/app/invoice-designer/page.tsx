@@ -18,6 +18,7 @@ import {
   downloadInvoicePdfFromElement, 
   shareInvoicePdfDirect 
 } from '@/lib/invoices/pdfGenerator';
+import { usePlatformPromoConfig } from '@/lib/firebase/remoteConfig';
 import QRCode from 'qrcode';
 import { 
   Palette,
@@ -42,6 +43,8 @@ export default function InvoiceDesignerPage() {
   const [config, setConfig] = useState<InvoiceThemeConfig>(DEFAULT_INVOICE_THEME_CONFIG);
   const [upiList, setUpiList] = useState<UpiAccount[]>([]);
   const [selectedUpiIndex, setSelectedUpiIndex] = useState<number>(0);
+
+  const platformPromo = usePlatformPromoConfig();
 
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -570,22 +573,24 @@ export default function InvoiceDesignerPage() {
               </div>
 
               {/* BOTTOM PLATFORM ADVERTISEMENT BANNER (Shown on Free Tier) */}
-              {(!business?.subscription_tier || business?.subscription_tier === 'free') && (
+              {(!business?.subscription_tier || business?.subscription_tier === 'free') && platformPromo.enabled && (
                 <div 
                   className="p-2 sm:p-2.5 rounded-xl text-white flex items-center justify-between gap-2 shadow-xs"
                   style={{ backgroundColor: config.primary_color }}
                 >
                   <div>
                     <div className="font-black text-[11px] leading-snug flex items-center gap-1.5">
-                      <span>⚡ Billed with KamaiPlus POS</span>
-                      <span className="text-[9.5px] font-normal opacity-90">• Free Invoicing &amp; Khata</span>
+                      <span>{platformPromo.title}</span>
+                      {platformPromo.subtitle && (
+                        <span className="text-[9.5px] font-normal opacity-90">• {platformPromo.subtitle}</span>
+                      )}
                     </div>
                     <div className="text-[9.5px] text-white/90 mt-0.5 leading-normal">
-                      GST billing &amp; WhatsApp invoices • <span className="font-bold underline">kamaiplus.proventure.in</span>
+                      {platformPromo.desc}
                     </div>
                   </div>
                   <span className="px-2 py-0.5 rounded bg-white/20 text-[9px] font-black uppercase tracking-wider shrink-0">
-                    Kamai+
+                    {platformPromo.badge}
                   </span>
                 </div>
               )}
