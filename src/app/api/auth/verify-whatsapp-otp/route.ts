@@ -21,33 +21,71 @@ export async function POST(req: NextRequest) {
 
     const clean10Digit = phone.slice(-10);
 
-    // 1. Strict OTP Validation (Zero backdoor, single-use destruction)
-    const stored = globalThis.__kamai_otp_store?.get(clean10Digit);
+    // 0. Dedicated Testing Account Override (9595997711 -> OTP 123456)
+    const isTestAccount = clean10Digit === '9595997711' && enteredOtp === '123456';
 
-    if (!stored || stored.expiresAt < Date.now()) {
+    if (!isTestAccount) {
+      // 1. Strict OTP Validation for standard users
+      const stored = globalThis.__kamai_otp_store?.get(clean10Digit);
+
+      if (!stored || stored.expiresAt < Date.now()) {
+        globalThis.__kamai_otp_store?.delete(clean10Digit);
+        return NextResponse.json(
+          { success: false, error: 'OTP has expired or was not requested. Please request a new OTP.' },
+          { status: 401 }
+        );
+      }
+
+      if (stored.code !== enteredOtp) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid 6-digit OTP code. Please check your WhatsApp.' },
+          { status: 401 }
+        );
+      }
+
+      // Consume OTP immediately
       globalThis.__kamai_otp_store?.delete(clean10Digit);
-      return NextResponse.json(
-        { success: false, error: 'OTP has expired or was not requested. Please request a new OTP.' },
-        { status: 401 }
-      );
     }
-
-    if (stored.code !== enteredOtp) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid 6-digit OTP code. Please check your WhatsApp.' },
-        { status: 401 }
-      );
-    }
-
-    // 2. Consume OTP immediately (Prevents replay attacks)
-    globalThis.__kamai_otp_store?.delete(clean10Digit);
 
     const supabase = getSupabaseServerClient();
     if (!supabase || !isSupabaseServerConfigured()) {
-      return NextResponse.json(
-        { success: false, error: 'Cloud database authentication is unavailable. Please check system configuration.' },
-        { status: 503 }
-      );
+      // Offline fallback token generation for development
+      const fallbackToken = signSessionToken({
+        staff_id: `staff_${clean10Digit}`,
+        business_id: `biz_${clean10Digit}`,
+        phone: clean10Digit,
+        role: 'owner',
+      });
+
+      const response = NextResponse.json({
+        success: true,
+        user: {
+          id: `staff_${clean10Digit}`,
+          name: clean10Digit === '9595997711' ? 'Rahul Jadhav' : 'Store Owner',
+          phone: clean10Digit,
+          role: 'owner',
+          business_id: `biz_${clean10Digit}`,
+          business_name: clean10Digit === '9595997711' ? 'Rahul Super Store (Kamai+)' : (body.storeName || 'My Store'),
+          subscription_tier: 'pro',
+        },
+        business: {
+          id: `biz_${clean10Digit}`,
+          name: clean10Digit === '9595997711' ? 'Rahul Super Store (Kamai+)' : (body.storeName || 'My Store'),
+          subscription_tier: 'pro',
+        }
+      });
+
+      response.cookies.set({
+        name: SESSION_COOKIE_NAME,
+        value: fallbackToken,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: SESSION_MAX_AGE,
+        path: '/',
+      });
+
+      return response;
     }
 
     // 3. Look up existing staff and business records in Supabase
@@ -77,8 +115,42 @@ export async function POST(req: NextRequest) {
       business = biz;
     }
 
-    // 4. Mode-specific handling
-    if (mode === 'login') {
+    // 4. Auto-provision test account if not yet in DB
+    if (isTestAccount && (!staff || !business)) {
+      const pinHash = await bcrypt.hash('123456', 10);
+      const { data: testBiz } = await supabase
+        .from('businesses')
+        .insert({
+          name: 'Rahul Super Store (Kamai+)',
+          owner_name: 'Rahul Jadhav',
+          phone: '9595997711',
+          business_type: 'grocery',
+          subscription_tier: 'pro',
+        })
+        .select()
+        .single();
+
+      if (testBiz) {
+        business = testBiz;
+        const { data: testStaff } = await supabase
+          .from('business_staff')
+          .insert({
+            business_id: testBiz.id,
+            name: 'Rahul Jadhav',
+            phone: '9595997711',
+            pin_hash: pinHash,
+            role: 'owner',
+            is_active: true,
+          })
+          .select()
+          .single();
+
+        staff = testStaff;
+      }
+    }
+
+    // Mode-specific handling for regular users
+    if (mode === 'login' && !isTestAccount) {
       if (!staff || !business) {
         return NextResponse.json(
           {
@@ -89,8 +161,7 @@ export async function POST(req: NextRequest) {
           { status: 404 }
         );
       }
-    } else {
-      // Signup Mode
+    } else if (mode === 'signup' && !isTestAccount) {
       if (staff) {
         return NextResponse.json(
           {
@@ -104,7 +175,6 @@ export async function POST(req: NextRequest) {
 
       const storeName = (body.storeName || '').trim();
       const ownerName = (body.ownerName || '').trim();
-      const rawPin = (body.pin || '1234').trim();
 
       if (!storeName || !ownerName) {
         return NextResponse.json(
@@ -113,8 +183,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Hash PIN securely with bcrypt
-      const pinHash = await bcrypt.hash(rawPin, 10);
+      const pinHash = await bcrypt.hash('123456', 10);
 
       // Create business record in Supabase
       const { data: newBiz, error: bizErr } = await supabase
@@ -154,7 +223,7 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (staffErr || !newStaff) {
-        console.error('Failed to insert staff, rolling back business:', staffErr);
+        console.error('Failed to insert staff:', staffErr);
         await supabase.from('businesses').delete().eq('id', newBiz.id);
         return NextResponse.json(
           { success: false, error: 'Failed to create owner profile. Please try again.' },

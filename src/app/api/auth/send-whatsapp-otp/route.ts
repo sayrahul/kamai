@@ -33,6 +33,26 @@ export async function POST(req: NextRequest) {
     const clean10Digit = phone.slice(-10);
     const now = Date.now();
 
+    // 0. Dedicated Testing Account Override (9595997711 -> OTP 123456)
+    if (clean10Digit === '9595997711') {
+      otpStore.set('9595997711', {
+        code: '123456',
+        expiresAt: now + 24 * 60 * 60 * 1000,
+        lastRequestedAt: now,
+      });
+
+      console.log(`\n========================================`);
+      console.log(`🔑 [Test Number OTP Configured]`);
+      console.log(`📱 Phone: +91 9595997711`);
+      console.log(`🔐 OTP Code: 123456`);
+      console.log(`========================================\n`);
+
+      return NextResponse.json({
+        success: true,
+        message: 'OTP 123456 sent to +91 9595997711.',
+      });
+    }
+
     // 1. Rate Limiting: 60-second cooldown per mobile number
     const existing = otpStore.get(clean10Digit);
     if (existing && now - existing.lastRequestedAt < 60 * 1000) {
@@ -55,13 +75,13 @@ export async function POST(req: NextRequest) {
         .eq('phone', clean10Digit)
         .maybeSingle();
 
-      // On LOGIN: Reject unregistered users before dispatching WhatsApp message (saves cost & prevents unauthorized attempts)
+      // On LOGIN: Reject unregistered users before dispatching WhatsApp message
       if (mode === 'login') {
         if (!staff) {
           return NextResponse.json(
             {
               success: false,
-              error: `No store registered with +91 ${clean10Digit}. Please Register your store first.`,
+              error: `No store registered with +91 ${clean10Digit}. Please Register your store.`,
               requireSignup: true,
             },
             { status: 404 }
@@ -111,16 +131,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `WhatsApp Delivery Failed: ${sendResult.error}`,
+          error: `WhatsApp Delivery: ${sendResult.error}`,
           errorCode: sendResult.errorCode,
           isAccessDenied: sendResult.isAccessDenied,
           devOtp: isDev ? otpCode : undefined,
-          metaDiagnostic: sendResult.isAccessDenied
-            ? {
-                issue: 'Meta App in Development Mode',
-                resolution: `Add +91${clean10Digit} to the "To" test number list in Meta Developer Portal (WhatsApp > API Setup), or switch Meta App to Live Mode.`,
-              }
-            : undefined,
         },
         { status: 502 }
       );

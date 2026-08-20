@@ -17,41 +17,31 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Cloud,
   FileSpreadsheet,
   Filter,
-  Mic,
   Package,
-  Palette,
-  QrCode,
   Receipt,
   Search,
   Settings,
   ShieldCheck,
-  ShoppingBag,
-  SlidersHorizontal,
   Sparkles,
-  Star,
   TrendingUp,
   Users,
-  Volume2,
   X,
   Zap,
+  SlidersHorizontal,
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
-import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { Sale } from '@/types';
-import { announcePayment, isSoundboxEnabled } from '@/lib/voice/paytmSoundbox';
 
 export default function HomePage() {
   const { t, language } = useTranslation();
   const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
-  const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState<boolean>(false);
   const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
 
@@ -80,7 +70,6 @@ export default function HomePage() {
   const filteredRecentSales = [...allSales]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .filter((s) => {
-      // Date filter
       const saleDate = new Date(s.created_at);
       const now = new Date();
       if (recentDateFilter === 'today') {
@@ -98,12 +87,10 @@ export default function HomePage() {
         if (saleDate.getMonth() !== now.getMonth() || saleDate.getFullYear() !== now.getFullYear()) return false;
       }
 
-      // Payment filter
       if (recentPaymentFilter !== 'all' && s.payment_method !== recentPaymentFilter) {
         return false;
       }
 
-      // Search filter
       if (recentSearchQuery.trim()) {
         const q = recentSearchQuery.toLowerCase();
         const matchInvoice = s.invoice_number.toLowerCase().includes(q);
@@ -118,9 +105,6 @@ export default function HomePage() {
   const displayedSales = filteredRecentSales.slice(0, 10);
 
   useEffect(() => {
-    setSoundEnabled(isSoundboxEnabled());
-    // Fetch live subscription tier from cloud
-    fetch('/api/subscription/status?' + new URLSearchParams({ businessId: '' })).catch(() => {});
     fetch('/api/auth/me')
       .then((r) => r.json())
       .then((data) => {
@@ -131,16 +115,10 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
-  const handleTestSoundbox = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    announcePayment(todaysSalesTotal > 0 ? todaysSalesTotal : 15000, language);
-  };
-
-  const tierLabel = subscriptionTier === 'enterprise' ? 'Enterprise' : subscriptionTier === 'pro' ? 'Pro' : 'Free';
   const isFree = subscriptionTier === 'free';
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Upgrade Modal */}
       <UpgradeModal
         isOpen={isUpgradeOpen}
@@ -150,26 +128,25 @@ export default function HomePage() {
         onUpgradeSuccess={(tier) => setSubscriptionTier(tier)}
       />
 
-      {/* Free plan upgrade nudge banner */}
+      {/* Free plan upgrade nudge banner (High contrast light styling) */}
       {isFree && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-2.5">
-            <Zap className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span className="text-xs font-bold text-amber-900">
-              You&apos;re on the <strong>Free</strong> plan — Upgrade to unlock unlimited bills, cloud sync & WhatsApp sharing
+            <Zap className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <span className="text-xs font-bold text-amber-950">
+              Kamai+ Free Edition — Upgrade for unlimited cloud backup & automatic WhatsApp bills
             </span>
           </div>
           <button
             onClick={() => setIsUpgradeOpen(true)}
-            className="flex-shrink-0 text-[11px] font-black bg-amber-400 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-lg cursor-pointer transition-all"
+            className="flex-shrink-0 text-[11px] font-black bg-amber-400 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-lg cursor-pointer transition-all shadow-xs"
           >
             Upgrade →
           </button>
         </div>
       )}
 
-
-      {/* ---------------- TOP-LEVEL SUMMARY CARDS (COMPACT & MOBILE OPTIMIZED) ---------------- */}
+      {/* ---------------- TOP-LEVEL METRIC SUMMARY CARDS (COMPACT PREVIOUS STYLE) ---------------- */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {/* Card 1: Today's Sales */}
         <Link href="/transactions" className="group block focus:outline-none">
@@ -194,7 +171,7 @@ export default function HomePage() {
             </div>
 
             <div className="pt-1.5 sm:pt-2 mt-1.5 sm:mt-2 border-t border-emerald-100/80 flex items-center justify-between text-[10px] sm:text-xs">
-              <span className="text-slate-500 font-semibold truncate">
+              <span className="text-slate-600 font-semibold truncate">
                 <strong>{todaysSales.length}</strong> <span className="hidden sm:inline">bills today</span><span className="sm:hidden">bills</span>
               </span>
               <span className="text-emerald-700 font-bold hidden sm:inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
@@ -228,11 +205,11 @@ export default function HomePage() {
             </div>
 
             <div className="pt-1.5 sm:pt-2 mt-1.5 sm:mt-2 border-t border-amber-100/80 flex items-center justify-between text-[10px] sm:text-xs">
-              <span className="text-slate-500 font-semibold truncate">
+              <span className="text-slate-600 font-semibold truncate">
                 <strong>{customersWithCredit.length}</strong> <span className="hidden sm:inline">pending</span><span className="sm:hidden">debtors</span>
               </span>
               <span className="text-amber-800 font-bold hidden sm:inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
-                <span>Ledger</span>
+                <span>Khata</span>
                 <ArrowRight className="w-2.5 h-2.5" />
               </span>
             </div>
@@ -251,10 +228,11 @@ export default function HomePage() {
                     <span className="hidden sm:inline">Low Stock Count</span>
                   </span>
                 </div>
-                <span className={`hidden lg:inline-flex px-1.5 py-0.2 rounded-full text-[9px] font-black ${lowStockProducts.length > 0
+                <span className={`hidden lg:inline-flex px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                  lowStockProducts.length > 0
                     ? 'bg-rose-100 text-rose-950'
                     : 'bg-emerald-100 text-emerald-950'
-                  }`}>
+                }`}>
                   {lowStockProducts.length > 0 ? 'Alert' : 'OK'}
                 </span>
               </div>
@@ -266,7 +244,7 @@ export default function HomePage() {
             </div>
 
             <div className="pt-1.5 sm:pt-2 mt-1.5 sm:mt-2 border-t border-rose-100/80 flex items-center justify-between text-[10px] sm:text-xs">
-              <span className="text-slate-500 font-semibold truncate">
+              <span className="text-slate-600 font-semibold truncate">
                 {lowStockProducts.length > 0 ? (
                   <span className="text-rose-700 font-bold">Restock</span>
                 ) : (
@@ -282,20 +260,20 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* ---------------- CLEAN CORPORATE QUICK ACTIONS GRID ---------------- */}
+      {/* ---------------- PRIMARY DAILY OPERATIONS (COMPACT, HIGH CONTRAST LIGHT CARDS) ---------------- */}
       <div>
-        <div className="flex items-center justify-between mb-2.5 px-1">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600">
-            Operations & Management
+        <div className="flex items-center justify-between mb-2 px-1">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+            Daily Shop Operations
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5 sm:gap-3">
-          {/* Tile 1: POS Billing (Emerald) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          {/* Tile 1: POS Billing */}
           <Link href="/billing" className="group">
-            <div className="bg-white border border-emerald-200 hover:border-emerald-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-emerald-50/40 active:scale-[0.98] transition-all">
+            <div className="bg-white border border-emerald-300 hover:border-emerald-500 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-emerald-50/50 active:scale-[0.98] transition-all">
               <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Receipt className="w-4 h-4 text-emerald-700" />
+                <Receipt className="w-4.5 h-4.5 text-emerald-700" />
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">POS Billing</div>
@@ -304,204 +282,125 @@ export default function HomePage() {
             </div>
           </Link>
 
-          {/* Tile 2: Cash Register (Gold/Emerald) */}
-          <Link href="/cash-register" className="group">
-            <div className="bg-white border border-emerald-300 hover:border-emerald-500 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-emerald-50/50 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-emerald-200/70 text-emerald-950 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Calculator className="w-4 h-4 text-emerald-900" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Cash Register</div>
-                <div className="text-[11px] text-emerald-900 font-medium truncate">Shift Closing & Z-Report</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 3: Voice Billing (Sky Blue) */}
-          <Link href="/billing" className="group">
-            <div className="bg-white border border-sky-200 hover:border-sky-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-sky-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-sky-100 text-sky-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Mic className="w-4 h-4 text-sky-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Voice Billing</div>
-                <div className="text-[11px] text-sky-800 font-medium truncate">Speech-to-bill</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 3: Digital Khata (Warm Orange) */}
-          <Link href="/khata" className="group">
-            <div className="bg-white border border-orange-200 hover:border-orange-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-orange-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-orange-100 text-orange-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <BookOpen className="w-4 h-4 text-orange-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Khata Ledger</div>
-                <div className="text-[11px] text-orange-800 font-medium truncate">Customer Credit</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 4: Products Master (Indigo Blue) */}
+          {/* Tile 2: Products Master */}
           <Link href="/products" className="group">
-            <div className="bg-white border border-indigo-200 hover:border-indigo-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-indigo-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Package className="w-4 h-4 text-indigo-700" />
+            <div className="bg-white border border-amber-300 hover:border-amber-500 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-amber-50/50 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-950 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Package className="w-4.5 h-4.5 text-amber-700" />
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">Products Master</div>
-                <div className="text-[11px] text-indigo-800 font-medium truncate">{products.length} items catalog</div>
+                <div className="text-[11px] text-amber-800 font-medium truncate">{products.length} items catalog</div>
               </div>
             </div>
           </Link>
 
-          {/* Tile 5: Customers (Violet Purple) */}
-          <Link href="/customers" className="group">
-            <div className="bg-white border border-violet-200 hover:border-violet-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-violet-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-violet-100 text-violet-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Users className="w-4 h-4 text-violet-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Customers</div>
-                <div className="text-[11px] text-violet-800 font-medium truncate">{customers.length} profiles</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 6: WhatsApp Growth (Teal) */}
-          <Link href="/growth" className="group">
-            <div className="bg-white border border-teal-200 hover:border-teal-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-teal-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-teal-100 text-teal-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <TrendingUp className="w-4 h-4 text-teal-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Growth Engine</div>
-                <div className="text-[11px] text-teal-800 font-medium truncate">WhatsApp offers</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 7: Inventory & Batches (Cyan Blue) */}
-          <Link href="/inventory" className="group">
-            <div className="bg-white border border-cyan-200 hover:border-cyan-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-cyan-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-cyan-100 text-cyan-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Boxes className="w-4 h-4 text-cyan-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Inventory & Expiry</div>
-                <div className="text-[11px] text-cyan-800 font-medium truncate">Batches & POs</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 8: Transactions & Returns (Teal Green) */}
-          <Link href="/transactions" className="group">
-            <div className="bg-white border border-teal-200 hover:border-teal-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-teal-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-teal-100 text-teal-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <ShieldCheck className="w-4 h-4 text-teal-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Transactions</div>
-                <div className="text-[11px] text-teal-800 font-medium truncate">Sales returns & logs</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 9: Invoice Themes (Warm Amber Gold) */}
-          <Link href="/invoice-designer" className="group">
-            <div className="bg-white border border-amber-300 hover:border-amber-500 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-amber-50/50 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Palette className="w-4 h-4 text-amber-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Invoice Themes</div>
-                <div className="text-[11px] text-amber-800 font-medium truncate">Bill Templates</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 10: Barcode Studio (Purple Violet) */}
-          <Link href="/barcode-generator" className="group">
-            <div className="bg-white border border-purple-200 hover:border-purple-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-purple-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Barcode className="w-4 h-4 text-purple-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Barcode Studio</div>
-                <div className="text-[11px] text-purple-800 font-medium truncate">Price tag printing</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 11: GSTR-1 Tax Reports (Indigo Blue) */}
-          <Link href="/gst-reports" className="group">
+          {/* Tile 3: Digital Khata */}
+          <Link href="/khata" className="group">
             <div className="bg-white border border-indigo-200 hover:border-indigo-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-indigo-50/40 active:scale-[0.98] transition-all">
               <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <FileSpreadsheet className="w-4 h-4 text-indigo-700" />
+                <BookOpen className="w-4.5 h-4.5 text-indigo-700" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">GSTR-1 Reports</div>
-                <div className="text-[11px] text-indigo-800 font-medium truncate">HSN & Tax filing</div>
+                <div className="text-xs font-bold text-slate-900 truncate">Khata Ledger</div>
+                <div className="text-[11px] text-indigo-800 font-medium truncate">Customer Credit</div>
               </div>
             </div>
           </Link>
 
-          {/* Tile 12: Cloud Backup (Sky Blue) */}
-          <Link href="/cloud-backup" className="group">
+          {/* Tile 4: Cash Register */}
+          <Link href="/cash-register" className="group">
             <div className="bg-white border border-sky-200 hover:border-sky-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-sky-50/40 active:scale-[0.98] transition-all">
               <div className="w-9 h-9 rounded-lg bg-sky-100 text-sky-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Cloud className="w-4 h-4 text-sky-700" />
+                <Calculator className="w-4.5 h-4.5 text-sky-700" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Cloud Backup</div>
-                <div className="text-[11px] text-sky-800 font-medium truncate">Google Drive sync</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 13: Purchases (Rose Pink) */}
-          <Link href="/purchases" className="group">
-            <div className="bg-white border border-rose-200 hover:border-rose-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-rose-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-rose-100 text-rose-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <ShoppingBag className="w-4 h-4 text-rose-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Purchases</div>
-                <div className="text-[11px] text-rose-800 font-medium truncate">Restock records</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 14: Settings (Slate Neutral) */}
-          <Link href="/settings" className="group">
-            <div className="bg-white border border-slate-300 hover:border-slate-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-slate-100/50 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Settings className="w-4 h-4 text-slate-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Settings</div>
-                <div className="text-[11px] text-slate-700 font-medium truncate">Backup & profile</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 15: Upgrade & Plans (Gold / Amber) */}
-          <Link href="/pricing" className="group">
-            <div className="bg-white border border-amber-300 hover:border-amber-500 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-amber-50/50 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-950 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Sparkles className="w-4 h-4 text-amber-600 fill-amber-600" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Upgrade & Plans</div>
-                <div className="text-[11px] text-amber-800 font-medium truncate">Pro & Enterprise</div>
+                <div className="text-xs font-bold text-slate-900 truncate">Cash Register</div>
+                <div className="text-[11px] text-sky-800 font-medium truncate">Shift & Till</div>
               </div>
             </div>
           </Link>
         </div>
       </div>
 
-      {/* ---------------- RECENT INVOICES / TRANSACTIONS WIDGET (DROPDOWN & FILTERABLE) ---------------- */}
+      {/* ---------------- ORGANIZED SECONDARY TOOLS & REPORTS (CLEAN LIGHT GRID) ---------------- */}
+      <div>
+        <div className="flex items-center justify-between mb-2 px-1">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+            Reports & Store Tools
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
+          {/* Tool 1: Transactions & Returns */}
+          <Link href="/transactions" className="group block">
+            <div className="p-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-400 transition-all text-center flex flex-col items-center shadow-xs">
+              <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center mb-1.5">
+                <Receipt className="w-3.5 h-3.5 text-emerald-700" />
+              </div>
+              <span className="text-xs font-bold text-slate-900 truncate w-full">Transactions</span>
+              <span className="text-[10px] text-slate-500 truncate w-full">Sales & Returns</span>
+            </div>
+          </Link>
+
+          {/* Tool 2: Inventory & Expiry */}
+          <Link href="/inventory" className="group block">
+            <div className="p-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-400 transition-all text-center flex flex-col items-center shadow-xs">
+              <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center mb-1.5">
+                <Boxes className="w-3.5 h-3.5 text-rose-700" />
+              </div>
+              <span className="text-xs font-bold text-slate-900 truncate w-full">Expiry Radar</span>
+              <span className="text-[10px] text-slate-500 truncate w-full">Batches & POs</span>
+            </div>
+          </Link>
+
+          {/* Tool 3: Barcode Studio */}
+          <Link href="/barcode-generator" className="group block">
+            <div className="p-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-400 transition-all text-center flex flex-col items-center shadow-xs">
+              <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center mb-1.5">
+                <Barcode className="w-3.5 h-3.5 text-purple-700" />
+              </div>
+              <span className="text-xs font-bold text-slate-900 truncate w-full">Barcode Studio</span>
+              <span className="text-[10px] text-slate-500 truncate w-full">Price Labels</span>
+            </div>
+          </Link>
+
+          {/* Tool 4: GSTR-1 Reports */}
+          <Link href="/gst-reports" className="group block">
+            <div className="p-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-400 transition-all text-center flex flex-col items-center shadow-xs">
+              <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-800 flex items-center justify-center mb-1.5">
+                <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-700" />
+              </div>
+              <span className="text-xs font-bold text-slate-900 truncate w-full">GSTR-1 Reports</span>
+              <span className="text-[10px] text-slate-500 truncate w-full">HSN & Filing</span>
+            </div>
+          </Link>
+
+          {/* Tool 5: Customers Directory */}
+          <Link href="/customers" className="group block">
+            <div className="p-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-400 transition-all text-center flex flex-col items-center shadow-xs">
+              <div className="w-7 h-7 rounded-lg bg-violet-100 text-violet-800 flex items-center justify-center mb-1.5">
+                <Users className="w-3.5 h-3.5 text-violet-700" />
+              </div>
+              <span className="text-xs font-bold text-slate-900 truncate w-full">Customers</span>
+              <span className="text-[10px] text-slate-500 truncate w-full">{customers.length} Profiles</span>
+            </div>
+          </Link>
+
+          {/* Tool 6: Store Settings */}
+          <Link href="/settings" className="group block">
+            <div className="p-2.5 rounded-xl bg-white border border-slate-200 hover:border-slate-400 transition-all text-center flex flex-col items-center shadow-xs">
+              <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center mb-1.5">
+                <Settings className="w-3.5 h-3.5 text-slate-700" />
+              </div>
+              <span className="text-xs font-bold text-slate-900 truncate w-full">Settings</span>
+              <span className="text-[10px] text-slate-500 truncate w-full">Backup & Profile</span>
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      {/* ---------------- RECENT TRANSACTIONS WIDGET (CLEAN LIGHT THEME) ---------------- */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
         {/* Top Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -544,18 +443,18 @@ export default function HomePage() {
 
         {/* Collapsible Content Section */}
         {!isRecentCollapsed && (
-          <div className="space-y-3 pt-1 animate-in fade-in">
+          <div className="space-y-3 pt-1">
             {/* Quick Filter Toolbar */}
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
               {/* Search Box */}
               <div className="relative flex-1">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Filter by invoice #, customer name, phone..."
+                  placeholder="Search by invoice #, customer name or mobile..."
                   value={recentSearchQuery}
                   onChange={(e) => setRecentSearchQuery(e.target.value)}
-                  className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg pl-8 pr-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-slate-900"
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-800"
                 />
               </div>
 
@@ -618,19 +517,12 @@ export default function HomePage() {
                 <Receipt className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50" />
                 <p className="text-xs font-bold text-slate-700">No matching transactions found</p>
                 <p className="text-[11px] text-slate-400 mt-0.5">Try adjusting your date or payment filters</p>
-                {(recentDateFilter !== 'all' || recentPaymentFilter !== 'all' || recentSearchQuery.trim() !== '') && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRecentDateFilter('all');
-                      setRecentPaymentFilter('all');
-                      setRecentSearchQuery('');
-                    }}
-                    className="mt-2 text-xs font-bold text-slate-900 underline"
-                  >
-                    Clear all filters
-                  </button>
-                )}
+                <Link href="/billing" className="mt-3 inline-block">
+                  <Button size="sm" className="text-xs bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    Create First Bill
+                  </Button>
+                </Link>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
@@ -686,7 +578,7 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Footer Pagination / Jump to Full Page */}
+            {/* Footer Pagination */}
             {filteredRecentSales.length > 10 && (
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                 <span className="text-slate-500 font-medium">
@@ -702,20 +594,15 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Invoice & Thermal Receipt Modal */}
-      <InvoiceModal
-        isOpen={!!selectedSaleForInvoice}
-        onClose={() => setSelectedSaleForInvoice(null)}
-        sale={selectedSaleForInvoice}
-        business={business || null}
-      />
-
-      {/* Corporate Store QR Code Modal */}
-      <MerchantQRModal
-        isOpen={isQrModalOpen}
-        onClose={() => setIsQrModalOpen(false)}
-        business={business || null}
-      />
+      {/* Invoice Modal for click-to-view */}
+      {selectedSaleForInvoice && (
+        <InvoiceModal
+          isOpen={Boolean(selectedSaleForInvoice)}
+          onClose={() => setSelectedSaleForInvoice(null)}
+          sale={selectedSaleForInvoice}
+          business={business || null}
+        />
+      )}
     </div>
   );
 }
