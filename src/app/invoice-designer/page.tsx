@@ -11,8 +11,7 @@ import {
 } from '@/types';
 import { 
   INVOICE_THEME_PRESETS, 
-  DEFAULT_INVOICE_THEME_CONFIG, 
-  COLOR_SWATCHES 
+  DEFAULT_INVOICE_THEME_CONFIG 
 } from '@/lib/invoices/themeDefaults';
 import { formatINR, generateUPILink } from '@/lib/utils';
 import { 
@@ -21,7 +20,7 @@ import {
 } from '@/lib/invoices/pdfGenerator';
 import QRCode from 'qrcode';
 import { 
-  Palette, 
+  Palette,
   CheckCircle2, 
   Save, 
   Download, 
@@ -211,118 +210,58 @@ export default function InvoiceDesignerPage() {
         {/* LEFT COLUMN: CUSTOMIZATION CONTROLS (6 Cols on Desktop) */}
         {/* ========================================================================= */}
         <div className="lg:col-span-6 space-y-5">
-          {/* STEP 1: PRESET THEMES SELECTION (100% Full Width Color Bar Fix) */}
+          {/* STEP 1: SELECT INVOICE THEME & COLOR */}
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">1</span>
-                <span>Select Invoice Theme</span>
+                <span>Select Invoice Theme &amp; Color</span>
               </h2>
-              <span className="text-[11px] text-slate-500 font-semibold">{INVOICE_THEME_PRESETS.length} Themes</span>
+              <span className="text-[11px] text-slate-500 font-semibold">{INVOICE_THEME_PRESETS.length} Options</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               {INVOICE_THEME_PRESETS.map((preset) => {
-                const isSelected = config.theme_id === preset.id;
-                return (
-                  <div
-                    key={preset.id}
-                    onClick={() => handleSelectPreset(preset.id)}
-                    className={`rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
-                      isSelected
-                        ? 'border-slate-900 bg-slate-50/70 shadow-sm ring-2 ring-slate-900/10'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    {/* 100% Full Width Edge-to-Edge Color Bar */}
-                    <div
-                      className="h-2.5 w-full block flex-shrink-0"
-                      style={{ backgroundColor: preset.primaryColor }}
-                    />
-
-                    <div className="p-3 pt-2.5 flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-extrabold text-slate-900 truncate">
-                            {preset.name}
-                          </span>
-                          {isSelected && (
-                            <CheckCircle2 className="w-4 h-4 text-slate-900 flex-shrink-0" />
-                          )}
-                        </div>
-                        <div className="text-[10px] text-slate-500 font-bold mt-0.5 uppercase tracking-wide">
-                          {preset.badge} Layout
-                        </div>
-                        <p className="text-[10px] text-slate-600 mt-1 line-clamp-2 leading-relaxed">
-                          {preset.description}
-                        </p>
-                      </div>
-
-                      <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                        <span className="text-[9px] px-1.5 py-0.2 rounded font-extrabold bg-slate-200 text-slate-800">
-                          {preset.badge}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className="w-3.5 h-3.5 rounded-full border border-slate-300"
-                            style={{ backgroundColor: preset.primaryColor }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-
-          {/* STEP 2: ACCENT COLOR SELECTION */}
-          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">2</span>
-              <span>Brand Accent Color</span>
-            </h2>
-
-            <div className="flex flex-wrap items-center gap-2.5 pt-1">
-              {COLOR_SWATCHES.map((color) => {
-                const isSelected = config.primary_color.toLowerCase() === color.hex.toLowerCase();
+                const isSelected = config.theme_id === preset.id || config.primary_color.toLowerCase() === preset.primaryColor.toLowerCase();
                 return (
                   <button
-                    key={color.hex}
+                    key={preset.id}
                     type="button"
-                    onClick={() => setConfig((prev) => ({ ...prev, primary_color: color.hex }))}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                    onClick={() => handleSelectPreset(preset.id)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
                       isSelected
-                        ? 'border-slate-900 bg-slate-100 font-bold shadow-xs'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                        ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                     }`}
                   >
                     <span
                       className="w-3.5 h-3.5 rounded-full border border-black/20 flex-shrink-0"
-                      style={{ backgroundColor: color.hex }}
+                      style={{ backgroundColor: preset.primaryColor }}
                     />
-                    <span>{color.label}</span>
+                    <span>{preset.name}</span>
+                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white flex-shrink-0" />}
                   </button>
                 );
               })}
 
-              {/* Custom Hex Picker */}
-              <div className="flex items-center gap-1.5 pl-2">
+              {/* Custom Hex Color Picker */}
+              <div className="flex items-center gap-1.5 pl-1">
                 <span className="text-xs text-slate-400 font-mono">Custom:</span>
                 <input
                   type="color"
                   value={config.primary_color}
                   onChange={(e) => setConfig((prev) => ({ ...prev, primary_color: e.target.value }))}
                   className="w-8 h-8 rounded-lg border border-slate-300 p-0.5 cursor-pointer bg-white"
+                  title="Pick custom color"
                 />
               </div>
             </div>
           </Card>
 
-          {/* STEP 3: HEADER & INVOICE DISPLAY OPTIONS */}
+          {/* STEP 2: HEADER & INVOICE DISPLAY OPTIONS */}
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">3</span>
+              <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">2</span>
               <span>Header &amp; Invoice Display Options</span>
             </h2>
 
@@ -393,11 +332,11 @@ export default function InvoiceDesignerPage() {
             </div>
           </Card>
 
-          {/* STEP 4: PLATFORM BRANDING & PROMO BANNER (FREE PLAN) */}
+          {/* STEP 3: PLATFORM BRANDING & PROMO BANNER (FREE PLAN) */}
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">4</span>
+                <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">3</span>
                 <span className="flex items-center gap-1.5">
                   <Megaphone className="w-4 h-4 text-amber-600" />
                   <span>Platform Branding &amp; Promo Banner</span>
@@ -428,10 +367,10 @@ export default function InvoiceDesignerPage() {
             </div>
           </Card>
 
-          {/* STEP 5: FOOTER TERMS & CONDITIONS */}
+          {/* STEP 4: FOOTER TERMS & CONDITIONS */}
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">5</span>
+              <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">4</span>
               <span>Terms &amp; Footer Note</span>
             </h2>
 
@@ -473,72 +412,74 @@ export default function InvoiceDesignerPage() {
             <span className="text-[11px] text-slate-500 font-medium">A4 High-Res Format</span>
           </div>
 
-          {/* INVOICE PREVIEW CONTAINER (Complete Full Sheet Without Scrollbars) */}
+          {/* INVOICE PREVIEW CONTAINER (Zero Scrollbars - 100% Visible Preview) */}
           <div className="bg-slate-100/90 p-2 sm:p-3 rounded-2xl border border-slate-300 shadow-inner flex justify-center overflow-hidden">
             <div
               id="preview-live-invoice"
-              className="bg-white border rounded-xl w-full max-w-full p-3 sm:p-3.5 space-y-2 text-slate-900 shadow-md text-[10.5px] leading-tight box-border"
+              className="bg-white border rounded-xl w-full max-w-full p-3.5 sm:p-4 space-y-2.5 text-slate-900 shadow-md text-[11px] leading-normal box-border"
               style={{ borderColor: config.primary_color }}
             >
               {/* THEME HEADER BANNER */}
               <div
-                className="p-2.5 rounded-lg text-white flex justify-between items-start gap-2"
+                className="p-3 rounded-xl text-white flex justify-between items-start gap-3"
                 style={{ backgroundColor: config.primary_color }}
               >
-                <div className="flex items-start gap-2.5">
+                <div className="flex items-start gap-2.5 min-w-0">
                   {config.show_logo && business?.logo_url && (
                     <img
                       src={business.logo_url}
                       alt="Logo"
-                      className="w-9 h-9 rounded object-contain bg-white p-0.5 flex-shrink-0"
+                      className="w-10 h-10 rounded object-contain bg-white p-0.5 shrink-0"
                     />
                   )}
                   <div>
-                    <h3 className="font-black text-sm tracking-tight text-white leading-tight">
+                    <h3 className="font-black text-base tracking-tight text-white leading-snug">
                       {business?.name || 'Mahadev Super Mart'}
                     </h3>
                     {config.show_tagline && (
-                      <p className="text-[9px] text-white/80 italic mt-0.5">
+                      <p className="text-[10px] text-white/80 italic mt-0.5 leading-normal">
                         {business?.tagline || 'Complete Kirana & FMCG Store'}
                       </p>
                     )}
                     {config.show_owner && (
-                      <div className="text-[9px] text-white/90 mt-0.5">
+                      <div className="text-[10px] text-white/90 mt-0.5 leading-normal">
                         <span>{business?.owner_name || 'Ramesh Patel'}</span> • <span>{business?.phone || '9876543210'}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <span className="px-2 py-0.5 rounded bg-white/20 text-white font-black text-[10px] tracking-wider uppercase">
+                <div className="text-right shrink-0">
+                  <span className="inline-block px-2.5 py-0.5 rounded-md bg-white/20 text-white font-black text-[11px] tracking-wider uppercase">
                     {config.custom_title || 'TAX INVOICE'}
                   </span>
-                  <div className="text-[9px] text-white/80 font-mono mt-0.5">
+                  <div className="text-[11px] text-white font-mono font-bold mt-1">
                     #INV-SAMPLE-01
                   </div>
-                  <div className="text-[9px] text-white/70">
+                  <div className="text-[10px] text-white/80 mt-0.5">
                     {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </div>
                 </div>
               </div>
 
               {/* BILLED TO & PAYMENT SUMMARY ROW */}
-              <div className="grid grid-cols-2 gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 text-[10px]">
-                <div>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Billed To:</span>
-                  <div className="font-bold text-slate-900 mt-0.5">Sunil Verma</div>
-                  <div className="text-slate-500 font-mono text-[9px]">+91 98234 56789</div>
-                  <div className="text-slate-500 text-[9px]">Shop 4, Market Road</div>
+              <div className="grid grid-cols-2 gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[10.5px]">
+                <div className="space-y-0.5">
+                  <span className="text-[9.5px] text-slate-500 font-bold uppercase tracking-wider block">Billed To:</span>
+                  <div className="font-bold text-slate-900 text-xs">Sunil Verma</div>
+                  <div className="text-slate-600 font-mono text-[10.5px]">+91 98234 56789</div>
+                  <div className="text-slate-600 text-[10.5px]">Shop 4, Market Road</div>
                 </div>
 
-                <div className="text-right">
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Payment Mode:</span>
-                  <span className="inline-block mt-0.5 px-2 py-0.5 rounded font-bold text-[9px] bg-emerald-100 text-emerald-900 border border-emerald-300">
-                    PAID (UPI)
-                  </span>
+                <div className="text-right space-y-1">
+                  <span className="text-[9.5px] text-slate-500 font-bold uppercase tracking-wider block">Payment Details:</span>
+                  <div>
+                    <span className="inline-block px-2.5 py-0.5 rounded font-bold text-[10.5px] bg-emerald-100 text-emerald-900 border border-emerald-300">
+                      PAID (UPI)
+                    </span>
+                  </div>
                   {config.show_mrp_savings && (
-                    <div className="text-[9px] text-emerald-700 font-bold mt-0.5">
+                    <div className="text-[10.5px] text-emerald-700 font-bold pt-0.5">
                       You Saved: {formatINR(totalSavingsPaise)}
                     </div>
                   )}
@@ -546,30 +487,30 @@ export default function InvoiceDesignerPage() {
               </div>
 
               {/* ITEMS TABLE */}
-              <div className="overflow-hidden">
-                <table className="w-full text-left text-[10px]">
+              <div className="overflow-hidden border border-slate-200 rounded-lg">
+                <table className="w-full text-left text-[10.5px] border-collapse table-auto">
                   <thead>
                     <tr
-                      className="text-white font-bold"
+                      className="text-white font-bold text-[10px] uppercase"
                       style={{ backgroundColor: config.primary_color }}
                     >
-                      <th className="py-1 px-1.5 rounded-l">Item Description</th>
-                      {config.show_hsn_code && <th className="py-1 px-1 text-center w-12">HSN</th>}
-                      <th className="py-1 px-1 text-center w-10">Qty</th>
-                      <th className="py-1 px-1.5 text-right w-16">Price</th>
-                      {config.show_gst_breakup && <th className="py-1 px-1 text-center w-10">GST</th>}
-                      <th className="py-1 px-1.5 text-right w-16 rounded-r">Amount</th>
+                      <th className="py-1.5 px-2.5 text-left">Item Description</th>
+                      {config.show_hsn_code && <th className="py-1.5 px-1.5 text-center w-12">HSN</th>}
+                      <th className="py-1.5 px-1.5 text-center w-10">Qty</th>
+                      <th className="py-1.5 px-2 text-right w-16">Price</th>
+                      {config.show_gst_breakup && <th className="py-1.5 px-1.5 text-center w-10">GST</th>}
+                      <th className="py-1.5 px-2.5 text-right w-20">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
                     {sampleItems.map((item, idx) => (
                       <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                        <td className="py-1 px-1.5 text-slate-900 font-semibold">{item.name}</td>
-                        {config.show_hsn_code && <td className="py-1 px-1 text-center text-slate-400 font-mono text-[9px]">{item.hsn}</td>}
-                        <td className="py-1 px-1 text-center font-bold">{item.qty}</td>
-                        <td className="py-1 px-1.5 text-right font-mono text-slate-600">{formatINR(item.price)}</td>
-                        {config.show_gst_breakup && <td className="py-1 px-1 text-center text-slate-500 font-bold">{item.gst}%</td>}
-                        <td className="py-1 px-1.5 text-right font-mono font-bold text-slate-900">{formatINR(item.total)}</td>
+                        <td className="py-1.5 px-2.5 text-slate-900 font-semibold leading-normal align-middle">{item.name}</td>
+                        {config.show_hsn_code && <td className="py-1.5 px-1.5 text-center text-slate-400 font-mono text-[10px] leading-normal align-middle">{item.hsn}</td>}
+                        <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 leading-normal align-middle">{item.qty}</td>
+                        <td className="py-1.5 px-2 text-right font-mono text-slate-600 leading-normal align-middle">{formatINR(item.price)}</td>
+                        {config.show_gst_breakup && <td className="py-1.5 px-1.5 text-center text-slate-500 font-bold leading-normal align-middle">{item.gst}%</td>}
+                        <td className="py-1.5 px-2.5 text-right font-mono font-bold text-slate-900 leading-normal align-middle">{formatINR(item.total)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -577,50 +518,49 @@ export default function InvoiceDesignerPage() {
               </div>
 
               {/* TOTALS & UPI QR CODE ROW */}
-              <div className="pt-1.5 border-t border-slate-200 grid grid-cols-12 gap-2 items-center">
+              <div className="pt-2 border-t-2 border-slate-200 grid grid-cols-12 gap-3 items-center">
                 {/* Left: Dynamic UPI QR Code */}
                 <div className="col-span-7">
                   {config.show_upi_qr && (
-                    <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5">
                       {sampleQrUrl ? (
                         <img
                           src={sampleQrUrl}
                           alt="UPI QR"
-                          className="w-11 h-11 object-contain rounded border border-slate-300 p-0.5 bg-white flex-shrink-0"
+                          className="w-12 h-12 object-contain rounded border border-slate-300 p-0.5 bg-white shrink-0"
                         />
                       ) : (
-                        <div className="w-11 h-11 bg-slate-200 rounded flex items-center justify-center text-[8px] font-bold text-slate-500 flex-shrink-0">
+                        <div className="w-12 h-12 bg-slate-200 rounded flex items-center justify-center text-[9px] font-bold text-slate-500 shrink-0">
                           QR
                         </div>
                       )}
-                      <div className="min-w-0">
-                        <div className="text-[9.5px] font-black text-slate-900 flex items-center gap-1">
-                          <QrCode className="w-2.5 h-2.5 text-emerald-700 flex-shrink-0" />
-                          <span className="truncate">{activeUpi?.label || 'Scan & Pay via UPI'}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] font-black text-slate-900 leading-snug">
+                          {activeUpi?.label || 'Scan & Pay via UPI'}
                         </div>
-                        <div className="text-[8.5px] text-slate-600 font-mono font-bold truncate">
+                        <div className="text-[10px] text-slate-700 font-mono font-bold truncate mt-0.5 leading-snug">
                           {activeUpi?.upi_id || business?.upi_id || 'merchant@upi'}
                         </div>
-                        <div className="text-[7.5px] text-slate-400">Zero transaction charges</div>
+                        <div className="text-[9px] text-slate-500 mt-0.5 leading-snug">Zero transaction charges</div>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Right: Subtotal, GST, Grand Total */}
-                <div className="col-span-5 space-y-0.5 text-right text-[10px]">
+                <div className="col-span-5 space-y-1 text-right text-[10.5px]">
                   <div className="flex justify-between text-slate-600">
                     <span>Subtotal:</span>
                     <span className="font-mono font-semibold">{formatINR(subtotalPaise)}</span>
                   </div>
                   {config.show_gst_breakup && (
-                    <div className="flex justify-between text-slate-600 text-[9px]">
+                    <div className="flex justify-between text-slate-600 text-[10px]">
                       <span>GST (CGST+SGST):</span>
                       <span className="font-mono font-semibold">{formatINR(gstPaise)}</span>
                     </div>
                   )}
                   <div
-                    className="flex justify-between font-black text-[11px] pt-0.5 border-t text-white px-1.5 py-0.5 rounded mt-0.5"
+                    className="flex justify-between items-center font-black text-xs p-2 rounded-lg text-white mt-0.5 shadow-xs"
                     style={{ backgroundColor: config.primary_color }}
                   >
                     <span>Grand Total:</span>
@@ -632,44 +572,44 @@ export default function InvoiceDesignerPage() {
               {/* BOTTOM PLATFORM ADVERTISEMENT BANNER (Shown on Free Tier) */}
               {(!business?.subscription_tier || business?.subscription_tier === 'free') && (
                 <div 
-                  className="p-2 rounded-lg text-white flex items-center justify-between gap-1.5 shadow-xs"
+                  className="p-2 sm:p-2.5 rounded-xl text-white flex items-center justify-between gap-2 shadow-xs"
                   style={{ backgroundColor: config.primary_color }}
                 >
                   <div>
-                    <div className="font-black text-[10px] leading-tight flex items-center gap-1">
+                    <div className="font-black text-[11px] leading-snug flex items-center gap-1.5">
                       <span>⚡ Billed with KamaiPlus POS</span>
-                      <span className="text-[8.5px] font-normal opacity-85">• Free Invoicing</span>
+                      <span className="text-[9.5px] font-normal opacity-90">• Free Invoicing &amp; Khata</span>
                     </div>
-                    <div className="text-[8.5px] text-white/90 mt-0.5">
+                    <div className="text-[9.5px] text-white/90 mt-0.5 leading-normal">
                       GST billing &amp; WhatsApp invoices • <span className="font-bold underline">kamaiplus.proventure.in</span>
                     </div>
                   </div>
-                  <span className="px-1.5 py-0.5 rounded bg-white/20 text-[8.5px] font-black uppercase tracking-wider flex-shrink-0">
+                  <span className="px-2 py-0.5 rounded bg-white/20 text-[9px] font-black uppercase tracking-wider shrink-0">
                     Kamai+
                   </span>
                 </div>
               )}
 
               {/* FOOTER & TERMS & SIGNATURE */}
-              <div className="pt-1.5 border-t border-slate-200 flex items-end justify-between gap-2 text-[9px]">
-                <div className="space-y-0.5 flex-1 min-w-0">
+              <div className="pt-2 pb-1 border-t border-slate-200 flex items-start justify-between gap-3 text-[10px]">
+                <div className="space-y-1 flex-1 min-w-0">
                   {config.show_terms && (
                     <div>
-                      <span className="font-bold text-slate-700 block text-[8.5px]">Terms &amp; Conditions:</span>
-                      <p className="text-slate-500 text-[8px] whitespace-pre-line leading-tight">
-                        {config.custom_terms || 'Goods once sold will not be returned after 7 days.'}
+                      <span className="font-bold text-slate-700 block text-[9.5px] uppercase tracking-wider mb-0.5">Terms &amp; Conditions:</span>
+                      <p className="text-slate-500 text-[9px] whitespace-pre-line leading-relaxed">
+                        {config.custom_terms || '1. All disputes subject to local jurisdiction.\n2. Interest @18% p.a. will be charged if bill is unpaid after 15 days.'}
                       </p>
                     </div>
                   )}
-                  <p className="text-slate-400 italic text-[8px] truncate">
-                    {config.custom_footer || 'Thank you for your business! Please visit again.'}
+                  <p className="text-slate-400 italic text-[9.5px] leading-relaxed pt-0.5">
+                    {config.custom_footer || 'Thank you for your business! Goods once sold can be exchanged within 7 days.'}
                   </p>
                 </div>
 
                 {config.show_signature && (
-                  <div className="text-center w-24 flex-shrink-0">
-                    <div className="h-5 border-b border-dashed border-slate-400 mb-0.5" />
-                    <span className="text-[8px] font-bold text-slate-700 block uppercase">
+                  <div className="text-center w-24 shrink-0 self-end">
+                    <div className="h-6 border-b border-dashed border-slate-400 mb-0.5" />
+                    <span className="text-[8.5px] font-bold text-slate-700 block uppercase tracking-wider">
                       Authorised Signatory
                     </span>
                   </div>

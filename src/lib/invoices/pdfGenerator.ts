@@ -22,11 +22,11 @@ export async function generateInvoicePdfBlobFromElement(
 
   // 2. Capture un-clipped element using html2canvas in a virtual desktop viewport
   const canvas = await html2canvas(element, {
-    scale: 2.5, // Crisp 300 DPI high resolution
+    scale: 2, // Sharp 2x scaling (exact pixel grid, zero baseline drift)
     useCORS: true,
     logging: false,
     backgroundColor: '#ffffff',
-    windowWidth: 1280, // Always use a desktop viewport so mobile doesn't squeeze the layout
+    windowWidth: 1200, // Always use a desktop viewport so mobile doesn't squeeze the layout
     onclone: (clonedDoc, clonedElement) => {
       // Force master dimensions on cloned element regardless of device screen size
       clonedElement.style.width = `${targetRenderWidth}px`;
@@ -38,7 +38,17 @@ export async function generateInvoicePdfBlobFromElement(
       clonedElement.style.position = 'relative';
       clonedElement.style.transform = 'none';
       clonedElement.style.boxShadow = 'none';
-      clonedElement.style.paddingBottom = '24px'; // Safety bottom padding
+      clonedElement.style.padding = '24px';
+      clonedElement.style.paddingBottom = '44px'; // Generous bottom padding
+
+      // Ensure all text elements inside cloned doc have unclipped line heights and visible overflows
+      const allElements = clonedElement.querySelectorAll('*');
+      allElements.forEach((node) => {
+        if (node instanceof HTMLElement) {
+          node.style.boxSizing = 'border-box';
+          node.style.overflow = 'visible';
+        }
+      });
 
       let parent = clonedElement.parentElement;
       while (parent && parent !== clonedDoc.body) {
