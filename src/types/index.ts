@@ -106,7 +106,9 @@ export interface Product {
   category_name?: string;
   unit: ProductUnit;
   purchase_price: number; // in paise
-  selling_price: number; // in paise
+  selling_price: number; // in paise (Retail MRP/Standard)
+  wholesale_price?: number; // in paise (Thok Bhav / Bulk Rate)
+  wholesale_min_qty?: number; // minimum quantity to trigger wholesale pricing
   mrp: number; // in paise
   tax_rate: number; // percentage (0, 5, 12, 18, 28)
   is_tax_inclusive: boolean;
@@ -173,6 +175,9 @@ export interface CartItem {
   quantity: number;
   unit: ProductUnit;
   unit_price: number; // in paise
+  retail_price?: number; // original retail price in paise
+  wholesale_price?: number; // wholesale price in paise
+  pricing_tier?: 'retail' | 'wholesale';
   mrp: number; // in paise
   discount_amount: number; // in paise per line
   tax_rate: number;

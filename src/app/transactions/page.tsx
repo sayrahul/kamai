@@ -7,6 +7,7 @@ import { useTranslation } from '@/lib/i18n';
 import { formatINR, generateWhatsAppReceiptLink, cn } from '@/lib/utils';
 import { Sale, Customer, CartItem, PaymentMethod } from '@/types';
 import { sendInvoiceViaWhatsApp } from '@/lib/invoices/whatsappInvoice';
+import { generateTallyPrimeXML } from '@/lib/tally/tallyXmlGenerator';
 import { 
   Receipt, 
   Search, 
@@ -214,21 +215,41 @@ export default function TransactionsPage() {
 
   const hasActiveFilters = searchQuery || datePreset !== 'all' || paymentFilter !== 'all' || selectedCustomerId !== 'all' || startDate || endDate;
 
+  // Export 1-Click Tally Prime XML
+  const handleExportTallyXML = () => {
+    if (filteredSales.length === 0) {
+      alert('No transactions to export.');
+      return;
+    }
+    const { xml, filename } = generateTallyPrimeXML({
+      business,
+      sales: filteredSales,
+      customers,
+    });
+    const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-12">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <Receipt className="w-5 h-5 text-slate-800" />
-            <span>Transaction History & Sales Ledger</span>
+            {t('nav.transactions')}
           </h1>
-          <p className="text-xs text-slate-500">
-            View, filter, and export all sales invoices, cash entries, UPI payments, and customer credit.
+          <p className="text-xs text-slate-500 mt-0.5">
+            Audit history, reprint thermal bills, customer khata credit tracking, and 1-click Tally export.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -236,7 +257,7 @@ export default function TransactionsPage() {
               setReturnSaleId(undefined);
               setIsReturnModalOpen(true);
             }}
-            className="text-xs font-bold gap-1 bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
+            className="text-xs font-bold gap-1.5 border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900"
           >
             <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
             <span>Sales Return</span>
@@ -251,6 +272,16 @@ export default function TransactionsPage() {
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export CSV</span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={handleExportTallyXML}
+            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs gap-1.5 shadow-2xs cursor-pointer"
+            disabled={filteredSales.length === 0}
+          >
+            <Download className="w-3.5 h-3.5 text-slate-950" />
+            <span>Tally Prime XML</span>
           </Button>
         </div>
       </div>

@@ -10,6 +10,8 @@ import {
   generateGSTOfflineJSON, 
   GSTR1ReportData 
 } from '@/lib/gst/gstr1Generator';
+import { generateTallyPrimeXML } from '@/lib/tally/tallyXmlGenerator';
+import { generateCASalesRegisterCSV } from '@/lib/tally/caExcelGenerator';
 import { 
   FileSpreadsheet, 
   Download, 
@@ -25,11 +27,14 @@ import {
   ArrowUpRight, 
   Sparkles, 
   Percent,
-  Search
+  Search,
+  BookOpen,
+  Code
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
 
 export type GSTPeriodPreset = 'this_month' | 'last_month' | 'q1' | 'q2' | 'q3' | 'q4' | 'all_year';
 
@@ -42,6 +47,7 @@ export default function GSTReportsPage() {
   const [periodPreset, setPeriodPreset] = useState<GSTPeriodPreset>('this_month');
   const [activeTab, setActiveTab] = useState<'hsn' | 'b2b' | 'b2cs' | 'doc_issue'>('hsn');
   const [hsnSearch, setHsnSearch] = useState('');
+  const [isTallyGuideOpen, setIsTallyGuideOpen] = useState(false);
 
   // Date filtering logic
   const filteredSales = useMemo(() => {
@@ -137,6 +143,40 @@ export default function GSTReportsPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Export 1-Click Tally Prime XML (Standard Vouchers & Masters)
+  const handleExportTallyXML = () => {
+    if (!business) return;
+    const { xml, filename } = generateTallyPrimeXML({
+      business,
+      sales: filteredSales,
+      customers,
+    });
+    const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Export 1-Click CA Master Sales Register CSV / Excel
+  const handleExportCAExcel = () => {
+    if (!business) return;
+    const { csv, filename } = generateCASalesRegisterCSV({
+      business,
+      sales: filteredSales,
+      periodName: periodPreset,
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Filtered HSN List for Search
   const filteredHSN = useMemo(() => {
     if (!gstr1Data) return [];
@@ -168,10 +208,10 @@ export default function GSTReportsPage() {
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            GSTR-1 & HSN Tax Filing Reports
+            GSTR-1 & Accounting Tax Reports
           </h1>
           <p className="text-xs text-slate-500">
-            Automated monthly sales tax summaries, HSN Table 12, B2B invoices, and 1-click GST Portal CSV/JSON export.
+            Automated monthly sales tax summaries, HSN Table 12, 1-click Tally Prime XML, and CA Master Excel export.
           </p>
         </div>
 
@@ -181,7 +221,7 @@ export default function GSTReportsPage() {
             variant="outline"
             size="sm"
             onClick={handleExportJSON}
-            className="text-xs font-bold gap-1.5 bg-slate-50 text-slate-800 border-slate-300 hover:bg-slate-100"
+            className="text-xs font-bold gap-1.5 bg-slate-50 text-slate-800 border-slate-300 hover:bg-slate-100 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>GST Portal JSON</span>
@@ -190,11 +230,60 @@ export default function GSTReportsPage() {
           <Button
             size="sm"
             onClick={handleExportCSV}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-sm"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-sm cursor-pointer"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Download GSTR-1 Excel (CSV)</span>
+            <span>Download GSTR-1 Excel</span>
           </Button>
+        </div>
+      </div>
+
+      {/* ---------------- TALLY PRIME & CA ACCOUNTING BRIDGE CARD ---------------- */}
+      <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300/80 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950">
+                1-Click Export
+              </span>
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-1.5">
+                <Code className="w-4 h-4 text-amber-600" />
+                <span>Tally Prime XML & CA Master Excel Bridge</span>
+              </h2>
+            </div>
+            <p className="text-xs text-slate-600 max-w-2xl">
+              Export all POS sales transactions, party ledgers, and GST breakups in official Tally Prime standard XML format or direct CA Master Excel sheets for instant filing.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsTallyGuideOpen(true)}
+              className="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+              <span>Import Guide</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportCAExcel}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-900 bg-white border border-slate-300 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>CA Master CSV</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportTallyXML}
+              className="px-4 py-2 rounded-xl text-xs font-extrabold text-slate-950 bg-amber-400 hover:bg-amber-500 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-slate-950" />
+              <span>Export Tally Prime XML ({filteredSales.length})</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -553,6 +642,74 @@ export default function GSTReportsPage() {
           )}
         </div>
       </Card>
+
+      {/* ---------------- TALLY IMPORT STEP-BY-STEP GUIDE MODAL ---------------- */}
+      <Modal
+        isOpen={isTallyGuideOpen}
+        onClose={() => setIsTallyGuideOpen(false)}
+        title="How to Import XML in Tally Prime / Tally ERP 9"
+        description="Follow these 3 simple steps to import your KamaiPlus sales and party ledgers directly into Tally."
+        size="lg"
+      >
+        <div className="space-y-4 text-xs">
+          <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-200 text-amber-950 space-y-1">
+            <p className="font-bold flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-amber-600" />
+              <span>Zero Manual Data Entry for Accountants & CAs</span>
+            </p>
+            <p className="text-[11px] text-amber-900/80">
+              The exported XML automatically creates all Customer Ledgers (Sundry Debtors), Sales Ledgers, and Output CGST/SGST/IGST tax accounts in Tally Prime.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200">
+              <span className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
+                1
+              </span>
+              <div>
+                <h4 className="font-bold text-slate-900">Download the XML File</h4>
+                <p className="text-slate-600 mt-0.5">
+                  Click <strong>&quot;Export Tally Prime XML&quot;</strong> on this page to download your dated XML file (e.g. <code>Store_TallyPrime_Export.xml</code>).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200">
+              <span className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
+                2
+              </span>
+              <div>
+                <h4 className="font-bold text-slate-900">Open Tally Prime &amp; Go to Import</h4>
+                <p className="text-slate-600 mt-0.5">
+                  Open your company in <strong>Tally Prime</strong> and press keyboard shortcut <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold">Alt + O</kbd> (or click <strong>Import</strong> from top menu) ➔ Select <strong>Transactions</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200">
+              <span className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
+                3
+              </span>
+              <div>
+                <h4 className="font-bold text-slate-900">Select File &amp; Complete Import</h4>
+                <p className="text-slate-600 mt-0.5">
+                  In <em>File Path</em>, select your Downloads folder, choose the XML file, and press <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold">Enter</kbd>. All sales invoices and tax entries will be imported instantly!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 flex justify-end">
+            <Button
+              onClick={() => setIsTallyGuideOpen(false)}
+              className="bg-slate-900 hover:bg-slate-800 text-white font-bold"
+            >
+              Got It
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

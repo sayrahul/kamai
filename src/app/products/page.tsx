@@ -47,6 +47,8 @@ export default function ProductsPage() {
   const [formUnit, setFormUnit] = useState<ProductUnit>('packet');
   const [formPurchasePrice, setFormPurchasePrice] = useState('');
   const [formSellingPrice, setFormSellingPrice] = useState('');
+  const [formWholesalePrice, setFormWholesalePrice] = useState('');
+  const [formWholesaleMinQty, setFormWholesaleMinQty] = useState('5');
   const [formMrp, setFormMrp] = useState('');
   const [formTaxRate, setFormTaxRate] = useState<number>(0);
   const [formStock, setFormStock] = useState('');
@@ -89,6 +91,8 @@ export default function ProductsPage() {
     setFormUnit('packet');
     setFormPurchasePrice('');
     setFormSellingPrice('');
+    setFormWholesalePrice('');
+    setFormWholesaleMinQty('5');
     setFormMrp('');
     setFormTaxRate(0);
     setFormStock('10');
@@ -105,6 +109,8 @@ export default function ProductsPage() {
     setFormUnit(p.unit);
     setFormPurchasePrice((p.purchase_price / 100).toString());
     setFormSellingPrice((p.selling_price / 100).toString());
+    setFormWholesalePrice(p.wholesale_price ? (p.wholesale_price / 100).toString() : '');
+    setFormWholesaleMinQty(p.wholesale_min_qty ? p.wholesale_min_qty.toString() : '5');
     setFormMrp((p.mrp / 100).toString());
     setFormTaxRate(p.tax_rate);
     setFormStock(p.current_stock.toString());
@@ -119,6 +125,8 @@ export default function ProductsPage() {
     if (!formName.trim()) return;
 
     const sellingPaise = parseRupeesToPaise(formSellingPrice);
+    const wholesalePaise = formWholesalePrice.trim() ? parseRupeesToPaise(formWholesalePrice) : undefined;
+    const wholesaleMinQtyNum = formWholesaleMinQty.trim() ? parseInt(formWholesaleMinQty) : undefined;
     const purchasePaise = parseRupeesToPaise(formPurchasePrice || formSellingPrice);
     const mrpPaise = parseRupeesToPaise(formMrp || formSellingPrice);
     const stockNum = parseFloat(formStock) || 0;
@@ -135,6 +143,8 @@ export default function ProductsPage() {
       unit: formUnit,
       purchase_price: purchasePaise,
       selling_price: sellingPaise,
+      wholesale_price: wholesalePaise,
+      wholesale_min_qty: wholesaleMinQtyNum,
       mrp: mrpPaise,
       tax_rate: formTaxRate,
       is_tax_inclusive: true,
@@ -377,7 +387,7 @@ export default function ProductsPage() {
                   </div>
 
                   {/* Pricing Matrix */}
-                  <div className="flex items-baseline gap-2 mt-2">
+                  <div className="flex flex-wrap items-baseline gap-2 mt-2">
                     <span className="text-base font-extrabold text-slate-900 font-mono">
                       {formatINR(p.selling_price)}
                     </span>
@@ -385,6 +395,11 @@ export default function ProductsPage() {
                     {p.mrp > p.selling_price && (
                       <span className="text-xs text-slate-400 line-through font-mono">
                         {formatINR(p.mrp)}
+                      </span>
+                    )}
+                    {p.wholesale_price && (
+                      <span className="text-[10px] text-amber-800 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                        Thok: {formatINR(p.wholesale_price)} (Min {p.wholesale_min_qty || 5})
                       </span>
                     )}
                   </div>
@@ -537,6 +552,27 @@ export default function ProductsPage() {
                 value={formMrp}
                 onChange={(e) => setFormMrp(e.target.value)}
                 leftIcon={<span className="text-xs font-bold text-slate-500">₹</span>}
+              />
+            </div>
+
+            {/* Wholesale Pricing Tier (Thok Bhav) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+              <Input
+                label="Wholesale Price (Thok Rate ₹)"
+                placeholder="Optional bulk rate (e.g. 45.00)"
+                type="number"
+                step="0.01"
+                value={formWholesalePrice}
+                onChange={(e) => setFormWholesalePrice(e.target.value)}
+                leftIcon={<span className="text-xs font-bold text-amber-600">₹</span>}
+              />
+
+              <Input
+                label="Min Wholesale Qty (Auto-discount threshold)"
+                placeholder="e.g. 5 or 10"
+                type="number"
+                value={formWholesaleMinQty}
+                onChange={(e) => setFormWholesaleMinQty(e.target.value)}
               />
             </div>
 

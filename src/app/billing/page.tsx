@@ -297,6 +297,43 @@ export default function BillingPage() {
   const getCartQuantityForProduct = (productId: string) =>
     cart.reduce((sum, item) => (item.product_id === productId ? sum + item.quantity : sum), 0);
 
+  // Pricing Mode State (Retail vs Wholesale / Thok)
+  const [pricingMode, setPricingMode] = useState<'retail' | 'wholesale'>('retail');
+
+  // Calculates effective unit price based on active mode, wholesale price, and quantity
+  const calculateEffectiveUnitPrice = (product: Product, quantity: number, mode: 'retail' | 'wholesale') => {
+    if (mode === 'wholesale' && product.wholesale_price && product.wholesale_price > 0) {
+      return { price: product.wholesale_price, tier: 'wholesale' as const };
+    }
+    if (product.wholesale_price && product.wholesale_price > 0 && quantity >= (product.wholesale_min_qty || 5)) {
+      return { price: product.wholesale_price, tier: 'wholesale' as const };
+    }
+    return { price: product.selling_price, tier: 'retail' as const };
+  };
+
+  const handleTogglePricingMode = (mode: 'retail' | 'wholesale') => {
+    setPricingMode(mode);
+    setCart((prev) =>
+      prev.map((item) => {
+        const prod = products.find((p) => p.id === item.product_id);
+        if (!prod) return item;
+        const { price, tier } = calculateEffectiveUnitPrice(prod, item.quantity, mode);
+        const lineTotal = Math.max(0, item.quantity * price - (item.discount_amount || 0));
+        const taxRate = item.tax_rate || 0;
+        const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
+        return {
+          ...item,
+          unit_price: price,
+          retail_price: prod.selling_price,
+          wholesale_price: prod.wholesale_price,
+          pricing_tier: tier,
+          total_amount: lineTotal,
+          tax_amount: taxAmt,
+        };
+      })
+    );
+  };
+
   const getAvailableStockForProduct = (product: Product) => {
     const reservedQty = getCartQuantityForProduct(product.id);
     return Math.max(0, product.current_stock - reservedQty);
@@ -328,16 +365,25 @@ export default function BillingPage() {
 
       if (existing) {
         const newQty = existing.quantity + allowedQty;
-        const lineTotal = Math.max(0, newQty * existing.unit_price - (existing.discount_amount || 0));
+        const { price, tier } = calculateEffectiveUnitPrice(product, newQty, pricingMode);
+        const lineTotal = Math.max(0, newQty * price - (existing.discount_amount || 0));
         const taxRate = existing.tax_rate || 0;
         const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
         return prev.map((item) =>
           item.product_id === product.id
-            ? { ...item, quantity: newQty, total_amount: lineTotal, tax_amount: taxAmt }
+            ? { 
+                ...item, 
+                quantity: newQty, 
+                unit_price: price, 
+                pricing_tier: tier, 
+                total_amount: lineTotal, 
+                tax_amount: taxAmt 
+              }
             : item
         );
       } else {
-        const lineTotal = product.selling_price * allowedQty;
+        const { price, tier } = calculateEffectiveUnitPrice(product, allowedQty, pricingMode);
+        const lineTotal = price * allowedQty;
         const taxRate = product.tax_rate || 0;
         const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
         return [
@@ -349,7 +395,10 @@ export default function BillingPage() {
             barcode: product.barcode,
             quantity: allowedQty,
             unit: product.unit,
-            unit_price: product.selling_price,
+            unit_price: price,
+            retail_price: product.selling_price,
+            wholesale_price: product.wholesale_price,
+            pricing_tier: tier,
             mrp: product.mrp,
             discount_amount: 0,
             tax_rate: taxRate,
@@ -375,10 +424,18 @@ export default function BillingPage() {
               alert(`Cannot add more. Available stock for ${product.name} is ${product.current_stock}`);
               return item;
             }
-            const lineTotal = Math.max(0, newQty * item.unit_price - (item.discount_amount || 0));
+            const { price, tier } = calculateEffectiveUnitPrice(product, newQty, pricingMode);
+            const lineTotal = Math.max(0, newQty * price - (item.discount_amount || 0));
             const taxRate = item.tax_rate || 0;
             const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
-            return { ...item, quantity: newQty, total_amount: lineTotal, tax_amount: taxAmt };
+            return { 
+              ...item, 
+              quantity: newQty, 
+              unit_price: price, 
+              pricing_tier: tier, 
+              total_amount: lineTotal, 
+              tax_amount: taxAmt 
+            };
           }
           return item;
         })
@@ -1118,6 +1175,36 @@ export default function BillingPage() {
                 <span className="hidden sm:inline">Voice POS</span>
               </button>
 
+              {/* Pricing Mode Toggle: Retail vs Wholesale */}
+              <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-300 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleTogglePricingMode('retail')}
+                  className={cn(
+                    'px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
+                    pricingMode === 'retail'
+                      ? 'bg-white text-slate-950 shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-900'
+                  )}
+                  title="Retail Rate (MRP / Standard Price)"
+                >
+                  <span>🛒 Retail</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTogglePricingMode('wholesale')}
+                  className={cn(
+                    'px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
+                    pricingMode === 'wholesale'
+                      ? 'bg-amber-400 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-900'
+                  )}
+                  title="Wholesale Rate (Thok Bhav)"
+                >
+                  <span>📦 Wholesale</span>
+                </button>
+              </div>
+
               {/* Hardware Manager Button */}
               <button
                 type="button"
@@ -1171,6 +1258,8 @@ export default function BillingPage() {
                   const availableStock = getAvailableStockForProduct(p);
                   const isOutOfStock = availableStock <= 0;
                   const isLowStock = availableStock <= p.min_stock_level;
+                  const isWholesaleApplied = pricingMode === 'wholesale' && p.wholesale_price && p.wholesale_price > 0;
+                  const displayPrice = isWholesaleApplied ? p.wholesale_price! : p.selling_price;
 
                   return (
                     <button
@@ -1205,10 +1294,18 @@ export default function BillingPage() {
 
                       <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-baseline justify-between gap-1">
                         <div className="truncate">
-                          <span className="text-xs sm:text-sm font-black text-slate-900 font-mono">
-                            {formatINR(p.selling_price)}
+                          <span className={cn(
+                            "text-xs sm:text-sm font-black font-mono",
+                            isWholesaleApplied ? "text-amber-700" : "text-slate-900"
+                          )}>
+                            {formatINR(displayPrice)}
                           </span>
                           <span className="text-[10px] text-slate-500 font-medium ml-0.5">/{p.unit}</span>
+                          {isWholesaleApplied && (
+                            <span className="ml-1 text-[9px] font-black uppercase text-amber-700 bg-amber-100 px-1 py-0.2 rounded">
+                              Thok
+                            </span>
+                          )}
                         </div>
                         <span className={cn(
                           "text-[10px] font-semibold flex-shrink-0",
