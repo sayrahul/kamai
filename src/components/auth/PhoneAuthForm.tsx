@@ -2,7 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Store, Phone, ShieldCheck, ArrowRight, RefreshCw, User, Building2, MessageSquare } from 'lucide-react';
+import { 
+  Phone, 
+  ShieldCheck, 
+  ArrowRight, 
+  RefreshCw, 
+  User, 
+  Building2, 
+  MessageSquare,
+  Sparkles,
+  Lock,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
 import { setStoredUser } from '@/lib/auth';
 import { db } from '@/lib/db';
 
@@ -178,61 +190,58 @@ export const PhoneAuthForm: React.FC = () => {
     };
 
     return (
-        <div className="w-full bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 text-white">
-            {/* Top Graphic Icon */}
-            <div className="w-14 h-14 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-5 text-amber-400 shadow-inner">
-                <Store className="w-7 h-7" />
-            </div>
-
+        <div className="w-full bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl p-6 sm:p-8 text-white transition-all">
             {/* Mode Switcher Tabs */}
             {step === 'PHONE' && (
-                <div className="flex bg-slate-950 p-1 rounded-xl mb-6 border border-slate-800">
+                <div className="flex bg-slate-950 p-1.5 rounded-2xl mb-6 border border-slate-800/80">
                     <button
                         type="button"
                         onClick={() => { setMode('login'); setError(''); }}
-                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                        className={`flex-1 py-2.5 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                             mode === 'login'
-                                ? 'bg-amber-400 text-slate-950 shadow-sm'
+                                ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
                                 : 'text-slate-400 hover:text-white'
                         }`}
                     >
-                        Sign In
+                        <span>Sign In</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => { setMode('signup'); setError(''); }}
-                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                        className={`flex-1 py-2.5 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                             mode === 'signup'
-                                ? 'bg-amber-400 text-slate-950 shadow-sm'
+                                ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
                                 : 'text-slate-400 hover:text-white'
                         }`}
                     >
-                        Create New Store
+                        <span>Create Store</span>
                     </button>
                 </div>
             )}
 
+            {/* Step Heading */}
             <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold tracking-tight">
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
                     {step === 'PHONE'
                         ? mode === 'login'
                             ? 'Welcome Back'
-                            : 'Register Your Store'
-                        : 'WhatsApp Verification'}
+                            : 'Register Your Business'
+                        : 'Enter WhatsApp OTP'}
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-400 mt-1">
                     {step === 'PHONE'
                         ? mode === 'login'
-                            ? 'Enter your registered WhatsApp number'
-                            : 'Fill details to launch your digital store'
-                        : `We sent a 6-digit code to +91 ${phoneNumber}`}
+                            ? 'Enter your 10-digit WhatsApp number to sign in'
+                            : 'Fill store details to launch your digital store'
+                        : `6-digit verification code sent to +91 ${phoneNumber}`}
                 </p>
             </div>
 
+            {/* Error Message */}
             {error && (
-                <div className="mb-5 p-3.5 bg-red-500/10 border border-red-500/20 text-red-300 text-xs sm:text-sm rounded-xl flex items-start space-x-2">
-                    <span className="text-base">⚠️</span>
-                    <p className="flex-1 font-medium">{error}</p>
+                <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs rounded-xl flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-400" />
+                    <p className="flex-1 font-medium leading-relaxed">{error}</p>
                 </div>
             )}
 
@@ -241,7 +250,7 @@ export const PhoneAuthForm: React.FC = () => {
                     {mode === 'signup' && (
                         <>
                             <div>
-                                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                                     Store / Business Name
                                 </label>
                                 <div className="relative flex items-center">
@@ -252,15 +261,15 @@ export const PhoneAuthForm: React.FC = () => {
                                         type="text"
                                         value={storeName}
                                         onChange={(e) => setStoreName(e.target.value)}
-                                        placeholder="e.g. Ramesh Kirana & General Store"
+                                        placeholder="e.g. Ramesh Kirana Store"
                                         required={mode === 'signup'}
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none text-white text-sm placeholder:text-slate-600 transition"
+                                        className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-transparent focus:outline-none text-white text-sm placeholder:text-slate-600 transition"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                                     Owner / Manager Name
                                 </label>
                                 <div className="relative flex items-center">
@@ -271,81 +280,92 @@ export const PhoneAuthForm: React.FC = () => {
                                         type="text"
                                         value={ownerName}
                                         onChange={(e) => setOwnerName(e.target.value)}
-                                        placeholder="e.g. Ramesh Kumar"
+                                        placeholder="e.g. Ramesh Sharma"
                                         required={mode === 'signup'}
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none text-white text-sm placeholder:text-slate-600 transition"
+                                        className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-transparent focus:outline-none text-white text-sm placeholder:text-slate-600 transition"
                                     />
                                 </div>
                             </div>
                         </>
                     )}
 
+                    {/* WhatsApp / Mobile Number Input with Fixed Prefix */}
                     <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                             WhatsApp / Mobile Number
                         </label>
-                        <div className="relative flex items-center">
-                            <span className="absolute left-3.5 text-slate-400 flex items-center space-x-1 border-r border-slate-800 pr-2.5 text-xs font-semibold">
-                                <Phone className="w-3.5 h-3.5 mr-1 text-amber-400" /> +91
-                            </span>
+                        <div className="flex rounded-xl overflow-hidden border border-slate-800 focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-400/20 transition bg-slate-950">
+                            {/* Country Prefix Block */}
+                            <div className="flex items-center gap-1.5 px-3.5 py-3 bg-slate-900/90 border-r border-slate-800 text-slate-200 text-xs font-bold select-none flex-shrink-0">
+                                <span className="text-sm">🇮🇳</span>
+                                <span className="text-amber-400 font-mono">+91</span>
+                            </div>
+
+                            {/* Mobile Input */}
                             <input
                                 type="tel"
+                                inputMode="numeric"
                                 maxLength={10}
                                 value={phoneNumber}
                                 onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
                                 placeholder="98765 43210"
                                 required
-                                className="w-full pl-22 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none text-white text-base placeholder:text-slate-600 transition"
+                                className="flex-1 px-4 py-3 bg-transparent text-white text-base font-mono tracking-wide placeholder:text-slate-600 placeholder:font-sans focus:outline-none"
                             />
                         </div>
                     </div>
 
                     <button
                         type="submit"
-                        disabled={loading}
-                        className="w-full py-3.5 bg-amber-400 hover:bg-amber-500 active:scale-[0.99] text-slate-950 font-black rounded-xl transition shadow-lg shadow-amber-500/10 flex items-center justify-center space-x-2 disabled:opacity-50 mt-2"
+                        disabled={loading || phoneNumber.length < 10}
+                        className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 active:scale-[0.99] text-slate-950 font-black text-sm rounded-xl transition shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-3"
                     >
                         {loading ? (
-                            <span className="flex items-center space-x-2">
+                            <span className="flex items-center gap-2">
                                 <RefreshCw className="w-4 h-4 animate-spin" />
                                 <span>Sending WhatsApp OTP...</span>
                             </span>
                         ) : (
-                            <span className="flex items-center space-x-2">
-                                <MessageSquare className="w-4 h-4" />
+                            <span className="flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4 text-slate-950 fill-slate-950" />
                                 <span>Send WhatsApp OTP</span>
                                 <ArrowRight className="w-4 h-4" />
                             </span>
                         )}
                     </button>
 
-                    <p className="text-center text-[11px] text-slate-500 mt-3">
+                    <p className="text-center text-[11px] text-slate-500 pt-1">
                         By continuing, you agree to Kamai+ Terms of Service & Privacy Policy
                     </p>
                 </form>
             ) : (
-                <form onSubmit={handleVerifyOtp} className="space-y-4">
+                /* OTP Verification Step */
+                <form onSubmit={handleVerifyOtp} className="space-y-5">
                     <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 text-center">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 text-center">
                             Enter 6-Digit WhatsApp OTP
                         </label>
-                        <div className="relative flex items-center">
-                            <span className="absolute left-3.5 text-amber-400">
-                                <ShieldCheck className="w-5 h-5" />
-                            </span>
+                        
+                        <div className="relative">
                             <input
                                 type="text"
+                                inputMode="numeric"
                                 maxLength={6}
                                 value={otp}
                                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                                 placeholder="123456"
                                 autoFocus
                                 required
-                                className="w-full pl-10 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none text-white text-center text-2xl tracking-[0.4em] font-mono placeholder:text-slate-700 placeholder:tracking-normal transition"
+                                className="w-full py-3.5 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-white text-center text-2xl tracking-[0.5em] font-mono placeholder:text-slate-700 placeholder:tracking-normal transition"
                             />
                         </div>
-                        <div className="flex items-center justify-between mt-2 text-xs">
-                            <span className="text-slate-500">Sent via WhatsApp</span>
+
+                        <div className="flex items-center justify-between mt-3 text-xs">
+                            <span className="text-slate-500 flex items-center gap-1">
+                                <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>Sent via WhatsApp</span>
+                            </span>
+                            
                             {cooldown > 0 ? (
                                 <span className="text-slate-400 font-mono">Resend in {cooldown}s</span>
                             ) : (
@@ -353,9 +373,9 @@ export const PhoneAuthForm: React.FC = () => {
                                     type="button"
                                     onClick={() => handleSendOtp()}
                                     disabled={loading}
-                                    className="text-amber-400 hover:text-amber-300 font-semibold underline"
+                                    className="text-amber-400 hover:text-amber-300 font-bold underline transition"
                                 >
-                                    Resend OTP
+                                    Resend Code
                                 </button>
                             )}
                         </div>
@@ -364,22 +384,25 @@ export const PhoneAuthForm: React.FC = () => {
                     <button
                         type="submit"
                         disabled={loading || otp.length !== 6}
-                        className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.99] text-slate-950 font-black rounded-xl transition shadow-lg shadow-emerald-500/10 flex items-center justify-center space-x-2 disabled:opacity-50 mt-2"
+                        className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-white font-black text-sm rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? (
-                            <span className="flex items-center space-x-2">
-                                <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span className="flex items-center gap-2">
+                                <RefreshCw className="w-4 h-4 animate-spin text-white" />
                                 <span>Verifying...</span>
                             </span>
                         ) : (
-                            <span>Verify & Enter Store 🚀</span>
+                            <span className="flex items-center gap-2">
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>Verify & Enter Store 🚀</span>
+                            </span>
                         )}
                     </button>
 
                     <button
                         type="button"
                         onClick={() => { setStep('PHONE'); setOtp(''); setError(''); }}
-                        className="w-full text-center text-xs text-slate-400 hover:text-white underline mt-1 transition"
+                        className="w-full text-center text-xs text-slate-400 hover:text-white underline transition pt-1"
                     >
                         Change Mobile Number
                     </button>
