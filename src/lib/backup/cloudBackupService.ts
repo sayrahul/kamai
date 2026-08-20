@@ -1,4 +1,4 @@
-// Comprehensive Cloud Backup, Google Drive & Restore Service for KamaiPlus
+// Comprehensive Local Database Backup, JSON Snapshot & Restore Service for KamaiPlus
 import { db } from '@/lib/db';
 
 export interface BackupMetadata {
@@ -197,16 +197,16 @@ export async function restoreDatabaseFromPayload(
 }
 
 /**
- * Encrypted Snapshot Export (Saves timestamped JSON backup file for manual cloud drive upload)
+ * Export timestamped JSON backup snapshot file
  */
-export async function uploadBackupToGoogleDrive(): Promise<{ success: boolean; filename: string }> {
+export async function exportDatabaseSnapshot(): Promise<{ success: boolean; filename: string }> {
   const payload = await createFullBackupPayload();
   const jsonStr = JSON.stringify(payload, null, 2);
   const blob = new Blob([jsonStr], { type: 'application/json' });
 
   const safeBizName = (payload.metadata.business_name || 'Store').replace(/[^a-zA-Z0-9]/g, '_');
   const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = `KamaiPlus_Encrypted_Backup_${safeBizName}_${dateStr}.json`;
+  const filename = `KamaiPlus_Snapshot_${safeBizName}_${dateStr}.json`;
 
   // Save last backup status
   try {
@@ -214,7 +214,7 @@ export async function uploadBackupToGoogleDrive(): Promise<{ success: boolean; f
     localStorage.setItem('kamai_last_backup_type', 'local_snapshot');
   } catch (e) {}
 
-  // Trigger browser download of full encrypted JSON payload
+  // Trigger browser download of JSON payload
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -228,3 +228,5 @@ export async function uploadBackupToGoogleDrive(): Promise<{ success: boolean; f
   };
 }
 
+// Alias for backwards compatibility
+export const uploadBackupToGoogleDrive = exportDatabaseSnapshot;

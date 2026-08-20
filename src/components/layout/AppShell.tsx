@@ -2,17 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ensureStarterBusinessIfEmpty } from '@/lib/db';
-import { AuthUser, getStoredUser } from '@/lib/auth';
+import { ensureStarterBusinessIfEmpty, db as localDb } from '@/lib/db';
+import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
-
-// 1. Import local database (Dexie)
-import { db as localDb } from '@/lib/db';
-
-// 2. Import the SyncEngine
-import { SyncEngine } from '@/lib/db/syncEngine';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -20,11 +14,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [isClient, setIsClient] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
-  // --- AUTH & INITIALIZATION LOGIC ---
+  // --- AUTH & SESSION VERIFICATION LOGIC ---
   useEffect(() => {
     setIsClient(true);
-    const user = getStoredUser();
-    setCurrentUser(user);
+    const cachedUser = getStoredUser();
+    setCurrentUser(cachedUser);
 
     const handleAuthChange = () => {
       setCurrentUser(getStoredUser());
@@ -33,14 +27,37 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     window.addEventListener('auth_changed', handleAuthChange);
     window.addEventListener('storage', handleAuthChange);
 
-    // Auth route guarding
     const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
-    const isPublicRoute = pathname === '/auth' || isCustomerInvoice;
+    const isPublicRoute = pathname === '/auth' || pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || isCustomerInvoice;
 
-    if (!user && !isPublicRoute) {
-      router.replace('/auth');
-      return;
-    }
+    // Verify session with server API (/api/auth/me)
+    const checkServerSession = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated && data.user) {
+            const verifiedUser: AuthUser = {
+              uid: data.user.id,
+              id: data.user.id,
+              phone: data.user.phone,
+              name: data.user.name,
+              role: data.user.role,
+              business_id: data.user.business_id,
+              business_name: data.business?.name || data.user.business_name || 'My Store',
+            };
+            setStoredUser(verifiedUser);
+            setCurrentUser(verifiedUser);
+          } else if (!isPublicRoute && navigator.onLine && !cachedUser) {
+            router.replace('/auth');
+          }
+        }
+      } catch (err) {
+        console.warn('Offline or session check bypassed:', err);
+      }
+    };
+
+    checkServerSession();
 
     // Ensure default starter business exists if DB is completely empty
     const initDb = async () => {
@@ -65,112 +82,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     };
   }, [pathname, router]);
 
-  // --- BACKGROUND SYNC ENGINE (PUSH + PULL) ---
-  useEffect(() => {
-    if (!currentUser) return;
-
-    // 1. THE "PUSH" ENGINE (Local Dexie -> Firestore Cloud)
-    const performBackgroundSync = async () => {
-      try {
-        if (!localDb.isOpen()) {
-          await localDb.open();
-        }
-
-        const pendingProducts = await localDb.products.toArray();
-        if (pendingProducts.length > 0) {
-          await SyncEngine.pushToCloud('products', pendingProducts);
-        }
-
-        const pendingSales = await localDb.sales.toArray();
-        if (pendingSales.length > 0) {
-          await SyncEngine.pushToCloud('sales', pendingSales);
-        }
-
-        const pendingCustomers = await localDb.customers.toArray();
-        if (pendingCustomers.length > 0) {
-          await SyncEngine.pushToCloud('customers', pendingCustomers);
-        }
-      } catch (error) {
-        console.error("Background sync push failed:", error);
-      }
-    };
-
-    // Initialize network listener & trigger initial sync if online
-    SyncEngine.initializeNetworkListener(performBackgroundSync);
-    if (typeof navigator !== 'undefined' && navigator.onLine) {
-      performBackgroundSync();
-    }
-
-    // 2. THE "PULL" ENGINE (Cloud -> Local Real-Time Listeners)
-    // Explicit Promise<void> return types resolve TS2322 build errors
-    const unsubscribeProducts = SyncEngine.startRealtimeSync(
-      'products',
-      async (data): Promise<void> => {
-        try {
-          if (!localDb.isOpen()) await localDb.open();
-          await localDb.products.put(data);
-        } catch (e) {
-          console.warn('Sync put product error:', e);
-        }
-      },
-      async (id): Promise<void> => {
-        try {
-          if (!localDb.isOpen()) await localDb.open();
-          await localDb.products.delete(id);
-        } catch (e) {
-          console.warn('Sync delete product error:', e);
-        }
-      }
-    );
-
-    const unsubscribeSales = SyncEngine.startRealtimeSync(
-      'sales',
-      async (data): Promise<void> => {
-        try {
-          if (!localDb.isOpen()) await localDb.open();
-          await localDb.sales.put(data);
-        } catch (e) {
-          console.warn('Sync put sales error:', e);
-        }
-      },
-      async (id): Promise<void> => {
-        try {
-          if (!localDb.isOpen()) await localDb.open();
-          await localDb.sales.delete(id);
-        } catch (e) {
-          console.warn('Sync delete sales error:', e);
-        }
-      }
-    );
-
-    const unsubscribeCustomers = SyncEngine.startRealtimeSync(
-      'customers',
-      async (data): Promise<void> => {
-        try {
-          if (!localDb.isOpen()) await localDb.open();
-          await localDb.customers.put(data);
-        } catch (e) {
-          console.warn('Sync put customer error:', e);
-        }
-      },
-      async (id): Promise<void> => {
-        try {
-          if (!localDb.isOpen()) await localDb.open();
-          await localDb.customers.delete(id);
-        } catch (e) {
-          console.warn('Sync delete customer error:', e);
-        }
-      }
-    );
-
-    // 3. CLEANUP
-    return () => {
-      if (unsubscribeProducts) unsubscribeProducts();
-      if (unsubscribeSales) unsubscribeSales();
-      if (unsubscribeCustomers) unsubscribeCustomers();
-    };
-  }, [currentUser]);
-
   if (!isClient) {
     return <main className="min-h-screen bg-[#F8FAFC]" />;
   }
@@ -181,12 +92,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     return <main className="min-h-screen bg-slate-50">{children}</main>;
   }
 
-  // Standalone full-screen layout for onboarding & authentication screens
-  if (pathname === '/onboarding' || pathname === '/auth') {
+  // Standalone full-screen layout for onboarding, auth, and legal policy pages
+  if (pathname === '/onboarding' || pathname === '/auth' || pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us') {
     return <main className="min-h-screen bg-slate-950">{children}</main>;
   }
 
-  // Loading state while verifying user session on protected routes
+  // Protected routes check
   if (!currentUser) {
     return (
       <main className="min-h-screen bg-slate-950 flex items-center justify-center">

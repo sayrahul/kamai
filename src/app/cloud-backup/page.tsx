@@ -4,43 +4,25 @@ import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { 
-  createFullBackupPayload, 
   downloadBackupJSON, 
-  uploadBackupToGoogleDrive, 
+  exportDatabaseSnapshot, 
   restoreDatabaseFromPayload, 
   FullBackupPayload 
 } from '@/lib/backup/cloudBackupService';
 import { 
-  pushLocalToSupabase, 
-  pullSupabaseToLocal, 
-  isSupabaseConfigured, 
-  SyncResult 
-} from '@/lib/supabase/syncService';
-import { formatINR } from '@/lib/utils';
-import { 
-  Cloud, 
   Download, 
   Upload, 
   CheckCircle2, 
-  AlertTriangle, 
   Clock, 
-  Calendar, 
   ShieldCheck, 
-  HardDrive, 
-  RefreshCw, 
-  FileText, 
   Database, 
-  Lock, 
   Sliders,
-  ExternalLink,
   Sparkles,
-  Layers,
-  ArrowUpRight
+  HardDrive
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
-import { Badge } from '@/components/ui/Badge';
 
 export default function CloudBackupPage() {
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -56,11 +38,6 @@ export default function CloudBackupPage() {
   const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
   const [lastBackupType, setLastBackupType] = useState<string | null>(null);
 
-  // Supabase State
-  const [isSupabaseSyncing, setIsSupabaseSyncing] = useState(false);
-  const [supabaseConnected, setSupabaseConnected] = useState(false);
-  const [lastSupabaseSyncTime, setLastSupabaseSyncTime] = useState<string | null>(null);
-
   // Restore State
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
   const [restorePayload, setRestorePayload] = useState<FullBackupPayload | null>(null);
@@ -71,71 +48,29 @@ export default function CloudBackupPage() {
   // Automated Backup Preferences State (persisted in localStorage)
   const [autoBackupOnShiftClose, setAutoBackupOnShiftClose] = useState(true);
   const [dailyAutoBackup, setDailyAutoBackup] = useState(true);
-  const [gdriveConnected, setGdriveConnected] = useState(true);
 
   // Load last backup timestamp on mount
   useEffect(() => {
     try {
       const lastTime = localStorage.getItem('kamai_last_backup_time');
       const lastType = localStorage.getItem('kamai_last_backup_type');
-      const lastSupa = localStorage.getItem('kamai_last_supabase_sync');
       if (lastTime) setLastBackupTime(lastTime);
       if (lastType) setLastBackupType(lastType);
-      if (lastSupa) setLastSupabaseSyncTime(lastSupa);
-      setSupabaseConnected(isSupabaseConfigured());
     } catch (e) {}
   }, []);
 
-  // Supabase Push Sync Handler
-  const handleSupabasePush = async () => {
-    setIsSupabaseSyncing(true);
-    try {
-      const res = await pushLocalToSupabase();
-      if (res.success) {
-        setLastSupabaseSyncTime(res.syncedAt || new Date().toISOString());
-        setBackupSuccessMessage(res.message);
-        setTimeout(() => setBackupSuccessMessage(null), 5000);
-      } else {
-        alert(res.message);
-      }
-    } catch (err: any) {
-      alert(err.message || 'Supabase cloud sync failed.');
-    } finally {
-      setIsSupabaseSyncing(false);
-    }
-  };
-
-  // Supabase Pull Sync Handler
-  const handleSupabasePull = async () => {
-    setIsSupabaseSyncing(true);
-    try {
-      const res = await pullSupabaseToLocal();
-      if (res.success) {
-        setLastSupabaseSyncTime(res.syncedAt || new Date().toISOString());
-        setRestoreSuccessMessage(res.message);
-        setTimeout(() => setRestoreSuccessMessage(null), 5000);
-      } else {
-        alert(res.message);
-      }
-    } catch (err: any) {
-      alert(err.message || 'Supabase pull failed.');
-    } finally {
-      setIsSupabaseSyncing(false);
-    }
-  };
-
-  // 1-Click Google Drive Cloud Backup
-  const handleGoogleDriveBackup = async () => {
+  // 1-Click Database Snapshot Export
+  const handleExportSnapshot = async () => {
     setIsBackingUp(true);
     try {
-      const res = await uploadBackupToGoogleDrive();
+      const res = await exportDatabaseSnapshot();
       const now = new Date().toISOString();
       setLastBackupTime(now);
-      setLastBackupType('google_drive');
-      setBackupSuccessMessage(`Cloud backup uploaded successfully to Google Drive: ${res.filename}`);
+      setLastBackupType('local_snapshot');
+      setBackupSuccessMessage(`Database snapshot exported successfully: ${res.filename}`);
       setTimeout(() => setBackupSuccessMessage(null), 5000);
     } catch (err: any) {
-      alert(err.message || 'Google Drive backup failed.');
+      alert(err.message || 'Snapshot export failed.');
     } finally {
       setIsBackingUp(false);
     }
@@ -149,7 +84,7 @@ export default function CloudBackupPage() {
       const now = new Date().toISOString();
       setLastBackupTime(now);
       setLastBackupType('local_file');
-      setBackupSuccessMessage(`Encrypted database backup downloaded: ${filename}`);
+      setBackupSuccessMessage(`Database backup downloaded: ${filename}`);
       setTimeout(() => setBackupSuccessMessage(null), 5000);
     } catch (err: any) {
       alert(err.message || 'Download failed.');
@@ -203,19 +138,19 @@ export default function CloudBackupPage() {
       <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-900 border border-sky-300 flex items-center gap-1.5">
-              <Cloud className="w-3.5 h-3.5 text-sky-700" />
-              <span>Google Drive & Cloud Auto-Backup</span>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 flex items-center gap-1.5">
+              <HardDrive className="w-3.5 h-3.5 text-amber-400" />
+              <span>Offline-First Store Data Protection</span>
             </span>
             <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-              Store Data Protection & Disaster Recovery
+              Disaster Recovery & Data Export
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Cloud Backup & 1-Click Database Restore
+            Database Backup & 1-Click Snapshot Restore
           </h1>
           <p className="text-xs text-slate-500">
-            Never lose your product catalog, sales bills, or customer credit records. Backup securely to Google Drive or download encrypted files.
+            Never lose your product catalog, sales invoices, or customer credit records. Export encrypted JSON snapshots and restore them on any device anytime.
           </p>
         </div>
 
@@ -223,12 +158,12 @@ export default function CloudBackupPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
-            onClick={handleGoogleDriveBackup}
+            onClick={handleExportSnapshot}
             disabled={isBackingUp}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-sm"
+            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 shadow-sm"
           >
-            <Cloud className="w-3.5 h-3.5" />
-            <span>{isBackingUp ? 'Syncing...' : '1-Click Google Drive Backup'}</span>
+            <Download className="w-3.5 h-3.5 text-amber-400" />
+            <span>{isBackingUp ? 'Exporting...' : 'Export Snapshot (.JSON)'}</span>
           </Button>
 
           <Button
@@ -259,48 +194,48 @@ export default function CloudBackupPage() {
         </div>
       )}
 
-      {/* ---------------- CLOUD SYNC HEALTH STATUS CARDS ---------------- */}
+      {/* ---------------- DATA INTEGRITY STATUS CARDS ---------------- */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        {/* Card 1: Cloud Sync Status */}
-        <Card className="p-4 bg-gradient-to-br from-white to-sky-50/50 border border-sky-200 rounded-xl shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-sky-950">
-            <span>Google Drive Status</span>
-            <Cloud className="w-4 h-4 text-sky-600" />
+        {/* Card 1: Local Offline Storage */}
+        <Card className="p-4 bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-xl shadow-xs space-y-1">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+            <span>Local Offline Storage</span>
+            <HardDrive className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-base font-black text-sky-950 mt-1 flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Connected & Active</span>
+          <div className="text-base font-black text-slate-950 mt-1 flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span>IndexedDB Active</span>
           </div>
-          <div className="text-[11px] text-sky-800 font-medium">
-            Auto-syncs to merchant Google Drive
+          <div className="text-[11px] text-slate-500 font-medium">
+            100% offline billing & local persistence
           </div>
         </Card>
 
         {/* Card 2: Last Backup Time */}
         <Card className="p-4 bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-xl shadow-xs space-y-1">
           <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-            <span>Last Backup Time</span>
+            <span>Last Backup Taken</span>
             <Clock className="w-4 h-4 text-slate-400" />
           </div>
           <div className="text-base font-black text-slate-900 mt-1 font-mono">
             {lastBackupTime ? new Date(lastBackupTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Not yet taken'}
           </div>
           <div className="text-[11px] text-slate-500 font-medium">
-            {lastBackupTime ? `${new Date(lastBackupTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} (${lastBackupType === 'google_drive' ? 'Google Drive' : 'Local File'})` : 'Click backup above'}
+            {lastBackupTime ? `${new Date(lastBackupTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} (JSON Snapshot)` : 'Click export above'}
           </div>
         </Card>
 
         {/* Card 3: Protected Records */}
         <Card className="p-4 bg-gradient-to-br from-slate-900 to-slate-950 text-white border border-slate-800 rounded-xl shadow-md space-y-1">
           <div className="flex items-center justify-between text-xs font-bold text-slate-400">
-            <span>Database Records Count</span>
+            <span>Protected Records Count</span>
             <ShieldCheck className="w-4 h-4 text-amber-400" />
           </div>
           <div className="text-base font-black text-amber-400 mt-1 font-mono">
             {productCount + customerCount + saleCount + khataCount} Entries
           </div>
           <div className="text-[11px] text-slate-400 font-medium">
-            {productCount} items • {customerCount} customers • {saleCount} bills
+            {productCount} products • {customerCount} customers • {saleCount} bills
           </div>
         </Card>
       </div>
@@ -311,102 +246,39 @@ export default function CloudBackupPage() {
         {/* LEFT COLUMN: BACKUP & RESTORE ACTIONS (7 Cols) */}
         {/* ========================================================================= */}
         <div className="lg:col-span-7 space-y-4">
-          {/* CARD 0: SUPABASE REALTIME CLOUD DATABASE SYNC */}
-          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
-            <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                  <Database className="w-4 h-4 text-emerald-600" />
-                  <span>Supabase Cloud Database Sync</span>
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Live PostgreSQL cloud database synchronization for cross-device access and multi-store analytics.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                  supabaseConnected 
-                    ? 'bg-emerald-50 text-emerald-900 border-emerald-300' 
-                    : 'bg-amber-50 text-amber-950 border-amber-300'
-                }`}>
-                  <span className={`w-2 h-2 rounded-full ${supabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                  <span>{supabaseConnected ? 'Supabase Connected' : 'Vercel Config Pending'}</span>
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/30 space-y-3 text-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="space-y-0.5">
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <RefreshCw className={`w-3.5 h-3.5 text-emerald-700 ${isSupabaseSyncing ? 'animate-spin' : ''}`} />
-                    <span>2-Way Cloud Synchronization</span>
-                  </div>
-                  <div className="text-[11px] text-slate-600">
-                    Last Synced: <strong>{lastSupabaseSyncTime ? new Date(lastSupabaseSyncTime).toLocaleString('en-IN') : 'Not yet synced'}</strong>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleSupabasePull}
-                    disabled={isSupabaseSyncing}
-                    variant="outline"
-                    className="text-xs font-bold gap-1 bg-white text-slate-800 border-slate-300 hover:bg-slate-50"
-                  >
-                    <Download className="w-3.5 h-3.5 text-slate-600" />
-                    <span>Pull from Cloud</span>
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    onClick={handleSupabasePush}
-                    disabled={isSupabaseSyncing}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 shadow-sm"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>{isSupabaseSyncing ? 'Syncing...' : 'Sync Now to Supabase'}</span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Card>
-
           {/* CARD 1: 1-CLICK BACKUP OPTIONS */}
           <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                <Cloud className="w-4 h-4 text-slate-700" />
-                <span>Google Drive & Encrypted File Backups</span>
+                <Database className="w-4 h-4 text-slate-700" />
+                <span>Export Store Database Snapshot</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Create a full, tamper-proof snapshot of your store data that can be restored onto any phone, tablet, or PC.
+                Create a full, tamper-proof JSON snapshot of your store data that can be restored onto any phone, tablet, or PC.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              {/* Option A: Google Drive */}
+              {/* Option A: Full Snapshot */}
               <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5 flex flex-col justify-between">
                 <div>
                   <div className="font-black text-slate-900 flex items-center gap-1.5">
-                    <Cloud className="w-4 h-4 text-sky-700" />
-                    <span>Google Drive Snapshot</span>
+                    <Database className="w-4 h-4 text-slate-800" />
+                    <span>Full Store Snapshot</span>
                   </div>
                   <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                    Saves directly to your personal Google Drive account. Ideal for multi-device sync and disaster recovery.
+                    Exports all products, customers, transactions, and cash register shifts in a structured JSON payload.
                   </p>
                 </div>
 
                 <Button
                   size="sm"
-                  onClick={handleGoogleDriveBackup}
+                  onClick={handleExportSnapshot}
                   disabled={isBackingUp}
                   className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs justify-center"
                 >
-                  <Cloud className="w-3.5 h-3.5 mr-1" />
-                  <span>Backup to Google Drive</span>
+                  <Download className="w-3.5 h-3.5 mr-1 text-amber-400" />
+                  <span>Export Snapshot</span>
                 </Button>
               </div>
 
@@ -415,10 +287,10 @@ export default function CloudBackupPage() {
                 <div>
                   <div className="font-black text-slate-900 flex items-center gap-1.5">
                     <Download className="w-4 h-4 text-slate-700" />
-                    <span>Encrypted File (.JSON)</span>
+                    <span>JSON Backup File</span>
                   </div>
                   <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                    Download a secure JSON file to your laptop or USB drive for offline storage and CA sharing.
+                    Download a timestamped file for offline archival, pen-drive storage, or sharing with your accountant.
                   </p>
                 </div>
 
@@ -430,7 +302,7 @@ export default function CloudBackupPage() {
                   className="w-full font-bold text-xs justify-center bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
                 >
                   <Download className="w-3.5 h-3.5 mr-1" />
-                  <span>Download Backup File</span>
+                  <span>Download File</span>
                 </Button>
               </div>
             </div>
@@ -444,7 +316,7 @@ export default function CloudBackupPage() {
                 <span>Restore Store Database from Backup File</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Select a previously downloaded `.json` backup file to restore your entire product catalog, transactions, and customer balances.
+                Select a previously exported `.json` backup file to restore your entire product catalog, transactions, and customer balances.
               </p>
             </div>
 
@@ -456,7 +328,7 @@ export default function CloudBackupPage() {
                 </div>
                 <div>
                   <div className="text-xs font-extrabold text-slate-900">Click to Select Backup JSON File</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">Supports all KamaiPlus & VyaparSetu backup files</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">Supports all KamaiPlus backup snapshots</div>
                 </div>
               </div>
               <input type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
@@ -472,7 +344,7 @@ export default function CloudBackupPage() {
           <Card className="p-4 bg-white border border-slate-200 space-y-3.5 shadow-xs text-xs">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
               <Sliders className="w-4 h-4 text-slate-700" />
-              <span>Automated Backup Preferences</span>
+              <span>Backup Reminders & Preferences</span>
             </h3>
 
             <div className="space-y-3">
@@ -484,9 +356,9 @@ export default function CloudBackupPage() {
                   className="mt-0.5 rounded text-slate-900"
                 />
                 <div>
-                  <div className="font-bold text-slate-900">Auto-Backup on Day-End Close</div>
+                  <div className="font-bold text-slate-900">Prompt Export on Day-End Close</div>
                   <div className="text-[11px] text-slate-500 mt-0.5">
-                    Automatically triggers silent cloud backup whenever cashier closes register & generates Z-Report.
+                    Prompts to export database snapshot whenever cashier closes register & generates Z-Report.
                   </div>
                 </div>
               </label>
@@ -499,9 +371,9 @@ export default function CloudBackupPage() {
                   className="mt-0.5 rounded text-slate-900"
                 />
                 <div>
-                  <div className="font-bold text-slate-900">Daily 9:00 PM Scheduled Backup</div>
+                  <div className="font-bold text-slate-900">Daily Reminder at Business Close</div>
                   <div className="text-[11px] text-slate-500 mt-0.5">
-                    Ensures an updated copy of all daily transactions is archived at the end of each business day.
+                    Reminds you to download an updated copy of all daily transactions at the end of each business day.
                   </div>
                 </div>
               </label>
@@ -534,7 +406,7 @@ export default function CloudBackupPage() {
               </div>
               <div className="flex justify-between pt-1 font-bold text-emerald-700">
                 <span>Disaster Recovery Status:</span>
-                <span>✓ 100% Protected</span>
+                <span>✓ 100% Protected Locally</span>
               </div>
             </div>
           </Card>

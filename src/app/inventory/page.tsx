@@ -36,7 +36,10 @@ import Link from 'next/link';
 
 export default function InventoryPage() {
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
-  const products = useLiveQuery(async () => db.products.where('is_active').equals(1).toArray()) || [];
+  const products = useLiveQuery(async () => {
+    const all = await db.products.toArray();
+    return all.filter((p) => p.is_active !== false);
+  }) || [];
   const suppliers = useLiveQuery(async () => db.suppliers.toArray()) || [];
   const movements = useLiveQuery(async () => db.inventory_movements.reverse().limit(50).toArray()) || [];
 

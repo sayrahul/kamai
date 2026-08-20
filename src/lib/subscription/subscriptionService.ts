@@ -1,3 +1,5 @@
+import { getStoredUser } from '@/lib/auth';
+
 export type SubscriptionTier = 'free' | 'pro' | 'enterprise';
 
 export interface SubscriptionState {
@@ -48,7 +50,7 @@ export const subscriptionService = {
       billingCycle,
       activatedAt: now.toISOString(),
       activeUntil: expiryDate.toISOString(),
-      transactionRef: transactionRef || `UPI_${Date.now()}`,
+      transactionRef: transactionRef || `REF_${Date.now()}`,
     };
 
     if (typeof window !== 'undefined') {
@@ -57,8 +59,7 @@ export const subscriptionService = {
 
       // Sync with Supabase Cloud Backend in background
       try {
-        const storedUser = localStorage.getItem('kamai_auth_user');
-        const userObj = storedUser ? JSON.parse(storedUser) : null;
+        const userObj = getStoredUser();
         fetch('/api/subscription/activate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
