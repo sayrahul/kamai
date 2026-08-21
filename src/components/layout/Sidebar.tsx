@@ -21,13 +21,16 @@ import {
   FileSpreadsheet,
   Cloud,
   HardDrive,
-  Sparkles
+  Sparkles,
+  Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
   const { t } = useTranslation();
+  const { isPro } = useProSubscription();
 
   const sections = [
     {
@@ -114,8 +117,14 @@ export const Sidebar: React.FC = () => {
                       <span className="truncate">{item.label}</span>
                     </div>
                     {item.isPro && (
-                      <span className="px-1 py-0.2 rounded text-[8.5px] font-black bg-amber-400 text-slate-950 shadow-2xs flex-shrink-0 ml-1">
-                        PRO
+                      <span className={cn(
+                        'px-1.5 py-0.5 rounded text-[9px] font-black shadow-2xs flex-shrink-0 ml-1 flex items-center gap-0.5',
+                        isPro 
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' 
+                          : 'bg-amber-400 text-slate-950'
+                      )}>
+                        {!isPro && <Lock className="w-2.5 h-2.5" />}
+                        <span>PRO</span>
                       </span>
                     )}
                   </Link>

@@ -27,13 +27,16 @@ import {
   Building2,
   Sparkles,
   Palette,
-  Edit3
+  Edit3,
+  Lock
 } from 'lucide-react';
 import { downloadInvoicePdfFromElement, shareInvoicePdfDirect } from '@/lib/invoices/pdfGenerator';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { Bluetooth, Zap } from 'lucide-react';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 import { DEFAULT_INVOICE_THEME_CONFIG } from '@/lib/invoices/themeDefaults';
+import { useProSubscription } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 export type InvoiceFormat = 'thermal-58' | 'thermal-80' | 'a4';
 
@@ -52,6 +55,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   business,
   onInvoiceUpdated,
 }) => {
+  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const [format, setFormat] = useState<InvoiceFormat>('a4');
   const [sale, setSale] = useState<Sale | null>(initialSale);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
@@ -63,23 +67,19 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedUpiIndex, setSelectedUpiIndex] = useState<number>(0);
   
-  // Pharmacy Prescription Bill Mode Toggle (Full User Control)
-  const [isPharmacyRxEnabled, setIsPharmacyRxEnabled] = useState<boolean>(
-    Boolean(
-      business?.business_type === 'pharmacy' ||
-      initialSale?.doctor_name ||
-      business?.invoice_theme_config?.show_pharmacy_rx
-    )
-  );
+  // Pharmacy Prescription Bill Mode Toggle (Pro Feature)
+  const [isPharmacyRxEnabled, setIsPharmacyRxEnabled] = useState<boolean>(false);
 
   const platformPromo = usePlatformPromoConfig();
 
   useEffect(() => {
     setSale(initialSale);
-    if (initialSale?.doctor_name || business?.business_type === 'pharmacy') {
+    if (isPro && (initialSale?.doctor_name || business?.business_type === 'pharmacy' || business?.invoice_theme_config?.show_pharmacy_rx)) {
       setIsPharmacyRxEnabled(true);
+    } else {
+      setIsPharmacyRxEnabled(false);
     }
-  }, [initialSale, business]);
+  }, [initialSale, business, isPro]);
 
   const activeUpi = (business?.upi_ids && business.upi_ids[selectedUpiIndex])
     ? business.upi_ids[selectedUpiIndex]
@@ -234,24 +234,37 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               </button>
             </div>
 
-            {/* Action Buttons in 1 Clean Single Line */}
             <div className="flex flex-wrap items-center gap-1.5 justify-end">
-              {/* Pharmacy Rx Mode Toggle Pill (User Full Control) */}
-              <button
-                type="button"
-                onClick={() => setIsPharmacyRxEnabled(!isPharmacyRxEnabled)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer h-8 ${
-                  isPharmacyRxEnabled
-                    ? 'bg-sky-50 text-sky-900 border-sky-300 shadow-2xs'
-                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                }`}
-                title="Toggle Pharmacy Prescription Rx & Drug License Details on Bill"
-              >
-                <span>💊 Rx Bill:</span>
-                <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-black ${isPharmacyRxEnabled ? 'bg-sky-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                  {isPharmacyRxEnabled ? 'ON' : 'OFF'}
-                </span>
-              </button>
+              {/* Pharmacy Rx Mode Toggle Pill (Pharmacy stores only) */}
+              {business?.business_type === 'pharmacy' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isPro) {
+                      setIsUpgradeModalOpen(true);
+                    } else {
+                      setIsPharmacyRxEnabled(!isPharmacyRxEnabled);
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer h-8 ${
+                    isPharmacyRxEnabled && isPro
+                      ? 'bg-sky-50 text-sky-900 border-sky-300 shadow-2xs'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                  title={!isPro ? 'Pharmacy Prescription Rx Bill (Pro Feature)' : 'Toggle Pharmacy Prescription Rx & Drug License Details on Bill'}
+                >
+                  <span>💊 Rx Bill:</span>
+                  {!isPro ? (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-400 text-slate-950 flex items-center gap-0.5 shadow-2xs">
+                      <Lock className="w-2.5 h-2.5" /> PRO
+                    </span>
+                  ) : (
+                    <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-black ${isPharmacyRxEnabled ? 'bg-sky-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                      {isPharmacyRxEnabled ? 'ON' : 'OFF'}
+                    </span>
+                  )}
+                </button>
+              )}
 
               <Button
                 variant="outline"
@@ -384,10 +397,10 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                       {business.gstin && (
                         <p className="text-[11px] font-bold text-amber-300">GSTIN: {business.gstin}</p>
                       )}
-                      {/* Pharmacy Drug License Details */}
-                      {isPharmacyRxEnabled && (
+                      {/* Pharmacy Drug License Details (Pro only & only when valid DL exists) */}
+                      {isPharmacyRxEnabled && isPro && (business.drug_license_no || business.invoice_theme_config?.drug_license_no) && (
                         <div className="mt-1 pt-1 border-t border-white/20 text-[10px] font-mono text-cyan-200">
-                          <span>D.L. No: {business.drug_license_no || business.invoice_theme_config?.drug_license_no || '20B/21B-44910'}</span>
+                          <span>D.L. No: {business.drug_license_no || business.invoice_theme_config?.drug_license_no}</span>
                           {(business.pharmacist_reg_no || business.invoice_theme_config?.pharmacist_reg_no) && (
                             <span className="ml-2">• Reg: {business.pharmacist_reg_no || business.invoice_theme_config?.pharmacist_reg_no}</span>
                           )}
@@ -400,7 +413,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                     <span className="inline-block px-3 py-1 bg-white/20 rounded-lg text-xs font-black uppercase text-white tracking-wider">
                       {sale.status === 'returned'
                         ? 'SALES RETURN / CREDIT NOTE'
-                        : isPharmacyRxEnabled
+                        : isPharmacyRxEnabled && isPro
                         ? 'PHARMACY CASH / CREDIT MEMO'
                         : (business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).custom_title || 'TAX INVOICE'}
                     </span>
@@ -423,8 +436,8 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   </div>
                 </div>
 
-                {/* Specialized Doctor & Patient Rx Box (Pharmacy Mode) */}
-                {isPharmacyRxEnabled ? (
+                {/* Specialized Doctor & Patient Rx Box (Pharmacy Mode - Pro Only) */}
+                {isPharmacyRxEnabled && isPro ? (
                   <div className="p-3 bg-sky-50/80 border border-sky-200 rounded-xl text-[11px] text-sky-950 grid grid-cols-2 gap-3">
                     <div className="flex items-start gap-2">
                       <span className="text-xl font-black text-sky-700 font-serif leading-none mt-0.5">℞</span>
@@ -666,9 +679,9 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   <p className="text-[10px] text-slate-600">{business.address}</p>
                   <p className="text-[10px] text-slate-600">Ph: {business.phone}</p>
                   {business.gstin && <p className="text-[9px] font-bold">GSTIN: {business.gstin}</p>}
-                  {isPharmacyRxEnabled && (
+                  {isPharmacyRxEnabled && isPro && (business.drug_license_no || business.invoice_theme_config?.drug_license_no) && (
                     <p className="text-[9px] font-bold text-slate-700">
-                      D.L. No: {business.drug_license_no || business.invoice_theme_config?.drug_license_no || '20B/21B-44910'}
+                      D.L. No: {business.drug_license_no || business.invoice_theme_config?.drug_license_no}
                     </p>
                   )}
                 </div>
@@ -732,8 +745,8 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   ))}
                 </div>
 
-                {/* Schedule H warning in Thermal */}
-                {isPharmacyRxEnabled && (
+                {/* Schedule H warning in Thermal (Pro Only) */}
+                {isPharmacyRxEnabled && isPro && (
                   <div className="text-[8.5px] text-center font-bold text-slate-700 py-0.5 border-b border-dashed border-slate-300">
                     *** SCHEDULE H PRESCRIPTION DRUG ***
                   </div>
@@ -797,6 +810,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
         onClose={() => setIsEditModalOpen(false)}
         sale={sale}
         onSaved={handleInvoiceSaved}
+      />
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
       />
     </>
   );

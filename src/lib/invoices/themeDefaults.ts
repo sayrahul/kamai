@@ -84,6 +84,43 @@ export const INVOICE_THEME_PRESETS: ThemePreset[] = [
   },
 ];
 
+export const FREE_INVOICE_THEME_CONFIG: InvoiceThemeConfig = {
+  theme_id: 'modern_emerald',
+  primary_color: '#059669',
+  header_style: 'standard',
+  show_logo: true,
+  show_tagline: true,
+  show_owner: true,
+  show_upi_qr: true,
+  show_signature: true,
+  show_gst_breakup: false,
+  show_hsn_code: false,
+  show_mrp_savings: false,
+  show_terms: false,
+  show_pharmacy_rx: false,
+  drug_license_no: '',
+  pharmacist_reg_no: '',
+  custom_title: 'TAX INVOICE',
+  custom_footer: 'Thank you for your business!',
+  custom_terms: '',
+};
+
+export function getDefaultThemeForCategory(businessType?: string): { theme_id: InvoiceThemeId; primary_color: string } {
+  switch (businessType) {
+    case 'pharmacy':
+      return { theme_id: 'pharma_care', primary_color: '#0284c7' };
+    case 'clothing':
+      return { theme_id: 'golden_elegance', primary_color: '#b45309' };
+    case 'restaurant':
+      return { theme_id: 'vyapar_classic', primary_color: '#0f172a' };
+    case 'electronics':
+      return { theme_id: 'royal_blue', primary_color: '#1d4ed8' };
+    case 'grocery':
+    default:
+      return { theme_id: 'modern_emerald', primary_color: '#059669' };
+  }
+}
+
 export const DEFAULT_INVOICE_THEME_CONFIG: InvoiceThemeConfig = {
   theme_id: 'modern_emerald',
   primary_color: '#059669',

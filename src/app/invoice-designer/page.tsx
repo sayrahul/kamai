@@ -11,7 +11,9 @@ import {
 } from '@/types';
 import { 
   INVOICE_THEME_PRESETS, 
-  DEFAULT_INVOICE_THEME_CONFIG 
+  DEFAULT_INVOICE_THEME_CONFIG,
+  FREE_INVOICE_THEME_CONFIG,
+  getDefaultThemeForCategory
 } from '@/lib/invoices/themeDefaults';
 import { formatINR, generateUPILink } from '@/lib/utils';
 import { 
@@ -32,7 +34,8 @@ import {
   Plus,
   Trash2,
   Megaphone,
-  CreditCard
+  CreditCard,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -56,11 +59,34 @@ export default function InvoiceDesignerPage() {
   // Initialize from business config if saved
   useEffect(() => {
     if (business) {
-      if (business.invoice_theme_config) {
+      const catDefaults = getDefaultThemeForCategory(business.business_type);
+      if (!isPro) {
+        // Free user: category default theme + free default headers
         setConfig({
-          ...DEFAULT_INVOICE_THEME_CONFIG,
-          ...business.invoice_theme_config,
+          ...FREE_INVOICE_THEME_CONFIG,
+          theme_id: catDefaults.theme_id,
+          primary_color: catDefaults.primary_color,
+          ...(business.invoice_theme_config ? {
+            show_logo: business.invoice_theme_config.show_logo ?? true,
+            show_tagline: business.invoice_theme_config.show_tagline ?? true,
+            show_owner: business.invoice_theme_config.show_owner ?? true,
+            show_upi_qr: business.invoice_theme_config.show_upi_qr ?? true,
+            show_signature: business.invoice_theme_config.show_signature ?? true,
+          } : {})
         });
+      } else {
+        if (business.invoice_theme_config) {
+          setConfig({
+            ...DEFAULT_INVOICE_THEME_CONFIG,
+            ...business.invoice_theme_config,
+          });
+        } else {
+          setConfig({
+            ...DEFAULT_INVOICE_THEME_CONFIG,
+            theme_id: catDefaults.theme_id,
+            primary_color: catDefaults.primary_color,
+          });
+        }
       }
 
       const initialUpiList: UpiAccount[] = business.upi_ids && business.upi_ids.length > 0
@@ -71,7 +97,7 @@ export default function InvoiceDesignerPage() {
 
       setUpiList(initialUpiList);
     }
-  }, [business]);
+  }, [business, isPro]);
 
   // Update Sample QR when active UPI or config changes
   useEffect(() => {
@@ -91,6 +117,10 @@ export default function InvoiceDesignerPage() {
 
   // Handle Preset Change
   const handleSelectPreset = (presetId: InvoiceThemeId) => {
+    if (!isPro) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
     const preset = INVOICE_THEME_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
     setConfig((prev) => ({
@@ -222,20 +252,37 @@ export default function InvoiceDesignerPage() {
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">1</span>
                 <span>Select Invoice Theme &amp; Color</span>
+                {!isPro && <ProFeatureBadge />}
               </h2>
               <span className="text-[11px] text-slate-500 font-semibold">{INVOICE_THEME_PRESETS.length} Options</span>
             </div>
 
+            {!isPro && (
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-bold flex items-center justify-between gap-2 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Lock className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
+                  <span className="truncate">Default <strong>{business?.business_type?.toUpperCase() || 'STORE'}</strong> theme active. Upgrade to Pro for custom themes &amp; colors.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsUpgradeModalOpen(true)}
+                  className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black text-[10px] hover:bg-amber-500 cursor-pointer flex-shrink-0 shadow-2xs"
+                >
+                  Unlock Pro
+                </button>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {INVOICE_THEME_PRESETS.map((preset) => {
                 const isSelected = config.theme_id === preset.id || config.primary_color.toLowerCase() === preset.primaryColor.toLowerCase();
-                const isProTheme = preset.id === 'golden_elegance' || preset.id === 'pharma_care';
+                const isProTheme = !isPro;
                 return (
                   <button
                     key={preset.id}
                     type="button"
                     onClick={() => {
-                      if (isProTheme && !isPro) {
+                      if (!isPro) {
                         setIsUpgradeModalOpen(true);
                       } else {
                         handleSelectPreset(preset.id);
@@ -252,7 +299,7 @@ export default function InvoiceDesignerPage() {
                       style={{ backgroundColor: preset.primaryColor }}
                     />
                     <span>{preset.name}</span>
-                    {isProTheme && <ProFeatureBadge />}
+                    {!isPro && !isSelected && <Lock className="w-3 h-3 text-slate-400 flex-shrink-0" />}
                     {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white flex-shrink-0" />}
                   </button>
                 );
@@ -264,9 +311,19 @@ export default function InvoiceDesignerPage() {
                 <input
                   type="color"
                   value={config.primary_color}
-                  onChange={(e) => setConfig((prev) => ({ ...prev, primary_color: e.target.value }))}
-                  className="w-8 h-8 rounded-lg border border-slate-300 p-0.5 cursor-pointer bg-white"
-                  title="Pick custom color"
+                  disabled={!isPro}
+                  onClick={() => {
+                    if (!isPro) setIsUpgradeModalOpen(true);
+                  }}
+                  onChange={(e) => {
+                    if (!isPro) {
+                      setIsUpgradeModalOpen(true);
+                    } else {
+                      setConfig((prev) => ({ ...prev, primary_color: e.target.value }));
+                    }
+                  }}
+                  className={`w-8 h-8 rounded-lg border border-slate-300 p-0.5 bg-white ${!isPro ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+                  title={!isPro ? 'Pro Feature: Pick custom color' : 'Pick custom color'}
                 />
               </div>
             </div>
@@ -289,7 +346,7 @@ export default function InvoiceDesignerPage() {
                       key={t}
                       type="button"
                       onClick={() => setConfig((prev) => ({ ...prev, custom_title: t }))}
-                      className={`px-2 py-1.5 rounded-lg border text-[11px] font-bold text-center transition-all ${
+                      className={`px-2 py-1.5 rounded-lg border text-[11px] font-bold text-center transition-all cursor-pointer ${
                         config.custom_title === t
                           ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
@@ -304,49 +361,69 @@ export default function InvoiceDesignerPage() {
               {/* Toggle Switches */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 {[
-                  { id: 'show_logo', label: 'Show Store Logo', desc: 'Display logo at top left' },
-                  { id: 'show_tagline', label: 'Show Tagline', desc: 'Display store motto or category' },
-                  { id: 'show_owner', label: 'Show Owner & Phone', desc: 'Display contact details in header' },
-                  { id: 'show_upi_qr', label: 'Show Dynamic UPI QR', desc: 'Auto payment QR code for customers' },
-                  { id: 'show_gst_breakup', label: 'Show GST Tax Breakup', desc: 'Itemized CGST/SGST breakdown' },
-                  { id: 'show_hsn_code', label: 'Show HSN/SAC Code', desc: 'Print product HSN numbers' },
-                  { id: 'show_mrp_savings', label: 'Show MRP Savings Badge', desc: 'Highlight customer discount saved' },
-                  { id: 'show_signature', label: 'Authorised Signatory', desc: 'Seal / Signatory signature box' },
-                  { id: 'show_pharmacy_rx', label: '💊 Pharmacy Rx & D.L. Bill', desc: 'Print Doctor, Patient Rx, Drug License & Schedule H Drug warning' },
+                  { id: 'show_logo', label: 'Show Store Logo', desc: 'Display logo at top left', isProOnly: false },
+                  { id: 'show_tagline', label: 'Show Tagline', desc: 'Display store motto or category', isProOnly: false },
+                  { id: 'show_owner', label: 'Show Owner & Phone', desc: 'Display contact details in header', isProOnly: false },
+                  { id: 'show_upi_qr', label: 'Show Dynamic UPI QR', desc: 'Auto payment QR code for customers', isProOnly: false },
+                  { id: 'show_signature', label: 'Authorised Signatory', desc: 'Seal / Signatory signature box', isProOnly: false },
+                  { id: 'show_gst_breakup', label: 'Show GST Tax Breakup', desc: 'Itemized CGST/SGST breakdown', isProOnly: true },
+                  { id: 'show_hsn_code', label: 'Show HSN/SAC Code', desc: 'Print product HSN numbers', isProOnly: true },
+                  { id: 'show_mrp_savings', label: 'Show MRP Savings Badge', desc: 'Highlight customer discount saved', isProOnly: true },
+                  { id: 'show_terms', label: 'Show Terms & Conditions', desc: 'Print standard dispute & exchange terms', isProOnly: true },
+                  { id: 'show_pharmacy_rx', label: '💊 Pharmacy Rx & D.L. Bill', desc: 'Print Doctor, Patient Rx, Drug License & Schedule H Drug warning', isProOnly: true },
                 ].map((toggle) => {
                   const isChecked = Boolean(config[toggle.id as keyof InvoiceThemeConfig]);
+                  const isLocked = toggle.isProOnly && !isPro;
+
                   return (
                     <div
                       key={toggle.id}
-                      onClick={() =>
+                      onClick={() => {
+                        if (isLocked) {
+                          setIsUpgradeModalOpen(true);
+                          return;
+                        }
                         setConfig((prev) => ({
                           ...prev,
                           [toggle.id]: !isChecked,
-                        }))
-                      }
-                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-start gap-2.5 ${
-                        isChecked
+                        }));
+                      }}
+                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-2.5 ${
+                        isLocked
+                          ? 'border-slate-200 bg-slate-50/70 opacity-80 hover:border-amber-300'
+                          : isChecked
                           ? 'border-emerald-300 bg-emerald-50/50'
                           : 'border-slate-200 bg-white opacity-70 hover:opacity-100'
                       }`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        readOnly
-                        className="mt-0.5 rounded text-emerald-600 focus:ring-0 cursor-pointer"
-                      />
-                      <div>
-                        <div className="text-xs font-bold text-slate-900">{toggle.label}</div>
-                        <div className="text-[10px] text-slate-500 leading-tight mt-0.5">{toggle.desc}</div>
+                      <div className="flex items-start gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          readOnly
+                          className="mt-0.5 rounded text-emerald-600 focus:ring-0 cursor-pointer"
+                        />
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                            <span>{toggle.label}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 leading-tight mt-0.5">{toggle.desc}</div>
+                        </div>
                       </div>
+
+                      {toggle.isProOnly && !isPro && (
+                        <span className="px-1.5 py-0.5 rounded text-[8.5px] font-black bg-amber-400 text-slate-950 shadow-2xs flex-shrink-0 flex items-center gap-0.5">
+                          <Lock className="w-2.5 h-2.5" />
+                          <span>PRO</span>
+                        </span>
+                      )}
                     </div>
                   );
                 })}
               </div>
 
-              {/* Pharmacy Specific Inputs if show_pharmacy_rx enabled */}
-              {config.show_pharmacy_rx && (
+              {/* Pharmacy Specific Inputs if show_pharmacy_rx enabled (Pro Users) */}
+              {config.show_pharmacy_rx && isPro && (
                 <div className="p-3 bg-sky-50/70 rounded-xl border border-sky-200 space-y-2.5 mt-2 animate-in fade-in">
                   <div className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
                     <span>💊</span>
@@ -374,6 +451,24 @@ export default function InvoiceDesignerPage() {
                       />
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Pharmacy Drug License Pro Lock for Free Users */}
+              {!isPro && (
+                <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 flex items-center justify-between gap-3 mt-2 shadow-2xs">
+                  <div className="flex items-center gap-2 text-xs text-slate-700">
+                    <span>💊</span>
+                    <span className="font-bold">Pharmacy Drug License &amp; Chemist Information</span>
+                    <ProFeatureBadge />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsUpgradeModalOpen(true)}
+                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-400 text-slate-950 hover:bg-amber-500 cursor-pointer shadow-2xs"
+                  >
+                    Unlock Pro
+                  </button>
                 </div>
               )}
             </div>

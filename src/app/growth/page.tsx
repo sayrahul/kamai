@@ -35,7 +35,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
-import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { useProSubscription, ProFeatureBadge, ProFeatureLockedCard } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 interface FestivalCampaign {
@@ -500,6 +500,20 @@ export default function GrowthPage() {
           </Button>
         </div>
       </div>
+
+      {/* PRO LOCK CARD FOR FREE USERS */}
+      {!isPro && (
+        <ProFeatureLockedCard
+          title="Automated WhatsApp Growth &amp; Festive Engine"
+          description="Send automated festive discount vouchers (Diwali, Eid, New Year), birthday gifts, and refill reminders directly to your customers' WhatsApp."
+          features={[
+            'Festival Greetings & Coupon Codes',
+            'Today\'s Birthday Celebration Radar',
+            'Category-Smart Sourcing & Refill Alerts',
+            'Direct WhatsApp 1-Click Dispatch'
+          ]}
+        />
+      )}
 
       {/* ---------------- 1. BIRTHDAYS & SPECIAL OCCASIONS RADAR ---------------- */}
       <div className="bg-gradient-to-r from-amber-500 via-rose-500 to-pink-600 rounded-2xl p-4 sm:p-5 text-white shadow-md space-y-3">
