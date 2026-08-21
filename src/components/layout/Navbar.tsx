@@ -19,7 +19,6 @@ import {
   Sparkles,
   Settings,
   ChevronDown,
-  ExternalLink,
   Crown
 } from 'lucide-react';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
@@ -115,13 +114,63 @@ export const Navbar: React.FC = () => {
     <>
       <header className="h-16 bg-white border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
         
-        {/* Left Side: Clickable Store Profile & Logo Trigger */}
+        {/* Left Side: Actions (Upgrade Pro, Store QR, Network Status) */}
+        <div className="flex items-center gap-2">
+          
+          {/* Upgrade / Pricing Button - Opens UpgradeModal */}
+          <button 
+            onClick={() => setIsUpgradeModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black shadow-xs active:scale-95 transition-all cursor-pointer"
+            title="Unlock all Pro Features"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-slate-950 fill-slate-950" />
+            <span className="hidden sm:inline">Upgrade / Pro</span>
+            <span className="sm:hidden">Pro</span>
+          </button>
+
+          {/* Quick Merchant QR Code Button */}
+          <button
+            onClick={() => setIsQrModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition shadow-2xs"
+            title="Show Merchant UPI QR for Counter"
+          >
+            <QrCode className="w-3.5 h-3.5 text-slate-700" />
+            <span className="hidden sm:inline">Store QR</span>
+          </button>
+
+          {/* Network Status Badge */}
+          {isOnline ? (
+            <div className="hidden md:inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+              <span>Online</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-medium">
+              <WifiOff className="w-3 h-3" />
+              <span>Offline</span>
+            </div>
+          )}
+        </div>
+
+        {/* Right Side: Extreme Right Store Profile & Logo Trigger */}
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowStoreMenu(!showStoreMenu)}
-            className="flex items-center gap-2.5 p-1 -ml-1 rounded-xl hover:bg-slate-50 transition cursor-pointer text-left focus:outline-none"
+            className="flex items-center gap-2.5 p-1 -mr-1 rounded-xl hover:bg-slate-50 transition cursor-pointer text-right focus:outline-none"
             title="Click for Store Menu, Language & Settings"
           >
+            <div className="min-w-0 hidden sm:block text-right">
+              <div className="flex items-center justify-end gap-1.5">
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${showStoreMenu ? 'rotate-180 text-amber-500' : ''}`} />
+                <h1 className="text-sm sm:text-base font-extrabold text-slate-900 truncate leading-tight tracking-tight">
+                  {displayBusinessName}
+                </h1>
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-500 font-normal truncate max-w-[170px] sm:max-w-[240px]">
+                {displayOwnerName} • <span className="capitalize">{displayType}</span>
+              </p>
+            </div>
+
             {business?.logo_url ? (
               <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0 shadow-xs p-0.5">
                 <img
@@ -135,23 +184,11 @@ export const Navbar: React.FC = () => {
                 <Store className="w-5 h-5 text-amber-400" />
               </div>
             )}
-
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <h1 className="text-sm sm:text-base font-extrabold text-slate-900 truncate leading-tight tracking-tight">
-                  {displayBusinessName}
-                </h1>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${showStoreMenu ? 'rotate-180 text-amber-500' : ''}`} />
-              </div>
-              <p className="text-[11px] sm:text-xs text-slate-500 font-normal truncate max-w-[170px] sm:max-w-[240px]">
-                {displayOwnerName} • <span className="capitalize">{displayType}</span>
-              </p>
-            </div>
           </button>
 
-          {/* Store Logo Dropdown Menu (Unified Left Profile Menu) */}
+          {/* Store Logo Dropdown Menu (Anchored to the Right) */}
           {showStoreMenu && (
-            <div className="absolute left-0 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl py-2 z-50 text-slate-900 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl py-2 z-50 text-slate-900 animate-in fade-in slide-in-from-top-2 duration-150">
               
               {/* Store & Owner Header */}
               <div className="px-4 py-2.5 border-b border-slate-100 mb-1.5 bg-slate-50/50">
@@ -285,44 +322,6 @@ export const Navbar: React.FC = () => {
                   <span>Log Out / Switch Account</span>
                 </button>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right Side: Store QR / Scanner, Pro Upgrade & Network Status */}
-        <div className="flex items-center gap-2">
-          
-          {/* Quick Merchant QR Code Button */}
-          <button
-            onClick={() => setIsQrModalOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition shadow-2xs"
-            title="Show Merchant UPI QR for Counter"
-          >
-            <QrCode className="w-3.5 h-3.5 text-slate-700" />
-            <span className="hidden sm:inline">Store QR</span>
-          </button>
-
-          {/* Upgrade / Pricing Button - Opens UpgradeModal */}
-          <button 
-            onClick={() => setIsUpgradeModalOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black shadow-xs active:scale-95 transition-all cursor-pointer"
-            title="Unlock all Pro Features"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-slate-950 fill-slate-950" />
-            <span className="hidden sm:inline">Upgrade / Pro</span>
-            <span className="sm:hidden">Pro</span>
-          </button>
-
-          {/* Network Status Badge */}
-          {isOnline ? (
-            <div className="hidden md:inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-              <span>Online</span>
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-medium">
-              <WifiOff className="w-3 h-3" />
-              <span>Offline</span>
             </div>
           )}
         </div>
