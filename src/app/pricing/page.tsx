@@ -34,6 +34,8 @@ export default function PricingPage() {
   const [subscription, setSubscription] = useState<SubscriptionState>({ tier: 'free', billingCycle: 'annual' });
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null);
+  const [liveAnnualPrice, setLiveAnnualPrice] = useState<number>(1499);
+  const [liveMonthlyPrice, setLiveMonthlyPrice] = useState<number>(199);
 
   useEffect(() => {
     setSubscription(subscriptionService.getSubscription());
@@ -41,12 +43,31 @@ export default function PricingPage() {
       setSubscription(subscriptionService.getSubscription());
     };
     window.addEventListener('subscription_changed', handleSubChange);
+
+    fetch('/api/admin/config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.config?.proAnnualPrice) setLiveAnnualPrice(data.config.proAnnualPrice);
+        if (data?.config?.proMonthlyPrice) setLiveMonthlyPrice(data.config.proMonthlyPrice);
+      })
+      .catch(() => {});
+
     return () => window.removeEventListener('subscription_changed', handleSubChange);
   }, []);
 
   const proPrices = {
-    '1year': { original: 299900, discounted: 149900, monthlyEquivalent: '₹125.00 / month', savings: 'Save 50%' },
-    '1month': { original: 39900, discounted: 19900, monthlyEquivalent: 'Billed monthly', savings: 'Standard' },
+    '1year': {
+      original: (liveAnnualPrice * 2) * 100,
+      discounted: liveAnnualPrice * 100,
+      monthlyEquivalent: `₹${Math.round(liveAnnualPrice / 12)}.00 / month`,
+      savings: 'Save 50%'
+    },
+    '1month': {
+      original: (liveMonthlyPrice * 2) * 100,
+      discounted: liveMonthlyPrice * 100,
+      monthlyEquivalent: 'Billed monthly',
+      savings: 'Standard'
+    },
   };
 
   const currentProPrice = proPrices[duration];

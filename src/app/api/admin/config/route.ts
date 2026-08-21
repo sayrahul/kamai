@@ -19,7 +19,7 @@ export interface PlatformRemoteConfig {
   updatedAt: string;
 }
 
-let cachedConfig: PlatformRemoteConfig = {
+export let cachedConfig: PlatformRemoteConfig = {
   maintenanceMode: false,
   maintenanceMessage: 'Kamai+ is undergoing scheduled system optimization. Normal POS services will resume shortly.',
   razorpayGatewayEnabled: true,
@@ -27,14 +27,32 @@ let cachedConfig: PlatformRemoteConfig = {
   barcodeGeneratorEnabled: true,
   growthMarketingEnabled: true,
   gstReportsEnabled: true,
-  proMonthlyPrice: 249,
-  proAnnualPrice: 2100,
+  proMonthlyPrice: 199,
+  proAnnualPrice: 1499,
   freeHoldBillsLimit: 3,
   freeHistoryDaysLimit: 7,
   supportPhone: '+919595997711',
   supportWhatsApp: '919595997711',
   updatedAt: new Date().toISOString(),
 };
+
+export async function getLivePlatformConfig(): Promise<PlatformRemoteConfig> {
+  try {
+    const supabase = getSupabaseServerClient();
+    if (supabase) {
+      const { data } = await supabase
+        .from('platform_config')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        return { ...cachedConfig, ...data };
+      }
+    }
+  } catch {}
+  return cachedConfig;
+}
 
 export async function GET(req: NextRequest) {
   // Public or Admin read

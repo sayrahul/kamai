@@ -3,17 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth/session';
 
+import { getLivePlatformConfig } from '@/app/api/admin/config/route';
+
 export const dynamic = 'force-dynamic';
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
-
-// Plan pricing in paise (1 INR = 100 paise) - Startup Launch Pricing
-const PLANS: Record<string, { amount: number; label: string; durationDays: number }> = {
-  pro_annual: { amount: 149900, label: 'Kamai+ Pro (Annual)', durationDays: 365 },
-  pro_monthly: { amount: 19900, label: 'Kamai+ Pro (Monthly)', durationDays: 30 },
-  pro: { amount: 149900, label: 'Kamai+ Pro (Annual)', durationDays: 365 },
-};
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,9 +24,11 @@ export async function POST(req: NextRequest) {
 
     const plan = (body.plan as string) || 'pro';
     const billingCycle = body.billingCycle === 'monthly' ? 'monthly' : 'annual';
-    const planKey = `${plan}_${billingCycle}`;
 
-    const planDetails = PLANS[planKey] || PLANS[plan] || PLANS.pro_annual;
+    const config = await getLivePlatformConfig();
+    const annualPrice = config.proAnnualPrice || 1499;
+    const monthlyPrice = config.proMonthlyPrice || 199;
+    const amountInPaise = (billingCycle === 'monthly' ? monthlyPrice : annualPrice) * 100;
 
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
       return NextResponse.json(
@@ -42,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Create Razorpay order via REST API
     const orderPayload = {
-      amount: planDetails.amount,
+      amount: amountInPaise,
       currency: 'INR',
       receipt: `kamai_${businessId}_${Date.now()}`.slice(0, 40),
       notes: {
@@ -81,7 +78,7 @@ export async function POST(req: NextRequest) {
       amount: rzpData.amount,
       currency: rzpData.currency,
       keyId: RAZORPAY_KEY_ID,
-      planLabel: planDetails.label,
+      planLabel: billingCycle === 'monthly' ? 'Kamai+ Pro (Monthly)' : 'Kamai+ Pro (Annual)',
       businessId,
       phone,
     });

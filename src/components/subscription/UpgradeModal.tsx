@@ -43,9 +43,21 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
   const [billingCycle, setBillingCycle] = useState<'annual' | 'monthly'>('annual');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [liveAnnualPrice, setLiveAnnualPrice] = useState<number>(1499);
+  const [liveMonthlyPrice, setLiveMonthlyPrice] = useState<number>(199);
 
-  const priceAmount = billingCycle === 'annual' ? 1499 : 199;
-  const originalPrice = billingCycle === 'annual' ? 2999 : 399;
+  React.useEffect(() => {
+    fetch('/api/admin/config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.config?.proAnnualPrice) setLiveAnnualPrice(data.config.proAnnualPrice);
+        if (data?.config?.proMonthlyPrice) setLiveMonthlyPrice(data.config.proMonthlyPrice);
+      })
+      .catch(() => {});
+  }, []);
+
+  const priceAmount = billingCycle === 'annual' ? liveAnnualPrice : liveMonthlyPrice;
+  const originalPrice = billingCycle === 'annual' ? liveAnnualPrice * 2 : liveMonthlyPrice * 2;
 
   const handleUpgrade = useCallback(async () => {
     setLoading(true);

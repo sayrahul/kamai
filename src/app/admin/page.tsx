@@ -163,6 +163,14 @@ export default function MasterSuperAdminPage() {
     `Hello {owner_name}, greetings from Kamai+ (KamaiPlus)! 🚀\n\nUpgrade your store *{store_name}* to Pro today & unlock 1-Click WhatsApp Invoicing, Expiry Radar, and GSTR-1 Tax Reports at 50% OFF!\n\nTap to upgrade: https://kamaiplus.proventure.in/pricing`
   );
 
+  // Remote Pricing & Limits State
+  const [formAnnualPrice, setFormAnnualPrice] = useState<number>(1499);
+  const [formMonthlyPrice, setFormMonthlyPrice] = useState<number>(199);
+  const [formHoldBillsLimit, setFormHoldBillsLimit] = useState<number>(3);
+  const [formHistoryDaysLimit, setFormHistoryDaysLimit] = useState<number>(7);
+  const [formSupportPhone, setFormSupportPhone] = useState<string>('+919595997711');
+  const [isSavingPricing, setIsSavingPricing] = useState<boolean>(false);
+
   // 1. Check Session on Mount
   useEffect(() => {
     checkAdminSession();
@@ -272,7 +280,14 @@ export default function MasterSuperAdminPage() {
       const configRes = await fetch('/api/admin/config');
       if (configRes.ok) {
         const confData = await configRes.json();
-        if (confData.config) setConfig(confData.config);
+        if (confData.config) {
+          setConfig(confData.config);
+          if (confData.config.proAnnualPrice) setFormAnnualPrice(confData.config.proAnnualPrice);
+          if (confData.config.proMonthlyPrice) setFormMonthlyPrice(confData.config.proMonthlyPrice);
+          if (confData.config.freeHoldBillsLimit !== undefined) setFormHoldBillsLimit(confData.config.freeHoldBillsLimit);
+          if (confData.config.freeHistoryDaysLimit !== undefined) setFormHistoryDaysLimit(confData.config.freeHistoryDaysLimit);
+          if (confData.config.supportPhone) setFormSupportPhone(confData.config.supportPhone);
+        }
       }
     } catch (err) {
       console.error('Failed to load admin data:', err);
@@ -1419,27 +1434,27 @@ export default function MasterSuperAdminPage() {
                   <span>Remote Pricing &amp; Free Tier Limits</span>
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Update subscription prices and Free limits without redeploying code.
+                  Update subscription prices and Free limits in real-time without redeploying code.
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-300">Pro Monthly Price (₹)</label>
+                    <label className="text-xs font-bold text-slate-300">Pro Annual Price (₹ / year)</label>
                     <Input
                       type="number"
-                      value={config?.proMonthlyPrice || 249}
-                      onChange={(e) => handleSaveConfig({ proMonthlyPrice: Number(e.target.value) })}
-                      className="bg-slate-950 border-slate-800 text-white font-mono text-xs"
+                      value={formAnnualPrice}
+                      onChange={(e) => setFormAnnualPrice(Number(e.target.value))}
+                      className="bg-slate-950 border-slate-800 text-amber-300 font-mono text-xs font-bold"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-300">Pro Annual Price (₹)</label>
+                    <label className="text-xs font-bold text-slate-300">Pro Monthly Price (₹ / mo)</label>
                     <Input
                       type="number"
-                      value={config?.proAnnualPrice || 2100}
-                      onChange={(e) => handleSaveConfig({ proAnnualPrice: Number(e.target.value) })}
+                      value={formMonthlyPrice}
+                      onChange={(e) => setFormMonthlyPrice(Number(e.target.value))}
                       className="bg-slate-950 border-slate-800 text-white font-mono text-xs"
                     />
                   </div>
@@ -1450,8 +1465,8 @@ export default function MasterSuperAdminPage() {
                     <label className="text-xs font-bold text-slate-300">Free Hold Bills Limit</label>
                     <Input
                       type="number"
-                      value={config?.freeHoldBillsLimit || 3}
-                      onChange={(e) => handleSaveConfig({ freeHoldBillsLimit: Number(e.target.value) })}
+                      value={formHoldBillsLimit}
+                      onChange={(e) => setFormHoldBillsLimit(Number(e.target.value))}
                       className="bg-slate-950 border-slate-800 text-white font-mono text-xs"
                     />
                   </div>
@@ -1459,8 +1474,8 @@ export default function MasterSuperAdminPage() {
                     <label className="text-xs font-bold text-slate-300">Free Sales History (Days)</label>
                     <Input
                       type="number"
-                      value={config?.freeHistoryDaysLimit || 7}
-                      onChange={(e) => handleSaveConfig({ freeHistoryDaysLimit: Number(e.target.value) })}
+                      value={formHistoryDaysLimit}
+                      onChange={(e) => setFormHistoryDaysLimit(Number(e.target.value))}
                       className="bg-slate-950 border-slate-800 text-white font-mono text-xs"
                     />
                   </div>
@@ -1469,11 +1484,30 @@ export default function MasterSuperAdminPage() {
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-300">SuperAdmin Support WhatsApp Phone</label>
                   <Input
-                    value={config?.supportPhone || '+919595997711'}
-                    onChange={(e) => handleSaveConfig({ supportPhone: e.target.value })}
+                    value={formSupportPhone}
+                    onChange={(e) => setFormSupportPhone(e.target.value)}
                     className="bg-slate-950 border-slate-800 text-white font-mono text-xs"
                   />
                 </div>
+
+                <Button
+                  type="button"
+                  disabled={isSavingPricing}
+                  onClick={async () => {
+                    setIsSavingPricing(true);
+                    await handleSaveConfig({
+                      proAnnualPrice: formAnnualPrice,
+                      proMonthlyPrice: formMonthlyPrice,
+                      freeHoldBillsLimit: formHoldBillsLimit,
+                      freeHistoryDaysLimit: formHistoryDaysLimit,
+                      supportPhone: formSupportPhone,
+                    });
+                    setIsSavingPricing(false);
+                  }}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs h-10 rounded-xl cursor-pointer mt-2"
+                >
+                  {isSavingPricing ? 'Saving Pricing & Limits...' : 'Save Live Pricing & Limits 🚀'}
+                </Button>
               </div>
             </div>
           </div>
