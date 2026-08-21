@@ -8,28 +8,26 @@ export const dynamic = 'force-dynamic';
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
 
-// Plan pricing in paise (1 INR = 100 paise)
+// Plan pricing in paise (1 INR = 100 paise) - Startup Launch Pricing
 const PLANS: Record<string, { amount: number; label: string; durationDays: number }> = {
-  pro_annual: { amount: 210000, label: 'Kamai+ Pro (Annual)', durationDays: 365 },
-  pro_monthly: { amount: 24900, label: 'Kamai+ Pro (Monthly)', durationDays: 30 },
-  pro: { amount: 210000, label: 'Kamai+ Pro (Annual)', durationDays: 365 },
+  pro_annual: { amount: 149900, label: 'Kamai+ Pro (Annual)', durationDays: 365 },
+  pro_monthly: { amount: 19900, label: 'Kamai+ Pro (Monthly)', durationDays: 30 },
+  pro: { amount: 149900, label: 'Kamai+ Pro (Annual)', durationDays: 365 },
 };
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Authenticate user from session cookie
+    const body = await req.json().catch(() => ({}));
+
+    // 1. Identify user / business (from cookie session or body fallback)
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
-    if (!sessionCookie) {
-      return NextResponse.json({ success: false, error: 'Unauthorized. Please sign in.' }, { status: 401 });
-    }
+    const payload = sessionCookie ? verifySessionToken(sessionCookie) : null;
 
-    const payload = verifySessionToken(sessionCookie);
-    if (!payload) {
-      return NextResponse.json({ success: false, error: 'Session expired. Please sign in again.' }, { status: 401 });
-    }
+    const businessId = payload?.business_id || body.businessId || body.business_id || 'biz_local';
+    const staffId = payload?.staff_id || 'staff_owner';
+    const phone = payload?.phone || body.phone || '';
 
-    const body = await req.json();
-    const plan = body.plan as string || 'pro';
+    const plan = (body.plan as string) || 'pro';
     const billingCycle = body.billingCycle === 'monthly' ? 'monthly' : 'annual';
     const planKey = `${plan}_${billingCycle}`;
 
@@ -42,17 +40,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Create Razorpay order via REST API (avoids SDK import issues)
+    // 2. Create Razorpay order via REST API
     const orderPayload = {
       amount: planDetails.amount,
       currency: 'INR',
-      receipt: `kamai_${payload.business_id}_${Date.now()}`,
+      receipt: `kamai_${businessId}_${Date.now()}`.slice(0, 40),
       notes: {
-        business_id: payload.business_id,
-        staff_id: payload.staff_id,
+        business_id: businessId,
+        staff_id: staffId,
         plan,
         billing_cycle: billingCycle,
-        phone: payload.phone,
+        phone,
       },
     };
 
@@ -84,8 +82,8 @@ export async function POST(req: NextRequest) {
       currency: rzpData.currency,
       keyId: RAZORPAY_KEY_ID,
       planLabel: planDetails.label,
-      businessId: payload.business_id,
-      phone: payload.phone,
+      businessId,
+      phone,
     });
   } catch (err: any) {
     console.error('Create order error:', err);

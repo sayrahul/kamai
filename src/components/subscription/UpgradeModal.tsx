@@ -12,6 +12,7 @@ import {
   Crown
 } from 'lucide-react';
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
+import { db } from '@/lib/db';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -43,15 +44,18 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const priceAmount = billingCycle === 'annual' ? 2100 : 249;
-  const originalPrice = billingCycle === 'annual' ? 3999 : 399;
+  const priceAmount = billingCycle === 'annual' ? 1499 : 199;
+  const originalPrice = billingCycle === 'annual' ? 2999 : 399;
 
   const handleUpgrade = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // 1. Load Razorpay checkout script
+      // 1. Fetch current business profile for contact info
+      const biz = await db.businesses.toCollection().first();
+
+      // 2. Load Razorpay checkout script
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
         setError('Failed to load payment gateway. Please check your internet connection.');
@@ -59,13 +63,15 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
         return;
       }
 
-      // 2. Create order on our server
+      // 3. Create order on our server
       const orderRes = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           plan: 'pro',
           billingCycle,
+          businessId: biz?.id,
+          phone: biz?.phone,
         }),
       });
       const orderData = await orderRes.json();
@@ -76,7 +82,7 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
         return;
       }
 
-      // 3. Open Razorpay checkout modal
+      // 4. Open Razorpay checkout modal
       const options = {
         key: orderData.keyId,
         amount: orderData.amount,
@@ -111,6 +117,7 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
                 razorpay_signature: response.razorpay_signature,
                 tier: 'pro',
                 billingCycle,
+                businessId: biz?.id,
               }),
             });
 
@@ -138,8 +145,8 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
         setLoading(false);
       });
       rzp.open();
-    } catch (err: any) {
-      console.error('Upgrade flow error:', err);
+    } catch (e: any) {
+      console.error('Upgrade flow failed:', e);
       setError('Something went wrong. Please try again.');
       setLoading(false);
     }
@@ -181,7 +188,7 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Annual (₹2,100 / yr - 50% Off) 🔥
+              Annual (₹1,499 / yr - 50% Off) 🔥
             </button>
             <button
               onClick={() => setBillingCycle('monthly')}
@@ -191,7 +198,7 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Monthly (₹249 / mo)
+              Monthly (₹199 / mo)
             </button>
           </div>
 
@@ -209,7 +216,7 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
               </span>
             </div>
             <p className="text-[11px] text-amber-900 font-extrabold mt-1">
-              {billingCycle === 'annual' ? 'Just ₹175 / month • Instant Activation' : 'Billed monthly • Cancel anytime'}
+              {billingCycle === 'annual' ? 'Just ₹125 / month • Instant 1-Year Access' : 'Billed monthly • Cancel anytime'}
             </p>
           </div>
 

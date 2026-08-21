@@ -45,8 +45,8 @@ export default function PricingPage() {
   }, []);
 
   const proPrices = {
-    '1year': { original: 399900, discounted: 210000, monthlyEquivalent: '₹175.00 / month', savings: 'Save 50%' },
-    '1month': { original: 39900, discounted: 24900, monthlyEquivalent: 'Billed monthly', savings: 'Standard' },
+    '1year': { original: 299900, discounted: 149900, monthlyEquivalent: '₹125.00 / month', savings: 'Save 50%' },
+    '1month': { original: 39900, discounted: 19900, monthlyEquivalent: 'Billed monthly', savings: 'Standard' },
   };
 
   const currentProPrice = proPrices[duration];
