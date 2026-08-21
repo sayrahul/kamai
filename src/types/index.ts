@@ -3,14 +3,17 @@
 
 export type BusinessType = 
   | 'grocery'
+  | 'pharmacy'
+  | 'restaurant'
   | 'clothing'
   | 'electronics'
+  | 'hardware'
+  | 'electrical'
+  | 'fmcg'
   | 'bakery'
   | 'salon'
-  | 'hardware'
   | 'stationery'
   | 'mobile'
-  | 'restaurant'
   | 'services'
   | 'other';
 
@@ -132,6 +135,10 @@ export interface Product {
   batch_number?: string;
   mfg_date?: string; // YYYY-MM-DD
   expiry_date?: string; // YYYY-MM-DD
+  size?: string; // Clothing size (e.g. S, M, L, XL, 32, 34)
+  color?: string; // Clothing / Mobile color
+  imei_serial?: string; // Electronics IMEI or device serial number
+  warranty_period_months?: number; // Brand warranty period
   current_stock: number;
   min_stock_level: number;
   supplier_id?: string;
@@ -188,6 +195,12 @@ export interface CartItem {
   product_name: string;
   hsn_code?: string;
   barcode?: string;
+  batch_number?: string;
+  expiry_date?: string;
+  size?: string;
+  color?: string;
+  imei_serial?: string;
+  warranty_period_months?: number;
   quantity: number;
   unit: ProductUnit;
   unit_price: number; // in paise
@@ -205,6 +218,7 @@ export interface CartItem {
 export type PaymentMethod = 'cash' | 'upi' | 'card' | 'bank_transfer' | 'credit' | 'split';
 export type PaymentStatus = 'paid' | 'partial' | 'unpaid';
 export type SaleStatus = 'completed' | 'cancelled' | 'returned' | 'partial_return' | 'draft';
+export type OrderType = 'dine_in' | 'takeaway' | 'delivery' | 'counter';
 
 export interface PaymentSplit {
   cash_amount: number; // in paise
@@ -223,6 +237,11 @@ export interface Sale {
   customer_phone?: string;
   customer_address?: string;
   customer_gstin?: string;
+  table_no?: string;
+  order_type?: OrderType;
+  token_number?: number;
+  doctor_name?: string;
+  patient_name?: string;
   items: CartItem[];
   subtotal: number; // in paise
   discount_total: number; // in paise

@@ -28,12 +28,15 @@ import { Card } from '@/components/ui/Card';
 
 import { compressImageFile } from '@/lib/utils/imageCompressor';
 import { uploadStoreLogoToStorage } from '@/lib/firebase/storage';
+import { BusinessType } from '@/types';
+import { getAllStoreProfiles, getStoreProfile } from '@/lib/constants/storeProfiles';
 
 export default function SettingsPage() {
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
 
   // Form State
   const [name, setName] = useState('');
+  const [businessType, setBusinessType] = useState<BusinessType>('grocery');
   const [tagline, setTagline] = useState('');
   const [logoUrl, setLogoUrl] = useState<string>('');
   const [ownerName, setOwnerName] = useState('');
@@ -70,6 +73,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (business) {
       setName(business.name || '');
+      setBusinessType(business.business_type || 'grocery');
       setTagline(business.tagline || '');
       setLogoUrl(business.logo_url || '');
       setOwnerName(business.owner_name || '');
@@ -200,6 +204,7 @@ export default function SettingsPage() {
 
     await db.businesses.update(business.id, {
       name: name.trim(),
+      business_type: businessType,
       tagline: tagline.trim(),
       logo_url: logoUrl || undefined,
       owner_name: ownerName.trim(),
@@ -342,11 +347,55 @@ export default function SettingsPage() {
             {/* Business Information Card */}
             <div className="lg:col-span-8">
               <Card className="p-4 bg-white border border-slate-200 space-y-4 shadow-xs">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-900 block">
-                  Store &amp; Tax Information
-                </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-900 block">
+                      Store &amp; Tax Information
+                    </span>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Select your business niche to adapt billing fields, placeholders, and receipt formats.
+                    </p>
+                  </div>
+                  <span className="self-start sm:self-auto text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-300">
+                    {getStoreProfile(businessType).emoji} {getStoreProfile(businessType).name}
+                  </span>
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Category Selector Grid */}
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    Business Category Profile
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {getAllStoreProfiles().map((p) => {
+                      const isSelected = businessType === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setBusinessType(p.id)}
+                          className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-amber-500/10 border-amber-500 text-slate-950 ring-1 ring-amber-500 shadow-xs'
+                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-white'
+                          }`}
+                        >
+                          <span className="text-xl flex-shrink-0">{p.emoji}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-xs font-bold truncate leading-tight ${isSelected ? 'text-amber-950 font-black' : 'text-slate-800'}`}>
+                              {p.shortName}
+                            </p>
+                            <p className="text-[10px] text-slate-400 truncate leading-none mt-0.5">
+                              {p.tagline.slice(0, 16)}...
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <Input
                     label="Store / Business Name"
                     placeholder="e.g. Mahadev Super Mart"
