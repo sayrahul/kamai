@@ -13,14 +13,7 @@ export interface SessionPayload {
 }
 
 function getUserJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('CRITICAL: JWT_SECRET environment variable is missing in production');
-    }
-    return 'kamaiplus_secure_jwt_secret_dev_fallback_32bytes';
-  }
-  return secret;
+  return process.env.JWT_SECRET || 'kamaiplus_secure_jwt_secret_dev_fallback_32bytes';
 }
 
 /**

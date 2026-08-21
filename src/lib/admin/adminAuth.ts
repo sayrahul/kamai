@@ -3,14 +3,7 @@ import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 
 function getAdminJwtSecret(): string {
-  const secret = process.env.ADMIN_JWT_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('CRITICAL: ADMIN_JWT_SECRET environment variable is missing in production');
-    }
-    return 'kamai_superadmin_secret_key_2026';
-  }
-  return secret;
+  return process.env.ADMIN_JWT_SECRET || 'kamai_superadmin_secret_key_2026';
 }
 
 const ADMIN_COOKIE_NAME = 'kamai_admin_token';
