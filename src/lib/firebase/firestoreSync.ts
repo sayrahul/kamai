@@ -12,7 +12,30 @@ import {
   Unsubscribe 
 } from 'firebase/firestore';
 import { db } from '@/lib/db';
-import { Sale, Product, Customer, LedgerTransaction, Business } from '@/types';
+import { Sale, Product, Customer, LedgerTransaction, Business, Category, Supplier, CashExpense } from '@/types';
+
+/**
+ * Helper to commit items in Firestore batches (max 450 per batch)
+ */
+async function commitBatchInChunks<T extends { id: string }>(
+  firestore: any,
+  items: T[],
+  collectionPath: string
+): Promise<number> {
+  if (!items || items.length === 0) return 0;
+
+  const CHUNK_SIZE = 450;
+  for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+    const chunk = items.slice(i, i + CHUNK_SIZE);
+    const batch = writeBatch(firestore);
+    for (const item of chunk) {
+      const ref = doc(firestore, `${collectionPath}/${item.id}`);
+      batch.set(ref, item, { merge: true });
+    }
+    await batch.commit();
+  }
+  return items.length;
+}
 
 /**
  * Pushes entire local Dexie database to Cloud Firestore for backup & multi-device sync
@@ -27,7 +50,10 @@ export async function syncLocalDexieToFirestore(businessId: string): Promise<{ s
     products: 0,
     sales: 0,
     customers: 0,
+    suppliers: 0,
+    categories: 0,
     ledger: 0,
+    expenses: 0,
   };
 
   // 1. Sync Business Profile
@@ -37,53 +63,33 @@ export async function syncLocalDexieToFirestore(businessId: string): Promise<{ s
     await setDoc(bizRef, { ...biz, last_synced_at: new Date().toISOString() }, { merge: true });
   }
 
-  // 2. Batch Sync Products
+  // 2. Categories
+  const categories = await db.categories.where('business_id').equals(businessId).toArray();
+  stats.categories = await commitBatchInChunks(firestore, categories, `businesses/${businessId}/categories`);
+
+  // 3. Products
   const products = await db.products.where('business_id').equals(businessId).toArray();
-  if (products.length > 0) {
-    const batch = writeBatch(firestore);
-    for (const p of products) {
-      const pRef = doc(firestore, `businesses/${businessId}/products`, p.id);
-      batch.set(pRef, p, { merge: true });
-    }
-    await batch.commit();
-    stats.products = products.length;
-  }
+  stats.products = await commitBatchInChunks(firestore, products, `businesses/${businessId}/products`);
 
-  // 3. Batch Sync Sales (Latest 200 for fast sync)
-  const sales = await db.sales.where('business_id').equals(businessId).reverse().limit(200).toArray();
-  if (sales.length > 0) {
-    const batch = writeBatch(firestore);
-    for (const s of sales) {
-      const sRef = doc(firestore, `businesses/${businessId}/sales`, s.id);
-      batch.set(sRef, s, { merge: true });
-    }
-    await batch.commit();
-    stats.sales = sales.length;
-  }
+  // 4. All Sales (Unlimited, batched in chunks)
+  const sales = await db.sales.where('business_id').equals(businessId).toArray();
+  stats.sales = await commitBatchInChunks(firestore, sales, `businesses/${businessId}/sales`);
 
-  // 4. Batch Sync Customers
+  // 5. Customers
   const customers = await db.customers.where('business_id').equals(businessId).toArray();
-  if (customers.length > 0) {
-    const batch = writeBatch(firestore);
-    for (const c of customers) {
-      const cRef = doc(firestore, `businesses/${businessId}/customers`, c.id);
-      batch.set(cRef, c, { merge: true });
-    }
-    await batch.commit();
-    stats.customers = customers.length;
-  }
+  stats.customers = await commitBatchInChunks(firestore, customers, `businesses/${businessId}/customers`);
 
-  // 5. Batch Sync Ledger Transactions
+  // 6. Suppliers
+  const suppliers = await db.suppliers.where('business_id').equals(businessId).toArray();
+  stats.suppliers = await commitBatchInChunks(firestore, suppliers, `businesses/${businessId}/suppliers`);
+
+  // 7. Ledger Transactions
   const ledgerTxs = await db.ledger_transactions.where('business_id').equals(businessId).toArray();
-  if (ledgerTxs.length > 0) {
-    const batch = writeBatch(firestore);
-    for (const tx of ledgerTxs) {
-      const txRef = doc(firestore, `businesses/${businessId}/ledger_transactions`, tx.id);
-      batch.set(txRef, tx, { merge: true });
-    }
-    await batch.commit();
-    stats.ledger = ledgerTxs.length;
-  }
+  stats.ledger = await commitBatchInChunks(firestore, ledgerTxs, `businesses/${businessId}/ledger_transactions`);
+
+  // 8. Cash Expenses
+  const expenses = await db.cash_expenses.where('business_id').equals(businessId).toArray();
+  stats.expenses = await commitBatchInChunks(firestore, expenses, `businesses/${businessId}/cash_expenses`);
 
   return { success: true, stats };
 }
@@ -101,10 +107,22 @@ export async function restoreFirestoreToLocalDexie(businessId: string): Promise<
     products: 0,
     sales: 0,
     customers: 0,
+    suppliers: 0,
+    categories: 0,
     ledger: 0,
+    expenses: 0,
   };
 
-  // 1. Fetch & Store Products
+  // 1. Categories
+  const catSnap = await getDocs(collection(firestore, `businesses/${businessId}/categories`));
+  const categories: Category[] = [];
+  catSnap.forEach((d) => categories.push(d.data() as Category));
+  if (categories.length > 0) {
+    await db.categories.bulkPut(categories);
+    stats.categories = categories.length;
+  }
+
+  // 2. Products
   const prodSnap = await getDocs(collection(firestore, `businesses/${businessId}/products`));
   const products: Product[] = [];
   prodSnap.forEach((d) => products.push(d.data() as Product));
@@ -113,7 +131,7 @@ export async function restoreFirestoreToLocalDexie(businessId: string): Promise<
     stats.products = products.length;
   }
 
-  // 2. Fetch & Store Customers
+  // 3. Customers
   const custSnap = await getDocs(collection(firestore, `businesses/${businessId}/customers`));
   const customers: Customer[] = [];
   custSnap.forEach((d) => customers.push(d.data() as Customer));
@@ -122,7 +140,16 @@ export async function restoreFirestoreToLocalDexie(businessId: string): Promise<
     stats.customers = customers.length;
   }
 
-  // 3. Fetch & Store Sales
+  // 4. Suppliers
+  const supSnap = await getDocs(collection(firestore, `businesses/${businessId}/suppliers`));
+  const suppliers: Supplier[] = [];
+  supSnap.forEach((d) => suppliers.push(d.data() as Supplier));
+  if (suppliers.length > 0) {
+    await db.suppliers.bulkPut(suppliers);
+    stats.suppliers = suppliers.length;
+  }
+
+  // 5. Sales
   const salesSnap = await getDocs(collection(firestore, `businesses/${businessId}/sales`));
   const sales: Sale[] = [];
   salesSnap.forEach((d) => sales.push(d.data() as Sale));
@@ -131,13 +158,22 @@ export async function restoreFirestoreToLocalDexie(businessId: string): Promise<
     stats.sales = sales.length;
   }
 
-  // 4. Fetch & Store Ledger Transactions
+  // 6. Ledger Transactions
   const ledgerSnap = await getDocs(collection(firestore, `businesses/${businessId}/ledger_transactions`));
   const ledgerTxs: LedgerTransaction[] = [];
   ledgerSnap.forEach((d) => ledgerTxs.push(d.data() as LedgerTransaction));
   if (ledgerTxs.length > 0) {
     await db.ledger_transactions.bulkPut(ledgerTxs);
     stats.ledger = ledgerTxs.length;
+  }
+
+  // 7. Cash Expenses
+  const expSnap = await getDocs(collection(firestore, `businesses/${businessId}/cash_expenses`));
+  const expenses: CashExpense[] = [];
+  expSnap.forEach((d) => expenses.push(d.data() as CashExpense));
+  if (expenses.length > 0) {
+    await db.cash_expenses.bulkPut(expenses);
+    stats.expenses = expenses.length;
   }
 
   return { success: true, stats };
@@ -156,7 +192,7 @@ export function subscribeToLiveSales(
   const salesQuery = query(
     collection(firestore, `businesses/${businessId}/sales`),
     orderBy('created_at', 'desc'),
-    limit(25)
+    limit(50)
   );
 
   return onSnapshot(salesQuery, (snapshot) => {
