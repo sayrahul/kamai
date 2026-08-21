@@ -159,14 +159,14 @@ export const Navbar: React.FC = () => {
             className="flex items-center gap-2.5 p-1 -mr-1 rounded-xl hover:bg-slate-50 transition cursor-pointer text-right focus:outline-none"
             title="Click for Store Menu, Language & Settings"
           >
-            <div className="min-w-0 hidden sm:block text-right">
+            <div className="min-w-0 text-right">
               <div className="flex items-center justify-end gap-1.5">
                 <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${showStoreMenu ? 'rotate-180 text-amber-500' : ''}`} />
-                <h1 className="text-sm sm:text-base font-extrabold text-slate-900 truncate leading-tight tracking-tight">
+                <h1 className="text-xs sm:text-base font-extrabold text-slate-900 truncate leading-tight tracking-tight max-w-[120px] sm:max-w-[220px]">
                   {displayBusinessName}
                 </h1>
               </div>
-              <p className="text-[11px] sm:text-xs text-slate-500 font-normal truncate max-w-[170px] sm:max-w-[240px]">
+              <p className="text-[10px] sm:text-xs text-slate-500 font-normal truncate max-w-[120px] sm:max-w-[220px]">
                 {displayOwnerName} • <span className="capitalize">{displayType}</span>
               </p>
             </div>
