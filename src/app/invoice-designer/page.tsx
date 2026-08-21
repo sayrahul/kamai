@@ -36,8 +36,11 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 export default function InvoiceDesignerPage() {
+  const { isPro, requirePro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
 
   const [config, setConfig] = useState<InvoiceThemeConfig>(DEFAULT_INVOICE_THEME_CONFIG);
@@ -226,12 +229,19 @@ export default function InvoiceDesignerPage() {
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {INVOICE_THEME_PRESETS.map((preset) => {
                 const isSelected = config.theme_id === preset.id || config.primary_color.toLowerCase() === preset.primaryColor.toLowerCase();
+                const isProTheme = preset.id === 'golden_elegance' || preset.id === 'pharma_care';
                 return (
                   <button
                     key={preset.id}
                     type="button"
-                    onClick={() => handleSelectPreset(preset.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
+                    onClick={() => {
+                      if (isProTheme && !isPro) {
+                        setIsUpgradeModalOpen(true);
+                      } else {
+                        handleSelectPreset(preset.id);
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                       isSelected
                         ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
                         : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
@@ -242,6 +252,7 @@ export default function InvoiceDesignerPage() {
                       style={{ backgroundColor: preset.primaryColor }}
                     />
                     <span>{preset.name}</span>
+                    {isProTheme && <ProFeatureBadge />}
                     {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white flex-shrink-0" />}
                   </button>
                 );
@@ -657,6 +668,13 @@ export default function InvoiceDesignerPage() {
           </div>
         </div>
       </div>
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
+      />
     </div>
   );
 }

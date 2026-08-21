@@ -35,6 +35,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 interface FestivalCampaign {
   id: string;
@@ -309,6 +311,7 @@ const CAMPAIGN_PRESETS: FestivalCampaign[] = [
 ];
 
 export default function GrowthPage() {
+  const { isPro, requirePro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { language } = useTranslation();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const storeProfile = getStoreProfile(business?.business_type);
@@ -447,12 +450,14 @@ export default function GrowthPage() {
       .replace(/{{validity_days}}/g, String(validityDaysVal));
   };
 
-  // Trigger Individual WhatsApp Greeting
+  // Trigger Individual WhatsApp Greeting (Pro Gated)
   const handleSendToCustomer = (customer: Customer) => {
-    const message = getCompiledMessage(customer.name);
-    const cleanPhone = (customer.phone || '').replace(/[^0-9]/g, '');
-    const targetPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, '_blank');
+    requirePro(() => {
+      const message = getCompiledMessage(customer.name);
+      const cleanPhone = (customer.phone || '').replace(/[^0-9]/g, '');
+      const targetPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+      window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, '_blank');
+    });
   };
 
   // Copy Full Message to Clipboard
@@ -471,8 +476,9 @@ export default function GrowthPage() {
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-              <span>WhatsApp Growth & Festive Vouchers</span>
+              <span>WhatsApp Growth &amp; Festive Vouchers</span>
             </span>
+            <ProFeatureBadge />
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             Automated WhatsApp Greetings & Festival Engine
@@ -805,6 +811,13 @@ export default function GrowthPage() {
           )}
         </div>
       </Card>
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
+      />
     </div>
   );
 }

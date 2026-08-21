@@ -84,12 +84,12 @@ export const subscriptionService = {
     return DEFAULT_STATE;
   },
 
-  hasFeature(feature: 'voice_billing' | 'cloud_backup' | 'barcode_studio' | 'expiry_radar' | 'whatsapp_growth' | 'gstr1_reports' | 'staff_pins' | 'custom_branding'): boolean {
+  isPro(): boolean {
     const sub = this.getSubscription();
-    if (sub.tier === 'enterprise') return true;
-    if (sub.tier === 'pro') {
-      return feature !== 'gstr1_reports' && feature !== 'staff_pins';
-    }
-    return false;
+    return sub.tier === 'pro' || sub.tier === 'enterprise';
+  },
+
+  hasFeature(feature: 'voice_billing' | 'cloud_backup' | 'barcode_studio' | 'expiry_radar' | 'whatsapp_growth' | 'gstr1_reports' | 'staff_pins' | 'custom_branding'): boolean {
+    return this.isPro();
   }
 };

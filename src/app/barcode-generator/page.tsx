@@ -38,6 +38,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 export type LabelLayout = 
   | 'a4_24'      // 3 cols x 8 rows (63.5 x 33.9 mm)
@@ -61,6 +63,7 @@ interface LabelItem {
 }
 
 export default function BarcodeGeneratorPage() {
+  const { isPro, requirePro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { language } = useTranslation();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const allProducts = useLiveQuery(async () => db.products.where('is_active').equals(1).toArray()) || [];
@@ -240,14 +243,17 @@ export default function BarcodeGeneratorPage() {
     setQueue((prev) => prev.filter((q) => q.id !== id));
   };
 
-  // 1-Click Standard Browser / A4 High-Res Print
+  // 1-Click Standard Browser / A4 High-Res Print (Pro Locked)
   const handleBrowserPrint = () => {
-    window.print();
+    requirePro(() => {
+      window.print();
+    });
   };
 
-  // 1-Click Direct Bluetooth ESC/POS Print for 58mm/80mm Thermal rolls
+  // 1-Click Direct Bluetooth ESC/POS Print for 58mm/80mm Thermal rolls (Pro Locked)
   const handleBluetoothPrint = async () => {
-    if (individualLabels.length === 0 || !business) return;
+    requirePro(async () => {
+      if (individualLabels.length === 0 || !business) return;
     try {
       const is80mm = layout === 'pos_80mm';
       const enc = new EscPosEncoder(is80mm ? 80 : 58);
@@ -282,6 +288,7 @@ export default function BarcodeGeneratorPage() {
     } catch (err: any) {
       alert(err.message || 'Bluetooth label printing failed.');
     }
+    });
   };
 
   // Filtered Products for Search Dropdown
@@ -312,6 +319,7 @@ export default function BarcodeGeneratorPage() {
 
         {/* Top Print Actions */}
         <div className="flex flex-wrap items-center gap-2">
+          <ProFeatureBadge />
           {layout.startsWith('pos') || layout.startsWith('thermal') ? (
             <Button
               size="sm"
@@ -839,6 +847,13 @@ export default function BarcodeGeneratorPage() {
           }
         }
       `}</style>
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
+      />
     </div>
   );
 }

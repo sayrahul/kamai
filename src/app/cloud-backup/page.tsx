@@ -29,8 +29,11 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import Link from 'next/link';
+import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 export default function CloudBackupPage() {
+  const { isPro, requirePro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const productCount = useLiveQuery(async () => db.products.count()) || 0;
   const customerCount = useLiveQuery(async () => db.customers.count()) || 0;
@@ -67,40 +70,44 @@ export default function CloudBackupPage() {
   }, []);
 
   const handleSyncToFirestore = async () => {
-    if (!business) {
-      alert('Please setup your business profile first.');
-      return;
-    }
-    setIsFirestoreSyncing(true);
-    try {
-      const res = await syncLocalDexieToFirestore(business.id);
-      setBackupSuccessMessage(`Cloud Backup Successful: ${res.stats.sales} sales, ${res.stats.products} products, ${res.stats.customers} customers, ${res.stats.ledger} khata records.`);
-      setTimeout(() => setBackupSuccessMessage(null), 6000);
-    } catch (err: any) {
-      alert(`Cloud sync error: ${err.message || 'Check connection'}`);
-    } finally {
-      setIsFirestoreSyncing(false);
-    }
+    requirePro(async () => {
+      if (!business) {
+        alert('Please setup your business profile first.');
+        return;
+      }
+      setIsFirestoreSyncing(true);
+      try {
+        const res = await syncLocalDexieToFirestore(business.id);
+        setBackupSuccessMessage(`Cloud Backup Successful: ${res.stats.sales} sales, ${res.stats.products} products, ${res.stats.customers} customers, ${res.stats.ledger} khata records.`);
+        setTimeout(() => setBackupSuccessMessage(null), 6000);
+      } catch (err: any) {
+        alert(`Cloud sync error: ${err.message || 'Check connection'}`);
+      } finally {
+        setIsFirestoreSyncing(false);
+      }
+    });
   };
 
   const handleRestoreFromFirestore = async () => {
-    if (!business) {
-      alert('Please setup your business profile first.');
-      return;
-    }
-    if (!confirm('Restore all products, sales, customers, and khata records from your secure Cloud Backup into this device?')) {
-      return;
-    }
-    setIsFirestoreRestoring(true);
-    try {
-      const res = await restoreFirestoreToLocalDexie(business.id);
-      setRestoreSuccessMessage(`Successfully restored from Cloud Backup: ${res.stats.products} products, ${res.stats.sales} sales.`);
-      setTimeout(() => setRestoreSuccessMessage(null), 6000);
-    } catch (err: any) {
-      alert(`Cloud restore error: ${err.message || 'Check connection'}`);
-    } finally {
-      setIsFirestoreRestoring(false);
-    }
+    requirePro(async () => {
+      if (!business) {
+        alert('Please setup your business profile first.');
+        return;
+      }
+      if (!confirm('Restore all products, sales, customers, and khata records from your secure Cloud Backup into this device?')) {
+        return;
+      }
+      setIsFirestoreRestoring(true);
+      try {
+        const res = await restoreFirestoreToLocalDexie(business.id);
+        setRestoreSuccessMessage(`Successfully restored from Cloud Backup: ${res.stats.products} products, ${res.stats.sales} sales.`);
+        setTimeout(() => setRestoreSuccessMessage(null), 6000);
+      } catch (err: any) {
+        alert(`Cloud restore error: ${err.message || 'Check connection'}`);
+      } finally {
+        setIsFirestoreRestoring(false);
+      }
+    });
   };
 
   // 1-Click Local File Download
@@ -320,6 +327,7 @@ export default function CloudBackupPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-black text-slate-900">Cloud Backup &amp; Multi-Counter Sync</h3>
+                  <ProFeatureBadge />
                   <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
                     Multi-Device Ready
                   </span>
@@ -533,6 +541,13 @@ export default function CloudBackupPage() {
           </div>
         </Modal>
       )}
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
+      />
     </div>
   );
 }

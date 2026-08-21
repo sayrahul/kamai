@@ -35,10 +35,13 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 export type GSTPeriodPreset = 'this_month' | 'last_month' | 'q1' | 'q2' | 'q3' | 'q4' | 'all_year';
 
 export default function GSTReportsPage() {
+  const { isPro, requirePro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
   const allSales = useLiveQuery(async () => db.sales.toArray()) || [];
@@ -117,64 +120,72 @@ export default function GSTReportsPage() {
     return generateGSTR1Report(filteredSales, customers, business, periodLabel);
   }, [filteredSales, customers, business, periodLabel]);
 
-  // Export Excel/CSV
+  // Export Excel/CSV (Pro Locked)
   const handleExportCSV = () => {
-    if (!gstr1Data) return;
-    const csv = generateGSTR1CSV(gstr1Data);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `GSTR1_Report_${gstr1Data.business_gstin}_${periodPreset}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    requirePro(() => {
+      if (!gstr1Data) return;
+      const csv = generateGSTR1CSV(gstr1Data);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `GSTR1_Report_${gstr1Data.business_gstin}_${periodPreset}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   };
 
-  // Export GST Portal JSON (Offline Tool Compatible)
+  // Export GST Portal JSON (Offline Tool Compatible - Pro Locked)
   const handleExportJSON = () => {
-    if (!gstr1Data) return;
-    const json = generateGSTOfflineJSON(gstr1Data);
-    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `GSTR1_Offline_Upload_${gstr1Data.business_gstin}_${periodPreset}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    requirePro(() => {
+      if (!gstr1Data) return;
+      const json = generateGSTOfflineJSON(gstr1Data);
+      const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `GSTR1_Offline_Upload_${gstr1Data.business_gstin}_${periodPreset}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   };
 
-  // Export 1-Click Tally Prime XML (Standard Vouchers & Masters)
+  // Export 1-Click Tally Prime XML (Pro Locked)
   const handleExportTallyXML = () => {
-    if (!business) return;
-    const { xml, filename } = generateTallyPrimeXML({
-      business,
-      sales: filteredSales,
-      customers,
+    requirePro(() => {
+      if (!business) return;
+      const { xml, filename } = generateTallyPrimeXML({
+        business,
+        sales: filteredSales,
+        customers,
+      });
+      const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
     });
-    const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
-  // Export 1-Click CA Master Sales Register CSV / Excel
+  // Export 1-Click CA Master Sales Register CSV / Excel (Pro Locked)
   const handleExportCAExcel = () => {
-    if (!business) return;
-    const { csv, filename } = generateCASalesRegisterCSV({
-      business,
-      sales: filteredSales,
-      periodName: periodPreset,
+    requirePro(() => {
+      if (!business) return;
+      const { csv, filename } = generateCASalesRegisterCSV({
+        business,
+        sales: filteredSales,
+        periodName: periodPreset,
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
     });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   // Filtered HSN List for Search
@@ -217,6 +228,7 @@ export default function GSTReportsPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          <ProFeatureBadge />
           <Button
             variant="outline"
             size="sm"
@@ -710,6 +722,13 @@ export default function GSTReportsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
+      />
     </div>
   );
 }

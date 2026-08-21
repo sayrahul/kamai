@@ -37,7 +37,7 @@ export const Sidebar: React.FC = () => {
         { href: '/', label: t('nav.dashboard'), icon: Home, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-white' },
         { href: '/billing', label: 'Billing POS', icon: Receipt, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
         { href: '/cash-register', label: 'Cash Register', icon: Calculator, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
-        { href: '/barcode-generator', label: 'Barcode Studio', icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300' },
+        { href: '/barcode-generator', label: 'Barcode Studio', icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300', isPro: true },
         { href: '/transactions', label: 'Transactions', icon: ShieldCheck, iconBg: 'bg-teal-100 text-teal-800', activeIcon: 'text-teal-300' },
       ],
     },
@@ -56,16 +56,16 @@ export const Sidebar: React.FC = () => {
       items: [
         { href: '/khata', label: 'Khata Ledger', icon: BookOpen, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
         { href: '/customers', label: t('nav.customers'), icon: Users, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
-        { href: '/growth', label: 'Growth & WhatsApp', icon: TrendingUp, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
+        { href: '/growth', label: 'Growth & WhatsApp', icon: TrendingUp, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300', isPro: true },
       ],
     },
     {
       title: 'Tax & Settings',
       dotColor: 'bg-purple-500',
       items: [
-        { href: '/gst-reports', label: 'GST & Accounting', icon: FileSpreadsheet, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
+        { href: '/gst-reports', label: 'GST & Accounting', icon: FileSpreadsheet, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300', isPro: true },
         { href: '/invoice-designer', label: 'Invoice Themes', icon: Palette, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
-        { href: '/cloud-backup', label: 'Backup & Restore', icon: HardDrive, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
+        { href: '/cloud-backup', label: 'Backup & Restore', icon: HardDrive, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300', isPro: true },
         { href: '/pricing', label: 'Upgrade & Plans', icon: Sparkles, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
         { href: '/settings', label: t('nav.settings'), icon: Settings, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-slate-300' },
       ],
@@ -94,23 +94,30 @@ export const Sidebar: React.FC = () => {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      'group flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-bold transition-all leading-none',
+                      'group flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-bold transition-all leading-none',
                       isActive
                         ? 'bg-slate-900 text-white shadow-xs'
                         : 'text-slate-700 hover:bg-slate-100/90 hover:text-slate-950'
                     )}
                   >
-                    <div
-                      className={cn(
-                        'w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105',
-                        isActive
-                          ? 'bg-white/15 text-white'
-                          : cn(item.iconBg, 'shadow-2xs')
-                      )}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className={cn(
+                          'w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105',
+                          isActive
+                            ? 'bg-white/15 text-white'
+                            : cn(item.iconBg, 'shadow-2xs')
+                        )}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="truncate">{item.label}</span>
                     </div>
-                    <span className="truncate">{item.label}</span>
+                    {item.isPro && (
+                      <span className="px-1 py-0.2 rounded text-[8.5px] font-black bg-amber-400 text-slate-950 shadow-2xs flex-shrink-0 ml-1">
+                        PRO
+                      </span>
+                    )}
                   </Link>
                 );
               })}
