@@ -2,7 +2,17 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 
-const JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'kamai_superadmin_secret_key_2026';
+function getAdminJwtSecret(): string {
+  const secret = process.env.ADMIN_JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL: ADMIN_JWT_SECRET environment variable is missing in production');
+    }
+    return 'kamai_superadmin_secret_key_2026';
+  }
+  return secret;
+}
+
 const ADMIN_COOKIE_NAME = 'kamai_admin_token';
 
 export interface AdminSession {
@@ -18,18 +28,18 @@ export function signAdminToken(): string {
       role: 'superadmin',
       timestamp: Date.now(),
     },
-    JWT_SECRET,
+    getAdminJwtSecret(),
     { expiresIn: '7d' }
   );
 }
 
 export function verifyAdminToken(token: string): AdminSession | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AdminSession;
+    const decoded = jwt.verify(token, getAdminJwtSecret()) as AdminSession;
     if (decoded && decoded.isAdmin) {
       return decoded;
     }
-  } catch (err) {
+  } catch {
     return null;
   }
   return null;

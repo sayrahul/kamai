@@ -12,13 +12,22 @@ export interface SessionPayload {
   role: 'owner' | 'manager' | 'cashier' | 'staff';
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'kamaiplus_secure_jwt_secret_dev_fallback_32bytes';
+function getUserJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL: JWT_SECRET environment variable is missing in production');
+    }
+    return 'kamaiplus_secure_jwt_secret_dev_fallback_32bytes';
+  }
+  return secret;
+}
 
 /**
  * Signs a 30-day JWT session token containing staff & business identity
  */
 export function signSessionToken(payload: SessionPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
+  return jwt.sign(payload, getUserJwtSecret(), {
     expiresIn: '30d',
   });
 }
@@ -28,9 +37,9 @@ export function signSessionToken(payload: SessionPayload): string {
  */
 export function verifySessionToken(token: string): SessionPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as SessionPayload;
+    const decoded = jwt.verify(token, getUserJwtSecret()) as SessionPayload;
     return decoded;
-  } catch (err) {
+  } catch {
     return null;
   }
 }

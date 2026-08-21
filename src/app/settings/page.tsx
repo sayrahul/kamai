@@ -90,7 +90,7 @@ export default function SettingsPage() {
         ? business.upi_ids
         : business.upi_id
         ? [{ id: 'upi_def', label: 'Shop Primary QR', upi_id: business.upi_id, is_default: true }]
-        : [{ id: 'upi_def', label: 'Shop Primary QR', upi_id: '8669997711@upi', is_default: true }];
+        : [];
 
       setUpiList(initialUpiList);
 

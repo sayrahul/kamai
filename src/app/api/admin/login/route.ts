@@ -4,7 +4,15 @@ import { signAdminToken } from '@/lib/admin/adminAuth';
 export async function POST(req: NextRequest) {
   try {
     const { password } = await req.json();
-    const correctPassword = process.env.ADMIN_PASSWORD || 'Vivaan@52523384';
+    const correctPassword = process.env.ADMIN_PASSWORD;
+
+    if (!correctPassword) {
+      console.error('CRITICAL: ADMIN_PASSWORD environment variable is not configured');
+      return NextResponse.json(
+        { success: false, message: 'SuperAdmin authentication is not configured on server' },
+        { status: 500 }
+      );
+    }
 
     if (!password || password !== correctPassword) {
       return NextResponse.json(
