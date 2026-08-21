@@ -13,7 +13,8 @@ import {
   Sparkles,
   Lock,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ChevronDown
 } from 'lucide-react';
 import { setStoredUser } from '@/lib/auth';
 import { db, seedBusinessStarterData } from '@/lib/db';
@@ -263,51 +264,27 @@ export const PhoneAuthForm: React.FC = () => {
                 <form onSubmit={handleSendOtp} className="space-y-4">
                     {mode === 'signup' && (
                         <>
-                            {/* Business Category Selector */}
+                            {/* Business Category Dropdown */}
                             <div>
-                                <div className="flex items-center justify-between mb-2">
-                                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                                        Select Shop Category
-                                    </label>
-                                    <span className="text-[10px] font-bold text-amber-400 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/30">
-                                        {activeProfile.emoji} {activeProfile.shortName} Mode
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                                    Select Shop Category
+                                </label>
+                                <div className="relative flex items-center">
+                                    <select
+                                        value={selectedCategory}
+                                        onChange={(e) => setSelectedCategory(e.target.value as BusinessType)}
+                                        className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-transparent focus:outline-none text-white text-sm appearance-none cursor-pointer transition pr-10 font-medium"
+                                    >
+                                        {storeProfiles.map((p) => (
+                                            <option key={p.id} value={p.id} className="bg-slate-900 text-white py-2">
+                                                {p.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <span className="absolute right-3.5 pointer-events-none text-slate-400">
+                                        <ChevronDown className="w-4 h-4" />
                                     </span>
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                    {storeProfiles.map((p) => {
-                                        const isSelected = selectedCategory === p.id;
-                                        return (
-                                            <button
-                                                key={p.id}
-                                                type="button"
-                                                onClick={() => {
-                                                    setSelectedCategory(p.id);
-                                                    if (!storeName || storeName === 'My Store') {
-                                                        // Keep current or leave empty
-                                                    }
-                                                }}
-                                                className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
-                                                    isSelected
-                                                        ? 'bg-amber-400/15 border-amber-400 text-white ring-1 ring-amber-400 shadow-xs'
-                                                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                                                }`}
-                                            >
-                                                <span className="text-lg flex-shrink-0">{p.emoji}</span>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className={`text-xs font-bold truncate leading-tight ${isSelected ? 'text-amber-300' : 'text-slate-200'}`}>
-                                                        {p.shortName}
-                                                    </p>
-                                                    <p className="text-[9px] text-slate-500 truncate leading-none mt-0.5">
-                                                        {p.tagline.slice(0, 18)}...
-                                                    </p>
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
-                                    ✨ Automatically customizes fields, placeholders, and starter catalog for your store type.
-                                </p>
                             </div>
 
                             <div>
