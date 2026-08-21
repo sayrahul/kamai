@@ -1,5 +1,5 @@
-// KamaiPlus Production PWA Service Worker
-const CACHE_NAME = 'kamaiplus-pwa-v1';
+// KamaiPlus Production PWA Service Worker (v2)
+const CACHE_NAME = 'kamaiplus-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -7,6 +7,10 @@ const STATIC_ASSETS = [
   '/icon.png',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-maskable-192.png',
+  '/icon-maskable-512.png',
+  '/favicon.png',
+  '/apple-touch-icon.png',
   '/auth',
   '/billing',
   '/products',
@@ -49,7 +53,35 @@ self.addEventListener('fetch', (event) => {
   // Ignore chrome extensions and non-http(s) schemes
   if (!url.protocol.startsWith('http')) return;
 
-  // Stale-while-revalidate for local assets and HTML navigation
+  // Never intercept hot reload, websocket, or development turbopack/webpack chunks
+  if (
+    url.pathname.includes('webpack-hmr') ||
+    url.pathname.includes('__turbopack__') ||
+    url.pathname.includes('_next/static/development') ||
+    url.pathname.startsWith('/api/')
+  ) {
+    return;
+  }
+
+  // Network-first for Next.js scripts/chunks to avoid stale module factory errors
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for local static assets and HTML navigation
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
@@ -74,3 +106,4 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+

@@ -59,7 +59,7 @@ export default function PrivacyPolicyPage() {
             <p>
               KamaiPlus is built on an <strong>offline-first local architecture</strong>. Your operational business records—including
               product catalogs, inventory movements, sales invoices, customer khata credit balances, and expense entries—are
-              stored directly on your device inside your browser&apos;s local IndexedDB database (via Dexie.js).
+              stored directly on your device inside your browser&apos;s secure local offline database storage.
             </p>
             <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200">
               ✓ <strong>Your Data Belongs to You:</strong> We do not sell, scrape, or monetize your store&apos;s financial data,

@@ -243,7 +243,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
                 className="w-full bg-slate-50 border border-slate-300 text-slate-900 font-mono font-bold text-xs rounded-xl p-2.5 focus:bg-white focus:outline-none focus:border-slate-900"
               />
               <p className="text-[10px] text-slate-500">
-                Any scanned barcode on the Billing POS screen is automatically looked up in IndexedDB and added to the cart!
+                Any scanned barcode on the Billing POS screen is automatically matched with your local product catalog and added to the cart!
               </p>
             </div>
           </div>

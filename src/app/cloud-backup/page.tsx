@@ -74,10 +74,10 @@ export default function CloudBackupPage() {
     setIsFirestoreSyncing(true);
     try {
       const res = await syncLocalDexieToFirestore(business.id);
-      setBackupSuccessMessage(`Cloud Firestore Synced: ${res.stats.sales} sales, ${res.stats.products} products, ${res.stats.customers} customers, ${res.stats.ledger} khata records.`);
+      setBackupSuccessMessage(`Cloud Backup Successful: ${res.stats.sales} sales, ${res.stats.products} products, ${res.stats.customers} customers, ${res.stats.ledger} khata records.`);
       setTimeout(() => setBackupSuccessMessage(null), 6000);
     } catch (err: any) {
-      alert(`Firestore sync error: ${err.message || 'Check connection'}`);
+      alert(`Cloud sync error: ${err.message || 'Check connection'}`);
     } finally {
       setIsFirestoreSyncing(false);
     }
@@ -88,16 +88,16 @@ export default function CloudBackupPage() {
       alert('Please setup your business profile first.');
       return;
     }
-    if (!confirm('Restore all products, sales, customers, and ledger records from Cloud Firestore into your local database?')) {
+    if (!confirm('Restore all products, sales, customers, and khata records from your secure Cloud Backup into this device?')) {
       return;
     }
     setIsFirestoreRestoring(true);
     try {
       const res = await restoreFirestoreToLocalDexie(business.id);
-      setRestoreSuccessMessage(`Successfully restored from Cloud Firestore: ${res.stats.products} products, ${res.stats.sales} sales.`);
+      setRestoreSuccessMessage(`Successfully restored from Cloud Backup: ${res.stats.products} products, ${res.stats.sales} sales.`);
       setTimeout(() => setRestoreSuccessMessage(null), 6000);
     } catch (err: any) {
-      alert(`Firestore restore error: ${err.message || 'Check connection'}`);
+      alert(`Cloud restore error: ${err.message || 'Check connection'}`);
     } finally {
       setIsFirestoreRestoring(false);
     }
@@ -231,7 +231,7 @@ export default function CloudBackupPage() {
       <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-semibold text-slate-700">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0 animate-pulse" />
-          <span className="font-bold text-slate-900">IndexedDB Active (100% Offline)</span>
+          <span className="font-bold text-slate-900">Offline Active (Local Storage)</span>
           <span className="text-slate-400">•</span>
           <span className="text-slate-600">
             {totalRecords} protected entries ({productCount} products, {customerCount} customers, {saleCount} bills)
@@ -261,7 +261,7 @@ export default function CloudBackupPage() {
       {/* ---------------- SECTION 1: DATABASE BACKUP & RESTORE ---------------- */}
       <div className="space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-          Database Snapshot &amp; Restore
+          Store Data Backup &amp; Restore
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -295,7 +295,7 @@ export default function CloudBackupPage() {
                 <Upload className="w-4 h-4 text-slate-700" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-xs font-bold text-slate-900 leading-tight">Restore Database</h3>
+                <h3 className="text-xs font-bold text-slate-900 leading-tight">Restore Store Data</h3>
                 <p className="text-[11px] text-slate-500 truncate mt-0.5">Upload .json backup file</p>
               </div>
             </div>
@@ -310,7 +310,7 @@ export default function CloudBackupPage() {
           </div>
         </div>
 
-        {/* CARD 3: CLOUD FIRESTORE REAL-TIME SYNC */}
+        {/* CARD 3: CLOUD BACKUP & MULTI-COUNTER SYNC */}
         <div className="p-4 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-white border border-amber-300/80 rounded-xl shadow-2xs space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -319,7 +319,7 @@ export default function CloudBackupPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-black text-slate-900">Cloud Firestore Real-Time Sync</h3>
+                  <h3 className="text-sm font-black text-slate-900">Cloud Backup &amp; Multi-Counter Sync</h3>
                   <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
                     Multi-Device Ready
                   </span>
@@ -350,7 +350,7 @@ export default function CloudBackupPage() {
               className="text-xs font-bold gap-1.5 rounded-lg h-8 bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
             >
               <Cloud className={`w-3.5 h-3.5 text-amber-400 ${isFirestoreSyncing ? 'animate-pulse' : ''}`} />
-              <span>{isFirestoreSyncing ? 'Syncing to Cloud...' : 'Sync to Firestore'}</span>
+              <span>{isFirestoreSyncing ? 'Syncing to Cloud...' : 'Backup to Cloud'}</span>
             </Button>
           </div>
         </div>

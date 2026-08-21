@@ -41,7 +41,7 @@ export const IntroWalkthrough: React.FC<IntroWalkthroughProps> = ({
       highlights: [
         { icon: Lock, title: '100% Private & Safe', desc: 'Zero data sharing. Your sales stay yours.' },
         { icon: WifiOff, title: 'Works Without Internet', desc: 'Bill customers uninterrupted 24x7.' },
-        { icon: Database, title: 'Instant Offline Storage', desc: 'Secure IndexedDB storage & JSON export.' },
+        { icon: Database, title: 'Instant Offline Storage', desc: 'Secure local device storage & 1-click export.' },
       ]
     },
     {
