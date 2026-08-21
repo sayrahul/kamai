@@ -5,7 +5,8 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { formatINR, generateWhatsAppReceiptLink } from '@/lib/utils';
-import { Customer } from '@/types';
+import { Customer, BusinessType } from '@/types';
+import { getStoreProfile } from '@/lib/constants/storeProfiles';
 import { 
   TrendingUp, 
   Users, 
@@ -39,7 +40,8 @@ interface FestivalCampaign {
   id: string;
   name: string;
   name_hi: string;
-  category: 'festival' | 'birthday' | 'loyalty' | 'reengage';
+  category: 'niche' | 'festival' | 'birthday' | 'loyalty' | 'reengage';
+  businessType?: BusinessType | 'all';
   icon: string;
   defaultDiscount: string;
   defaultCoupon: string;
@@ -49,6 +51,165 @@ interface FestivalCampaign {
 }
 
 const CAMPAIGN_PRESETS: FestivalCampaign[] = [
+  // ---------------- NICHE SPECIFIC CAMPAIGNS ----------------
+  {
+    id: 'rx_refill',
+    name: 'Monthly Medicine Refill Reminder',
+    name_hi: 'Monthly Medicine Refill',
+    category: 'niche',
+    businessType: 'pharmacy',
+    icon: '💊',
+    defaultDiscount: '10% OFF',
+    defaultCoupon: 'CARE10',
+    defaultMinSpend: '₹300',
+    validityDays: 7,
+    template: `💊 *Monthly Medicine Refill Reminder* 🩺\n\nDear {{customer_name}},\nThis is a gentle health reminder from *{{business_name}}*.\n\nIt is time to refill your regular monthly medicines or chronic healthcare prescription to maintain continuous wellness. 🌸\n\n🎁 *Refill Discount:* {{discount}} (Code: *{{coupon_code}}*)\n🛒 *On Orders Above:* {{min_spend}}\n⏳ *Validity:* Next {{validity_days}} Days\n\n💬 *Home Delivery Available:* Simply send your prescription photo on WhatsApp!\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+  {
+    id: 'health_camp',
+    name: 'Free Health & BP Checkup Camp',
+    name_hi: 'Free Health Checkup Camp',
+    category: 'niche',
+    businessType: 'pharmacy',
+    icon: '🩺',
+    defaultDiscount: 'FREE Checkup',
+    defaultCoupon: 'HEALTHCAMP',
+    defaultMinSpend: '₹0',
+    validityDays: 3,
+    template: `🩺 *Free Health & BP Checkup Camp* 🏥\n\nDear {{customer_name}},\nYour health is our priority! *{{business_name}}* is organizing a Free Blood Pressure & Sugar Consultation this weekend.\n\n🎁 *Special Camp Offer:* {{discount}} + Flat 10% on First Aid & Multivitamins\n⏳ *Date / Validity:* Next {{validity_days}} Days\n\nVisit our pharmacy with your family.\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+  {
+    id: 'food_weekend',
+    name: "Weekend Chef's Special Food Fest",
+    name_hi: 'Weekend Chef Specials',
+    category: 'niche',
+    businessType: 'restaurant',
+    icon: '🍽️',
+    defaultDiscount: 'Flat 15% OFF',
+    defaultCoupon: 'TASTY15',
+    defaultMinSpend: '₹400',
+    validityDays: 3,
+    template: `🍽️ *Weekend Food Fest & Chef Specials!* 🍕🔥\n\nHello {{customer_name}},\nTreat your family and friends to delicious flavors at *{{business_name}}* this weekend!\n\n🎁 *Weekend Discount:* {{discount}}\n🎟️ *Coupon Code:* *{{coupon_code}}*\n🛒 *Valid On:* Dine-in & Takeaway orders above {{min_spend}}\n⏳ *Validity:* Next {{validity_days}} Days\n\nReserve your table or order takeaway today!\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+  {
+    id: 'food_combo',
+    name: 'Free Dessert / Chai on Order',
+    name_hi: 'Free Dessert Treat',
+    category: 'niche',
+    businessType: 'restaurant',
+    icon: '🍧',
+    defaultDiscount: 'FREE Dessert',
+    defaultCoupon: 'SWEETTREAT',
+    defaultMinSpend: '₹350',
+    validityDays: 5,
+    template: `🍧 *Sweet Treat from Chef!* ☕✨\n\nHello {{customer_name}},\nEnjoy a complimentary Dessert or Special Masala Chai with your meal at *{{business_name}}*!\n\n🎁 *Special Offer:* {{discount}}\n🎟️ *Coupon:* *{{coupon_code}}*\n🛒 *On Food Orders Above:* {{min_spend}}\n\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+  {
+    id: 'apparel_new_arrival',
+    name: 'New Season Collection & Festive Arrivals',
+    name_hi: 'New Arrivals Festive Offer',
+    category: 'niche',
+    businessType: 'clothing',
+    icon: '👗',
+    defaultDiscount: 'Flat 20% OFF',
+    defaultCoupon: 'FASHION20',
+    defaultMinSpend: '₹999',
+    validityDays: 10,
+    template: `👗 *New Season Collection Has Arrived!* ✨🛍️\n\nHello {{customer_name}},\nUpgrade your wardrobe with the latest trending Shirts, Kurtis, Sarees, Jeans & Footwear at *{{business_name}}*!\n\n🎁 *New Arrival Offer:* {{discount}}\n🎟️ *Exclusive Code:* *{{coupon_code}}*\n🛒 *Min Purchase:* {{min_spend}}\n⏳ *Validity:* Next {{validity_days}} Days\n\nVisit us today to discover your new favorite look!\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+  {
+    id: 'apparel_clearance',
+    name: 'Garment Clearance / Buy 2 Get 1',
+    name_hi: 'Garments Clearance Sale',
+    category: 'niche',
+    businessType: 'clothing',
+    icon: '🏷️',
+    defaultDiscount: 'Buy 2 Get 1 FREE',
+    defaultCoupon: 'B2G1FREE',
+    defaultMinSpend: '₹1200',
+    validityDays: 7,
+    template: `🏷️ *Mega Seasonal Clearance Sale!* 💥\n\nHello {{customer_name}},\nExclusive limited-time savings on selected apparel & footwear at *{{business_name}}*:\n\n🎁 *Offer:* {{discount}} or Flat 25% OFF\n🎟️ *Coupon:* *{{coupon_code}}*\n⏳ *Valid for:* Next {{validity_days}} Days only\n\nLimited stock available! Visit today.\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+  {
+    id: 'mobile_upgrade',
+    name: 'Smartphone Upgrade & Exchange Bonus',
+    name_hi: 'Mobile Upgrade Exchange',
+    category: 'niche',
+    businessType: 'electronics',
+    icon: '📱',
+    defaultDiscount: '₹2,000 Exchange Bonus',
+    defaultCoupon: 'UPGRADE2000',
+    defaultMinSpend: '₹8,000',
+    validityDays: 7,
+    template: `📱 *Smartphone Upgrade & Mega Exchange Offer!* 🚀\n\nHello {{customer_name}},\nReady for a phone upgrade? Exchange your old phone and get maximum value at *{{business_name}}*!\n\n🎁 *Exchange Benefit:* {{discount}} + Free Screen Guard & Case\n🎟️ *Coupon:* *{{coupon_code}}*\n🛒 *On New 5G Smartphones Above:* {{min_spend}}\n\n100% Brand Warranty & Easy Zero-Cost EMI available.\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+  {
+    id: 'electronics_accessories',
+    name: 'Audio & Fast Chargers Mega Deal',
+    name_hi: 'Accessories Mega Deal',
+    category: 'niche',
+    businessType: 'electronics',
+    icon: '🎧',
+    defaultDiscount: 'Flat 25% OFF',
+    defaultCoupon: 'AUDIO25',
+    defaultMinSpend: '₹500',
+    validityDays: 7,
+    template: `🎧 *Audio & Mobile Accessories Mega Sale!* ⚡\n\nHello {{customer_name}},\nGet top brand Bluetooth Neckbands, 65W Fast Chargers, Power Banks & Smart Watches at unbeatable prices from *{{business_name}}*:\n\n🎁 *Discount:* {{discount}}\n🎟️ *Coupon Code:* *{{coupon_code}}*\n🛒 *Min Purchase:* {{min_spend}}\n\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+  {
+    id: 'hardware_reno',
+    name: 'Home Renovation & Painting Special',
+    name_hi: 'Home Renovation Special',
+    category: 'niche',
+    businessType: 'hardware',
+    icon: '🔩',
+    defaultDiscount: 'Contractor Rate (15% OFF)',
+    defaultCoupon: 'RENO15',
+    defaultMinSpend: '₹2,000',
+    validityDays: 14,
+    template: `🏡 *Home Painting & Renovation Savings!* 🎨🛠️\n\nHello {{customer_name}},\nPlanning home repairs, plumbing, or painting? Get wholesale contractor rates at *{{business_name}}*!\n\n🎁 *Special Rebate:* {{discount}}\n🎟️ *Coupon Code:* *{{coupon_code}}*\n🛒 *Applicable on:* Asian Paints, PVC Pipes, Water Taps & Hardware\n\nFree local site delivery available!\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+  {
+    id: 'electrical_lights',
+    name: 'LED & Smart Lighting Festival',
+    name_hi: 'LED Lighting Fest',
+    category: 'niche',
+    businessType: 'electrical',
+    icon: '⚡',
+    defaultDiscount: 'Flat 15% OFF',
+    defaultCoupon: 'LIGHT15',
+    defaultMinSpend: '₹600',
+    validityDays: 10,
+    template: `⚡ *Brighten Your Home with Energy Saving LED!* 💡✨\n\nHello {{customer_name}},\nUpgrade to high-brightness LED Battens, Ceiling Fans & Modular Switches at *{{business_name}}* with 1-Year Replacement Warranty!\n\n🎁 *Discount:* {{discount}}\n🎟️ *Coupon Code:* *{{coupon_code}}*\n🛒 *Min Purchase:* {{min_spend}}\n\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+  {
+    id: 'kirana_ration',
+    name: 'Monthly Kirana Ration Checklist & Free Delivery',
+    name_hi: 'Monthly Kirana Ration List',
+    category: 'niche',
+    businessType: 'grocery',
+    icon: '🌾',
+    defaultDiscount: 'Flat ₹100 OFF + Free Delivery',
+    defaultCoupon: 'RATION100',
+    defaultMinSpend: '₹1,500',
+    validityDays: 7,
+    template: `🌾 *Mahine Ka Kirana & Ration Delivery* 🛒✨\n\nNamaste {{customer_name}},\nIt's time for your monthly household ration! Get fresh Atta, Rice, Cooking Oil, Dal & Ghee delivered directly to your doorstep from *{{business_name}}*.\n\n🎁 *Monthly Savings:* {{discount}}\n🎟️ *Coupon:* *{{coupon_code}}*\n🛒 *On Ration Orders Above:* {{min_spend}}\n\n💬 *Easy WhatsApp Ordering:* Send your grocery list here!\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+  {
+    id: 'fmcg_super_savings',
+    name: 'Supermarket Weekend Savings',
+    name_hi: 'Supermarket Mega Savings',
+    category: 'niche',
+    businessType: 'fmcg',
+    icon: '🍫',
+    defaultDiscount: 'Flat 12% OFF',
+    defaultCoupon: 'SUPER12',
+    defaultMinSpend: '₹800',
+    validityDays: 5,
+    template: `🛍️ *Supermarket Weekend Savings!* 🍫🧃\n\nHello {{customer_name}},\nEnjoy huge savings on packaged snacks, personal care, juices and household cleaners at *{{business_name}}* this weekend!\n\n🎁 *Super Savings:* {{discount}}\n🎟️ *Coupon Code:* *{{coupon_code}}*\n🛒 *Min Purchase:* {{min_spend}}\n\nVisit us today with your family!\n📍 *{{business_name}}* | 📞 {{business_phone}}`,
+  },
+
+  // ---------------- UNIVERSAL FESTIVALS & CELEBRATIONS ----------------
   {
     id: 'diwali',
     name: 'Diwali & Festive Mega Sale',
@@ -150,14 +311,62 @@ const CAMPAIGN_PRESETS: FestivalCampaign[] = [
 export default function GrowthPage() {
   const { language } = useTranslation();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const storeProfile = getStoreProfile(business?.business_type);
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
 
+  // Filter Tab for Campaign Presets
+  const [campaignTab, setCampaignTab] = useState<'recommended' | 'niche' | 'festival' | 'birthday' | 'loyalty' | 'all'>('recommended');
+
+  // Compute Active Campaign Presets
+  const displayCampaigns = useMemo(() => {
+    const currentType = business?.business_type || 'grocery';
+    if (campaignTab === 'recommended') {
+      const nicheMatches = CAMPAIGN_PRESETS.filter(c => c.businessType === currentType);
+      const topUniversal = CAMPAIGN_PRESETS.filter(c => ['diwali', 'birthday', 'vip_loyalty', 'reengage'].includes(c.id));
+      return nicheMatches.length > 0 ? [...nicheMatches, ...topUniversal] : topUniversal;
+    }
+    if (campaignTab === 'niche') {
+      return CAMPAIGN_PRESETS.filter(c => c.category === 'niche');
+    }
+    if (campaignTab === 'festival') {
+      return CAMPAIGN_PRESETS.filter(c => c.category === 'festival');
+    }
+    if (campaignTab === 'birthday') {
+      return CAMPAIGN_PRESETS.filter(c => c.category === 'birthday');
+    }
+    if (campaignTab === 'loyalty') {
+      return CAMPAIGN_PRESETS.filter(c => c.category === 'loyalty' || c.category === 'reengage');
+    }
+    return CAMPAIGN_PRESETS;
+  }, [business?.business_type, campaignTab]);
+
+  // Initial default campaign matching store profile
+  const defaultNicheCampaign = useMemo(() => {
+    const currentType = business?.business_type || 'grocery';
+    const match = CAMPAIGN_PRESETS.find(c => c.businessType === currentType);
+    return match || CAMPAIGN_PRESETS[0];
+  }, [business?.business_type]);
+
   // Selected Campaign State
-  const [selectedCampaign, setSelectedCampaign] = useState<FestivalCampaign>(CAMPAIGN_PRESETS[0]);
-  const [discountVal, setDiscountVal] = useState<string>(CAMPAIGN_PRESETS[0].defaultDiscount);
-  const [couponCode, setCouponCode] = useState<string>(CAMPAIGN_PRESETS[0].defaultCoupon);
-  const [minSpendVal, setMinSpendVal] = useState<string>(CAMPAIGN_PRESETS[0].defaultMinSpend);
-  const [validityDaysVal, setValidityDaysVal] = useState<number>(CAMPAIGN_PRESETS[0].validityDays);
+  const [selectedCampaign, setSelectedCampaign] = useState<FestivalCampaign>(defaultNicheCampaign);
+  const [discountVal, setDiscountVal] = useState<string>(defaultNicheCampaign.defaultDiscount);
+  const [couponCode, setCouponCode] = useState<string>(defaultNicheCampaign.defaultCoupon);
+  const [minSpendVal, setMinSpendVal] = useState<string>(defaultNicheCampaign.defaultMinSpend);
+  const [validityDaysVal, setValidityDaysVal] = useState<number>(defaultNicheCampaign.validityDays);
+
+  // Sync default if business profile loads
+  React.useEffect(() => {
+    if (business?.business_type) {
+      const match = CAMPAIGN_PRESETS.find(c => c.businessType === business.business_type);
+      if (match) {
+        setSelectedCampaign(match);
+        setDiscountVal(match.defaultDiscount);
+        setCouponCode(match.defaultCoupon);
+        setMinSpendVal(match.defaultMinSpend);
+        setValidityDaysVal(match.validityDays);
+      }
+    }
+  }, [business?.business_type]);
 
   // Audience Filter
   const [targetAudience, setTargetAudience] = useState<'all' | 'birthday' | 'vip' | 'inactive'>('all');
@@ -351,34 +560,77 @@ export default function GrowthPage() {
 
       {/* ---------------- 2. FESTIVAL & OCCASION PRESET PICKER ---------------- */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
             <Gift className="w-4 h-4 text-emerald-600" />
-            <span>Select Festival / Occasion Campaign</span>
+            <span>Select WhatsApp Marketing Campaign</span>
           </h2>
-          <span className="text-xs text-slate-400 font-medium">8 Pre-made High Converting Templates</span>
+          
+          {/* Campaign Category Filter Tabs */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 text-xs font-bold">
+            {[
+              { id: 'recommended', label: `✨ For ${storeProfile.shortName}` },
+              { id: 'niche', label: '🏬 All Niche Specials' },
+              { id: 'festival', label: '🪔 Festivals' },
+              { id: 'birthday', label: '🎂 Birthdays' },
+              { id: 'loyalty', label: '👑 VIP & Comeback' },
+              { id: 'all', label: `All (${CAMPAIGN_PRESETS.length})` },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setCampaignTab(tab.id as any)}
+                className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                  campaignTab === tab.id
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-2.5">
-          {CAMPAIGN_PRESETS.map((camp) => {
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+          {displayCampaigns.map((camp) => {
             const isSelected = selectedCampaign.id === camp.id;
+            const isNicheMatch = camp.businessType === business?.business_type;
+
             return (
               <button
                 key={camp.id}
                 type="button"
                 onClick={() => handleSelectCampaign(camp)}
-                className={`p-3 rounded-xl border text-left transition-all ${
+                className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer ${
                   isSelected
                     ? 'bg-slate-900 text-white border-slate-900 shadow-md scale-[1.02]'
                     : 'bg-white text-slate-800 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
                 }`}
               >
-                <div className="text-xl mb-1">{camp.icon}</div>
-                <div className="text-xs font-black truncate">{camp.name}</div>
-                <div className={`text-[10px] font-semibold mt-0.5 truncate ${
-                  isSelected ? 'text-amber-300' : 'text-slate-500'
+                {isNicheMatch && (
+                  <span className={`absolute top-2 right-2 text-[9px] font-black px-1.5 py-0.2 rounded uppercase ${
+                    isSelected ? 'bg-amber-400 text-slate-950' : 'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    ✨ Recommended
+                  </span>
+                )}
+
+                <div>
+                  <div className="text-xl mb-1">{camp.icon}</div>
+                  <div className="text-xs font-black line-clamp-2 leading-snug">{camp.name}</div>
+                  <div className={`text-[10px] font-semibold mt-0.5 truncate ${
+                    isSelected ? 'text-amber-300' : 'text-slate-500'
+                  }`}>
+                    {camp.name_hi}
+                  </div>
+                </div>
+
+                <div className={`mt-2 pt-1.5 border-t text-[10px] font-mono font-bold flex items-center justify-between ${
+                  isSelected ? 'border-slate-800 text-slate-300' : 'border-slate-100 text-slate-400'
                 }`}>
-                  {camp.name_hi}
+                  <span>{camp.defaultDiscount}</span>
+                  <span>Code: {camp.defaultCoupon}</span>
                 </div>
               </button>
             );

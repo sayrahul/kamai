@@ -57,20 +57,26 @@ export async function POST(req: NextRequest) {
         role: 'owner',
       });
 
+      const chosenStoreName = body.storeName?.trim() || (clean10Digit === '9595997711' ? 'Rahul Super Store' : 'My Store');
+      const chosenOwnerName = body.ownerName?.trim() || (clean10Digit === '9595997711' ? 'Rahul Jadhav' : 'Store Owner');
+      const chosenBusinessType = body.businessType || 'grocery';
+
       const response = NextResponse.json({
         success: true,
         user: {
           id: `staff_${clean10Digit}`,
-          name: clean10Digit === '9595997711' ? 'Rahul Jadhav' : 'Store Owner',
+          name: chosenOwnerName,
           phone: clean10Digit,
           role: 'owner',
           business_id: `biz_${clean10Digit}`,
-          business_name: clean10Digit === '9595997711' ? 'Rahul Super Store (Kamai+)' : (body.storeName || 'My Store'),
+          business_name: chosenStoreName,
           subscription_tier: 'pro',
         },
         business: {
           id: `biz_${clean10Digit}`,
-          name: clean10Digit === '9595997711' ? 'Rahul Super Store (Kamai+)' : (body.storeName || 'My Store'),
+          name: chosenStoreName,
+          owner_name: chosenOwnerName,
+          business_type: chosenBusinessType,
           subscription_tier: 'pro',
         }
       });
@@ -115,28 +121,50 @@ export async function POST(req: NextRequest) {
       business = biz;
     }
 
-    // 4. Auto-provision test account if not yet in DB
-    if (isTestAccount && (!staff || !business)) {
+    // 4. Test account handling: Allow dynamic testing across all business niches
+    if (isTestAccount) {
+      const chosenStoreName = (body.storeName || '').trim() || (business?.name || 'Rahul Super Store');
+      const chosenOwnerName = (body.ownerName || '').trim() || (business?.owner_name || 'Rahul Jadhav');
+      const chosenBusinessType = body.businessType || business?.business_type || 'grocery';
       const pinHash = await bcrypt.hash('123456', 10);
-      const { data: testBiz } = await supabase
-        .from('businesses')
-        .insert({
-          name: 'Rahul Super Store (Kamai+)',
-          owner_name: 'Rahul Jadhav',
-          phone: '9595997711',
-          business_type: 'grocery',
-          subscription_tier: 'pro',
-        })
-        .select()
-        .single();
 
-      if (testBiz) {
+      if (!business) {
+        const { data: testBiz } = await supabase
+          .from('businesses')
+          .insert({
+            name: chosenStoreName,
+            owner_name: chosenOwnerName,
+            phone: '9595997711',
+            business_type: chosenBusinessType,
+            subscription_tier: 'pro',
+          })
+          .select()
+          .single();
+
         business = testBiz;
+      } else {
+        // Update existing test account with chosen category/name for instant live testing
+        const { data: updatedBiz } = await supabase
+          .from('businesses')
+          .update({
+            name: chosenStoreName,
+            owner_name: chosenOwnerName,
+            business_type: chosenBusinessType,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', business.id)
+          .select()
+          .single();
+
+        if (updatedBiz) business = updatedBiz;
+      }
+
+      if (!staff && business) {
         const { data: testStaff } = await supabase
           .from('business_staff')
           .insert({
-            business_id: testBiz.id,
-            name: 'Rahul Jadhav',
+            business_id: business.id,
+            name: chosenOwnerName,
             phone: '9595997711',
             pin_hash: pinHash,
             role: 'owner',
@@ -146,6 +174,18 @@ export async function POST(req: NextRequest) {
           .single();
 
         staff = testStaff;
+      } else if (staff) {
+        const { data: updatedStaff } = await supabase
+          .from('business_staff')
+          .update({
+            name: chosenOwnerName,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', staff.id)
+          .select()
+          .single();
+
+        if (updatedStaff) staff = updatedStaff;
       }
     }
 

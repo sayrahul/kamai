@@ -27,6 +27,7 @@ export type InvoiceThemeId =
   | 'royal_blue' 
   | 'golden_elegance' 
   | 'compact_kirana' 
+  | 'pharma_care'
   | 'thermal_minimal';
 
 export interface UpiAccount {
@@ -49,6 +50,9 @@ export interface InvoiceThemeConfig {
   show_mrp_savings: boolean;
   show_terms: boolean;
   show_signature: boolean;
+  show_pharmacy_rx?: boolean;
+  drug_license_no?: string;
+  pharmacist_reg_no?: string;
   show_ad_banner?: boolean;
   custom_ad_banner_text?: string;
   custom_ad_banner_subtext?: string;
@@ -69,6 +73,8 @@ export interface Business {
   address: string;
   pincode?: string;
   gstin?: string;
+  drug_license_no?: string;
+  pharmacist_reg_no?: string;
   upi_id?: string;
   upi_ids?: UpiAccount[];
   bank_name?: string;
@@ -98,9 +104,16 @@ export type ProductUnit =
   | 'ml'
   | 'box'
   | 'packet'
+  | 'strip'
+  | 'plate'
+  | 'portion'
+  | 'pair'
+  | 'set'
+  | 'bundle'
   | 'dozen'
   | 'meter'
   | 'foot'
+  | 'sqft'
   | 'custom';
 
 export interface Category {

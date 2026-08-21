@@ -29,7 +29,7 @@ import { Card } from '@/components/ui/Card';
 import { compressImageFile } from '@/lib/utils/imageCompressor';
 import { uploadStoreLogoToStorage } from '@/lib/firebase/storage';
 import { BusinessType } from '@/types';
-import { getAllStoreProfiles, getStoreProfile } from '@/lib/constants/storeProfiles';
+import { getStoreProfile } from '@/lib/constants/storeProfiles';
 
 export default function SettingsPage() {
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -353,46 +353,14 @@ export default function SettingsPage() {
                       Store &amp; Tax Information
                     </span>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Select your business niche to adapt billing fields, placeholders, and receipt formats.
+                      Store contact information, GSTIN, and business address.
                     </p>
                   </div>
-                  <span className="self-start sm:self-auto text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-300">
-                    {getStoreProfile(businessType).emoji} {getStoreProfile(businessType).name}
+                  <span className="self-start sm:self-auto text-[11px] font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-800 border border-slate-300 flex items-center gap-1.5 shadow-2xs">
+                    <span>{getStoreProfile(businessType).emoji}</span>
+                    <span>{getStoreProfile(businessType).name}</span>
+                    <span className="text-[9.5px] text-slate-400 font-normal">(Signup Store)</span>
                   </span>
-                </div>
-
-                {/* Category Selector Grid */}
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                    Business Category Profile
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {getAllStoreProfiles().map((p) => {
-                      const isSelected = businessType === p.id;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => setBusinessType(p.id)}
-                          className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
-                            isSelected
-                              ? 'bg-amber-500/10 border-amber-500 text-slate-950 ring-1 ring-amber-500 shadow-xs'
-                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-white'
-                          }`}
-                        >
-                          <span className="text-xl flex-shrink-0">{p.emoji}</span>
-                          <div className="min-w-0 flex-1">
-                            <p className={`text-xs font-bold truncate leading-tight ${isSelected ? 'text-amber-950 font-black' : 'text-slate-800'}`}>
-                              {p.shortName}
-                            </p>
-                            <p className="text-[10px] text-slate-400 truncate leading-none mt-0.5">
-                              {p.tagline.slice(0, 16)}...
-                            </p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">

@@ -301,6 +301,7 @@ export default function InvoiceDesignerPage() {
                   { id: 'show_hsn_code', label: 'Show HSN/SAC Code', desc: 'Print product HSN numbers' },
                   { id: 'show_mrp_savings', label: 'Show MRP Savings Badge', desc: 'Highlight customer discount saved' },
                   { id: 'show_signature', label: 'Authorised Signatory', desc: 'Seal / Signatory signature box' },
+                  { id: 'show_pharmacy_rx', label: '💊 Pharmacy Rx & D.L. Bill', desc: 'Print Doctor, Patient Rx, Drug License & Schedule H Drug warning' },
                 ].map((toggle) => {
                   const isChecked = Boolean(config[toggle.id as keyof InvoiceThemeConfig]);
                   return (
@@ -332,6 +333,38 @@ export default function InvoiceDesignerPage() {
                   );
                 })}
               </div>
+
+              {/* Pharmacy Specific Inputs if show_pharmacy_rx enabled */}
+              {config.show_pharmacy_rx && (
+                <div className="p-3 bg-sky-50/70 rounded-xl border border-sky-200 space-y-2.5 mt-2 animate-in fade-in">
+                  <div className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                    <span>💊</span>
+                    <span>Pharmacy Drug License &amp; Chemist Information</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-700 block mb-0.5">Drug License (D.L.) No</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. DL-20B/21B-44910"
+                        value={config.drug_license_no || ''}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, drug_license_no: e.target.value }))}
+                        className="w-full p-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 font-mono focus:outline-none focus:border-sky-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-700 block mb-0.5">Registered Pharmacist No</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. PH-109281"
+                        value={config.pharmacist_reg_no || ''}
+                        onChange={(e) => setConfig((prev) => ({ ...prev, pharmacist_reg_no: e.target.value }))}
+                        className="w-full p-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 font-mono focus:outline-none focus:border-sky-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 

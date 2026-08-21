@@ -62,12 +62,24 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   const [isBluetoothPrinting, setIsBluetoothPrinting] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedUpiIndex, setSelectedUpiIndex] = useState<number>(0);
+  
+  // Pharmacy Prescription Bill Mode Toggle (Full User Control)
+  const [isPharmacyRxEnabled, setIsPharmacyRxEnabled] = useState<boolean>(
+    Boolean(
+      business?.business_type === 'pharmacy' ||
+      initialSale?.doctor_name ||
+      business?.invoice_theme_config?.show_pharmacy_rx
+    )
+  );
 
   const platformPromo = usePlatformPromoConfig();
 
   useEffect(() => {
     setSale(initialSale);
-  }, [initialSale]);
+    if (initialSale?.doctor_name || business?.business_type === 'pharmacy') {
+      setIsPharmacyRxEnabled(true);
+    }
+  }, [initialSale, business]);
 
   const activeUpi = (business?.upi_ids && business.upi_ids[selectedUpiIndex])
     ? business.upi_ids[selectedUpiIndex]
@@ -224,6 +236,23 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
 
             {/* Action Buttons in 1 Clean Single Line */}
             <div className="flex flex-wrap items-center gap-1.5 justify-end">
+              {/* Pharmacy Rx Mode Toggle Pill (User Full Control) */}
+              <button
+                type="button"
+                onClick={() => setIsPharmacyRxEnabled(!isPharmacyRxEnabled)}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer h-8 ${
+                  isPharmacyRxEnabled
+                    ? 'bg-sky-50 text-sky-900 border-sky-300 shadow-2xs'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+                title="Toggle Pharmacy Prescription Rx & Drug License Details on Bill"
+              >
+                <span>💊 Rx Bill:</span>
+                <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-black ${isPharmacyRxEnabled ? 'bg-sky-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                  {isPharmacyRxEnabled ? 'ON' : 'OFF'}
+                </span>
+              </button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -355,6 +384,15 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                       {business.gstin && (
                         <p className="text-[11px] font-bold text-amber-300">GSTIN: {business.gstin}</p>
                       )}
+                      {/* Pharmacy Drug License Details */}
+                      {isPharmacyRxEnabled && (
+                        <div className="mt-1 pt-1 border-t border-white/20 text-[10px] font-mono text-cyan-200">
+                          <span>D.L. No: {business.drug_license_no || business.invoice_theme_config?.drug_license_no || '20B/21B-44910'}</span>
+                          {(business.pharmacist_reg_no || business.invoice_theme_config?.pharmacist_reg_no) && (
+                            <span className="ml-2">• Reg: {business.pharmacist_reg_no || business.invoice_theme_config?.pharmacist_reg_no}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -362,6 +400,8 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                     <span className="inline-block px-3 py-1 bg-white/20 rounded-lg text-xs font-black uppercase text-white tracking-wider">
                       {sale.status === 'returned'
                         ? 'SALES RETURN / CREDIT NOTE'
+                        : isPharmacyRxEnabled
+                        ? 'PHARMACY CASH / CREDIT MEMO'
                         : (business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).custom_title || 'TAX INVOICE'}
                     </span>
                     <p className="text-sm font-black font-mono mt-1 text-white">#{sale.invoice_number}</p>
@@ -383,56 +423,68 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   </div>
                 </div>
 
-                {/* Bill To Info */}
-                <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px]">
-                  <div>
-                    <span className="font-bold text-slate-500 uppercase text-[10px]">Billed To:</span>
-                    <p className="font-bold text-slate-900 text-xs mt-0.5">{sale.customer_name || 'Cash Customer'}</p>
-                    {sale.customer_phone && <p className="text-slate-600 font-mono">Phone: {sale.customer_phone}</p>}
-                    {sale.customer_address && <p className="text-slate-600">{sale.customer_address}</p>}
-                  </div>
-                  <div className="text-right">
-                    <span className="font-bold text-slate-500 uppercase text-[10px]">Payment Details:</span>
-                    <p className="font-bold uppercase text-xs mt-0.5">{sale.payment_method}</p>
-                    <p className="font-semibold text-emerald-700">Status: {sale.payment_status.toUpperCase()}</p>
-                    {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_mrp_savings && sale.discount_total > 0 && (
-                      <p className="text-[10px] text-emerald-700 font-bold mt-0.5">
-                        Saved: {formatINR(sale.discount_total)}
+                {/* Specialized Doctor & Patient Rx Box (Pharmacy Mode) */}
+                {isPharmacyRxEnabled ? (
+                  <div className="p-3 bg-sky-50/80 border border-sky-200 rounded-xl text-[11px] text-sky-950 grid grid-cols-2 gap-3">
+                    <div className="flex items-start gap-2">
+                      <span className="text-xl font-black text-sky-700 font-serif leading-none mt-0.5">℞</span>
+                      <div>
+                        <span className="font-bold text-slate-500 uppercase text-[9.5px] block">Prescribed By Doctor:</span>
+                        <p className="font-extrabold text-slate-900 text-xs mt-0.5">
+                          {sale.doctor_name || 'Dr. Registered Medical Practitioner (MBBS)'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-slate-500 uppercase text-[9.5px] block">Patient Details &amp; Contact:</span>
+                      <p className="font-extrabold text-slate-900 text-xs mt-0.5">
+                        {sale.patient_name || sale.customer_name || 'Walk-in Cash Patient'}
                       </p>
-                    )}
+                      {sale.customer_phone && <p className="text-[10px] text-slate-600 font-mono">Ph: {sale.customer_phone}</p>}
+                    </div>
                   </div>
-
-                  {/* Niche Order Details (Restaurant Table, Token / Pharmacy Doctor) */}
-                  {(sale.table_no || sale.order_type || sale.token_number || sale.doctor_name || sale.patient_name) && (
-                    <div className="col-span-2 pt-2 border-t border-slate-200 flex flex-wrap items-center gap-3 text-[10px] text-slate-700 font-medium">
-                      {sale.token_number && (
-                        <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-mono font-bold">
-                          Token #{sale.token_number}
-                        </span>
-                      )}
-                      {sale.order_type && (
-                        <span>
-                          Order: <b className="uppercase">{sale.order_type.replace('_', '-')}</b>
-                        </span>
-                      )}
-                      {sale.table_no && (
-                        <span>
-                          Table: <b>{sale.table_no}</b>
-                        </span>
-                      )}
-                      {sale.doctor_name && (
-                        <span>
-                          Doctor: <b>{sale.doctor_name}</b>
-                        </span>
-                      )}
-                      {sale.patient_name && (
-                        <span>
-                          Patient: <b>{sale.patient_name}</b>
-                        </span>
+                ) : (
+                  /* Standard Bill To Info */
+                  <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px]">
+                    <div>
+                      <span className="font-bold text-slate-500 uppercase text-[10px]">Billed To:</span>
+                      <p className="font-bold text-slate-900 text-xs mt-0.5">{sale.customer_name || 'Cash Customer'}</p>
+                      {sale.customer_phone && <p className="text-slate-600 font-mono">Phone: {sale.customer_phone}</p>}
+                      {sale.customer_address && <p className="text-slate-600">{sale.customer_address}</p>}
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-slate-500 uppercase text-[10px]">Payment Details:</span>
+                      <p className="font-bold uppercase text-xs mt-0.5">{sale.payment_method}</p>
+                      <p className="font-semibold text-emerald-700">Status: {sale.payment_status.toUpperCase()}</p>
+                      {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_mrp_savings && sale.discount_total > 0 && (
+                        <p className="text-[10px] text-emerald-700 font-bold mt-0.5">
+                          Saved: {formatINR(sale.discount_total)}
+                        </p>
                       )}
                     </div>
-                  )}
-                </div>
+
+                    {/* Niche Order Details (Restaurant Table, Token) */}
+                    {(sale.table_no || sale.order_type || sale.token_number) && (
+                      <div className="col-span-2 pt-2 border-t border-slate-200 flex flex-wrap items-center gap-3 text-[10px] text-slate-700 font-medium">
+                        {sale.token_number && (
+                          <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-mono font-bold">
+                            Token #{sale.token_number}
+                          </span>
+                        )}
+                        {sale.order_type && (
+                          <span>
+                            Order: <b className="uppercase">{sale.order_type.replace('_', '-')}</b>
+                          </span>
+                        )}
+                        {sale.table_no && (
+                          <span>
+                            Table: <b>{sale.table_no}</b>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Items Table */}
                 <div className="overflow-x-auto">
@@ -587,6 +639,14 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   </div>
                 )}
 
+                {/* Schedule H Prescription Warning Banner (Pharmacy Mode) */}
+                {isPharmacyRxEnabled && (
+                  <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-[9.5px] text-rose-900 font-bold text-center flex items-center justify-center gap-1.5">
+                    <span>⚠️</span>
+                    <span>SCHEDULE H PRESCRIPTION DRUG WARNING: To be sold by retail on the prescription of a Registered Medical Practitioner only.</span>
+                  </div>
+                )}
+
                 {/* Footer terms */}
                 <div className="pt-3 pb-1 border-t border-slate-200 text-center text-[10px] text-slate-500 space-y-0.5">
                   <p>{(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).custom_terms || business.terms_conditions || 'Thank you for your business!'}</p>
@@ -606,6 +666,11 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   <p className="text-[10px] text-slate-600">{business.address}</p>
                   <p className="text-[10px] text-slate-600">Ph: {business.phone}</p>
                   {business.gstin && <p className="text-[9px] font-bold">GSTIN: {business.gstin}</p>}
+                  {isPharmacyRxEnabled && (
+                    <p className="text-[9px] font-bold text-slate-700">
+                      D.L. No: {business.drug_license_no || business.invoice_theme_config?.drug_license_no || '20B/21B-44910'}
+                    </p>
+                  )}
                 </div>
 
                 <div className="text-[10px] space-y-0.5 pb-1 border-b border-dashed border-slate-300">
@@ -627,10 +692,10 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                     </div>
                   )}
 
-                  {(sale.doctor_name || sale.patient_name) && (
-                    <div className="flex justify-between pt-0.5 text-[9.5px]">
-                      {sale.doctor_name && <span>Dr: {sale.doctor_name}</span>}
-                      {sale.patient_name && <span>Pt: {sale.patient_name}</span>}
+                  {(isPharmacyRxEnabled || sale.doctor_name || sale.patient_name) && (
+                    <div className="flex justify-between pt-0.5 text-[9.5px] font-bold text-slate-800">
+                      <span>℞ Dr: {sale.doctor_name || 'RMP'}</span>
+                      <span>Pt: {sale.patient_name || sale.customer_name || 'Cash'}</span>
                     </div>
                   )}
 
@@ -666,6 +731,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                     </div>
                   ))}
                 </div>
+
+                {/* Schedule H warning in Thermal */}
+                {isPharmacyRxEnabled && (
+                  <div className="text-[8.5px] text-center font-bold text-slate-700 py-0.5 border-b border-dashed border-slate-300">
+                    *** SCHEDULE H PRESCRIPTION DRUG ***
+                  </div>
+                )}
 
                 {/* Totals */}
                 <div className="space-y-1 text-[11px] pb-2 border-b border-dashed border-slate-300 leading-relaxed">

@@ -25,7 +25,12 @@ import {
   ExternalLink,
   Tag,
   Barcode,
-  Truck
+  Truck,
+  Shirt,
+  Smartphone,
+  Pill,
+  Wrench,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -33,9 +38,11 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import Link from 'next/link';
+import { getStoreProfile } from '@/lib/constants/storeProfiles';
 
 export default function InventoryPage() {
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const storeProfile = getStoreProfile(business?.business_type);
   const products = useLiveQuery(async () => {
     const all = await db.products.toArray();
     return all.filter((p) => p.is_active !== false);
@@ -44,18 +51,26 @@ export default function InventoryPage() {
   const movements = useLiveQuery(async () => db.inventory_movements.reverse().limit(50).toArray()) || [];
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'expiry' | 'reorder' | 'batches' | 'movements'>('expiry');
+  const [activeTab, setActiveTab] = useState<'expiry' | 'variants' | 'serials' | 'reorder' | 'batches' | 'movements'>(
+    storeProfile.featureToggles.showBatchExpiry ? 'expiry' :
+    storeProfile.featureToggles.showSizeVariants ? 'variants' :
+    storeProfile.featureToggles.showImeiWarranty ? 'serials' : 'reorder'
+  );
   const [expiryFilter, setExpiryFilter] = useState<'all' | '15days' | '30days' | 'expired'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Reorder Quantities State (mapped by product ID)
   const [reorderQtys, setReorderQtys] = useState<{ [productId: string]: number }>({});
 
-  // Batch Edit Modal State
+  // Batch / Variant Edit Modal State
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editBatchNo, setEditBatchNo] = useState('');
   const [editMfgDate, setEditMfgDate] = useState('');
   const [editExpiryDate, setEditExpiryDate] = useState('');
+  const [editSize, setEditSize] = useState('');
+  const [editColor, setEditColor] = useState('');
+  const [editImei, setEditImei] = useState('');
+  const [editWarrantyMonths, setEditWarrantyMonths] = useState('');
   const [editStockAdjustment, setEditStockAdjustment] = useState('');
   const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
 
@@ -237,7 +252,7 @@ export default function InventoryPage() {
     window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // Open Batch Editor Modal
+  // Open Batch / Variant Editor Modal
   const handleOpenBatchModal = (product: Product) => {
     setEditingProduct(product);
     setEditBatchNo(product.batch_number || `BAT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -246,21 +261,30 @@ export default function InventoryPage() {
     const futureDate = new Date();
     futureDate.setMonth(futureDate.getMonth() + 6);
     setEditExpiryDate(product.expiry_date || futureDate.toISOString().split('T')[0]);
+    setEditSize(product.size || '');
+    setEditColor(product.color || '');
+    setEditImei(product.imei_serial || '');
+    setEditWarrantyMonths(product.warranty_period_months ? product.warranty_period_months.toString() : '');
     setEditStockAdjustment(product.current_stock.toString());
   };
 
-  // Save Batch Changes
+  // Save Batch & Variant Changes
   const handleSaveBatch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
 
     const newStock = parseInt(editStockAdjustment, 10);
     const stockDiff = !isNaN(newStock) ? newStock - editingProduct.current_stock : 0;
+    const warrantyNum = editWarrantyMonths.trim() ? parseInt(editWarrantyMonths, 10) : undefined;
 
     await db.products.update(editingProduct.id, {
-      batch_number: editBatchNo.trim(),
+      batch_number: editBatchNo.trim() || undefined,
       mfg_date: editMfgDate || undefined,
       expiry_date: editExpiryDate || undefined,
+      size: editSize.trim() || undefined,
+      color: editColor.trim() || undefined,
+      imei_serial: editImei.trim() || undefined,
+      warranty_period_months: warrantyNum,
       current_stock: !isNaN(newStock) ? newStock : editingProduct.current_stock,
       updated_at: new Date().toISOString(),
     });
@@ -288,6 +312,54 @@ export default function InventoryPage() {
     setTimeout(() => setSaveSuccessNotice(null), 4000);
   };
 
+  const inventoryTabs = useMemo(() => {
+    const tabs: Array<{ id: 'expiry' | 'variants' | 'serials' | 'reorder' | 'batches' | 'movements'; label: string; icon: any }> = [];
+    
+    if (storeProfile.featureToggles.showBatchExpiry || (expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length + expiryAnalysis.expiredList.length > 0)) {
+      tabs.push({
+        id: 'expiry',
+        label: `🚨 Near-Expiry Alert Radar (${expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length + expiryAnalysis.expiredList.length})`,
+        icon: AlertTriangle,
+      });
+    }
+
+    if (storeProfile.featureToggles.showSizeVariants) {
+      tabs.push({
+        id: 'variants',
+        label: `👕 Size & Color Variant Matrix (${products.filter(p => p.size || p.color).length})`,
+        icon: Shirt,
+      });
+    }
+
+    if (storeProfile.featureToggles.showImeiWarranty) {
+      tabs.push({
+        id: 'serials',
+        label: `📱 Serial & IMEI Warranty Audit (${products.filter(p => p.imei_serial || p.warranty_period_months).length})`,
+        icon: Smartphone,
+      });
+    }
+
+    tabs.push({
+      id: 'reorder',
+      label: `📉 1-Click WhatsApp Purchase Orders (${lowStockProducts.length})`,
+      icon: Send,
+    });
+
+    tabs.push({
+      id: 'batches',
+      label: `📦 Product & Stock Master (${products.length})`,
+      icon: Boxes,
+    });
+
+    tabs.push({
+      id: 'movements',
+      label: '📜 Stock Movements Audit Log',
+      icon: History,
+    });
+
+    return tabs;
+  }, [storeProfile, expiryAnalysis, products, lowStockProducts]);
+
   return (
     <div className="space-y-5 pb-16">
       {/* ---------------- TOP HEADER & KPI BANNER ---------------- */}
@@ -295,18 +367,24 @@ export default function InventoryPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1.5">
-              <Package className="w-3.5 h-3.5 text-amber-700" />
-              <span>Smart Kirana & FMCG Inventory Studio</span>
+              <span>{storeProfile.emoji}</span>
+              <span>{storeProfile.name} Inventory Studio</span>
             </span>
             <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-              Near-Expiry Radar & WhatsApp Reorders
+              Smart Stock & Reorder Control
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Batch Tracking, Expiry Radar & WhatsApp PO
+            {storeProfile.featureToggles.showBatchExpiry
+              ? 'Batch Tracking, Expiry Radar & WhatsApp PO'
+              : storeProfile.featureToggles.showSizeVariants
+              ? 'Apparel Size Variants & Stock Matrix'
+              : storeProfile.featureToggles.showImeiWarranty
+              ? 'Device Serials, IMEI & Warranty Stock Control'
+              : 'Smart Stock Control & WhatsApp Purchase Orders'}
           </h1>
           <p className="text-xs text-slate-500">
-            Prevent dead-stock losses with real-time expiry countdowns and generate 1-click WhatsApp purchase orders for wholesale distributors.
+            {storeProfile.description}
           </p>
         </div>
 
@@ -355,24 +433,44 @@ export default function InventoryPage() {
           <div className="text-[10px] text-rose-700 mt-0.5">Below reorder threshold</div>
         </Card>
 
-        {/* Card 3: Expiring Soon (< 15/30 Days) */}
+        {/* Card 3: Expiring Soon / Size Variants */}
         <Card className="p-3.5 bg-gradient-to-br from-white to-amber-50/50 border border-amber-200 rounded-xl shadow-xs">
-          <div className="text-[11px] font-bold text-amber-900 uppercase tracking-wider">Expiring in ≤ 30 Days</div>
+          <div className="text-[11px] font-bold text-amber-900 uppercase tracking-wider">
+            {storeProfile.featureToggles.showSizeVariants
+              ? 'Apparel Variants'
+              : storeProfile.featureToggles.showImeiWarranty
+              ? 'Serial Tracked Items'
+              : 'Expiring in ≤ 30 Days'}
+          </div>
           <div className="text-lg sm:text-xl font-black text-amber-700 font-mono mt-1">
-            {expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length} Batches
+            {storeProfile.featureToggles.showSizeVariants
+              ? `${products.filter(p => p.size || p.color).length} Skus`
+              : storeProfile.featureToggles.showImeiWarranty
+              ? `${products.filter(p => p.imei_serial || p.warranty_period_months).length} Devices`
+              : `${expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length} Batches`}
           </div>
           <div className="text-[10px] text-amber-800 font-medium mt-0.5">
-            {expiryAnalysis.expiring15Days.length} critical in ≤ 15d
+            {storeProfile.featureToggles.showSizeVariants
+              ? 'Color & Size variants'
+              : storeProfile.featureToggles.showImeiWarranty
+              ? 'Warranty tracked units'
+              : `${expiryAnalysis.expiring15Days.length} critical in ≤ 15d`}
           </div>
         </Card>
 
-        {/* Card 4: Expired Items */}
+        {/* Card 4: Expired Items / Fast Moving */}
         <Card className="p-3.5 bg-gradient-to-br from-slate-900 to-slate-950 text-white border border-slate-800 rounded-xl shadow-md">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Expired Batches</div>
-          <div className="text-lg sm:text-xl font-black text-rose-400 font-mono mt-1">
-            {expiryAnalysis.expiredList.length} Items
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            {storeProfile.featureToggles.showBatchExpiry ? 'Expired Batches' : 'Active Catalog'}
           </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Ready for supplier return</div>
+          <div className="text-lg sm:text-xl font-black text-rose-400 font-mono mt-1">
+            {storeProfile.featureToggles.showBatchExpiry
+              ? `${expiryAnalysis.expiredList.length} Items`
+              : `${products.length} Products`}
+          </div>
+          <div className="text-[10px] text-slate-400 mt-0.5">
+            {storeProfile.featureToggles.showBatchExpiry ? 'Ready for supplier return' : '100% In Stock sync'}
+          </div>
         </Card>
       </div>
 
@@ -380,12 +478,7 @@ export default function InventoryPage() {
       <Card className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
         {/* TAB HEADERS */}
         <div className="flex border-b border-slate-200 bg-slate-50/70 overflow-x-auto text-xs font-bold">
-          {[
-            { id: 'expiry', label: `🚨 Near-Expiry Alert Radar (${expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length + expiryAnalysis.expiredList.length})`, icon: AlertTriangle },
-            { id: 'reorder', label: `📉 1-Click WhatsApp Purchase Orders (${lowStockProducts.length})`, icon: Send },
-            { id: 'batches', label: `📦 Batch Master & Stock Audit (${products.length})`, icon: Boxes },
-            { id: 'movements', label: '📜 Stock Movements Audit Log', icon: History },
-          ].map((tab) => {
+          {inventoryTabs.map((tab) => {
             const isSelected = activeTab === tab.id;
             return (
               <button
@@ -516,6 +609,211 @@ export default function InventoryPage() {
                           </tr>
                         );
                       })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* =================================================================== */}
+          {/* TAB: SIZE & COLOR VARIANT MATRIX (Clothing & Footwear) */}
+          {/* =================================================================== */}
+          {activeTab === 'variants' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Shirt className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Apparel Size & Color Variant Matrix</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Real-time stock balance across garment sizes (S, M, L, XL, XXL, 32, 34) and shoe sizes (UK 7, 8, 9, 10).
+                  </p>
+                </div>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200 text-[10px] uppercase">
+                    <tr>
+                      <th className="py-2.5 px-3">Item / Garment Name</th>
+                      <th className="py-2.5 px-2">Category</th>
+                      <th className="py-2.5 px-2">Size</th>
+                      <th className="py-2.5 px-2">Color</th>
+                      <th className="py-2.5 px-2 text-right">In-Stock</th>
+                      <th className="py-2.5 px-2 text-right">Selling Price</th>
+                      <th className="py-2.5 px-3">Stock Health</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {products.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-slate-400 text-xs">
+                          No apparel items found in catalog. Add products with sizes & colors in Products page.
+                        </td>
+                      </tr>
+                    ) : (
+                      products.map((p) => {
+                        const isLow = p.current_stock <= p.min_stock_level;
+                        const isOut = p.current_stock <= 0;
+                        return (
+                          <tr key={p.id} className="hover:bg-slate-50/70">
+                            <td className="py-2.5 px-3">
+                              <div className="font-bold text-slate-900">{p.name}</div>
+                              <div className="text-[10px] text-slate-400 font-mono">{p.barcode || 'No barcode'}</div>
+                            </td>
+                            <td className="py-2.5 px-2 text-slate-600 font-semibold">
+                              {p.category_name || 'General'}
+                            </td>
+                            <td className="py-2.5 px-2">
+                              {p.size ? (
+                                <span className="px-2 py-0.5 rounded-md text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-200 font-mono">
+                                  {p.size}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic">Free Size</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-2">
+                              {p.color ? (
+                                <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                                  {p.color}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">-</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-2 text-right font-mono font-bold">
+                              <span className={isOut ? 'text-rose-600 font-black' : isLow ? 'text-amber-600 font-bold' : 'text-slate-900'}>
+                                {p.current_stock} {p.unit}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900">
+                              {formatINR(p.selling_price)}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              {isOut ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                  Out of Stock
+                                </span>
+                              ) : isLow ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                  Low Stock ({p.current_stock} left)
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                  In Stock
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenBatchModal(p)}
+                                className="text-[10px] font-bold py-1 px-2 text-slate-700"
+                              >
+                                <Edit3 className="w-3 h-3 mr-1" />
+                                Edit Stock
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* =================================================================== */}
+          {/* TAB: SERIAL & IMEI WARRANTY AUDIT (Electronics & Mobile) */}
+          {/* =================================================================== */}
+          {activeTab === 'serials' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Smartphone className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Device Serials, IMEI &amp; Brand Warranty Tracker</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Track device serial numbers, IMEI barcodes, and warranty coverage periods.
+                  </p>
+                </div>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200 text-[10px] uppercase">
+                    <tr>
+                      <th className="py-2.5 px-3">Device / Accessory Name</th>
+                      <th className="py-2.5 px-2">Category</th>
+                      <th className="py-2.5 px-2">IMEI / Serial Number</th>
+                      <th className="py-2.5 px-2">Warranty Period</th>
+                      <th className="py-2.5 px-2 text-right">In-Stock</th>
+                      <th className="py-2.5 px-2 text-right">Selling Price</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {products.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-slate-400 text-xs">
+                          No electronics items found. Add products with IMEI / Warranty in Products page.
+                        </td>
+                      </tr>
+                    ) : (
+                      products.map((p) => (
+                        <tr key={p.id} className="hover:bg-slate-50/70">
+                          <td className="py-2.5 px-3">
+                            <div className="font-bold text-slate-900">{p.name}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">{p.barcode || 'No barcode'}</div>
+                          </td>
+                          <td className="py-2.5 px-2 text-slate-600 font-semibold">
+                            {p.category_name || 'Electronics'}
+                          </td>
+                          <td className="py-2.5 px-2 font-mono font-bold text-cyan-900">
+                            {p.imei_serial ? (
+                              <span className="bg-cyan-50 border border-cyan-200 px-1.5 py-0.5 rounded text-[11px]">
+                                {p.imei_serial}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">Not set</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-2 font-bold text-slate-700">
+                            {p.warranty_period_months ? (
+                              <span className="flex items-center gap-1 text-[11px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 w-fit">
+                                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                                <span>{p.warranty_period_months} Months Brand Warranty</span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900">
+                            {p.current_stock} {p.unit}
+                          </td>
+                          <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900">
+                            {formatINR(p.selling_price)}
+                          </td>
+                          <td className="py-2.5 px-3 text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenBatchModal(p)}
+                              className="text-[10px] font-bold py-1 px-2 text-slate-700"
+                            >
+                              <Edit3 className="w-3 h-3 mr-1" />
+                              Edit
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
@@ -765,40 +1063,96 @@ export default function InventoryPage() {
       </Card>
 
       {/* =================================================================== */}
-      {/* QUICK BATCH & EXPIRY EDIT MODAL */}
+      {/* QUICK BATCH / VARIANT / STOCK EDIT MODAL */}
       {/* =================================================================== */}
       {editingProduct && (
         <Modal
           isOpen={Boolean(editingProduct)}
           onClose={() => setEditingProduct(null)}
-          title={`Edit Batch & Expiry: ${editingProduct.name}`}
-          description="Update batch number, manufacturing date, and expiry date for this item."
+          title={`Edit Stock & Attributes: ${editingProduct.name}`}
+          description="Update shelf stock and niche attributes for this item."
         >
           <form onSubmit={handleSaveBatch} className="space-y-3.5 text-xs">
-            <Input
-              label="Batch Number"
-              value={editBatchNo}
-              onChange={(e) => setEditBatchNo(e.target.value)}
-              placeholder="e.g. BAT-2026-08"
-              required
-            />
+            {/* Batch & Expiry (Pharmacy / FMCG) */}
+            {(storeProfile.featureToggles.showBatchExpiry || editingProduct.batch_number || editingProduct.expiry_date) && (
+              <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/70 space-y-2.5">
+                <div className="font-bold text-amber-950 text-[11px] uppercase tracking-wider flex items-center gap-1">
+                  <span>💊</span>
+                  <span>Batch &amp; Expiry Control</span>
+                </div>
+                <Input
+                  label="Batch Number"
+                  value={editBatchNo}
+                  onChange={(e) => setEditBatchNo(e.target.value)}
+                  placeholder="e.g. BAT-2026-08"
+                />
 
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Manufacturing Date (Mfg)"
-                type="date"
-                value={editMfgDate}
-                onChange={(e) => setEditMfgDate(e.target.value)}
-              />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Manufacturing Date (Mfg)"
+                    type="date"
+                    value={editMfgDate}
+                    onChange={(e) => setEditMfgDate(e.target.value)}
+                  />
 
-              <Input
-                label="Expiry Date"
-                type="date"
-                value={editExpiryDate}
-                onChange={(e) => setEditExpiryDate(e.target.value)}
-                required
-              />
-            </div>
+                  <Input
+                    label="Expiry Date"
+                    type="date"
+                    value={editExpiryDate}
+                    onChange={(e) => setEditExpiryDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Size & Color (Clothing / Footwear) */}
+            {(storeProfile.featureToggles.showSizeVariants || editingProduct.size || editingProduct.color) && (
+              <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200/70 space-y-2.5">
+                <div className="font-bold text-purple-950 text-[11px] uppercase tracking-wider flex items-center gap-1">
+                  <span>👕</span>
+                  <span>Size &amp; Color Variants</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Size (S, M, L, XL, 32, UK 9)"
+                    value={editSize}
+                    onChange={(e) => setEditSize(e.target.value)}
+                    placeholder="e.g. L (40) or UK 9"
+                  />
+                  <Input
+                    label="Color"
+                    value={editColor}
+                    onChange={(e) => setEditColor(e.target.value)}
+                    placeholder="e.g. Navy Blue / Olive"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* IMEI & Warranty (Electronics / Hardware) */}
+            {(storeProfile.featureToggles.showImeiWarranty || editingProduct.imei_serial || editingProduct.warranty_period_months) && (
+              <div className="p-3 bg-cyan-50/60 rounded-xl border border-cyan-200/70 space-y-2.5">
+                <div className="font-bold text-cyan-950 text-[11px] uppercase tracking-wider flex items-center gap-1">
+                  <span>📱</span>
+                  <span>IMEI &amp; Warranty Tracking</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="IMEI / Device Serial"
+                    value={editImei}
+                    onChange={(e) => setEditImei(e.target.value)}
+                    placeholder="e.g. 86420104889211"
+                  />
+                  <Input
+                    label="Warranty (Months)"
+                    type="number"
+                    value={editWarrantyMonths}
+                    onChange={(e) => setEditWarrantyMonths(e.target.value)}
+                    placeholder="e.g. 12"
+                  />
+                </div>
+              </div>
+            )}
 
             <Input
               label={`Current On-Shelf Stock (${editingProduct.unit})`}
@@ -813,7 +1167,7 @@ export default function InventoryPage() {
                 Cancel
               </Button>
               <Button type="submit" size="sm" className="bg-slate-900 text-white font-bold">
-                Save Batch Details
+                Save Stock &amp; Details
               </Button>
             </div>
           </form>

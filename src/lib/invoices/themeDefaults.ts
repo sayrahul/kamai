@@ -63,6 +63,16 @@ export const INVOICE_THEME_PRESETS: ThemePreset[] = [
     previewClass: 'border-violet-600 bg-white',
   },
   {
+    id: 'pharma_care',
+    name: 'Pharma & Medical Rx Bill',
+    hindiName: 'फार्मेसी मेडिकल बिल',
+    description: 'Compliant Indian Medical Store bill format with D.L. No, Doctor Rx box, Patient details & Schedule H warning.',
+    primaryColor: '#0284c7', // Sky 600
+    accentColor: '#f0f9ff',
+    badge: 'Pharmacy / Healthcare',
+    previewClass: 'border-sky-600 bg-white',
+  },
+  {
     id: 'thermal_minimal',
     name: 'Thermal POS Slip (80mm)',
     hindiName: 'थर्मल पर्ची',
@@ -87,6 +97,9 @@ export const DEFAULT_INVOICE_THEME_CONFIG: InvoiceThemeConfig = {
   show_mrp_savings: true,
   show_terms: true,
   show_signature: true,
+  show_pharmacy_rx: true,
+  drug_license_no: '',
+  pharmacist_reg_no: '',
   custom_title: 'TAX INVOICE',
   custom_footer: 'Thank you for your business! Goods once sold can be exchanged within 7 days.',
   custom_terms: '1. All disputes subject to local jurisdiction.\n2. Interest @18% p.a. will be charged if bill is unpaid after 15 days.',

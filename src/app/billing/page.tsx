@@ -293,6 +293,7 @@ export default function BillingPage() {
   const storeProfile = getStoreProfile(business?.business_type);
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
+  const allProducts = useLiveQuery(async () => db.products.toArray()) || [];
   
   const products = useLiveQuery(async () => {
     let prods = await db.products.toArray();
@@ -1370,29 +1371,44 @@ export default function BillingPage() {
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer',
+                  'px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer transition-all flex items-center gap-1.5',
                   selectedCategory === 'all'
-                    ? 'bg-slate-900 text-white'
+                    ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 )}
               >
-                All Items ({products.length})
+                <span>All Items</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
+                  selectedCategory === 'all' ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                )}>
+                  {allProducts.length}
+                </span>
               </button>
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1 cursor-pointer',
-                    selectedCategory === cat.id
-                      ? 'bg-slate-900 text-white font-bold'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  )}
-                >
-                  <Tag className="w-3 h-3 text-slate-400" />
-                  <span>{cat.name}</span>
-                </button>
-              ))}
+              {categories.map((cat) => {
+                const count = allProducts.filter(p => p.category_id === cat.id).length;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 cursor-pointer transition-all',
+                      selectedCategory === cat.id
+                        ? 'bg-slate-900 text-white font-bold shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    )}
+                  >
+                    <Tag className="w-3 h-3 text-slate-400" />
+                    <span>{cat.name}</span>
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
+                      selectedCategory === cat.id ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                    )}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Products Grid */}

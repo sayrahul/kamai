@@ -138,44 +138,60 @@ export const PhoneAuthForm: React.FC = () => {
                 return;
             }
 
+            const targetCategory = (data.business?.business_type as any) || selectedCategory || 'grocery';
+            const targetStoreName = storeName.trim() || data.business?.name || activeProfile.name;
+            const targetOwnerName = ownerName.trim() || data.user?.name || 'Rahul Jadhav';
+
             // Sync user to client state
             const userData = {
                 uid: data.user.id,
                 id: data.user.id,
                 phone: data.user.phone,
-                name: data.user.name,
+                name: targetOwnerName,
                 business_id: data.user.business_id,
-                business_name: data.business?.name || storeName || 'My Store',
+                business_name: targetStoreName,
                 role: data.user.role || 'owner',
             };
 
             setStoredUser(userData);
 
-            // Sync business info to local Dexie if needed
+            // Sync business info to local Dexie database
             try {
                 if (!db.isOpen()) await db.open();
                 const existingBiz = await db.businesses.toCollection().first();
+                const bizId = existingBiz?.id || data.business?.id || `biz_${Date.now()}`;
+
                 if (existingBiz) {
+                    const categoryChanged = existingBiz.business_type !== targetCategory;
                     await db.businesses.update(existingBiz.id, {
-                        name: data.business?.name || storeName || existingBiz.name,
-                        owner_name: data.user.name || ownerName || existingBiz.owner_name,
+                        name: targetStoreName,
+                        owner_name: targetOwnerName,
                         phone: data.user.phone || existingBiz.phone,
-                        business_type: selectedCategory || existingBiz.business_type || 'grocery',
+                        business_type: targetCategory,
+                        terms_conditions: activeProfile.placeholders.invoiceFooterNote,
+                        footer_message: activeProfile.placeholders.invoiceFooterNote,
                         updated_at: new Date().toISOString(),
                     });
-                } else if (data.business) {
-                    const bizId = data.business.id || `biz_${Date.now()}`;
+
+                    // If user registers or switches category on test login, clear old sample products and load starter catalog for the new category
+                    if (mode === 'signup' || categoryChanged) {
+                        await db.products.clear();
+                        await db.categories.clear();
+                        await db.inventory_movements.clear();
+                        await seedBusinessStarterData(existingBiz.id, targetCategory);
+                    }
+                } else {
                     await db.businesses.put({
                         id: bizId,
-                        name: data.business.name || storeName || 'My Store',
-                        owner_name: data.user.name || ownerName || 'Store Owner',
+                        name: targetStoreName,
+                        owner_name: targetOwnerName,
                         phone: data.user.phone,
-                        business_type: (data.business.business_type as any) || selectedCategory || 'grocery',
-                        address: data.business.address || '',
+                        business_type: targetCategory,
+                        address: data.business?.address || '',
                         currency: 'INR',
                         language: 'hi',
-                        invoice_prefix: data.business.invoice_prefix || 'INV-',
-                        next_invoice_number: data.business.next_invoice_number || 1001,
+                        invoice_prefix: data.business?.invoice_prefix || 'INV-',
+                        next_invoice_number: data.business?.next_invoice_number || 1001,
                         terms_conditions: activeProfile.placeholders.invoiceFooterNote,
                         footer_message: activeProfile.placeholders.invoiceFooterNote,
                         is_onboarded: true,
@@ -185,7 +201,7 @@ export const PhoneAuthForm: React.FC = () => {
                     });
 
                     // Seed customized category starter catalog
-                    await seedBusinessStarterData(bizId, selectedCategory);
+                    await seedBusinessStarterData(bizId, targetCategory);
                 }
             } catch (dexieErr) {
                 console.warn('Local DB sync warning:', dexieErr);
