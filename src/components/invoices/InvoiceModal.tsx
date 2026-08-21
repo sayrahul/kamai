@@ -401,6 +401,37 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                       </p>
                     )}
                   </div>
+
+                  {/* Niche Order Details (Restaurant Table, Token / Pharmacy Doctor) */}
+                  {(sale.table_no || sale.order_type || sale.token_number || sale.doctor_name || sale.patient_name) && (
+                    <div className="col-span-2 pt-2 border-t border-slate-200 flex flex-wrap items-center gap-3 text-[10px] text-slate-700 font-medium">
+                      {sale.token_number && (
+                        <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-mono font-bold">
+                          Token #{sale.token_number}
+                        </span>
+                      )}
+                      {sale.order_type && (
+                        <span>
+                          Order: <b className="uppercase">{sale.order_type.replace('_', '-')}</b>
+                        </span>
+                      )}
+                      {sale.table_no && (
+                        <span>
+                          Table: <b>{sale.table_no}</b>
+                        </span>
+                      )}
+                      {sale.doctor_name && (
+                        <span>
+                          Doctor: <b>{sale.doctor_name}</b>
+                        </span>
+                      )}
+                      {sale.patient_name && (
+                        <span>
+                          Patient: <b>{sale.patient_name}</b>
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Items Table */}
@@ -429,7 +460,18 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                       {sale.items.map((item, idx) => (
                         <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
                           <td className="py-1.5 px-2 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
-                          <td className="py-1.5 px-2.5 font-bold text-slate-900 leading-snug">{item.product_name}</td>
+                          <td className="py-1.5 px-2.5 font-bold text-slate-900 leading-snug">
+                            <div>{item.product_name}</div>
+                            {/* Niche Item Metadata */}
+                            <div className="flex flex-wrap gap-1 mt-0.5 text-[9.5px] font-normal text-slate-500 font-mono">
+                              {item.batch_number && <span>B:{item.batch_number}</span>}
+                              {item.expiry_date && <span>Exp:{item.expiry_date}</span>}
+                              {item.size && <span>Size:{item.size}</span>}
+                              {item.color && <span>• {item.color}</span>}
+                              {item.imei_serial && <span>SN:{item.imei_serial}</span>}
+                              {item.warranty_period_months && <span>• {item.warranty_period_months}M War</span>}
+                            </div>
+                          </td>
                           {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_hsn_code && (
                             <td className="py-1.5 px-2 text-center text-slate-400 font-mono text-[11px]">—</td>
                           )}
@@ -575,6 +617,23 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                     <span>Cust: {sale.customer_name || 'Cash'}</span>
                     <span>{new Date(sale.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
+
+                  {/* Niche Order Details in Thermal Header */}
+                  {(sale.token_number || sale.table_no || sale.order_type) && (
+                    <div className="flex justify-between pt-0.5 font-bold">
+                      {sale.token_number && <span>Token #{sale.token_number}</span>}
+                      {sale.table_no && <span>Table: {sale.table_no}</span>}
+                      {sale.order_type && <span className="uppercase">{sale.order_type.replace('_', '-')}</span>}
+                    </div>
+                  )}
+
+                  {(sale.doctor_name || sale.patient_name) && (
+                    <div className="flex justify-between pt-0.5 text-[9.5px]">
+                      {sale.doctor_name && <span>Dr: {sale.doctor_name}</span>}
+                      {sale.patient_name && <span>Pt: {sale.patient_name}</span>}
+                    </div>
+                  )}
+
                   {sale.status === 'returned' && (
                     <div className="text-center font-bold text-rose-700 pt-1 text-[10px]">
                       *** RETURNED / CANCELLED ***
@@ -590,9 +649,20 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 {/* Items */}
                 <div className="space-y-1 text-[11px] py-1 border-b border-dashed border-slate-300">
                   {sale.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between gap-1">
-                      <span className="leading-snug flex-1">{item.product_name} <span className="text-slate-500 font-mono font-semibold">x{item.quantity}</span></span>
-                      <span className="font-bold font-mono text-right flex-shrink-0">{formatINR(item.total_amount)}</span>
+                    <div key={idx} className="space-y-0.5">
+                      <div className="flex justify-between gap-1">
+                        <span className="leading-snug flex-1">{item.product_name} <span className="text-slate-500 font-mono font-semibold">x{item.quantity}</span></span>
+                        <span className="font-bold font-mono text-right flex-shrink-0">{formatINR(item.total_amount)}</span>
+                      </div>
+                      {(item.batch_number || item.expiry_date || item.size || item.color || item.imei_serial) && (
+                        <div className="text-[9px] text-slate-500 flex flex-wrap gap-1">
+                          {item.batch_number && <span>B:{item.batch_number}</span>}
+                          {item.expiry_date && <span>Exp:{item.expiry_date}</span>}
+                          {item.size && <span>Sz:{item.size}</span>}
+                          {item.color && <span>{item.color}</span>}
+                          {item.imei_serial && <span>SN:{item.imei_serial}</span>}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

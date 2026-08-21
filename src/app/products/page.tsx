@@ -30,6 +30,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { RapidBarcodeInwardModal } from '@/components/products/RapidBarcodeInwardModal';
+import { getStoreProfile } from '@/lib/constants/storeProfiles';
 
 export default function ProductsPage() {
   const { t } = useTranslation();
@@ -57,6 +58,14 @@ export default function ProductsPage() {
   const [formMinStock, setFormMinStock] = useState('5');
   const [formBarcode, setFormBarcode] = useState('');
   const [formIsFavorite, setFormIsFavorite] = useState(false);
+
+  // Dynamic Store Profile Specific Attributes
+  const [formBatchNumber, setFormBatchNumber] = useState('');
+  const [formExpiryDate, setFormExpiryDate] = useState('');
+  const [formSize, setFormSize] = useState('');
+  const [formColor, setFormColor] = useState('');
+  const [formImeiSerial, setFormImeiSerial] = useState('');
+  const [formWarrantyMonths, setFormWarrantyMonths] = useState('');
 
   // Live queries
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -86,11 +95,13 @@ export default function ProductsPage() {
     return prods;
   }, [searchQuery, selectedCategory, showLowStockOnly]) || [];
 
+  const storeProfile = getStoreProfile(business?.business_type);
+
   const handleOpenAddModal = () => {
     setEditingProduct(null);
     setFormName('');
     setFormCategory(categories[0]?.id || '');
-    setFormUnit('packet');
+    setFormUnit((storeProfile.defaultUnit as ProductUnit) || 'packet');
     setFormPurchasePrice('');
     setFormSellingPrice('');
     setFormWholesalePrice('');
@@ -103,6 +114,12 @@ export default function ProductsPage() {
     setFormMinStock('5');
     setFormBarcode('');
     setFormIsFavorite(false);
+    setFormBatchNumber('');
+    setFormExpiryDate('');
+    setFormSize('');
+    setFormColor('');
+    setFormImeiSerial('');
+    setFormWarrantyMonths('');
     setIsModalOpen(true);
   };
 
@@ -123,6 +140,12 @@ export default function ProductsPage() {
     setFormMinStock(p.min_stock_level.toString());
     setFormBarcode(p.barcode || '');
     setFormIsFavorite(p.is_favorite);
+    setFormBatchNumber(p.batch_number || '');
+    setFormExpiryDate(p.expiry_date || '');
+    setFormSize(p.size || '');
+    setFormColor(p.color || '');
+    setFormImeiSerial(p.imei_serial || '');
+    setFormWarrantyMonths(p.warranty_period_months ? p.warranty_period_months.toString() : '');
     setIsModalOpen(true);
   };
 
@@ -160,6 +183,12 @@ export default function ProductsPage() {
       current_stock: formIsUnlimitedStock ? 999999 : stockNum,
       min_stock_level: minStockNum,
       barcode: formBarcode.trim() || undefined,
+      batch_number: formBatchNumber.trim() || undefined,
+      expiry_date: formExpiryDate.trim() || undefined,
+      size: formSize.trim() || undefined,
+      color: formColor.trim() || undefined,
+      imei_serial: formImeiSerial.trim() || undefined,
+      warranty_period_months: formWarrantyMonths.trim() ? parseInt(formWarrantyMonths) : undefined,
       is_favorite: formIsFavorite,
       is_active: true,
       created_at: editingProduct ? editingProduct.created_at : now,
@@ -381,6 +410,40 @@ export default function ProductsPage() {
                       <h3 className="text-sm font-bold text-slate-900 line-clamp-2 mt-0.5">
                         {p.name}
                       </h3>
+
+                      {/* Dynamic Store Category Attributes Badges */}
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {(p.batch_number || p.expiry_date) && (
+                          <span className={cn(
+                            "text-[10px] px-1.5 py-0.5 rounded font-mono font-medium border flex items-center gap-1",
+                            p.expiry_date && new Date(p.expiry_date).getTime() < Date.now()
+                              ? "bg-rose-50 text-rose-800 border-rose-200 font-bold"
+                              : "bg-amber-50 text-amber-900 border-amber-200"
+                          )}>
+                            {p.batch_number && <span>B:{p.batch_number}</span>}
+                            {p.expiry_date && (
+                              <span>
+                                {p.batch_number ? '•' : ''} Exp: {p.expiry_date}
+                                {new Date(p.expiry_date).getTime() < Date.now() && ' (EXPIRED)'}
+                              </span>
+                            )}
+                          </span>
+                        )}
+
+                        {(p.size || p.color) && (
+                          <span className="text-[10px] bg-indigo-50 text-indigo-900 border border-indigo-200 px-1.5 py-0.5 rounded font-medium">
+                            {p.size && <span>Size: {p.size} </span>}
+                            {p.color && <span>• {p.color}</span>}
+                          </span>
+                        )}
+
+                        {(p.imei_serial || p.warranty_period_months) && (
+                          <span className="text-[10px] bg-cyan-50 text-cyan-900 border border-cyan-200 px-1.5 py-0.5 rounded font-mono">
+                            {p.imei_serial && <span>SN:{p.imei_serial} </span>}
+                            {p.warranty_period_months && <span>• {p.warranty_period_months}M War</span>}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <button
@@ -517,6 +580,88 @@ export default function ProductsPage() {
               </select>
             </div>
           </div>
+
+          {/* Dynamic Niche Attribute 1: Batch & Expiry (Pharmacy / FMCG) */}
+          {storeProfile.featureToggles.showBatchExpiry && (
+            <div className="p-3.5 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>💊</span>
+                  <span>Batch Number &amp; Expiry Date (Pharmacy / Medical)</span>
+                </span>
+                <span className="text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded font-semibold">
+                  Required for Compliance
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="Batch Number"
+                  placeholder="e.g. BATCH-9942"
+                  value={formBatchNumber}
+                  onChange={(e) => setFormBatchNumber(e.target.value)}
+                />
+                <Input
+                  label="Expiry Date"
+                  type="date"
+                  value={formExpiryDate}
+                  onChange={(e) => setFormExpiryDate(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Dynamic Niche Attribute 2: Size & Color Variants (Clothing / Footwear) */}
+          {storeProfile.featureToggles.showSizeVariants && (
+            <div className="p-3.5 bg-indigo-50/70 rounded-xl border border-indigo-200/80 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>👕</span>
+                  <span>Size &amp; Color Variants (Apparel / Footwear)</span>
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="Size / Fit (e.g. S, M, L, XL, 32, 34, 8 UK)"
+                  placeholder="e.g. XL or 32"
+                  value={formSize}
+                  onChange={(e) => setFormSize(e.target.value)}
+                />
+                <Input
+                  label="Color / Shade"
+                  placeholder="e.g. Navy Blue / Olive"
+                  value={formColor}
+                  onChange={(e) => setFormColor(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Dynamic Niche Attribute 3: Serial / IMEI & Warranty (Electronics / Mobile) */}
+          {storeProfile.featureToggles.showImeiWarranty && (
+            <div className="p-3.5 bg-cyan-50/70 rounded-xl border border-cyan-200/80 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-cyan-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>📱</span>
+                  <span>IMEI / Serial No &amp; Warranty (Electronics / Mobile)</span>
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="IMEI / Serial Number"
+                  placeholder="e.g. 864209048123456"
+                  value={formImeiSerial}
+                  onChange={(e) => setFormImeiSerial(e.target.value)}
+                />
+                <Input
+                  label="Warranty Period (Months)"
+                  placeholder="e.g. 12"
+                  type="number"
+                  value={formWarrantyMonths}
+                  onChange={(e) => setFormWarrantyMonths(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Pricing Row */}
           <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">

@@ -52,6 +52,7 @@ import { HardwareManagerModal } from '@/components/hardware/HardwareManagerModal
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
+import { getStoreProfile } from '@/lib/constants/storeProfiles';
 import { Sale } from '@/types';
 
 export interface BillTab {
@@ -65,6 +66,10 @@ export interface BillTab {
   splitUpi: string;
   splitCard: string;
   splitCredit: string;
+  tableNo?: string;
+  orderType?: 'dine_in' | 'takeaway' | 'delivery';
+  doctorName?: string;
+  patientName?: string;
   isHeld: boolean;
   heldAt?: string;
   holdNote?: string;
@@ -95,6 +100,7 @@ function getInitialTabs(): { tabs: BillTab[]; activeTabId: string } {
     splitUpi: '',
     splitCard: '',
     splitCredit: '',
+    orderType: 'dine_in',
     isHeld: false,
   };
   return { tabs: [defaultTab], activeTabId: 'tab_1' };
@@ -119,6 +125,10 @@ export default function BillingPage() {
   const splitUpi = activeTab.splitUpi;
   const splitCard = activeTab.splitCard;
   const splitCredit = activeTab.splitCredit;
+  const tableNo = activeTab.tableNo || '';
+  const orderType = activeTab.orderType || 'dine_in';
+  const doctorName = activeTab.doctorName || '';
+  const patientName = activeTab.patientName || '';
 
   // Persist tabs in localStorage
   useEffect(() => {
@@ -166,6 +176,22 @@ export default function BillingPage() {
 
   const setSplitCredit = (val: string | ((p: string) => string)) => {
     updateActiveTab((tab) => ({ ...tab, splitCredit: typeof val === 'function' ? val(tab.splitCredit) : val }));
+  };
+
+  const setTableNo = (val: string) => {
+    updateActiveTab((tab) => ({ ...tab, tableNo: val }));
+  };
+
+  const setOrderType = (val: 'dine_in' | 'takeaway' | 'delivery') => {
+    updateActiveTab((tab) => ({ ...tab, orderType: val }));
+  };
+
+  const setDoctorName = (val: string) => {
+    updateActiveTab((tab) => ({ ...tab, doctorName: val }));
+  };
+
+  const setPatientName = (val: string) => {
+    updateActiveTab((tab) => ({ ...tab, patientName: val }));
   };
 
   // Tab Actions: Create New Tab, Hold Tab, Close Tab
@@ -264,6 +290,7 @@ export default function BillingPage() {
   const [completedSaleDetails, setCompletedSaleDetails] = useState<any>(null);
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const storeProfile = getStoreProfile(business?.business_type);
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
   
@@ -404,6 +431,12 @@ export default function BillingPage() {
             tax_rate: taxRate,
             tax_amount: taxAmt,
             total_amount: lineTotal,
+            batch_number: product.batch_number,
+            expiry_date: product.expiry_date,
+            size: product.size,
+            color: product.color,
+            imei_serial: product.imei_serial,
+            warranty_period_months: product.warranty_period_months,
           },
         ];
       }
@@ -679,6 +712,11 @@ export default function BillingPage() {
       change_returned: changeReturnedPaise,
       payment_status: balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
       status: 'completed',
+      table_no: tableNo || undefined,
+      order_type: orderType || undefined,
+      token_number: Math.floor(100 + (nextNum % 900)),
+      doctor_name: doctorName || undefined,
+      patient_name: patientName || undefined,
       created_by: 'owner',
       created_at: now,
       updated_at: now,
@@ -844,6 +882,95 @@ export default function BillingPage() {
         </button>
       </div>
 
+      {/* Restaurant Dynamic Controls: Dine-In / Parcel / Delivery & Tables */}
+      {storeProfile.featureToggles.showTableOrderType && (
+        <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🍽️</span>
+              <span>Order Type &amp; Table</span>
+            </span>
+            <span className="text-[10px] font-mono font-bold text-amber-900 bg-amber-200/70 px-2 py-0.5 rounded">
+              KOT Token #{100 + ((business?.next_invoice_number || 1) % 900)}
+            </span>
+          </div>
+
+          {/* Order Type Toggle */}
+          <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { id: 'dine_in', label: 'Dine-In', icon: '🍽️' },
+              { id: 'takeaway', label: 'Parcel / Takeaway', icon: '🥡' },
+              { id: 'delivery', label: 'Delivery', icon: '🛵' },
+            ].map((ot) => (
+              <button
+                key={ot.id}
+                type="button"
+                onClick={() => setOrderType(ot.id as any)}
+                className={cn(
+                  'py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all',
+                  orderType === ot.id
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'bg-white/80 border border-amber-200 text-slate-700 hover:bg-white'
+                )}
+              >
+                <span>{ot.icon}</span>
+                <span className="truncate">{ot.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Table Selector (if Dine-in) */}
+          {orderType === 'dine_in' && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-0.5">
+              <span className="text-[10px] font-bold text-slate-500 uppercase flex-shrink-0">Table:</span>
+              {['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'].map((tbl) => (
+                <button
+                  key={tbl}
+                  type="button"
+                  onClick={() => setTableNo(tableNo === tbl ? '' : tbl)}
+                  className={cn(
+                    'px-2.5 py-1 rounded-md text-xs font-bold whitespace-nowrap transition-all',
+                    tableNo === tbl
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                  )}
+                >
+                  {tbl}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pharmacy Dynamic Controls: Doctor & Patient details */}
+      {storeProfile.featureToggles.showBatchExpiry && (
+        <div className="p-2.5 bg-blue-50/60 border border-blue-200/80 rounded-xl space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-blue-950 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🩺</span>
+              <span>Doctor &amp; Patient (Medical)</span>
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="text"
+              placeholder="Doctor Name (e.g. Dr. Patil)"
+              value={doctorName}
+              onChange={(e) => setDoctorName(e.target.value)}
+              className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-lg p-2 focus:outline-none focus:border-slate-900"
+            />
+            <input
+              type="text"
+              placeholder="Patient Name"
+              value={patientName}
+              onChange={(e) => setPatientName(e.target.value)}
+              className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-lg p-2 focus:outline-none focus:border-slate-900"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Customer Picker & Quick Add */}
       <div>
         <div className="flex items-center justify-between mb-1">
@@ -924,6 +1051,41 @@ export default function BillingPage() {
                 <div className="font-bold text-slate-900 truncate">
                   {item.product_name}
                 </div>
+
+                {/* Dynamic Category Attributes */}
+                <div className="flex flex-wrap gap-1 my-0.5">
+                  {(item.batch_number || item.expiry_date) && (
+                    <span className={cn(
+                      "text-[9px] px-1 py-0.2 rounded font-mono border",
+                      item.expiry_date && new Date(item.expiry_date).getTime() < Date.now()
+                        ? "bg-rose-100 text-rose-900 border-rose-300 font-bold"
+                        : "bg-amber-50 text-amber-900 border-amber-200"
+                    )}>
+                      {item.batch_number && <span>B:{item.batch_number} </span>}
+                      {item.expiry_date && (
+                        <span>
+                          Exp:{item.expiry_date}
+                          {new Date(item.expiry_date).getTime() < Date.now() && ' (EXPIRED)'}
+                        </span>
+                      )}
+                    </span>
+                  )}
+
+                  {(item.size || item.color) && (
+                    <span className="text-[9px] bg-indigo-50 text-indigo-900 border border-indigo-200 px-1 py-0.2 rounded font-medium">
+                      {item.size && <span>Size: {item.size} </span>}
+                      {item.color && <span>• {item.color}</span>}
+                    </span>
+                  )}
+
+                  {(item.imei_serial || item.warranty_period_months) && (
+                    <span className="text-[9px] bg-cyan-50 text-cyan-900 border border-cyan-200 px-1 py-0.2 rounded font-mono">
+                      {item.imei_serial && <span>SN:{item.imei_serial} </span>}
+                      {item.warranty_period_months && <span>• {item.warranty_period_months}M</span>}
+                    </span>
+                  )}
+                </div>
+
                 <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1.5">
                   <span>{formatINR(item.unit_price)} × {item.quantity} {item.unit}</span>
                   {item.discount_amount ? (
