@@ -7,6 +7,7 @@ import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
+import { GlobalBroadcastBanner } from '@/components/common/GlobalBroadcastBanner';
 import { useFirebasePageTracking } from '@/lib/firebase/analytics';
 import { initFirebaseAppCheck } from '@/lib/firebase/appCheck';
 
@@ -114,6 +115,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col text-slate-900">
+      <GlobalBroadcastBanner />
       <Navbar />
       <div className="flex-1 flex w-full max-w-7xl mx-auto">
         <Sidebar />
