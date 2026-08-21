@@ -7,6 +7,7 @@ interface AnnouncementPayload {
   message: string;
   type: 'info' | 'warning' | 'success' | 'festive';
   link?: string;
+  expires_at?: string;
   updatedAt: string;
 }
 
@@ -16,6 +17,7 @@ let cachedAnnouncement: AnnouncementPayload = {
   message: 'Welcome to KamaiPlus! Enjoy zero-commission digital billing & inventory.',
   type: 'info',
   link: '',
+  expires_at: undefined,
   updatedAt: new Date().toISOString(),
 };
 
@@ -31,9 +33,18 @@ export async function GET(req: NextRequest) {
         .maybeSingle();
 
       if (data) {
+        // Check if expired
+        if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) {
+          return NextResponse.json({ success: true, announcement: { ...data, enabled: false, is_expired: true } });
+        }
         return NextResponse.json({ success: true, announcement: data });
       }
     }
+
+    if (cachedAnnouncement.expires_at && new Date(cachedAnnouncement.expires_at).getTime() < Date.now()) {
+      return NextResponse.json({ success: true, announcement: { ...cachedAnnouncement, enabled: false, is_expired: true } });
+    }
+
     return NextResponse.json({ success: true, announcement: cachedAnnouncement });
   } catch (err: any) {
     return NextResponse.json({ success: true, announcement: cachedAnnouncement });
@@ -47,13 +58,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { enabled, message, type, link } = body;
+    const { enabled, message, type, link, expires_at } = body;
 
     const payload: AnnouncementPayload = {
       enabled: Boolean(enabled),
       message: message || '',
       type: type || 'info',
       link: link || '',
+      expires_at: expires_at || undefined,
       updatedAt: new Date().toISOString(),
     };
 
@@ -66,6 +78,7 @@ export async function POST(req: NextRequest) {
         message: payload.message,
         type: payload.type,
         link: payload.link,
+        expires_at: payload.expires_at,
         created_at: payload.updatedAt,
       });
     }

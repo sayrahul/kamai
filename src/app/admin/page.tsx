@@ -143,8 +143,10 @@ export default function MasterSuperAdminPage() {
   // Remote Broadcast State
   const [broadcastEnabled, setBroadcastEnabled] = useState<boolean>(false);
   const [broadcastMessage, setBroadcastMessage] = useState<string>('✨ Special Festive Update Live! Upgrade to Kamai+ Pro for near-expiry radar & CA tax filing.');
-  const [broadcastType, setBroadcastType] = useState<'info' | 'warning' | 'success' | 'festive'>('festive');
+  const [broadcastType, setBroadcastType] = useState<'festive' | 'info' | 'warning' | 'success'>('festive');
   const [broadcastLink, setBroadcastLink] = useState<string>('/pricing');
+  const [broadcastDuration, setBroadcastDuration] = useState<'always' | '24h' | '3d' | '7d' | 'custom'>('always');
+  const [customBroadcastExpiry, setCustomBroadcastExpiry] = useState<string>('');
   const [isSavingBroadcast, setIsSavingBroadcast] = useState<boolean>(false);
 
   // Coupon Creation Form
@@ -390,6 +392,17 @@ export default function MasterSuperAdminPage() {
   const handleSaveBroadcast = async () => {
     setIsSavingBroadcast(true);
     try {
+      let expiresAt: string | null = null;
+      if (broadcastDuration === '24h') {
+        expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      } else if (broadcastDuration === '3d') {
+        expiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (broadcastDuration === '7d') {
+        expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (broadcastDuration === 'custom' && customBroadcastExpiry) {
+        expiresAt = new Date(customBroadcastExpiry).toISOString();
+      }
+
       const res = await fetch('/api/admin/broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -398,6 +411,7 @@ export default function MasterSuperAdminPage() {
           message: broadcastMessage.trim(),
           type: broadcastType,
           link: broadcastLink.trim(),
+          expires_at: expiresAt,
         }),
       });
 
@@ -1087,6 +1101,35 @@ export default function MasterSuperAdminPage() {
                   onChange={(e) => setBroadcastLink(e.target.value)}
                   className="bg-slate-950 border-slate-800 text-white text-xs"
                 />
+              </div>
+
+              {/* Expiry & Duration Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300 block flex items-center justify-between">
+                  <span>Broadcast Active Duration</span>
+                  <span className="text-[11px] text-amber-400 font-mono">Auto-expires after time</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'always', label: '♾️ Always Active' },
+                    { id: '24h', label: '⏱️ 24 Hours' },
+                    { id: '3d', label: '📅 3 Days' },
+                    { id: '7d', label: '🗓️ 7 Days' },
+                  ].map((dur) => (
+                    <button
+                      key={dur.id}
+                      type="button"
+                      onClick={() => setBroadcastDuration(dur.id as any)}
+                      className={`py-2 px-2 rounded-lg text-xs font-bold border cursor-pointer ${
+                        broadcastDuration === dur.id
+                          ? 'border-amber-400 bg-amber-400/10 text-amber-300'
+                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      {dur.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <Button
