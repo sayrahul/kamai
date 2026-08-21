@@ -9,6 +9,7 @@ import {
   RefreshCw, 
   User, 
   Building2, 
+  Store,
   MessageSquare,
   Sparkles,
   Lock,
@@ -270,10 +271,13 @@ export const PhoneAuthForm: React.FC = () => {
                                     Select Shop Category
                                 </label>
                                 <div className="relative flex items-center">
+                                    <span className="absolute left-3.5 text-slate-500">
+                                        <Store className="w-4 h-4 text-amber-400" />
+                                    </span>
                                     <select
                                         value={selectedCategory}
                                         onChange={(e) => setSelectedCategory(e.target.value as BusinessType)}
-                                        className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-transparent focus:outline-none text-white text-sm appearance-none cursor-pointer transition pr-10 font-medium"
+                                        className="w-full pl-10 pr-10 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-transparent focus:outline-none text-white text-sm appearance-none cursor-pointer transition font-medium"
                                     >
                                         {storeProfiles.map((p) => (
                                             <option key={p.id} value={p.id} className="bg-slate-900 text-white py-2">
