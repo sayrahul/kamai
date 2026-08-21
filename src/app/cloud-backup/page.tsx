@@ -22,7 +22,8 @@ import {
   Sparkles,
   Cloud,
   RefreshCw,
-  Smartphone
+  Smartphone,
+  Lock
 } from 'lucide-react';
 import { syncLocalDexieToFirestore, restoreFirestoreToLocalDexie } from '@/lib/firebase/firestoreSync';
 import { Button } from '@/components/ui/Button';
@@ -129,41 +130,45 @@ export default function CloudBackupPage() {
 
   // Export 1-Click Tally Prime XML
   const handleExportTallyXML = () => {
-    if (sales.length === 0) {
-      alert('No sales transactions recorded yet.');
-      return;
-    }
-    const { xml, filename } = generateTallyPrimeXML({
-      business,
-      sales,
-      customers,
+    requirePro(() => {
+      if (sales.length === 0) {
+        alert('No sales transactions recorded yet.');
+        return;
+      }
+      const { xml, filename } = generateTallyPrimeXML({
+        business,
+        sales,
+        customers,
+      });
+      const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
     });
-    const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   // Export CA Master Excel CSV
   const handleExportCAMasterCSV = () => {
-    if (sales.length === 0) {
-      alert('No sales transactions recorded yet.');
-      return;
-    }
-    const { csv, filename } = generateCASalesRegisterCSV({
-      business,
-      sales,
+    requirePro(() => {
+      if (sales.length === 0) {
+        alert('No sales transactions recorded yet.');
+        return;
+      }
+      const { csv, filename } = generateCASalesRegisterCSV({
+        business,
+        sales,
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
     });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   // Handle file select for restore
@@ -396,10 +401,11 @@ export default function CloudBackupPage() {
               size="sm"
               onClick={handleExportTallyXML}
               disabled={sales.length === 0}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 h-8.5"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 h-8.5 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-amber-400" />
               <span>Export Tally XML ({sales.length} Invoices)</span>
+              {!isPro && <Lock className="w-3 h-3 text-amber-400" />}
             </Button>
           </div>
 
@@ -429,10 +435,11 @@ export default function CloudBackupPage() {
                 size="sm"
                 onClick={handleExportCAMasterCSV}
                 disabled={sales.length === 0}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1.5 h-8.5"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1.5 h-8.5 cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5 text-white" />
                 <span>Export CA CSV</span>
+                {!isPro && <Lock className="w-3 h-3 text-white" />}
               </Button>
 
               <Link href="/gst-reports" className="flex-1">

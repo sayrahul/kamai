@@ -32,13 +32,15 @@ import {
   ZoomIn, 
   ZoomOut,
   RefreshCw,
-  QrCode
+  QrCode,
+  Crown,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
-import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { useProSubscription, ProFeatureBadge, ProFeatureLockedCard } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 export type LabelLayout = 
@@ -297,6 +299,56 @@ export default function BarcodeGeneratorPage() {
     const q = productSearch.toLowerCase();
     return allProducts.filter((p) => p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q))).slice(0, 5);
   }, [allProducts, productSearch]);
+
+  if (!isPro) {
+    return (
+      <div className="space-y-6 pb-12">
+        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 flex items-center gap-1.5">
+                <Barcode className="w-3.5 h-3.5 text-purple-700" />
+                <span>Barcode Studio</span>
+              </span>
+              <ProFeatureBadge />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Barcode &amp; Price Label Studio
+            </h1>
+            <p className="text-xs text-slate-500">
+              Generate custom barcode stickers and price tags for Avery A4 sheets and thermal roll printers.
+            </p>
+          </div>
+
+          <Button
+            onClick={() => setIsUpgradeModalOpen(true)}
+            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs gap-1.5 shadow-sm cursor-pointer self-start sm:self-auto"
+          >
+            <Crown className="w-4 h-4" />
+            <span>Unlock Barcode Studio</span>
+          </Button>
+        </div>
+
+        <ProFeatureLockedCard
+          title="Barcode &amp; Price Label Studio is a Pro Feature"
+          description="Design and print professional retail price stickers, Avery A4 label sheets (24/30/40 up), and thermal roll labels for your store products."
+          features={[
+            'Generate Code-128 & QR Code Barcode Stickers',
+            'Print on Standard Avery A4 Sheets (24, 30, 40 per sheet)',
+            'Thermal Roll Label Printing (50x25mm & 38x25mm)',
+            'Show Store Name, MRP, Our Price & Customer Savings badge',
+            '1-Click Direct Bluetooth & Desktop Printing'
+          ]}
+        />
+
+        <UpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          businessName={business?.name || 'Your Store'}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 pb-16">

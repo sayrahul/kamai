@@ -42,7 +42,8 @@ import {
   Bluetooth,
   Usb,
   PauseCircle,
-  PlayCircle
+  PlayCircle,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -53,6 +54,8 @@ import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
+import { useProSubscription } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { Sale } from '@/types';
 
 export interface BillTab {
@@ -107,6 +110,7 @@ function getInitialTabs(): { tabs: BillTab[]; activeTabId: string } {
 }
 
 export default function BillingPage() {
+  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { language, t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -196,6 +200,10 @@ export default function BillingPage() {
 
   // Tab Actions: Create New Tab, Hold Tab, Close Tab
   const handleCreateNewTab = () => {
+    if (!isPro && tabs.length >= 3) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
     const nextNum = (tabs.reduce((max, t) => Math.max(max, t.tabNumber), 0) || tabs.length) + 1;
     const newTabId = `tab_${Date.now()}`;
     const newTab: BillTab = {
@@ -216,6 +224,12 @@ export default function BillingPage() {
   };
 
   const handleHoldActiveTab = () => {
+    const heldCount = tabs.filter((t) => t.isHeld).length;
+    if (!isPro && heldCount >= 3) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
     updateActiveTab((tab) => ({
       ...tab,
       isHeld: true,
@@ -227,7 +241,11 @@ export default function BillingPage() {
     if (otherUnheld) {
       setActiveTabId(otherUnheld.id);
     } else {
-      handleCreateNewTab();
+      if (!isPro && tabs.length >= 3) {
+        setIsUpgradeModalOpen(true);
+      } else {
+        handleCreateNewTab();
+      }
     }
   };
 
@@ -1359,10 +1377,15 @@ export default function BillingPage() {
               <button
                 type="button"
                 onClick={() => setIsHardwareModalOpen(true)}
-                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center cursor-pointer"
+                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center cursor-pointer relative"
                 title="POS Hardware (Bluetooth Printer, Laser Scanner)"
               >
                 <Sliders className="w-4 h-4 text-white" />
+                {!isPro && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 text-slate-950 rounded-full flex items-center justify-center text-[8px] font-black shadow-xs">
+                    <Lock className="w-2 h-2" />
+                  </span>
+                )}
               </button>
             </div>
 
@@ -1737,6 +1760,13 @@ export default function BillingPage() {
           business={business || null}
         />
       )}
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
+      />
     </div>
   );
 }

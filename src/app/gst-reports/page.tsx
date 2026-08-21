@@ -29,13 +29,15 @@ import {
   Percent,
   Search,
   BookOpen,
-  Code
+  Code,
+  Crown,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
-import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { useProSubscription, ProFeatureBadge, ProFeatureLockedCard } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 export type GSTPeriodPreset = 'this_month' | 'last_month' | 'q1' | 'q2' | 'q3' | 'q4' | 'all_year';
@@ -203,6 +205,57 @@ export default function GSTReportsPage() {
   }
 
   const totalGSTCollectedPaise = gstr1Data.total_cgst + gstr1Data.total_sgst + gstr1Data.total_igst;
+
+  if (!isPro) {
+    return (
+      <div className="space-y-6 pb-12">
+        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-900 border border-indigo-300 flex items-center gap-1.5">
+                <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-700" />
+                <span>GST Tax &amp; Accounting Hub</span>
+              </span>
+              <ProFeatureBadge />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              GST Return Filing, GSTR-1, CA Master Excel &amp; Tally XML
+            </h1>
+            <p className="text-xs text-slate-500">
+              1-Click automated GST returns, HSN summary, B2B invoices, CA Sales Register, and Tally Prime XML import.
+            </p>
+          </div>
+
+          <Button
+            onClick={() => setIsUpgradeModalOpen(true)}
+            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs gap-1.5 shadow-sm cursor-pointer self-start sm:self-auto"
+          >
+            <Crown className="w-4 h-4" />
+            <span>Unlock GST &amp; Accounting</span>
+          </Button>
+        </div>
+
+        <ProFeatureLockedCard
+          title="GST Returns &amp; Accounting Hub is a Pro Feature"
+          description="Automate your entire tax compliance workflow with ready-to-upload GSTR-1 JSON, CA Sales Register, B2B/B2C breakdowns, and Tally Prime XML integration."
+          features={[
+            'Official GSTR-1 Government Portal JSON for 1-Click Upload',
+            'Table 12 HSN Wise Tax Summary with 4-digit / 8-digit HSN codes',
+            'Table 4 B2B Invoices Breakdown with Party GSTIN',
+            'Table 7 B2CS Small Retail Sales by Tax Slab (0%, 5%, 12%, 18%, 28%)',
+            'CA Master Excel Sales Register with tax columns for your Accountant',
+            '1-Click Tally Prime XML Export (Sales Voucher & Customer Ledgers)'
+          ]}
+        />
+
+        <UpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          businessName={business?.name || 'Your Store'}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 pb-16">

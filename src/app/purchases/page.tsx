@@ -18,8 +18,12 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Product } from '@/types';
+import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { Lock } from 'lucide-react';
 
 export default function PurchasesPage() {
+  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -145,7 +149,23 @@ export default function PurchasesPage() {
 
           <Input label="Quantity Received" placeholder="e.g. 50" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
           <Input label="Purchase Cost Price (₹ per unit)" placeholder="0.00" type="number" step="0.01" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
-          <Input label="Supplier / Vendor Name (Optional)" placeholder="e.g. Metro Wholesale" value={supplierName} onChange={(e) => setSupplierName(e.target.value)} />
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700">Supplier / Vendor Name</label>
+              {!isPro && <ProFeatureBadge />}
+            </div>
+            <Input
+              placeholder="e.g. Metro Wholesale"
+              value={supplierName}
+              onChange={(e) => {
+                if (!isPro && e.target.value.length > 0) {
+                  setIsUpgradeModalOpen(true);
+                } else {
+                  setSupplierName(e.target.value);
+                }
+              }}
+            />
+          </div>
 
           <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
             <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>Cancel</Button>
@@ -153,6 +173,13 @@ export default function PurchasesPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
+      />
     </div>
   );
 }

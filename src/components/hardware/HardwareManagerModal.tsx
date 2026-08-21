@@ -16,6 +16,9 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { playSupermarketBeep } from '@/lib/hardware/barcodeScannerListener';
+import { useProSubscription, ProFeatureBadge, ProFeatureLockedCard } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { Lock } from 'lucide-react';
 
 interface HardwareManagerModalProps {
   isOpen: boolean;
@@ -26,6 +29,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const [activeTab, setActiveTab] = useState<'printer' | 'scanner'>('printer');
 
   // Printer State
@@ -44,6 +48,10 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
 
   // Connect Bluetooth Printer
   const handleConnectPrinter = async () => {
+    if (!isPro) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
     setIsConnectingPrinter(true);
     try {
       const dev = await bluetoothPrinter.connect();
@@ -141,6 +149,22 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
         {/* ========================================================================= */}
         {activeTab === 'printer' && (
           <div className="space-y-4 animate-in fade-in">
+            {!isPro && (
+              <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 flex items-center justify-between gap-2 shadow-2xs">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                  <span>Direct Bluetooth ESC/POS Printing is a Pro Feature.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsUpgradeModalOpen(true)}
+                  className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black text-[10px] hover:bg-amber-500 cursor-pointer shrink-0 shadow-2xs"
+                >
+                  Unlock Pro
+                </button>
+              </div>
+            )}
+
             <div className="p-4 rounded-2xl border bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -207,6 +231,22 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
         {/* ========================================================================= */}
         {activeTab === 'scanner' && (
           <div className="space-y-4 animate-in fade-in">
+            {!isPro && (
+              <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 flex items-center justify-between gap-2 shadow-2xs">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                  <span>Hardware Barcode Gun Integration is a Pro Feature.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsUpgradeModalOpen(true)}
+                  className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black text-[10px] hover:bg-amber-500 cursor-pointer shrink-0 shadow-2xs"
+                >
+                  Unlock Pro
+                </button>
+              </div>
+            )}
+
             <div className="p-4 rounded-2xl border bg-emerald-50/60 border-emerald-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
@@ -248,8 +288,12 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
             </div>
           </div>
         )}
-
       </div>
+
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+      />
     </Modal>
   );
 };

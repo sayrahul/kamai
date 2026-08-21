@@ -30,7 +30,8 @@ import {
   X,
   Zap,
   SlidersHorizontal,
-  Plus
+  Plus,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -70,12 +71,21 @@ export default function HomePage() {
   const todaysSales = allSales.filter((s) => s.created_at.startsWith(todayDatePrefix));
   const todaysSalesTotal = todaysSales.reduce((acc, s) => acc + s.grand_total, 0);
 
+  const isFree = subscriptionTier === 'free';
+
   // Filtered recent sales for home widget — sorted newest-first
   const filteredRecentSales = [...allSales]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .filter((s) => {
       const saleDate = new Date(s.created_at);
       const now = new Date();
+
+      // Free user restriction: strictly last 7 days of sales
+      if (isFree) {
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if (saleDate < sevenDaysAgo) return false;
+      }
+
       if (recentDateFilter === 'today') {
         const todayStr = now.toISOString().split('T')[0];
         if (!s.created_at.startsWith(todayStr)) return false;
@@ -118,8 +128,6 @@ export default function HomePage() {
       })
       .catch(() => {});
   }, []);
-
-  const isFree = subscriptionTier === 'free';
 
   return (
     <div className="space-y-4">
@@ -246,7 +254,7 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* ---------------- 1-TAP DAY-END WHATSAPP SALES SUMMARY BANNER ---------------- */}
+      {/* ---------------- 1-TAP DAY-END CLOSING ACTION ---------------- */}
       <div 
         onClick={() => setIsClosingReportOpen(true)}
         className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-md shadow-emerald-600/15 cursor-pointer active:scale-[0.99] transition-all border border-emerald-500/30"
@@ -257,13 +265,13 @@ export default function HomePage() {
           </div>
           <div className="min-w-0">
             <div className="text-xs sm:text-sm font-black truncate flex items-center gap-2">
-              <span>1-Tap Day-End WhatsApp Sales Summary</span>
+              <span>Day-End Sales Summary</span>
               <span className="px-2 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase">
                 Store Closing
               </span>
             </div>
             <div className="text-[11px] text-emerald-100 font-medium truncate">
-              Instant hisab-kitab breakdown (Total Sales, Cash, UPI &amp; Udhar) to WhatsApp
+              Daily sales PDF report &amp; WhatsApp breakdown (Sales, Cash, UPI &amp; Udhar)
             </div>
           </div>
         </div>
@@ -272,7 +280,7 @@ export default function HomePage() {
           type="button"
           className="px-3.5 py-1.5 rounded-xl bg-white text-slate-950 font-black text-xs flex items-center gap-1.5 flex-shrink-0 shadow-xs hover:bg-emerald-50 transition"
         >
-          <span>Send Report</span>
+          <span>PDF / Summary</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -605,6 +613,23 @@ export default function HomePage() {
                   <span>View All on Ledger Page</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
+              </div>
+            )}
+
+            {/* Free Tier 7-Day History Limit Banner */}
+            {isFree && allSales.some((s) => new Date(s.created_at) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) && (
+              <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 flex items-center justify-between gap-2 shadow-2xs mt-2">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                  <span>Showing last 7 days of sales on Free Tier. Upgrade to Pro for lifetime sales history.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsUpgradeOpen(true)}
+                  className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black text-[10px] hover:bg-amber-500 cursor-pointer shrink-0 shadow-2xs"
+                >
+                  Unlock Pro
+                </button>
               </div>
             )}
           </div>

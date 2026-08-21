@@ -39,8 +39,12 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import Link from 'next/link';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
+import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { Lock } from 'lucide-react';
 
 export default function InventoryPage() {
+  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const storeProfile = getStoreProfile(business?.business_type);
   const products = useLiveQuery(async () => {
@@ -48,7 +52,18 @@ export default function InventoryPage() {
     return all.filter((p) => p.is_active !== false);
   }) || [];
   const suppliers = useLiveQuery(async () => db.suppliers.toArray()) || [];
-  const movements = useLiveQuery(async () => db.inventory_movements.reverse().limit(50).toArray()) || [];
+  const movements = useLiveQuery(async () => db.inventory_movements.reverse().limit(100).toArray()) || [];
+
+  const sevenDaysAgoDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d;
+  }, []);
+
+  const displayMovements = useMemo(() => {
+    if (isPro) return movements;
+    return movements.filter((m) => new Date(m.created_at) >= sevenDaysAgoDate);
+  }, [movements, isPro, sevenDaysAgoDate]);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'expiry' | 'variants' | 'serials' | 'reorder' | 'batches' | 'movements'>(
@@ -396,12 +411,21 @@ export default function InventoryPage() {
               <span>Purchases Log</span>
             </Button>
           </Link>
-          <Link href="/barcode-generator">
-            <Button size="sm" className="bg-slate-900 text-white font-bold text-xs gap-1.5">
-              <Barcode className="w-3.5 h-3.5" />
-              <span>Print Price Tags</span>
-            </Button>
-          </Link>
+          <Button
+            size="sm"
+            onClick={() => {
+              if (!isPro) {
+                setIsUpgradeModalOpen(true);
+              } else {
+                window.location.href = '/barcode-generator';
+              }
+            }}
+            className="bg-slate-900 text-white font-bold text-xs gap-1.5 cursor-pointer"
+          >
+            <Barcode className="w-3.5 h-3.5" />
+            <span>Print Price Tags</span>
+            {!isPro && <Lock className="w-3 h-3 text-amber-400" />}
+          </Button>
         </div>
       </div>
 
@@ -874,11 +898,18 @@ export default function InventoryPage() {
                           </span>
                           <Button
                             size="sm"
-                            onClick={() => handleSendWhatsAppPO(group.supplier, group.items)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-xs"
+                            onClick={() => {
+                              if (!isPro) {
+                                setIsUpgradeModalOpen(true);
+                              } else {
+                                handleSendWhatsAppPO(group.supplier, group.items);
+                              }
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-xs cursor-pointer"
                           >
                             <Send className="w-3.5 h-3.5" />
                             <span>Send Purchase Order on WhatsApp</span>
+                            {!isPro && <Lock className="w-3 h-3 text-amber-300" />}
                           </Button>
                         </div>
                       </div>
@@ -1025,11 +1056,27 @@ export default function InventoryPage() {
                 </p>
               </div>
 
+              {!isPro && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs text-amber-950 font-medium">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-amber-700 flex-shrink-0" />
+                    <span>Free Plan shows last 7 days of stock movements. Upgrade to Pro for lifetime immutable history.</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsUpgradeModalOpen(true)}
+                    className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-[11px] py-1 px-2.5 h-auto flex-shrink-0 cursor-pointer"
+                  >
+                    Unlock Lifetime
+                  </Button>
+                </div>
+              )}
+
               <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden text-xs">
-                {movements.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400">No stock movements recorded yet.</div>
+                {displayMovements.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400">No stock movements recorded in this period.</div>
                 ) : (
-                  movements.map((m) => (
+                  displayMovements.map((m) => (
                     <div key={m.id} className="p-3 flex items-center justify-between hover:bg-slate-50">
                       <div className="flex items-center gap-2.5">
                         <div
@@ -1173,6 +1220,13 @@ export default function InventoryPage() {
           </form>
         </Modal>
       )}
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
+      />
     </div>
   );
 }

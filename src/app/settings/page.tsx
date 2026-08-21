@@ -25,13 +25,16 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-
 import { compressImageFile } from '@/lib/utils/imageCompressor';
 import { uploadStoreLogoToStorage } from '@/lib/firebase/storage';
 import { BusinessType } from '@/types';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
+import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { Lock } from 'lucide-react';
 
 export default function SettingsPage() {
+  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
 
   // Form State
@@ -153,6 +156,10 @@ export default function SettingsPage() {
 
   // Add New UPI ID
   const handleAddUpiAccount = () => {
+    if (!isPro && upiList.length >= 1) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
     if (!newUpiLabel.trim() || !newUpiId.trim()) {
       alert('Please enter both a Label (e.g. Counter 2) and a valid UPI ID (e.g. name@upi).');
       return;
@@ -606,7 +613,10 @@ export default function SettingsPage() {
 
                   {/* Add New UPI Address Inputs */}
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 mt-3">
-                    <span className="text-xs font-bold text-slate-800 block">Add Another Store UPI QR</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800 block">Add Another Store UPI QR</span>
+                      {!isPro && <ProFeatureBadge />}
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
                       <div className="sm:col-span-5">
                         <Input
@@ -627,10 +637,11 @@ export default function SettingsPage() {
                           type="button"
                           onClick={handleAddUpiAccount}
                           size="md"
-                          className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1 h-[38px]"
+                          className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1 h-[38px] cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>Add</span>
+                          {!isPro && upiList.length >= 1 && <Lock className="w-3 h-3 text-amber-400" />}
                         </Button>
                       </div>
                     </div>
@@ -695,13 +706,25 @@ export default function SettingsPage() {
             </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input
-                label="Invoice Prefix"
-                placeholder="e.g. INV- or KP-"
-                value={invoicePrefix}
-                onChange={(e) => setInvoicePrefix(e.target.value)}
-                helperText="Appears before invoice numbers (e.g. INV-001)"
-              />
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Invoice Prefix</label>
+                  {!isPro && <ProFeatureBadge />}
+                </div>
+                <Input
+                  placeholder="INV-"
+                  value={isPro ? invoicePrefix : 'INV-'}
+                  onChange={(e) => {
+                    if (!isPro) {
+                      setIsUpgradeModalOpen(true);
+                    } else {
+                      setInvoicePrefix(e.target.value);
+                    }
+                  }}
+                  helperText={!isPro ? "Fixed to 'INV-' on Free plan. Upgrade to Pro for custom prefix (e.g. SHOP-, BIL-, 2026/)." : "Appears before invoice numbers (e.g. INV-001)"}
+                />
+              </div>
+
               <Input
                 label="Next Invoice Sequence Number"
                 type="number"
@@ -743,6 +766,13 @@ export default function SettingsPage() {
           </Card>
         </form>
       )}
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
+      />
     </div>
   );
 }

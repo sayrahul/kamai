@@ -37,12 +37,16 @@ import { Modal } from '@/components/ui/Modal';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { SalesReturnModal } from '@/components/sales/SalesReturnModal';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
+import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { Lock } from 'lucide-react';
 
 export type DatePreset = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 export type PaymentFilter = 'all' | 'cash' | 'upi' | 'credit';
 export type SortOption = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 
 export default function TransactionsPage() {
+  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { t } = useTranslation();
 
   // Filter States
@@ -283,13 +287,18 @@ export default function TransactionsPage() {
             variant="outline"
             size="sm"
             onClick={() => {
-              setReturnSaleId(undefined);
-              setIsReturnModalOpen(true);
+              if (!isPro) {
+                setIsUpgradeModalOpen(true);
+              } else {
+                setReturnSaleId(undefined);
+                setIsReturnModalOpen(true);
+              }
             }}
-            className="text-xs font-bold gap-1.5 border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900"
+            className="text-xs font-bold gap-1.5 border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
             <span>Sales Return</span>
+            {!isPro && <Lock className="w-3 h-3 text-amber-700" />}
           </Button>
 
           <Button
@@ -305,12 +314,19 @@ export default function TransactionsPage() {
 
           <Button
             size="sm"
-            onClick={handleExportTallyXML}
+            onClick={() => {
+              if (!isPro) {
+                setIsUpgradeModalOpen(true);
+              } else {
+                handleExportTallyXML();
+              }
+            }}
             className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs gap-1.5 shadow-2xs cursor-pointer"
             disabled={filteredSales.length === 0}
           >
             <Download className="w-3.5 h-3.5 text-slate-950" />
             <span>Tally Prime XML</span>
+            {!isPro && <Lock className="w-3 h-3 text-slate-950" />}
           </Button>
 
           {allSales.length > 0 && (
@@ -722,11 +738,15 @@ export default function TransactionsPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setReturnSaleId(sale.id);
-                          setIsReturnModalOpen(true);
+                          if (!isPro) {
+                            setIsUpgradeModalOpen(true);
+                          } else {
+                            setReturnSaleId(sale.id);
+                            setIsReturnModalOpen(true);
+                          }
                         }}
-                        title="Process Sales Return / Credit Note"
-                        className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-amber-50 hover:text-amber-700 text-slate-600"
+                        title={!isPro ? "Sales Return (Pro Feature)" : "Process Sales Return / Credit Note"}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-amber-50 hover:text-amber-700 text-slate-600 cursor-pointer"
                       >
                         <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
                       </button>
@@ -826,6 +846,13 @@ export default function TransactionsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
+      />
     </div>
   );
 }

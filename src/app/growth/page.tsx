@@ -29,7 +29,9 @@ import {
   Send, 
   ExternalLink,
   ChevronRight,
-  Filter
+  Filter,
+  Crown,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -467,6 +469,57 @@ export default function GrowthPage() {
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 2000);
   };
+
+  if (!isPro) {
+    return (
+      <div className="space-y-6 pb-12">
+        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-700" />
+                <span>WhatsApp Marketing &amp; Growth Studio</span>
+              </span>
+              <ProFeatureBadge />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Customer Re-engagement &amp; Festival Campaigns
+            </h1>
+            <p className="text-xs text-slate-500">
+              Drive 30%+ repeat store walk-ins with personalized WhatsApp greetings, birthday offers, festival discounts, and inactive customer win-back messages.
+            </p>
+          </div>
+
+          <Button
+            onClick={() => setIsUpgradeModalOpen(true)}
+            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs gap-1.5 shadow-sm cursor-pointer self-start sm:self-auto"
+          >
+            <Crown className="w-4 h-4" />
+            <span>Unlock WhatsApp &amp; Growth</span>
+          </Button>
+        </div>
+
+        <ProFeatureLockedCard
+          title="WhatsApp Marketing &amp; Growth Studio is a Pro Feature"
+          description="Send automated 1-click personalized WhatsApp greetings, birthday discounts, festival promotions (Diwali, Eid, Holi), and win-back inactive customers."
+          features={[
+            'Automated Birthday & Anniversary Greetings with discount coupons',
+            '30+ Festive Campaign Presets (Diwali, Eid, Christmas, New Year, Independence Day)',
+            'Niche Pharmacy Monthly Medicine Refill & Health Camp Reminders',
+            'Restaurant Weekend Chef Specials & Free Dessert Vouchers',
+            '1-Click Direct WhatsApp Delivery to Customers',
+            'Inactive Customer Win-Back Radar'
+          ]}
+        />
+
+        <UpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          businessName={business?.name || 'Your Store'}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12">

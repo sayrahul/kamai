@@ -412,7 +412,7 @@ export default function CustomersPage() {
             {/* Bottom Quick Action Row */}
             <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
               <div className="text-[11px] text-slate-400 font-medium">
-                <span>{c.total_visits || 0} Visits</span> • <span>{c.loyalty_points || 0} Pts</span>
+                <span>{c.total_visits || 0} Visits</span>
               </div>
 
               <div className="flex items-center gap-1">
@@ -531,26 +531,26 @@ export default function CustomersPage() {
           {/* Birthday & Anniversary Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input 
-              label="Birthday (MM-DD or YYYY-MM-DD)" 
-              placeholder="e.g. 08-16 or 1992-08-16" 
+              label="Birthday (DD-MM-YYYY)" 
+              placeholder="e.g. 16-08-1992" 
               value={dateOfBirth} 
               onChange={(e) => setDateOfBirth(e.target.value)} 
             />
             <Input 
-              label="Anniversary (MM-DD or YYYY-MM-DD)" 
-              placeholder="e.g. 12-25 or 2018-12-25" 
+              label="Anniversary (DD-MM-YYYY)" 
+              placeholder="e.g. 25-12-2018" 
               value={anniversaryDate} 
               onChange={(e) => setAnniversaryDate(e.target.value)} 
             />
           </div>
 
-          {/* Financial & Loyalty Balances Grid */}
+          {/* Financial Balances Grid */}
           <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
             <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              Balances & Loyalty Points
+              Opening &amp; Current Balances
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input 
                 label="Opening Balance (₹)" 
                 placeholder="0.00" 
@@ -566,13 +566,6 @@ export default function CustomersPage() {
                 step="0.01" 
                 value={currentBalance} 
                 onChange={(e) => setCurrentBalance(e.target.value)} 
-              />
-              <Input 
-                label="Loyalty Points" 
-                placeholder="0" 
-                type="number" 
-                value={loyaltyPoints} 
-                onChange={(e) => setLoyaltyPoints(e.target.value)} 
               />
             </div>
           </div>

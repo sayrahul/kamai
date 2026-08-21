@@ -213,19 +213,37 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
             </p>
           </div>
 
-          {/* Features Checklist */}
+          {/* Free Included vs Pro Features */}
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
+            <div className="text-[10px] font-black uppercase tracking-wider text-slate-700">
+              🎁 100% Free Forever on All Accounts:
+            </div>
+            <div className="grid grid-cols-2 gap-1 text-[11px] text-slate-600 font-semibold">
+              <div>✓ Unlimited POS Billing</div>
+              <div>✓ 100% Offline Database</div>
+              <div>✓ Customer Khata Ledger</div>
+              <div>✓ Full JSON Backup/Restore</div>
+              <div>✓ Thermal &amp; PDF Invoices</div>
+              <div>✓ Dynamic UPI QR on Bills</div>
+            </div>
+          </div>
+
+          {/* Pro Features Checklist */}
           <div className="space-y-2 text-xs py-1">
-            <div className="flex items-center gap-2 font-bold text-slate-900">
-              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span>Automatic Cloud Backup & Multi-Device Sync</span>
+            <div className="text-[10px] font-black uppercase tracking-wider text-amber-950">
+              ⚡ What You Unlock with Pro:
             </div>
             <div className="flex items-center gap-2 font-bold text-slate-900">
               <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span>Batch Numbers & Expiry Date Radar (15/30 Days Alert)</span>
+              <span>Automatic Cloud Backup &amp; Multi-Device Sync</span>
             </div>
             <div className="flex items-center gap-2 font-bold text-slate-900">
               <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span>Government GSTR-1 & HSN Tax Filing Reports</span>
+              <span>Batch Numbers &amp; Expiry Date Radar (15/30 Days Alert)</span>
+            </div>
+            <div className="flex items-center gap-2 font-bold text-slate-900">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>Government GSTR-1 &amp; HSN Tax Filing Reports</span>
             </div>
             <div className="flex items-center gap-2 font-bold text-slate-900">
               <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
@@ -233,7 +251,7 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
             </div>
             <div className="flex items-center gap-2 font-bold text-slate-900">
               <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span>24/7 Dedicated Phone & WhatsApp Support</span>
+              <span>WhatsApp Festival Greetings &amp; Customer Win-Back</span>
             </div>
           </div>
 

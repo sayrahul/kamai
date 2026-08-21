@@ -37,8 +37,11 @@ import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingReportModal';
+import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 export default function CashRegisterPage() {
+  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   
   // Current active open shift query
@@ -295,11 +298,18 @@ export default function CashRegisterPage() {
           {/* 1-Tap WhatsApp Summary Action Button */}
           <Button
             size="sm"
-            onClick={() => setIsClosingReportModalOpen(true)}
+            onClick={() => {
+              if (!isPro) {
+                setIsUpgradeModalOpen(true);
+              } else {
+                setIsClosingReportModalOpen(true);
+              }
+            }}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-sm cursor-pointer"
           >
             <MessageCircle className="w-3.5 h-3.5 text-white" />
             <span>WhatsApp Day Summary</span>
+            {!isPro && <Lock className="w-3 h-3 text-amber-300" />}
           </Button>
 
           {activeShift ? (
@@ -464,7 +474,10 @@ export default function CashRegisterPage() {
           {/* QUICK Z-REPORT DISPATCH BAR */}
           <Card className="p-4 bg-white border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
             <div>
-              <span className="text-xs font-bold text-slate-900 block">Instant Day-End Z-Report Actions</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-900 block">Instant Day-End Z-Report Actions</span>
+                {!isPro && <ProFeatureBadge />}
+              </div>
               <span className="text-[11px] text-slate-500">Print 58mm POS thermal slip or WhatsApp summary to store owner</span>
             </div>
 
@@ -472,20 +485,34 @@ export default function CashRegisterPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handlePrintZReportBluetooth}
-                className="text-xs font-bold gap-1 bg-sky-50 text-sky-900 border-sky-300 hover:bg-sky-100"
+                onClick={() => {
+                  if (!isPro) {
+                    setIsUpgradeModalOpen(true);
+                  } else {
+                    handlePrintZReportBluetooth();
+                  }
+                }}
+                className="text-xs font-bold gap-1 bg-sky-50 text-sky-900 border-sky-300 hover:bg-sky-100 cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5 text-sky-700" />
                 <span>BT Print Slip</span>
+                {!isPro && <Lock className="w-3 h-3 text-amber-700" />}
               </Button>
 
               <Button
                 size="sm"
-                onClick={handleSendZReportWhatsApp}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 shadow-sm"
+                onClick={() => {
+                  if (!isPro) {
+                    setIsUpgradeModalOpen(true);
+                  } else {
+                    handleSendZReportWhatsApp();
+                  }
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 shadow-sm cursor-pointer"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
                 <span>WhatsApp Owner</span>
+                {!isPro && <Lock className="w-3 h-3 text-amber-300" />}
               </Button>
             </div>
           </Card>
@@ -722,6 +749,13 @@ export default function CashRegisterPage() {
         business={business}
         sales={todaySales}
         expenses={todayExpenses}
+      />
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
       />
     </div>
   );

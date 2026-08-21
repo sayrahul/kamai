@@ -30,8 +30,12 @@ import { Modal } from '@/components/ui/Modal';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { RapidBarcodeInwardModal } from '@/components/products/RapidBarcodeInwardModal';
 import { getStoreProfile, MASTER_UNITS } from '@/lib/constants/storeProfiles';
+import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { Lock } from 'lucide-react';
 
 export default function ProductsPage() {
+  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -303,12 +307,19 @@ export default function ProductsPage() {
         <div className="flex items-center gap-2">
           <Button
             type="button"
-            onClick={() => setIsRapidInwardOpen(true)}
+            onClick={() => {
+              if (!isPro) {
+                setIsUpgradeModalOpen(true);
+              } else {
+                setIsRapidInwardOpen(true);
+              }
+            }}
             size="md"
             className="gap-1.5 text-xs font-black bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400 shadow-xs cursor-pointer"
           >
             <Zap className="w-4 h-4 text-slate-950" />
             <span>Rapid Barcode Inward ⚡</span>
+            {!isPro && <Lock className="w-3 h-3 text-slate-950" />}
           </Button>
 
           <Button onClick={handleOpenAddModal} size="md" className="gap-2 text-xs font-bold">
@@ -958,6 +969,13 @@ export default function ProductsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Razorpay Pro Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        businessName={business?.name || 'Your Store'}
+      />
     </div>
   );
 }
