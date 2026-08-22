@@ -13,6 +13,7 @@ import {
   SalesReturn,
   MarketingTemplate,
   AuditLog,
+  PurchaseBill,
   BusinessType,
 } from '@/types';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
@@ -32,6 +33,7 @@ export class VyaparSetuDatabase extends Dexie {
   sales_returns!: Table<SalesReturn, string>;
   marketing_templates!: Table<MarketingTemplate, string>;
   audit_logs!: Table<AuditLog, string>;
+  purchase_bills!: Table<PurchaseBill, string>;
 
   constructor() {
     super('VyaparSetuDB');
@@ -50,6 +52,25 @@ export class VyaparSetuDatabase extends Dexie {
       sales_returns: 'id, business_id, return_number, original_sale_id, original_invoice_number, customer_id, created_at',
       marketing_templates: 'id, category, language, is_custom',
       audit_logs: 'id, business_id, action, entity_type, entity_id, created_at',
+    });
+
+    this.version(3).stores({
+      businesses: 'id, name, business_type, phone, created_at',
+      categories: 'id, business_id, name, created_at',
+      products: 'id, business_id, name, barcode, category_id, is_active, is_favorite, current_stock, min_stock_level',
+      customers: 'id, business_id, name, phone, current_balance, customer_type, last_visit_date',
+      suppliers: 'id, business_id, name, phone, current_balance',
+      sales: 'id, business_id, invoice_number, customer_id, payment_method, status, created_at',
+      inventory_movements: 'id, business_id, product_id, movement_type, reference_id, created_at',
+      ledger_transactions: 'id, business_id, party_type, party_id, transaction_type, created_at',
+      cash_registers: 'id, business_id, status, opened_at, closed_at',
+      cash_expenses: 'id, business_id, category, payment_mode, created_at',
+      sales_returns: 'id, business_id, return_number, original_sale_id, original_invoice_number, customer_id, created_at',
+      marketing_templates: 'id, category, language, is_custom',
+      audit_logs: 'id, business_id, action, entity_type, entity_id, created_at',
+      purchase_bills: 'id, business_id, supplier_id, status, created_at',
+    }).upgrade(() => {
+      // Clean upgrade, no manual data transformation required
     });
   }
 }

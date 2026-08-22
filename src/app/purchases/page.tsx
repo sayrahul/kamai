@@ -11,16 +11,22 @@ import {
   Package, 
   ArrowRight,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  FileText,
+  Clock,
+  Sparkles,
+  Layers,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
-import { Product } from '@/types';
+import { Product, PurchaseBill } from '@/types';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { Lock } from 'lucide-react';
+import { getStoreProfile } from '@/lib/constants/storeProfiles';
+import { ScanBillButton } from '@/components/purchases/ScanBillButton';
 
 export default function PurchasesPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
@@ -29,9 +35,24 @@ export default function PurchasesPage() {
   const [quantity, setQuantity] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [supplierName, setSupplierName] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const products = useLiveQuery(async () => db.products.toArray()) || [];
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const purchaseBills = useLiveQuery(async () => 
+    db.purchase_bills.orderBy('created_at').reverse().limit(10).toArray()
+  ) || [];
+  const recentMovements = useLiveQuery(async () => 
+    db.inventory_movements.where('movement_type').equals('PURCHASE').reverse().limit(10).toArray()
+  ) || [];
+
+  const storeProfile = getStoreProfile(business?.business_type);
+  const canScanBill = storeProfile.featureToggles.hasBillScan;
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 5000);
+  };
 
   const handleRecordPurchase = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,44 +95,80 @@ export default function PurchasesPage() {
     setQuantity('');
     setCostPrice('');
     setSupplierName('');
+    showToast(`Stock updated for ${prod.name} (+${qtyNum} ${prod.unit})`);
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200">
+      {/* Toast Feedback */}
+      {toastMessage && (
+        <div className="p-3.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg animate-in slide-in-from-top-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-slate-800" />
-            <span>Purchase & Restock Orders</span>
+          <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <ShoppingBag className="w-5 h-5 text-amber-500" />
+            <span>Purchase &amp; Restock Orders</span>
           </h1>
-          <p className="text-xs text-slate-500">Record inbound inventory purchases to increase stock and update cost.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Record inbound inventory, capture wholesale invoices, and update cost prices.
+          </p>
         </div>
 
-        <Button onClick={() => setIsModalOpen(true)} size="md" className="text-xs font-bold">
-          <Plus className="w-4 h-4 mr-1.5" />
-          <span>Record New Purchase</span>
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* AI Bill Scanner (conditionally visible per vertical) */}
+          {canScanBill && (
+            <ScanBillButton
+              businessType={business?.business_type}
+              businessId={business?.id}
+              existingProducts={products}
+              onScanSuccess={(_billId, updated, created) => {
+                showToast(`🎉 Bill inward complete! ${updated} items restocked, ${created} new products created.`);
+              }}
+            />
+          )}
+
+          <Button onClick={() => setIsModalOpen(true)} size="md" className="text-xs font-bold gap-1.5">
+            <Plus className="w-4 h-4" />
+            <span>Manual Inward</span>
+          </Button>
+        </div>
       </div>
 
+      {/* Grid: Low Stock Alert & Scanned Bill History */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="p-4 bg-white border border-slate-200">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3 flex items-center gap-2">
-            <Truck className="w-4 h-4 text-slate-700" />
-            <span>Items Needing Restock</span>
+        {/* Card 1: Items Needing Restock */}
+        <Card className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+          <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Truck className="w-4 h-4 text-amber-500" />
+              <span>Items Needing Restock</span>
+            </div>
+            <span className="text-[11px] font-mono text-slate-500">
+              {products.filter(p => p.current_stock <= p.min_stock_level).length} items low
+            </span>
           </h3>
-          <div className="space-y-2">
+
+          <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
             {products.filter(p => p.current_stock <= p.min_stock_level).length === 0 ? (
-              <div className="p-4 text-center text-xs text-slate-500">
-                All inventory levels are healthy!
+              <div className="p-8 text-center text-xs text-slate-500 font-mono">
+                All inventory stock levels are healthy! 👍
               </div>
             ) : (
               products.filter(p => p.current_stock <= p.min_stock_level).map(p => (
-                <div key={p.id} className="p-3 rounded-lg border border-amber-300 bg-amber-50 flex items-center justify-between text-xs">
-                  <div>
-                    <div className="font-bold text-slate-900">{p.name}</div>
-                    <div className="text-amber-900 font-semibold text-[11px]">Current: {p.current_stock} {p.unit} (Min: {p.min_stock_level})</div>
+                <div key={p.id} className="p-3 rounded-xl border border-amber-300 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/20 flex items-center justify-between text-xs gap-2">
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-900 dark:text-white truncate">{p.name}</div>
+                    <div className="text-amber-900 dark:text-amber-400 font-bold text-[11px]">
+                      Stock: {p.current_stock} {p.unit} (Min Alert: {p.min_stock_level})
+                    </div>
                   </div>
-                  <Button size="sm" className="bg-slate-900 text-white text-xs font-bold" onClick={() => {
+                  <Button size="sm" className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 text-xs font-bold shrink-0" onClick={() => {
                     setSelectedProductId(p.id);
                     setCostPrice((p.purchase_price / 100).toString());
                     setIsModalOpen(true);
@@ -123,21 +180,78 @@ export default function PurchasesPage() {
             )}
           </div>
         </Card>
+
+        {/* Card 2: AI Purchase Bills & Inward Log */}
+        <Card className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+          <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-emerald-500" />
+              <span>Recent Inward Orders &amp; Bills</span>
+            </div>
+            <span className="text-[11px] font-mono text-slate-500">
+              {purchaseBills.length} bills recorded
+            </span>
+          </h3>
+
+          <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+            {purchaseBills.length === 0 && recentMovements.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-500 font-mono">
+                No purchase bills recorded yet. Use &ldquo;Scan Bill&rdquo; or &ldquo;Manual Inward&rdquo; to add wholesale bills.
+              </div>
+            ) : purchaseBills.length > 0 ? (
+              purchaseBills.map((bill) => (
+                <div key={bill.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between text-xs gap-2 hover:border-slate-300 transition-colors">
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-900 dark:text-white truncate">
+                      {bill.supplier_name_raw || 'Wholesale Supplier'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-mono">
+                      {bill.bill_number ? `Bill #${bill.bill_number} • ` : ''}
+                      {bill.line_items?.length || 0} items • {new Date(bill.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <div className="font-black font-mono text-emerald-600 dark:text-emerald-400">
+                      {formatINR(bill.total_amount || 0)}
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      Confirmed
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              recentMovements.map((mov) => (
+                <div key={mov.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between text-xs gap-2">
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-900 dark:text-white truncate">{mov.product_name}</div>
+                    <div className="text-[11px] text-slate-500 font-mono">{mov.reason || 'Restock Inward'}</div>
+                  </div>
+                  <div className="text-right shrink-0 font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                    +{mov.quantity}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
       </div>
 
+      {/* Modal: Manual Inbound Purchase */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Record Inbound Purchase"
+        title="Record Inbound Purchase (Manual)"
         description="Select product and enter received quantity to update stock."
       >
         <form onSubmit={handleRecordPurchase} className="space-y-3">
           <div>
-            <label className="text-xs font-bold text-slate-900 block mb-1">Select Product</label>
+            <label className="text-xs font-bold text-slate-900 dark:text-slate-200 block mb-1">Select Product</label>
             <select
               value={selectedProductId}
               onChange={(e) => setSelectedProductId(e.target.value)}
-              className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2.5 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
+              className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl p-2.5 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
               required
             >
               <option value="">-- Choose item to restock --</option>
@@ -151,7 +265,7 @@ export default function PurchasesPage() {
           <Input label="Purchase Cost Price (₹ per unit)" placeholder="0.00" type="number" step="0.01" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700">Supplier / Vendor Name</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Supplier / Vendor Name</label>
               {!isPro && <ProFeatureBadge />}
             </div>
             <Input
@@ -167,7 +281,7 @@ export default function PurchasesPage() {
             />
           </div>
 
-          <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
+          <div className="pt-3 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800">
             <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>Cancel</Button>
             <Button type="submit" size="sm">Save Stock Inward</Button>
           </div>
@@ -178,7 +292,6 @@ export default function PurchasesPage() {
       <UpgradeModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
-        businessName={business?.name || 'Your Store'}
       />
     </div>
   );

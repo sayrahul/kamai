@@ -70,6 +70,7 @@ export interface StoreProfile {
     showImeiWarranty: boolean; // True for electronics: IMEI/Serial & Warranty months
     showDoctorPrescription: boolean; // True for pharmacy
     showKOTToken: boolean; // True for restaurant
+    hasBillScan: boolean; // True for retail/wholesale, False for restaurant/cafe
   };
 
   // Dynamic Input Placeholders
@@ -107,6 +108,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showImeiWarranty: false,
       showDoctorPrescription: false,
       showKOTToken: false,
+      hasBillScan: true,
     },
     placeholders: {
       searchProduct: 'Scan barcode or type Atta, Rice, Oil, Maggi...',
@@ -146,6 +148,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showImeiWarranty: false,
       showDoctorPrescription: true,
       showKOTToken: false,
+      hasBillScan: true,
     },
     placeholders: {
       searchProduct: 'Type medicine name (Paracetamol, Cetirizine, Syrup)...',
@@ -185,6 +188,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showImeiWarranty: false,
       showDoctorPrescription: false,
       showKOTToken: true,
+      hasBillScan: false, // Raw mandi items, not discrete resale SKUs
     },
     placeholders: {
       searchProduct: 'Touch category or type Chai, Paneer, Dosa, Pizza...',
@@ -224,6 +228,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showImeiWarranty: false,
       showDoctorPrescription: false,
       showKOTToken: false,
+      hasBillScan: true,
     },
     placeholders: {
       searchProduct: 'Search Shirt, Jeans, Kurti, Shoes or scan tag...',
@@ -262,6 +267,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showImeiWarranty: true,
       showDoctorPrescription: false,
       showKOTToken: false,
+      hasBillScan: true,
     },
     placeholders: {
       searchProduct: 'Scan IMEI barcode or type Neckband, Charger, Cable...',
@@ -300,6 +306,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showImeiWarranty: true,
       showDoctorPrescription: false,
       showKOTToken: false,
+      hasBillScan: true,
     },
     placeholders: {
       searchProduct: 'Search Paint, PVC Pipe, Screw, Drill, Tap...',
@@ -338,6 +345,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showImeiWarranty: true,
       showDoctorPrescription: false,
       showKOTToken: false,
+      hasBillScan: true,
     },
     placeholders: {
       searchProduct: 'Search 9W Bulb, 1.5mm Wire, Switch, MCB...',
@@ -376,6 +384,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showImeiWarranty: false,
       showDoctorPrescription: false,
       showKOTToken: false,
+      hasBillScan: true,
     },
     placeholders: {
       searchProduct: 'Scan barcode or search Dairy Milk, Shampoo, Juice...',

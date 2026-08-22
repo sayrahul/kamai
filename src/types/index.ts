@@ -403,3 +403,34 @@ export interface AuditLog {
   details: string;
   created_at: string;
 }
+
+export interface PurchaseBillLineItem {
+  raw_name: string;                 // exact text extracted from bill
+  matched_product_id?: string;      // filled after fuzzy-match against existing products
+  is_new_product: boolean;
+  quantity: number;
+  unit?: string;                    // kg, pcs, box, strip, etc
+  unit_price: number;               // in paise
+  total_price: number;              // in paise
+  selling_price?: number;           // in paise (recommended or user entered)
+  confidence: 'high' | 'medium' | 'low';
+}
+
+export interface PurchaseBill {
+  id: string;
+  business_id: string;
+  supplier_id?: string;
+  supplier_name_raw?: string;      // as read from bill, before matching
+  bill_number?: string;
+  bill_date?: string;               // YYYY-MM-DD
+  image_url?: string;
+  raw_ai_response: string;          // JSON string for audit/debug
+  line_items: PurchaseBillLineItem[];
+  total_amount: number;             // in paise
+  status: 'pending_review' | 'confirmed' | 'discarded';
+  ai_model_used: string;
+  created_at: string;
+  confirmed_at?: string;
+  sync_status: 'synced' | 'pending';
+}
+
