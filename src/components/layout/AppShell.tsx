@@ -10,6 +10,7 @@ import { BottomNav } from './BottomNav';
 import { GlobalBroadcastBanner } from '@/components/common/GlobalBroadcastBanner';
 import { useFirebasePageTracking } from '@/lib/firebase/analytics';
 import { initFirebaseAppCheck } from '@/lib/firebase/appCheck';
+import { initBackgroundCloudSync } from '@/lib/firebase/backgroundSync';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -20,15 +21,44 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   // Auto Page View Analytics for Platform Owner
   useFirebasePageTracking();
 
-  // --- AUTH & SESSION VERIFICATION LOGIC ---
+  // --- PERSISTENT STORAGE & OFFLINE RESILIENCY ---
+  useEffect(() => {
+    const requestPersistentStorage = async () => {
+      try {
+        if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+          const isPersisted = await navigator.storage.persist();
+          if (isPersisted) {
+            console.log('✅ IndexedDB persistent storage granted (OS will not evict local DB).');
+          } else {
+            console.log('ℹ️ Persistent storage not granted; standard IndexedDB storage active.');
+          }
+
+          if (navigator.storage.estimate) {
+            const { usage, quota } = await navigator.storage.estimate();
+            console.log(`💾 Storage quota: ${(usage! / (1024 * 1024)).toFixed(1)}MB used of ${(quota! / (1024 * 1024)).toFixed(1)}MB`);
+          }
+        }
+      } catch (err) {
+        console.warn('Storage persist check notice:', err);
+      }
+    };
+
+    requestPersistentStorage();
+  }, []);
+
+  // --- AUTH, SESSION & BACKGROUND CLOUD SYNC LOGIC ---
   useEffect(() => {
     setIsClient(true);
     initFirebaseAppCheck();
     const cachedUser = getStoredUser();
     setCurrentUser(cachedUser);
 
+    // Initialize auto background sync & real-time multi-device cloud stream
+    const cleanupSync = initBackgroundCloudSync(cachedUser?.business_id);
+
     const handleAuthChange = () => {
-      setCurrentUser(getStoredUser());
+      const user = getStoredUser();
+      setCurrentUser(user);
     };
 
     window.addEventListener('auth_changed', handleAuthChange);
@@ -84,6 +114,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     initDb();
 
     return () => {
+      cleanupSync();
       window.removeEventListener('auth_changed', handleAuthChange);
       window.removeEventListener('storage', handleAuthChange);
     };

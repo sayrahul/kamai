@@ -30,7 +30,8 @@ import {
   Smartphone,
   Pill,
   Wrench,
-  ShieldCheck
+  ShieldCheck,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -41,10 +42,14 @@ import Link from 'next/link';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { ExcelInventoryImporter } from '@/components/inventory/ExcelInventoryImporter';
+import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
+import { ExpiryRadar } from '@/components/inventory/ExpiryRadar';
 import { Lock } from 'lucide-react';
 
 export default function InventoryPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
+  const [isExcelImporterOpen, setIsExcelImporterOpen] = useState(false);
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const storeProfile = getStoreProfile(business?.business_type);
   const products = useLiveQuery(async () => {
@@ -403,8 +408,20 @@ export default function InventoryPage() {
           </p>
         </div>
 
-        {/* Quick Summary Pill */}
-        <div className="flex items-center gap-2">
+        {/* Quick Summary Pill & Actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          <CashierPrivacyToggleButton />
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsExcelImporterOpen(true)}
+            className="text-xs font-bold gap-1.5 bg-white border-slate-300 hover:bg-slate-50 cursor-pointer"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Import Excel/CSV</span>
+          </Button>
+
           <Link href="/purchases">
             <Button size="sm" variant="outline" className="text-xs font-bold gap-1.5 bg-slate-50 border-slate-300">
               <ShoppingBag className="w-3.5 h-3.5" />
@@ -442,7 +459,7 @@ export default function InventoryPage() {
         <Card className="p-3.5 bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-xl shadow-xs">
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Stock Valuation</div>
           <div className="text-lg sm:text-xl font-black text-slate-900 font-mono mt-1">
-            {formatINR(totalStockValuation)}
+            <ProfitMask value={formatINR(totalStockValuation)} />
           </div>
           <div className="text-[10px] text-slate-400 mt-0.5">{products.length} Products in catalog</div>
         </Card>
@@ -527,116 +544,7 @@ export default function InventoryPage() {
           {/* =================================================================== */}
           {activeTab === 'expiry' && (
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Near-Expiry Batches & Clearance Alert
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Track shelf-life for FMCG, dairy, packed foods and medicine batches before they turn into loss.
-                  </p>
-                </div>
-
-                {/* Filter Pills */}
-                <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                  {[
-                    { id: 'all', label: 'All Batches' },
-                    { id: '15days', label: `Expiring ≤ 15d (${expiryAnalysis.expiring15Days.length})` },
-                    { id: '30days', label: `Expiring ≤ 30d (${expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length})` },
-                    { id: 'expired', label: `Expired (${expiryAnalysis.expiredList.length})` },
-                  ].map((f) => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => setExpiryFilter(f.id as any)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                        expiryFilter === f.id
-                          ? 'bg-slate-900 text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Table */}
-              <div className="border border-slate-200 rounded-xl overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200 text-[10px] uppercase">
-                    <tr>
-                      <th className="py-2.5 px-3">Product Name</th>
-                      <th className="py-2.5 px-2">Batch No</th>
-                      <th className="py-2.5 px-2 text-right">In-Stock Qty</th>
-                      <th className="py-2.5 px-2 text-right">Stock Value (₹)</th>
-                      <th className="py-2.5 px-2">Mfg Date</th>
-                      <th className="py-2.5 px-2">Expiry Date</th>
-                      <th className="py-2.5 px-3">Status / Days Left</th>
-                      <th className="py-2.5 px-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {displayExpiryList.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="py-8 text-center text-slate-400 text-xs">
-                          No product batches matching this expiry filter. Click &quot;Batch Master&quot; to assign batch numbers & expiry dates.
-                        </td>
-                      </tr>
-                    ) : (
-                      displayExpiryList.map((p) => {
-                        const stockVal = p.current_stock * p.purchase_price;
-                        return (
-                          <tr key={p.id} className="hover:bg-slate-50/70">
-                            <td className="py-2.5 px-3">
-                              <div className="font-bold text-slate-900">{p.name}</div>
-                              <div className="text-[10px] text-slate-400 font-mono">{p.barcode || 'No barcode'}</div>
-                            </td>
-                            <td className="py-2.5 px-2 font-mono font-bold text-slate-700">
-                              {p.batch_number || 'DEFAULT'}
-                            </td>
-                            <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900">
-                              {p.current_stock} {p.unit}
-                            </td>
-                            <td className="py-2.5 px-2 text-right font-mono text-slate-600">
-                              {formatINR(stockVal)}
-                            </td>
-                            <td className="py-2.5 px-2 text-slate-500 font-mono text-[11px]">
-                              {p.mfg_date || 'N/A'}
-                            </td>
-                            <td className="py-2.5 px-2 font-mono font-bold text-slate-900 text-[11px]">
-                              {p.expiry_date || 'N/A'}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              {getExpiryBadge(p.expiry_date)}
-                            </td>
-                            <td className="py-2.5 px-3 text-right space-x-1.5">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleSendReturnRequest(p)}
-                                className="text-[10px] font-bold py-1 px-2 text-rose-700 border-rose-300 hover:bg-rose-50"
-                                title="Send return request to distributor on WhatsApp"
-                              >
-                                Return WA
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenBatchModal(p)}
-                                className="text-[10px] font-bold py-1 px-2 text-slate-700"
-                              >
-                                <Edit3 className="w-3 h-3 mr-1" />
-                                Edit
-                              </Button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <ExpiryRadar />
             </div>
           )}
 
@@ -1220,6 +1128,13 @@ export default function InventoryPage() {
           </form>
         </Modal>
       )}
+
+      {/* Excel / CSV Inventory Importer Modal */}
+      <ExcelInventoryImporter
+        isOpen={isExcelImporterOpen}
+        onClose={() => setIsExcelImporterOpen(false)}
+        businessId={business?.id || 'biz_default'}
+      />
 
       {/* Razorpay Pro Upgrade Modal */}
       <UpgradeModal

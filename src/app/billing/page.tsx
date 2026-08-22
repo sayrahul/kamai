@@ -51,6 +51,7 @@ import { Modal } from '@/components/ui/Modal';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { HardwareManagerModal } from '@/components/hardware/HardwareManagerModal';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
+import { findProductOrOfflineMaster, autoCreateProductFromMaster } from '@/lib/barcode/offlineBarcodeLookup';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
@@ -577,19 +578,29 @@ export default function BillingPage() {
     setNewCustAddress('');
   };
 
-  // Barcode scanned handler
+  // Barcode scanned handler (Supports Local Inventory & Bundled Offline FMCG Catalog)
   const handleBarcodeScanned = async (barcode: string) => {
     const clean = barcode.trim();
     if (!clean) return;
 
-    let localMatch = await db.products.where('barcode').equals(clean).first();
-    if (!localMatch) {
-      localMatch = await db.products.get(clean);
-    }
+    const businessId = business?.id || 'biz_default';
 
-    if (localMatch) {
-      addToCart(localMatch, 1);
-      return;
+    try {
+      const match = await findProductOrOfflineMaster(clean, businessId);
+
+      if (match) {
+        if (match.product) {
+          addToCart(match.product, 1);
+          return;
+        } else if (match.masterItem) {
+          // Auto-create product into store inventory and add to cart
+          const newProd = await autoCreateProductFromMaster(match.masterItem, businessId);
+          addToCart(newProd, 1);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Offline barcode lookup notice:', err);
     }
 
     setScannedUnknownBarcode(clean);

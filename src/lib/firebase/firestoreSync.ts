@@ -201,3 +201,99 @@ export function subscribeToLiveSales(
     onSalesUpdate(list);
   });
 }
+
+/**
+ * Subscribes to all real-time collections to pull changes from other counters / devices into local Dexie
+ */
+export function subscribeToMultiDeviceSync(businessId: string): Unsubscribe[] {
+  const firestore = getFirestoreDb();
+  if (!firestore || !businessId) return [];
+
+  const unsubs: Unsubscribe[] = [];
+
+  try {
+    // 1. Products live stream
+    const prodUnsub = onSnapshot(
+      collection(firestore, `businesses/${businessId}/products`),
+      async (snapshot) => {
+        if (!snapshot.empty) {
+          const items: Product[] = [];
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added' || change.type === 'modified') {
+              items.push(change.doc.data() as Product);
+            }
+          });
+          if (items.length > 0) {
+            await db.products.bulkPut(items);
+          }
+        }
+      },
+      (err) => console.warn('Realtime products sync notice:', err.message)
+    );
+    unsubs.push(prodUnsub);
+
+    // 2. Customers live stream
+    const custUnsub = onSnapshot(
+      collection(firestore, `businesses/${businessId}/customers`),
+      async (snapshot) => {
+        if (!snapshot.empty) {
+          const items: Customer[] = [];
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added' || change.type === 'modified') {
+              items.push(change.doc.data() as Customer);
+            }
+          });
+          if (items.length > 0) {
+            await db.customers.bulkPut(items);
+          }
+        }
+      },
+      (err) => console.warn('Realtime customers sync notice:', err.message)
+    );
+    unsubs.push(custUnsub);
+
+    // 3. Sales live stream (Recent 100 sales)
+    const salesUnsub = onSnapshot(
+      query(collection(firestore, `businesses/${businessId}/sales`), orderBy('created_at', 'desc'), limit(100)),
+      async (snapshot) => {
+        if (!snapshot.empty) {
+          const items: Sale[] = [];
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added' || change.type === 'modified') {
+              items.push(change.doc.data() as Sale);
+            }
+          });
+          if (items.length > 0) {
+            await db.sales.bulkPut(items);
+          }
+        }
+      },
+      (err) => console.warn('Realtime sales sync notice:', err.message)
+    );
+    unsubs.push(salesUnsub);
+
+    // 4. Categories live stream
+    const catUnsub = onSnapshot(
+      collection(firestore, `businesses/${businessId}/categories`),
+      async (snapshot) => {
+        if (!snapshot.empty) {
+          const items: Category[] = [];
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added' || change.type === 'modified') {
+              items.push(change.doc.data() as Category);
+            }
+          });
+          if (items.length > 0) {
+            await db.categories.bulkPut(items);
+          }
+        }
+      },
+      (err) => console.warn('Realtime categories sync notice:', err.message)
+    );
+    unsubs.push(catUnsub);
+  } catch (e) {
+    console.warn('Multi-device sync listener setup notice:', e);
+  }
+
+  return unsubs;
+}

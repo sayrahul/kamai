@@ -22,13 +22,16 @@ import {
   ArrowUpDown,
   Tag,
   Camera,
-  Zap
+  Zap,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { RapidBarcodeInwardModal } from '@/components/products/RapidBarcodeInwardModal';
+import { ExcelInventoryImporter } from '@/components/inventory/ExcelInventoryImporter';
+import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
 import { getStoreProfile, MASTER_UNITS } from '@/lib/constants/storeProfiles';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
@@ -43,6 +46,7 @@ export default function ProductsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isRapidInwardOpen, setIsRapidInwardOpen] = useState(false);
+  const [isExcelImporterOpen, setIsExcelImporterOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // Quick Add Category State
@@ -304,7 +308,20 @@ export default function ProductsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <CashierPrivacyToggleButton />
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsExcelImporterOpen(true)}
+            size="md"
+            className="gap-1.5 text-xs font-bold bg-white hover:bg-slate-50 text-slate-800 border-slate-200 shadow-xs cursor-pointer"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <span>Import Excel/CSV</span>
+          </Button>
+
           <Button
             type="button"
             onClick={() => {
@@ -969,6 +986,13 @@ export default function ProductsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Excel / CSV Inventory Importer Modal */}
+      <ExcelInventoryImporter
+        isOpen={isExcelImporterOpen}
+        onClose={() => setIsExcelImporterOpen(false)}
+        businessId={business?.id || 'biz_default'}
+      />
 
       {/* Razorpay Pro Upgrade Modal */}
       <UpgradeModal
