@@ -47,7 +47,7 @@ export const GoogleAuthCard: React.FC = () => {
       try {
         const firestore = getFirestoreDb();
         if (firestore) {
-          // Check by user_email
+          // Check by user_email (must be non-empty string)
           if (userEmail) {
             const emailQuery = query(
               collection(firestore, 'businesses'),
@@ -56,7 +56,10 @@ export const GoogleAuthCard: React.FC = () => {
             );
             const emailSnap = await getDocs(emailQuery);
             if (!emailSnap.empty) {
-              registeredBiz = emailSnap.docs[0].data();
+              const b = emailSnap.docs[0].data();
+              if (b && b.is_onboarded && b.name && b.name !== 'My Store' && b.name !== 'Store Name') {
+                registeredBiz = b;
+              }
             }
           }
 
@@ -69,7 +72,10 @@ export const GoogleAuthCard: React.FC = () => {
             );
             const uidSnap = await getDocs(uidQuery);
             if (!uidSnap.empty) {
-              registeredBiz = uidSnap.docs[0].data();
+              const b = uidSnap.docs[0].data();
+              if (b && b.is_onboarded && b.name && b.name !== 'My Store' && b.name !== 'Store Name') {
+                registeredBiz = b;
+              }
             }
           }
         }
@@ -77,19 +83,21 @@ export const GoogleAuthCard: React.FC = () => {
         console.warn('Firestore merchant lookup error:', cloudErr);
       }
 
-      // 2. Fallback: check local Dexie to see if existing business matches this user
-      if (!registeredBiz) {
+      // 2. Fallback: check local Dexie only if explicitly matches this email
+      if (!registeredBiz && userEmail) {
         const localBiz = await db.businesses.toCollection().first();
         if (
           localBiz &&
           localBiz.is_onboarded &&
-          (localBiz.email?.toLowerCase() === userEmail || (localBiz as any).user_uid === userUid)
+          localBiz.name &&
+          ((localBiz.email && localBiz.email.toLowerCase() === userEmail) ||
+            ((localBiz as any).user_email && (localBiz as any).user_email.toLowerCase() === userEmail))
         ) {
           registeredBiz = localBiz;
         }
       }
 
-      if (registeredBiz && registeredBiz.is_onboarded) {
+      if (registeredBiz && registeredBiz.is_onboarded && registeredBiz.name) {
         // ALREADY REGISTERED USER -> Welcome back banner & Instant POS Launch
         const displayName = registeredBiz.owner_name || googleUser.displayName || 'Merchant';
         setWelcomeUser(displayName);

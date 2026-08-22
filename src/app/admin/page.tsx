@@ -404,6 +404,32 @@ export default function MasterSuperAdminPage() {
     }
   };
 
+  const handleDeleteMerchant = async (m: MerchantRecord) => {
+    if (
+      !confirm(
+        `⚠️ PERMANENT DELETE WARNING:\n\nAre you sure you want to permanently delete store "${m.name}" (${m.phone})?\n\nThis will remove all products, invoices, and cloud records for this merchant. This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/merchants/${m.id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setMerchants((prev) => prev.filter((item) => item.id !== m.id));
+        showToast(`Store "${m.name}" permanently deleted.`);
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to delete merchant');
+      }
+    } catch {
+      alert('Network error deleting merchant');
+    }
+  };
+
   const handleSaveBroadcast = async () => {
     setIsSavingBroadcast(true);
     try {
@@ -1027,6 +1053,15 @@ export default function MasterSuperAdminPage() {
                                 title="View Store Profile"
                               >
                                 <Eye className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Delete Merchant Permanently */}
+                              <button
+                                onClick={() => handleDeleteMerchant(m)}
+                                className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 cursor-pointer"
+                                title="Delete Store Permanently"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
