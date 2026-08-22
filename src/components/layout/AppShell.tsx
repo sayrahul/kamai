@@ -96,15 +96,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     checkServerSession();
 
-    // Ensure default starter business exists if DB is completely empty
+    // Ensure DB is open
     const initDb = async () => {
       try {
         if (!localDb.isOpen()) {
           await localDb.open();
         }
-        const count = await localDb.businesses.count();
-        if (count === 0 && pathname !== '/onboarding' && pathname !== '/auth') {
-          await ensureStarterBusinessIfEmpty();
+        if (!isPublicRoute && !cachedUser) {
+          router.replace('/auth');
         }
       } catch (err) {
         console.warn('DB init check:', err);

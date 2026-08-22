@@ -122,13 +122,19 @@ export default function OnboardingPage() {
       const businessId = `biz_${Date.now()}`;
       const now = new Date().toISOString();
       const cleanPhone = phone.replace(/\D/g, '');
+      const currentUser = getStoredUser();
+      const userEmail = currentUser?.email || '';
+      const userUid = currentUser?.uid || '';
 
-      const newBusiness: Business = {
+      const newBusiness: Business & { user_email?: string; user_uid?: string } = {
         id: businessId,
         name: businessName.trim(),
         business_type: businessType,
         owner_name: ownerName.trim() || 'Business Owner',
         phone: cleanPhone,
+        email: userEmail,
+        user_email: userEmail,
+        user_uid: userUid,
         address: address.trim(),
         pincode: pincode.trim(),
         gstin: gstin.trim(),
@@ -153,7 +159,6 @@ export default function OnboardingPage() {
       }
 
       // Update current user session with active business ID
-      const currentUser = getStoredUser();
       if (currentUser) {
         setStoredUser({
           ...currentUser,
@@ -173,7 +178,9 @@ export default function OnboardingPage() {
             bizDocRef,
             sanitizeForFirestore({
               ...newBusiness,
-              email: currentUser?.email || '',
+              email: userEmail,
+              user_email: userEmail,
+              user_uid: userUid,
               subscription_tier: 'free',
               is_active: true,
               last_synced_at: now,
