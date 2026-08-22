@@ -26,6 +26,7 @@ import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
 import { isSoundboxEnabled, setSoundboxEnabled, announcePayment } from '@/lib/voice/paytmSoundbox';
 import { AuthUser, getStoredUser, setStoredUser } from '@/lib/auth';
+import { signOutUser } from '@/lib/firebase/googleAuth';
 
 export const Navbar: React.FC = () => {
   const router = useRouter();
@@ -85,6 +86,7 @@ export const Navbar: React.FC = () => {
 
   const handleLogout = async () => {
     try {
+      await signOutUser();
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch { }
     setStoredUser(null);

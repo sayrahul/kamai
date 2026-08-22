@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import { PhoneAuthForm } from '@/components/auth/PhoneAuthForm';
+import { GoogleAuthCard } from '@/components/auth/GoogleAuthCard';
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
 
@@ -37,8 +37,8 @@ export default function AuthPage() {
           </p>
         </div>
 
-        {/* The Phone OTP Form Component */}
-        <PhoneAuthForm />
+        {/* The Google OAuth Sign-In Card */}
+        <GoogleAuthCard />
 
         {/* Footer legal links */}
         <div className="mt-6 flex items-center justify-center gap-4 text-xs text-slate-500 font-medium">

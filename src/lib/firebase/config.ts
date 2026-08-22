@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getRemoteConfig, RemoteConfig } from 'firebase/remote-config';
@@ -13,6 +14,7 @@ const firebaseConfig = {
 };
 
 let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 let remoteConfig: RemoteConfig | null = null;
@@ -26,6 +28,15 @@ export function getFirebaseApp(): FirebaseApp | null {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   }
   return app;
+}
+
+export function getFirebaseAuth(): Auth | null {
+  const firebaseApp = getFirebaseApp();
+  if (!firebaseApp) return null;
+  if (!auth) {
+    auth = getAuth(firebaseApp);
+  }
+  return auth;
 }
 
 export function getFirestoreDb(): Firestore | null {
