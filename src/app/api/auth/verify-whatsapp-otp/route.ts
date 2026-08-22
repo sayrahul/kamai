@@ -21,35 +21,30 @@ export async function POST(req: NextRequest) {
 
     const clean10Digit = phone.slice(-10);
 
-    // 0. Dedicated Testing Account Override (9595997711 -> OTP 123456)
-    const isTestAccount = clean10Digit === '9595997711' && enteredOtp === '123456';
+    // 1. Strict OTP Validation for standard users
+    const stored = globalThis.__kamai_otp_store?.get(clean10Digit);
 
-    if (!isTestAccount) {
-      // 1. Strict OTP Validation for standard users
-      const stored = globalThis.__kamai_otp_store?.get(clean10Digit);
-
-      if (!stored || stored.expiresAt < Date.now()) {
-        globalThis.__kamai_otp_store?.delete(clean10Digit);
-        return NextResponse.json(
-          { success: false, error: 'OTP has expired or was not requested. Please request a new OTP.' },
-          { status: 401 }
-        );
-      }
-
-      if (stored.code !== enteredOtp) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid 6-digit OTP code. Please check your WhatsApp.' },
-          { status: 401 }
-        );
-      }
-
-      // Consume OTP immediately
+    if (!stored || stored.expiresAt < Date.now()) {
       globalThis.__kamai_otp_store?.delete(clean10Digit);
+      return NextResponse.json(
+        { success: false, error: 'OTP has expired or was not requested. Please request a new OTP.' },
+        { status: 401 }
+      );
     }
+
+    if (stored.code !== enteredOtp) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid 6-digit OTP code. Please check your WhatsApp.' },
+        { status: 401 }
+      );
+    }
+
+    // Consume OTP immediately
+    globalThis.__kamai_otp_store?.delete(clean10Digit);
 
     const supabase = getSupabaseServerClient();
     if (!supabase || !isSupabaseServerConfigured()) {
-      // Offline fallback token generation for development
+      // Offline fallback token generation
       const fallbackToken = signSessionToken({
         staff_id: `staff_${clean10Digit}`,
         business_id: `biz_${clean10Digit}`,
@@ -57,8 +52,8 @@ export async function POST(req: NextRequest) {
         role: 'owner',
       });
 
-      const chosenStoreName = body.storeName?.trim() || (clean10Digit === '9595997711' ? 'Rahul Super Store' : 'My Store');
-      const chosenOwnerName = body.ownerName?.trim() || (clean10Digit === '9595997711' ? 'Rahul Jadhav' : 'Store Owner');
+      const chosenStoreName = body.storeName?.trim() || 'My Store';
+      const chosenOwnerName = body.ownerName?.trim() || 'Store Owner';
       const chosenBusinessType = body.businessType || 'grocery';
 
       const response = NextResponse.json({
@@ -121,76 +116,8 @@ export async function POST(req: NextRequest) {
       business = biz;
     }
 
-    // 4. Test account handling: Allow dynamic testing across all business niches
-    if (isTestAccount) {
-      const chosenStoreName = (body.storeName || '').trim() || (business?.name || 'Rahul Super Store');
-      const chosenOwnerName = (body.ownerName || '').trim() || (business?.owner_name || 'Rahul Jadhav');
-      const chosenBusinessType = body.businessType || business?.business_type || 'grocery';
-      const pinHash = await bcrypt.hash('123456', 10);
-
-      if (!business) {
-        const { data: testBiz } = await supabase
-          .from('businesses')
-          .insert({
-            name: chosenStoreName,
-            owner_name: chosenOwnerName,
-            phone: '9595997711',
-            business_type: chosenBusinessType,
-            subscription_tier: 'pro',
-          })
-          .select()
-          .single();
-
-        business = testBiz;
-      } else {
-        // Update existing test account with chosen category/name for instant live testing
-        const { data: updatedBiz } = await supabase
-          .from('businesses')
-          .update({
-            name: chosenStoreName,
-            owner_name: chosenOwnerName,
-            business_type: chosenBusinessType,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', business.id)
-          .select()
-          .single();
-
-        if (updatedBiz) business = updatedBiz;
-      }
-
-      if (!staff && business) {
-        const { data: testStaff } = await supabase
-          .from('business_staff')
-          .insert({
-            business_id: business.id,
-            name: chosenOwnerName,
-            phone: '9595997711',
-            pin_hash: pinHash,
-            role: 'owner',
-            is_active: true,
-          })
-          .select()
-          .single();
-
-        staff = testStaff;
-      } else if (staff) {
-        const { data: updatedStaff } = await supabase
-          .from('business_staff')
-          .update({
-            name: chosenOwnerName,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', staff.id)
-          .select()
-          .single();
-
-        if (updatedStaff) staff = updatedStaff;
-      }
-    }
-
     // Mode-specific handling for regular users
-    if (mode === 'login' && !isTestAccount) {
+    if (mode === 'login') {
       if (!staff || !business) {
         return NextResponse.json(
           {
@@ -201,7 +128,7 @@ export async function POST(req: NextRequest) {
           { status: 404 }
         );
       }
-    } else if (mode === 'signup' && !isTestAccount) {
+    } else if (mode === 'signup') {
       if (staff) {
         return NextResponse.json(
           {

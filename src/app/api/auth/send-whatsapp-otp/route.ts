@@ -33,26 +33,6 @@ export async function POST(req: NextRequest) {
     const clean10Digit = phone.slice(-10);
     const now = Date.now();
 
-    // 0. Dedicated Testing Account Override (9595997711 -> OTP 123456)
-    if (clean10Digit === '9595997711') {
-      otpStore.set('9595997711', {
-        code: '123456',
-        expiresAt: now + 24 * 60 * 60 * 1000,
-        lastRequestedAt: now,
-      });
-
-      console.log(`\n========================================`);
-      console.log(`🔑 [Test Number OTP Configured]`);
-      console.log(`📱 Phone: +91 9595997711`);
-      console.log(`🔐 OTP Code: 123456`);
-      console.log(`========================================\n`);
-
-      return NextResponse.json({
-        success: true,
-        message: 'OTP 123456 sent to +91 9595997711.',
-      });
-    }
-
     // 1. Rate Limiting: 60-second cooldown per mobile number
     const existing = otpStore.get(clean10Digit);
     if (existing && now - existing.lastRequestedAt < 60 * 1000) {

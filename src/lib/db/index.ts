@@ -56,18 +56,10 @@ export class VyaparSetuDatabase extends Dexie {
 
 export const db = new VyaparSetuDatabase();
 
-import { seedComprehensiveDemoData } from './demoData';
-export { seedComprehensiveDemoData };
-
-// Auto-seed demo starter business if DB is empty
+// Ensure clean starter business exists if DB is empty
 export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
   const existing = await db.businesses.toCollection().first();
   if (existing) {
-    // Check if catalog needs demo data enrichment (e.g. less than 15 products)
-    const productCount = await db.products.where('business_id').equals(existing.id).count();
-    if (productCount < 15) {
-      await seedComprehensiveDemoData(existing.id, false);
-    }
     return existing;
   }
 
@@ -76,18 +68,16 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
 
   const starterBiz: Business = {
     id: businessId,
-    name: 'Sharma Kirana Store (Kamai+)',
+    name: 'My Retail Store',
     business_type: 'grocery',
-    owner_name: 'Ramesh Sharma',
-    phone: '9876543210',
-    address: 'Shop 12, Main Market, Mumbai',
+    owner_name: 'Store Owner',
+    phone: '',
+    address: 'Main Market',
     pincode: '400001',
-    gstin: '27AAAAA0000A1Z5',
-    upi_id: 'sharma.kirana@upi',
     currency: 'INR',
     language: 'hi',
     invoice_prefix: 'INV-',
-    next_invoice_number: 1001,
+    next_invoice_number: 1,
     terms_conditions: 'Thank you for your business! Goods once sold will be exchanged within 7 days.',
     footer_message: 'Powered by KamaiPlus (Kamai+)',
     is_onboarded: true,
@@ -97,7 +87,7 @@ export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
   };
 
   await db.businesses.put(starterBiz);
-  await seedComprehensiveDemoData(businessId, false);
+  await seedBusinessStarterData(businessId, 'grocery');
   return starterBiz;
 }
 
@@ -112,8 +102,6 @@ export async function seedBusinessStarterData(businessId: string, businessType: 
     icon: profile.iconName || 'package',
   }));
 
-  const createdCategoryIds: string[] = [];
-
   for (let i = 0; i < categoriesToSeed.length; i++) {
     const catId = `cat_${Date.now()}_${i}`;
     await db.categories.put({
@@ -123,93 +111,12 @@ export async function seedBusinessStarterData(businessId: string, businessType: 
       icon: categoriesToSeed[i].icon,
       created_at: now,
     });
-    createdCategoryIds.push(catId);
   }
 
   // 2. Seed Default Category Retail Products into db.products (stock = 10, no barcode)
   await seedCategoryDefaultProducts(businessId, businessType);
 
-  // 3. Sample Customers with Udhar Khata balances
-  const sampleCustomers: Array<Omit<Customer, 'id' | 'business_id' | 'created_at' | 'updated_at' | 'sync_status'>> = [
-    {
-      name: 'Sunil Verma',
-      phone: '9820123456',
-      address: 'Flat 202, Gokuldham Society',
-      customer_type: 'credit',
-      opening_balance: 145000,
-      current_balance: 145000, // ₹1,450.00 Udhar
-      loyalty_points: 85,
-      total_spent: 850000,
-      total_visits: 14,
-      last_visit_date: new Date(Date.now() - 3 * 86400000).toISOString(),
-    },
-    {
-      name: 'Pooja Patil',
-      phone: '9819988776',
-      address: 'Plot 15, Station Road',
-      customer_type: 'credit',
-      opening_balance: 62000,
-      current_balance: 62000, // ₹620.00 Udhar
-      loyalty_points: 42,
-      total_spent: 420000,
-      total_visits: 8,
-      last_visit_date: new Date(Date.now() - 1 * 86400000).toISOString(),
-    },
-    {
-      name: 'Rajesh Gupta',
-      phone: '9833445566',
-      address: 'Shanti Nagar, Lane 3',
-      customer_type: 'vip',
-      opening_balance: 0,
-      current_balance: 0, // No Udhar
-      loyalty_points: 185,
-      total_spent: 1850000,
-      total_visits: 28,
-      last_visit_date: now,
-    },
-    {
-      name: 'Anil Deshmukh (Inactive 35 days)',
-      phone: '9822334455',
-      address: 'Near Old Post Office',
-      customer_type: 'inactive',
-      opening_balance: 0,
-      current_balance: 0,
-      loyalty_points: 31,
-      total_spent: 310000,
-      total_visits: 5,
-      last_visit_date: new Date(Date.now() - 35 * 86400000).toISOString(), // 35 days ago (Inactive)
-    }
-  ];
-
-  for (let c = 0; c < sampleCustomers.length; c++) {
-    const custId = `cust_${Date.now()}_${c}`;
-    await db.customers.put({
-      ...sampleCustomers[c],
-      id: custId,
-      business_id: businessId,
-      created_at: now,
-      updated_at: now,
-      sync_status: 'synced',
-    });
-
-    // If customer has initial Udhar balance, add initial ledger record
-    if (sampleCustomers[c].current_balance > 0) {
-      await db.ledger_transactions.put({
-        id: `ledg_init_${Date.now()}_${c}`,
-        business_id: businessId,
-        party_type: 'customer',
-        party_id: custId,
-        party_name: sampleCustomers[c].name,
-        transaction_type: 'CREDIT_SALE',
-        amount: sampleCustomers[c].current_balance,
-        balance_after: sampleCustomers[c].current_balance,
-        notes: 'Initial Udhar balance setup',
-        created_at: now,
-      });
-    }
-  }
-
-  // 4. Marketing Templates for festival/growth
+  // 3. Marketing Templates for festival/growth
   const templates: Array<Omit<MarketingTemplate, 'id'>> = [
     {
       title: 'Festival Greeting & Special Offer',

@@ -237,6 +237,39 @@ export default function SettingsPage() {
     setTimeout(() => setIsSaved(false), 3500);
   };
 
+  const [isClearingData, setIsClearingData] = useState(false);
+
+  const handleClearTestingData = async () => {
+    if (!confirm('⚠️ Are you sure you want to clear all test sales, test customers, and test khata transactions? Your store profile and products catalog will remain completely safe.')) {
+      return;
+    }
+    setIsClearingData(true);
+    try {
+      await db.sales.clear();
+      await db.ledger_transactions.clear();
+      await db.customers.clear();
+      await db.suppliers.clear();
+      await db.cash_registers.clear();
+      await db.cash_expenses.clear();
+      await db.sales_returns.clear();
+      await db.inventory_movements.clear();
+      
+      if (business) {
+        await db.businesses.update(business.id, {
+          next_invoice_number: 1,
+          updated_at: new Date().toISOString(),
+        });
+        setNextInvoiceNumber('1');
+      }
+
+      alert('✅ All test sales, test ledger entries, and test customers have been cleared! Your store is now 100% clean and ready for real production sales.');
+    } catch (err: any) {
+      alert(`Failed to clear test data: ${err?.message}`);
+    } finally {
+      setIsClearingData(false);
+    }
+  };
+
   const activePreviewUpi = upiList[selectedPreviewUpiIndex] || upiList[0];
 
   return (
@@ -441,6 +474,33 @@ export default function SettingsPage() {
                 <div className="pt-3 border-t border-slate-200 flex justify-end">
                   <Button type="submit" size="sm" className="font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white">
                     Save Profile Details
+                  </Button>
+                </div>
+              </Card>
+            </div>
+
+            {/* Clear Testing Data Section */}
+            <div className="lg:col-span-12">
+              <Card className="p-4 bg-rose-50/60 border border-rose-200 space-y-3 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-rose-950 block flex items-center gap-1.5">
+                      <Trash2 className="w-4 h-4 text-rose-600" />
+                      <span>Clear Test Records & Transactions</span>
+                    </span>
+                    <p className="text-[11px] text-rose-700 mt-0.5 leading-relaxed">
+                      Wipes all sample invoices, dummy customer debts, and test transactions from this browser while keeping your shop settings and products safe.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isClearingData}
+                    onClick={handleClearTestingData}
+                    className="border-rose-300 text-rose-700 hover:bg-rose-100 font-bold text-xs shrink-0 cursor-pointer"
+                  >
+                    {isClearingData ? 'Clearing...' : 'Clear All Test Data'}
                   </Button>
                 </div>
               </Card>
