@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { 
   ShieldCheck, 
   Lock, 
@@ -53,7 +54,12 @@ import {
   CheckSquare,
   Globe,
   Mail,
-  MapPin
+  MapPin,
+  Menu,
+  QrCode,
+  Barcode,
+  ShoppingBag,
+  ArrowUpRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -123,6 +129,9 @@ export default function MasterSuperAdminPage() {
 
   // Active Tab State
   const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'broadcast' | 'coupons' | 'whatsapp' | 'config' | 'revenue'>('overview');
+
+  // Mobile Drawer State
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   // Filters & Search for Merchants
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -635,10 +644,10 @@ export default function MasterSuperAdminPage() {
   }
 
   // -------------------------------------------------------------
-  // VIEW: AUTHENTICATED SUPERADMIN CONTROL CENTER (RESPONSIVE)
+  // VIEW: AUTHENTICATED SUPERADMIN CONTROL CENTER (UNIFIED NAVIGATION)
   // -------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#070A10] text-slate-100 pb-16 font-sans antialiased">
+    <div className="min-h-screen bg-[#070A10] text-slate-100 pb-24 md:pb-16 font-sans antialiased">
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div className="fixed top-4 right-4 z-50 p-3.5 sm:p-4 rounded-2xl bg-emerald-500 text-slate-950 font-black text-xs shadow-2xl flex items-center gap-2.5 backdrop-blur-md animate-in slide-in-from-top-4 duration-200 border border-emerald-400/40">
@@ -647,9 +656,10 @@ export default function MasterSuperAdminPage() {
         </div>
       )}
 
-      {/* Top Navbar Header */}
+      {/* Top Navbar Header (Systematic Desktop & Mobile) */}
       <header className="sticky top-0 z-40 bg-[#0B0F17]/95 backdrop-blur-xl border-b border-slate-800/80 px-3 sm:px-6 lg:px-8 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+          {/* Left: Branding & Status */}
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-md shadow-amber-400/20 shrink-0">
               <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -667,77 +677,102 @@ export default function MasterSuperAdminPage() {
                   Live Sync
                 </span>
               </div>
-              <p className="text-[10px] sm:text-[11px] text-slate-400 hidden sm:block truncate">
-                Real-Time Platform Governance &amp; Multi-Store Infrastructure
-              </p>
             </div>
           </div>
 
+          {/* Middle: Desktop Navigation Bar */}
+          <nav className="hidden lg:flex items-center gap-1 bg-slate-950/80 border border-slate-800/80 rounded-xl p-1">
+            {[
+              { id: 'overview', label: 'Overview', icon: BarChart3 },
+              { id: 'merchants', label: `Merchants (${merchants.length})`, icon: Store },
+              { id: 'broadcast', label: 'Broadcasts', icon: BellRing },
+              { id: 'coupons', label: `Coupons (${coupons.length})`, icon: Tag },
+              { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
+              { id: 'revenue', label: 'Revenue', icon: CreditCard },
+              { id: 'config', label: 'Config', icon: Sliders },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-amber-400 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Right: Quick Tools, Barcode & Action Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Direct Barcode Generator Link */}
+            <Link
+              href="/barcode-generator"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-bold transition-all"
+              title="Open Barcode & Label Generator"
+            >
+              <Barcode className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Barcode</span>
+            </Link>
+
+            {/* Direct POS Counter Link */}
+            <Link
+              href="/"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-bold transition-all"
+              title="Open POS Counter"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
+              <span>POS</span>
+            </Link>
+
             <Button
               variant="outline"
               size="sm"
               onClick={loadAllAdminData}
               disabled={isLoadingData}
-              className="bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white text-xs h-8 px-2 sm:px-3 gap-1.5 cursor-pointer"
+              className="bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white text-xs h-8 px-2 sm:px-2.5 gap-1.5 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoadingData ? 'animate-spin' : ''}`} />
-              <span className="hidden md:inline">{isLoadingData ? 'Syncing...' : 'Refresh'}</span>
             </Button>
+
+            {/* Mobile Menu Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
+              title="Open Admin Navigation Drawer"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
 
             <Button
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs h-8 px-2 sm:px-3 gap-1.5 cursor-pointer"
+              className="hidden sm:flex bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs h-8 px-2.5 gap-1.5 cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Logout</span>
+              <span>Logout</span>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Navigation Sub-Header Tabs (Horizontal Swipe on Mobile) */}
-      <div className="bg-[#0B0F17]/70 border-b border-slate-800/60 px-3 sm:px-6 lg:px-8 py-2 sticky top-[53px] sm:top-[57px] z-30 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
-          {[
-            { id: 'overview', label: 'Overview', icon: BarChart3 },
-            { id: 'merchants', label: `Merchants (${merchants.length})`, icon: Store },
-            { id: 'broadcast', label: 'Broadcasts', icon: BellRing },
-            { id: 'coupons', label: `Coupons (${coupons.length})`, icon: Tag },
-            { id: 'whatsapp', label: 'WhatsApp Automation', icon: MessageCircle },
-            { id: 'revenue', label: 'Transactions', icon: CreditCard },
-            { id: 'config', label: 'Pricing & Config', icon: Sliders },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Main Content Area (Mobile-First Responsive Padding) */}
+      {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6">
         {/* ========================================================================= */}
         {/* TAB 1: EXECUTIVE OVERVIEW */}
         {/* ========================================================================= */}
         {activeTab === 'overview' && (
           <div className="space-y-4 sm:space-y-6">
-            {/* KPI Cards Grid (2 cols on mobile, 4 on desktop) */}
+            {/* KPI Cards Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
               {/* Total Merchants */}
               <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
@@ -899,7 +934,7 @@ export default function MasterSuperAdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 2: MERCHANTS DIRECTORY & 360° CONTROL (RESPONSIVE DUAL-VIEW) */}
+        {/* TAB 2: MERCHANTS DIRECTORY & 360° CONTROL */}
         {/* ========================================================================= */}
         {activeTab === 'merchants' && (
           <div className="space-y-4">
@@ -949,7 +984,7 @@ export default function MasterSuperAdminPage() {
               </div>
             </div>
 
-            {/* 1. DESKTOP VIEW: HIGH-DENSITY DATA TABLE (Visible on md: and up) */}
+            {/* 1. DESKTOP VIEW: HIGH-DENSITY DATA TABLE */}
             <div className="hidden md:block bg-[#0E1320] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
@@ -1075,7 +1110,7 @@ export default function MasterSuperAdminPage() {
               </div>
             </div>
 
-            {/* 2. MOBILE CARD STACK VIEW (Visible on mobile screens < 768px) */}
+            {/* 2. MOBILE CARD STACK VIEW */}
             <div className="block md:hidden space-y-3">
               {filteredMerchants.length === 0 ? (
                 <div className="py-12 text-center text-slate-500 font-mono text-xs bg-[#0E1320] rounded-2xl border border-slate-800">
@@ -1189,7 +1224,7 @@ export default function MasterSuperAdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 3: IN-APP ANNOUNCEMENT BROADCASTS (RESPONSIVE) */}
+        {/* TAB 3: IN-APP ANNOUNCEMENT BROADCASTS */}
         {/* ========================================================================= */}
         {activeTab === 'broadcast' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
@@ -1287,7 +1322,7 @@ export default function MasterSuperAdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 4: COUPON MANAGEMENT (RESPONSIVE) */}
+        {/* TAB 4: COUPON MANAGEMENT */}
         {/* ========================================================================= */}
         {activeTab === 'coupons' && (
           <div className="space-y-4">
@@ -1370,7 +1405,7 @@ export default function MasterSuperAdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 6: TRANSACTIONS & REVENUE (RESPONSIVE) */}
+        {/* TAB 6: TRANSACTIONS & REVENUE */}
         {/* ========================================================================= */}
         {activeTab === 'revenue' && (
           <div className="space-y-4">
@@ -1407,7 +1442,7 @@ export default function MasterSuperAdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 7: PLATFORM CONFIG & PRICING (RESPONSIVE) */}
+        {/* TAB 7: PLATFORM CONFIG & PRICING */}
         {/* ========================================================================= */}
         {activeTab === 'config' && (
           <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-5">
@@ -1476,6 +1511,147 @@ export default function MasterSuperAdminPage() {
           </div>
         )}
       </main>
+
+      {/* ========================================================================= */}
+      {/* INTERACTIVE MOBILE BOTTOM NAVIGATION BAR (FIXED DOCK) */}
+      {/* ========================================================================= */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0B0F17]/95 backdrop-blur-2xl border-t border-slate-800/90 py-1.5 px-2 lg:hidden flex items-center justify-around shadow-2xl">
+        {[
+          { id: 'overview', label: 'Overview', icon: BarChart3 },
+          { id: 'merchants', label: 'Merchants', icon: Store, badge: merchants.length },
+          { id: 'coupons', label: 'Coupons', icon: Tag },
+          { id: 'broadcast', label: 'Broadcast', icon: BellRing },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                setIsMobileMenuOpen(false);
+              }}
+              className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all relative cursor-pointer ${
+                isActive ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <div className={`p-1.5 rounded-xl transition-all relative ${isActive ? 'bg-amber-400/10' : ''}`}>
+                <Icon className="w-5 h-5" />
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 font-black text-[9px]">
+                    {tab.badge}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] mt-0.5 tracking-tight">{tab.label}</span>
+            </button>
+          );
+        })}
+
+        {/* More / Menu Button */}
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all cursor-pointer ${
+            isMobileMenuOpen ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <div className="p-1.5 rounded-xl">
+            <Menu className="w-5 h-5" />
+          </div>
+          <span className="text-[10px] mt-0.5 tracking-tight">More</span>
+        </button>
+      </nav>
+
+      {/* ========================================================================= */}
+      {/* MOBILE "MORE" NAVIGATION DRAWER */}
+      {/* ========================================================================= */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-[#0E1320] border-t border-slate-800 rounded-t-3xl p-6 space-y-4 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-200 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-amber-400" />
+                <span className="font-black text-white text-sm">SuperAdmin Navigation Menu</span>
+              </div>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <Link
+                href="/barcode-generator"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 text-left hover:border-amber-400 transition-colors"
+              >
+                <Barcode className="w-5 h-5 text-amber-400" />
+                <span className="font-bold text-white text-xs">Barcode Generator</span>
+                <span className="text-[10px] text-slate-400">Print custom EAN-13 labels</span>
+              </Link>
+
+              <Link
+                href="/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 text-left hover:border-emerald-400 transition-colors"
+              >
+                <ShoppingBag className="w-5 h-5 text-emerald-400" />
+                <span className="font-bold text-white text-xs">Launch POS Counter</span>
+                <span className="text-[10px] text-slate-400">Open main billing interface</span>
+              </Link>
+
+              <button
+                onClick={() => {
+                  setActiveTab('whatsapp');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 text-left hover:border-blue-400 transition-colors cursor-pointer"
+              >
+                <MessageCircle className="w-5 h-5 text-blue-400" />
+                <span className="font-bold text-white text-xs">WhatsApp Automation</span>
+                <span className="text-[10px] text-slate-400">Cloud API &amp; Webhooks</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('revenue');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 text-left hover:border-emerald-400 transition-colors cursor-pointer"
+              >
+                <CreditCard className="w-5 h-5 text-emerald-400" />
+                <span className="font-bold text-white text-xs">Transactions &amp; Revenue</span>
+                <span className="text-[10px] text-slate-400">Razorpay subscription logs</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('config');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 text-left hover:border-amber-400 transition-colors cursor-pointer col-span-2"
+              >
+                <Sliders className="w-5 h-5 text-amber-400" />
+                <span className="font-bold text-white text-xs">Platform Settings &amp; Pricing Engine</span>
+                <span className="text-[10px] text-slate-400">Adjust Pro plan pricing, limits &amp; hotline</span>
+              </button>
+            </div>
+
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="w-full bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs font-bold py-2.5 gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout from SuperAdmin</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* MODAL 1: EDIT PLAN OVERRIDE */}

@@ -21,19 +21,27 @@ export function sanitizeForFirestore<T>(data: T): T {
   if (data === null || data === undefined) {
     return null as any;
   }
-  if (Array.isArray(data)) {
-    return data.map((item) => sanitizeForFirestore(item)) as any;
-  }
-  if (typeof data === 'object' && data !== null) {
-    const cleaned: Record<string, any> = {};
-    for (const [key, value] of Object.entries(data)) {
-      if (value !== undefined) {
-        cleaned[key] = sanitizeForFirestore(value);
-      }
+  try {
+    // JSON stringify cleanly and recursively removes all undefined object keys
+    const jsonString = JSON.stringify(data, (_, value) => (value === undefined ? undefined : value));
+    if (!jsonString) return {} as any;
+    return JSON.parse(jsonString);
+  } catch (e) {
+    // Fallback object recursion
+    if (Array.isArray(data)) {
+      return data.filter((x) => x !== undefined).map((x) => sanitizeForFirestore(x)) as any;
     }
-    return cleaned as T;
+    if (typeof data === 'object') {
+      const cleaned: Record<string, any> = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          cleaned[key] = sanitizeForFirestore(value);
+        }
+      }
+      return cleaned as T;
+    }
+    return data;
   }
-  return data;
 }
 
 /**
