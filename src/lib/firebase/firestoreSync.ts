@@ -15,6 +15,28 @@ import { db } from '@/lib/db';
 import { Sale, Product, Customer, LedgerTransaction, Business, Category, Supplier, CashExpense } from '@/types';
 
 /**
+ * Sanitizes any data structure to remove `undefined` values that Firestore rejects
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return null as any;
+  }
+  if (Array.isArray(data)) {
+    return data.map((item) => sanitizeForFirestore(item)) as any;
+  }
+  if (typeof data === 'object' && data !== null) {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        cleaned[key] = sanitizeForFirestore(value);
+      }
+    }
+    return cleaned as T;
+  }
+  return data;
+}
+
+/**
  * Helper to commit items in Firestore batches (max 450 per batch)
  */
 async function commitBatchInChunks<T extends { id: string }>(
@@ -30,7 +52,8 @@ async function commitBatchInChunks<T extends { id: string }>(
     const batch = writeBatch(firestore);
     for (const item of chunk) {
       const ref = doc(firestore, `${collectionPath}/${item.id}`);
-      batch.set(ref, item, { merge: true });
+      const cleanItem = sanitizeForFirestore(item);
+      batch.set(ref, cleanItem, { merge: true });
     }
     await batch.commit();
   }
@@ -60,7 +83,8 @@ export async function syncLocalDexieToFirestore(businessId: string): Promise<{ s
   const biz = await db.businesses.get(businessId);
   if (biz) {
     const bizRef = doc(firestore, 'businesses', businessId);
-    await setDoc(bizRef, { ...biz, last_synced_at: new Date().toISOString() }, { merge: true });
+    const cleanBiz = sanitizeForFirestore({ ...biz, last_synced_at: new Date().toISOString() });
+    await setDoc(bizRef, cleanBiz, { merge: true });
   }
 
   // 2. Categories
