@@ -1,0 +1,17 @@
+[
+  { "barcode": "8902221001012", "name": "Men's Classic Cotton Crew Neck T-Shirt (M)", "category": "Men's Wear", "mrp": 499, "selling_price": 399, "unit": "piece", "tax_rate": 5, "hsn": "6109" },
+  { "barcode": "8902221001029", "name": "Men's Classic Cotton Crew Neck T-Shirt (L)", "category": "Men's Wear", "mrp": 499, "selling_price": 399, "unit": "piece", "tax_rate": 5, "hsn": "6109" },
+  { "barcode": "8902221001036", "name": "Men's Classic Cotton Crew Neck T-Shirt (XL)", "category": "Men's Wear", "mrp": 549, "selling_price": 449, "unit": "piece", "tax_rate": 5, "hsn": "6109" },
+  { "barcode": "8902221002019", "name": "Men's Slim Fit Denim Jeans (32)", "category": "Men's Wear", "mrp": 1299, "selling_price": 999, "unit": "piece", "tax_rate": 12, "hsn": "6203" },
+  { "barcode": "8902221002026", "name": "Men's Slim Fit Denim Jeans (34)", "category": "Men's Wear", "mrp": 1299, "selling_price": 999, "unit": "piece", "tax_rate": 12, "hsn": "6203" },
+  { "barcode": "8902221003016", "name": "Men's Formal Oxford Shirt Blue (40)", "category": "Men's Wear", "mrp": 999, "selling_price": 799, "unit": "piece", "tax_rate": 5, "hsn": "6205" },
+  { "barcode": "8902221003023", "name": "Men's Formal Oxford Shirt White (42)", "category": "Men's Wear", "mrp": 999, "selling_price": 799, "unit": "piece", "tax_rate": 5, "hsn": "6205" },
+  { "barcode": "8902221004013", "name": "Women's Straight Fit Kurti Cotton (M)", "category": "Women's Wear", "mrp": 799, "selling_price": 599, "unit": "piece", "tax_rate": 5, "hsn": "6204" },
+  { "barcode": "8902221004020", "name": "Women's Straight Fit Kurti Cotton (L)", "category": "Women's Wear", "mrp": 799, "selling_price": 599, "unit": "piece", "tax_rate": 5, "hsn": "6204" },
+  { "barcode": "8902221004037", "name": "Women's Anarkali Kurta Set with Dupatta (L)", "category": "Women's Wear", "mrp": 1899, "selling_price": 1499, "unit": "set", "tax_rate": 12, "hsn": "6204" },
+  { "barcode": "8902221005010", "name": "Women's Cotton Lycra Leggings Free Size", "category": "Women's Wear", "mrp": 349, "selling_price": 299, "unit": "piece", "tax_rate": 5, "hsn": "6104" },
+  { "barcode": "8902221006017", "name": "Kids Cotton Printed T-Shirt & Shorts Set (4-5 Y)", "category": "Kids Wear", "mrp": 599, "selling_price": 449, "unit": "set", "tax_rate": 5, "hsn": "6111" },
+  { "barcode": "8902221007014", "name": "Men's Formal Leather Belt Brown", "category": "Accessories", "mrp": 499, "selling_price": 349, "unit": "piece", "tax_rate": 18, "hsn": "4203" },
+  { "barcode": "8902221008011", "name": "Cotton Ankle Length Socks (Pack of 3 Pairs)", "category": "Hosiery", "mrp": 199, "selling_price": 149, "unit": "pack", "tax_rate": 5, "hsn": "6115" },
+  { "barcode": "8902221009018", "name": "Pure Cotton Bath Towel Large 70x140cm", "category": "Home Textiles", "mrp": 450, "selling_price": 350, "unit": "piece", "tax_rate": 5, "hsn": "6302" }
+]

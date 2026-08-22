@@ -15,7 +15,12 @@ const STATIC_ASSETS = [
   '/billing',
   '/products',
   '/khata',
-  '/transactions'
+  '/transactions',
+  '/barcodes/fmcg-india.json',
+  '/barcodes/pharmacy-india.json',
+  '/barcodes/apparel-retail.json',
+  '/barcodes/electronics-mobile.json',
+  '/barcodes/general-store.json'
 ];
 
 self.addEventListener('install', (event) => {

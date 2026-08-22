@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Product, ProductUnit } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
-import { lookupPublicBarcode } from '@/lib/api/publicBarcodeLookup';
+import { performHybridBarcodeScan, autoCreateProductFromCategoryItem } from '@/lib/barcode/offlineBarcodeLookup';
 import { playBeepSound } from '@/lib/voice/speechParser';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
@@ -115,13 +115,11 @@ export const RapidBarcodeInwardModal: React.FC<RapidBarcodeInwardModalProps> = (
       return;
     }
 
-    // 2. Check if exists in Dexie Local Database
-    const existingDbProduct = await db.products
-      .where('barcode')
-      .equals(code)
-      .first() || (await db.products.get(code));
+    // 2. Perform Hybrid Barcode Scan (Step A: Local Dexie, Step B: Category JSON)
+    const scanResult = await performHybridBarcodeScan(code, business?.id || '', business?.business_type);
 
-    if (existingDbProduct) {
+    if (scanResult.source === 'dexie' && scanResult.product) {
+      const existingDbProduct = scanResult.product;
       playBeepSound('success');
       triggerSuccessFlash();
       const newItem: InwardSessionItem = {
@@ -140,26 +138,35 @@ export const RapidBarcodeInwardModal: React.FC<RapidBarcodeInwardModalProps> = (
       return;
     }
 
-    // 3. New barcode detected! Open Quick-Add on the fly
+    if (scanResult.source === 'category_json' && scanResult.categoryItem) {
+      // Auto-create product into store DB and add to session
+      const autoProduct = await autoCreateProductFromCategoryItem(scanResult.categoryItem, business?.id || 'biz_default', scanIncrementStep);
+      playBeepSound('success');
+      triggerSuccessFlash();
+      const newItem: InwardSessionItem = {
+        barcode: code,
+        productId: autoProduct.id,
+        name: autoProduct.name,
+        categoryName: autoProduct.category_name || 'General',
+        unit: autoProduct.unit,
+        purchasePrice: autoProduct.purchase_price,
+        sellingPrice: autoProduct.selling_price,
+        previousStock: 0,
+        addedQty: scanIncrementStep,
+        isNewProduct: true,
+      };
+      setSessionItems((prev) => [newItem, ...prev]);
+      return;
+    }
+
+    // 3. Completely Unknown Barcode -> Open Quick-Add Auto-Learning Modal
     playBeepSound('alert');
     setPendingNewBarcode(code);
-    setIsLookingUpApi(true);
     setNewInitialQty(scanIncrementStep.toString());
-
-    try {
-      const publicInfo = await lookupPublicBarcode(code);
-      if (publicInfo) {
-        setNewName(publicInfo.name || `Item ${code}`);
-        setNewCategory(publicInfo.category || categories[0]?.name || 'General Items');
-      } else {
-        setNewName(`Item ${code}`);
-        setNewCategory(categories[0]?.name || 'General Items');
-      }
-    } catch {
-      setNewName(`Item ${code}`);
-    } finally {
-      setIsLookingUpApi(false);
-    }
+    setNewName('');
+    setNewCategory(categories[0]?.name || 'General Items');
+    setNewSellingPrice('');
+    setNewPurchasePrice('');
   };
 
   // Hardware Scanner Hook (Laser guns)

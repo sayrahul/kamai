@@ -1,0 +1,14 @@
+[
+  { "barcode": "8904441001016", "name": "Classmate Long Notebook 172 Pages Single Line", "category": "Stationery", "mrp": 60, "selling_price": 55, "unit": "piece", "tax_rate": 12, "hsn": "4820" },
+  { "barcode": "8904441001023", "name": "Classmate Pulse Spiral Notebook 300 Pages", "category": "Stationery", "mrp": 160, "selling_price": 145, "unit": "piece", "tax_rate": 12, "hsn": "4820" },
+  { "barcode": "8904441002013", "name": "Reynolds 045 Ball Pen Blue (Pack of 5)", "category": "Stationery", "mrp": 50, "selling_price": 45, "unit": "pack", "tax_rate": 18, "hsn": "9608" },
+  { "barcode": "8904441002020", "name": "Cello Butterflow Ball Pen Blue (Pack of 5)", "category": "Stationery", "mrp": 50, "selling_price": 45, "unit": "pack", "tax_rate": 18, "hsn": "9608" },
+  { "barcode": "8904441003010", "name": "Fevicol MR All Round Adhesive 100g Squeeze Bottle", "category": "Adhesives", "mrp": 50, "selling_price": 45, "unit": "bottle", "tax_rate": 18, "hsn": "3506" },
+  { "barcode": "8904441003027", "name": "Fevikwik Instant Adhesive 3g Sachet", "category": "Adhesives", "mrp": 10, "selling_price": 10, "unit": "piece", "tax_rate": 18, "hsn": "3506" },
+  { "barcode": "8904441004017", "name": "Camlin Kokuyo Wax Crayons Extra Long (16 Shades)", "category": "Stationery", "mrp": 60, "selling_price": 55, "unit": "pack", "tax_rate": 12, "hsn": "9609" },
+  { "barcode": "8904441005014", "name": "Apsara Platinum Extra Dark Pencils (Pack of 10 with Sharpener & Eraser)", "category": "Stationery", "mrp": 60, "selling_price": 55, "unit": "box", "tax_rate": 12, "hsn": "9609" },
+  { "barcode": "8904441006011", "name": "Scotch Transparent Magic Tape 1 Inch Roll", "category": "Stationery", "mrp": 45, "selling_price": 40, "unit": "piece", "tax_rate": 18, "hsn": "3919" },
+  { "barcode": "8904441007018", "name": "Mangaldeep Sandalwood Agarbatti Sticks (Pack of 2)", "category": "Pooja Essentials", "mrp": 70, "selling_price": 65, "unit": "pack", "tax_rate": 5, "hsn": "3307" },
+  { "barcode": "8904441007025", "name": "Cycle Pure Agarbatti 3in1 Fragrance (Pack of 3)", "category": "Pooja Essentials", "mrp": 90, "selling_price": 82, "unit": "pack", "tax_rate": 5, "hsn": "3307" },
+  { "barcode": "8904441008015", "name": "Homelite Safety Matchbox (Bundle of 10 Boxes)", "category": "Home Essentials", "mrp": 20, "selling_price": 20, "unit": "bundle", "tax_rate": 12, "hsn": "3605" }
+]

@@ -6,7 +6,6 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { Product, Category, ProductUnit } from '@/types';
 import { formatINR, parseRupeesToPaise, cn } from '@/lib/utils';
-import { lookupPublicBarcode } from '@/lib/api/publicBarcodeLookup';
 import { 
   Plus, 
   Search, 
@@ -32,6 +31,7 @@ import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { RapidBarcodeInwardModal } from '@/components/products/RapidBarcodeInwardModal';
 import { ExcelInventoryImporter } from '@/components/inventory/ExcelInventoryImporter';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
+import { lookupCategoryBarcode } from '@/lib/barcode/categoryBarcodeLoader';
 import { getStoreProfile, MASTER_UNITS } from '@/lib/constants/storeProfiles';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
@@ -261,11 +261,15 @@ export default function ProductsPage() {
     setIsScannerOpen(false);
     setFormBarcode(code);
 
-    // If adding a new product, attempt open public lookup
+    // If adding a new product, attempt local category offline dictionary lookup (0ms)
     if (!formName) {
-      const info = await lookupPublicBarcode(code);
-      if (info && info.name) {
-        setFormName(info.name);
+      const match = await lookupCategoryBarcode(code, business?.business_type);
+      if (match && match.name) {
+        setFormName(match.name);
+        if (match.selling_price) setFormSellingPrice(match.selling_price.toString());
+        if (match.mrp) setFormMrp(match.mrp.toString());
+        if (match.tax_rate) setFormTaxRate(match.tax_rate);
+        if (match.unit) setFormUnit(match.unit as any);
       }
     }
   };

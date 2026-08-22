@@ -1,0 +1,17 @@
+[
+  { "barcode": "8903331001019", "name": "USB Type-C Fast Charging Data Cable 1m", "category": "Mobile Accessories", "mrp": 299, "selling_price": 199, "unit": "piece", "tax_rate": 18, "hsn": "8544" },
+  { "barcode": "8903331001026", "name": "Braided 65W Fast Charging Type-C to Type-C Cable 1.5m", "category": "Mobile Accessories", "mrp": 499, "selling_price": 349, "unit": "piece", "tax_rate": 18, "hsn": "8544" },
+  { "barcode": "8903331001033", "name": "Micro USB Fast Charging Cable 1m", "category": "Mobile Accessories", "mrp": 199, "selling_price": 120, "unit": "piece", "tax_rate": 18, "hsn": "8544" },
+  { "barcode": "8903331002016", "name": "20W PD Fast Charger Adapter Single Port", "category": "Mobile Accessories", "mrp": 599, "selling_price": 399, "unit": "piece", "tax_rate": 18, "hsn": "8504" },
+  { "barcode": "8903331002023", "name": "33W Sonic Fast Charger Adapter Dual Port (Type-C + USB)", "category": "Mobile Accessories", "mrp": 899, "selling_price": 599, "unit": "piece", "tax_rate": 18, "hsn": "8504" },
+  { "barcode": "8903331003013", "name": "10000mAh Power Bank Fast Charge 22.5W", "category": "Mobile Accessories", "mrp": 1499, "selling_price": 999, "unit": "piece", "tax_rate": 18, "hsn": "8504" },
+  { "barcode": "8903331004010", "name": "True Wireless Earbuds Bluetooth 5.3 with ENC", "category": "Audio", "mrp": 1799, "selling_price": 1199, "unit": "piece", "tax_rate": 18, "hsn": "8518" },
+  { "barcode": "8903331004027", "name": "Wireless Neckband Bluetooth Earphones with Bass Boost", "category": "Audio", "mrp": 1299, "selling_price": 799, "unit": "piece", "tax_rate": 18, "hsn": "8518" },
+  { "barcode": "8903331005017", "name": "Tempered Glass Screen Protector 9D HD Universal", "category": "Mobile Accessories", "mrp": 199, "selling_price": 99, "unit": "piece", "tax_rate": 18, "hsn": "7007" },
+  { "barcode": "8903331006014", "name": "Universal Magnetic Car Dashboard Mobile Holder", "category": "Car Accessories", "mrp": 399, "selling_price": 249, "unit": "piece", "tax_rate": 18, "hsn": "3926" },
+  { "barcode": "8903331007011", "name": "Duracell Ultra AA Alkaline Batteries (Pack of 4)", "category": "Batteries", "mrp": 180, "selling_price": 165, "unit": "pack", "tax_rate": 18, "hsn": "8506" },
+  { "barcode": "8903331007028", "name": "Duracell Ultra AAA Alkaline Batteries (Pack of 4)", "category": "Batteries", "mrp": 180, "selling_price": 165, "unit": "pack", "tax_rate": 18, "hsn": "8506" },
+  { "barcode": "8903331008018", "name": "Philips LED Bulb 9W Cool Daylight (B22)", "category": "Electrical", "mrp": 120, "selling_price": 95, "unit": "piece", "tax_rate": 12, "hsn": "8539" },
+  { "barcode": "8903331008025", "name": "Syska LED Bulb 12W Cool Day White (B22)", "category": "Electrical", "mrp": 160, "selling_price": 125, "unit": "piece", "tax_rate": 12, "hsn": "8539" },
+  { "barcode": "8903331009015", "name": "Anchor 3-Pin Multi-Plug Extension Adapter with Switch", "category": "Electrical", "mrp": 175, "selling_price": 140, "unit": "piece", "tax_rate": 18, "hsn": "8536" }
+]

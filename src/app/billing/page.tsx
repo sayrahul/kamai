@@ -6,7 +6,6 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { Product, Customer, CartItem, PaymentMethod } from '@/types';
 import { formatINR, generateWhatsAppReceiptLink, parseRupeesToPaise, cn } from '@/lib/utils';
-import { lookupPublicBarcode, PublicProductInfo } from '@/lib/api/publicBarcodeLookup';
 import { playBeepSound } from '@/lib/voice/speechParser';
 import { PlatformAnalytics } from '@/lib/firebase/analytics';
 import { 
@@ -51,7 +50,7 @@ import { Modal } from '@/components/ui/Modal';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { HardwareManagerModal } from '@/components/hardware/HardwareManagerModal';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
-import { findProductOrOfflineMaster, autoCreateProductFromMaster } from '@/lib/barcode/offlineBarcodeLookup';
+import { performHybridBarcodeScan, autoCreateProductFromCategoryItem } from '@/lib/barcode/offlineBarcodeLookup';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
@@ -302,10 +301,8 @@ export default function BillingPage() {
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
   const [scannedUnknownBarcode, setScannedUnknownBarcode] = useState<string | null>(null);
-  const [publicProductData, setPublicProductData] = useState<PublicProductInfo | null>(null);
   const [quickAddPrice, setQuickAddPrice] = useState('');
   const [quickAddName, setQuickAddName] = useState('');
-  const [isLookingUpPublicApi, setIsLookingUpPublicApi] = useState(false);
   const [completedSaleDetails, setCompletedSaleDetails] = useState<any>(null);
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -578,7 +575,7 @@ export default function BillingPage() {
     setNewCustAddress('');
   };
 
-  // Barcode scanned handler (Supports Local Inventory & Bundled Offline FMCG Catalog)
+  // Barcode scanned handler (Hybrid Zero-Latency Offline Scan & Auto-Learning)
   const handleBarcodeScanned = async (barcode: string) => {
     const clean = barcode.trim();
     if (!clean) return;
@@ -586,36 +583,29 @@ export default function BillingPage() {
     const businessId = business?.id || 'biz_default';
 
     try {
-      const match = await findProductOrOfflineMaster(clean, businessId);
+      // Step A (Dexie) & Step B (Category JSON Dictionary)
+      const scanResult = await performHybridBarcodeScan(clean, businessId, business?.business_type);
 
-      if (match) {
-        if (match.product) {
-          addToCart(match.product, 1);
-          return;
-        } else if (match.masterItem) {
-          // Auto-create product into store inventory and add to cart
-          const newProd = await autoCreateProductFromMaster(match.masterItem, businessId);
-          addToCart(newProd, 1);
-          return;
-        }
+      if (scanResult.source === 'dexie' && scanResult.product) {
+        addToCart(scanResult.product, 1);
+        return;
+      }
+
+      if (scanResult.source === 'category_json' && scanResult.categoryItem) {
+        // Instant auto-create in local Dexie and add to cart (0ms)
+        const autoProduct = await autoCreateProductFromCategoryItem(scanResult.categoryItem, businessId);
+        addToCart(autoProduct, 1);
+        return;
       }
     } catch (err) {
-      console.warn('Offline barcode lookup notice:', err);
+      console.warn('Hybrid barcode scan notice:', err);
     }
 
+    // Step C: Auto-Learning Fallback -> Trigger Quick Add Modal for Shopkeeper
     setScannedUnknownBarcode(clean);
-    setIsLookingUpPublicApi(true);
+    setQuickAddName('');
+    setQuickAddPrice('');
     setIsQuickAddModalOpen(true);
-
-    try {
-      const publicInfo = await lookupPublicBarcode(clean);
-      setPublicProductData(publicInfo);
-      setQuickAddName(publicInfo?.name || `Item ${clean}`);
-    } catch (e) {
-      setQuickAddName(`Item ${clean}`);
-    } finally {
-      setIsLookingUpPublicApi(false);
-    }
   };
 
   useHardwareBarcodeScanner({
@@ -629,7 +619,7 @@ export default function BillingPage() {
 
     const businessId = business?.id || 'biz_default';
     const pricePaise = Math.round(parseFloat(quickAddPrice) * 100);
-    const prodId = `prod_${Date.now()}`;
+    const prodId = `prod_learn_${Date.now()}`;
     const now = new Date().toISOString();
 
     const newProd: Product = {
@@ -637,7 +627,7 @@ export default function BillingPage() {
       business_id: businessId,
       name: quickAddName.trim(),
       category_id: 'cat_general',
-      category_name: publicProductData?.category || 'Packaged Goods',
+      category_name: 'General Store',
       unit: 'packet',
       purchase_price: Math.round(pricePaise * 0.85),
       selling_price: pricePaise,
@@ -654,13 +644,14 @@ export default function BillingPage() {
       sync_status: 'synced',
     };
 
+    // Permanently memorize in local Dexie.js for future scans
     await db.products.put(newProd);
     addToCart(newProd, 1);
 
     setIsQuickAddModalOpen(false);
     setQuickAddPrice('');
     setQuickAddName('');
-    setPublicProductData(null);
+    setScannedUnknownBarcode(null);
   };
 
   // Calculations
@@ -1705,13 +1696,6 @@ export default function BillingPage() {
         size="md"
       >
         <form onSubmit={handleSaveQuickAddItem} className="space-y-3 p-1">
-          {isLookingUpPublicApi && (
-            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-600 animate-spin" />
-              <span>Looking up product name from global barcode database...</span>
-            </div>
-          )}
-
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1">Product Name *</label>
             <Input
