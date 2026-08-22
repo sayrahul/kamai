@@ -4,6 +4,8 @@ export interface AuthUser {
     uid: string;
     id?: string;
     phone?: string | null;
+    email?: string | null;
+    photoURL?: string | null;
     name?: string;
     business_id?: string;
     business_name?: string;

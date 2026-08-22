@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminRequest } from '@/lib/admin/adminAuth';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { getFirestoreDb } from '@/lib/firebase/config';
+import { collection, getDocs, limit, query } from 'firebase/firestore';
 
 export async function GET(req: NextRequest) {
   if (!verifyAdminRequest(req)) {
@@ -8,45 +10,58 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const supabase = getSupabaseServerClient();
-    
-    let totalMerchants = 0;
-    let totalBusinesses = 0;
+    const merchantsMap = new Map<string, any>();
+
+    // 1. Fetch from Firestore
+    try {
+      const firestore = getFirestoreDb();
+      if (firestore) {
+        const bizQuery = query(collection(firestore, 'businesses'), limit(500));
+        const snapshot = await getDocs(bizQuery);
+        snapshot.forEach((doc) => {
+          merchantsMap.set(doc.id, doc.data());
+        });
+      }
+    } catch (firestoreErr) {
+      console.warn('Firestore metrics fetch error:', firestoreErr);
+    }
+
+    // 2. Fetch from Supabase
+    try {
+      const supabase = getSupabaseServerClient();
+      if (supabase) {
+        const { data: bizData } = await supabase
+          .from('businesses')
+          .select('id, name, phone, subscription_tier, created_at, owner_name, city, is_active');
+        if (bizData) {
+          bizData.forEach((b) => merchantsMap.set(b.id, b));
+        }
+      }
+    } catch (supabaseErr) {
+      console.warn('Supabase metrics fetch error:', supabaseErr);
+    }
+
+    const allBusinesses = Array.from(merchantsMap.values());
     let freeCount = 0;
     let proCount = 0;
     let enterpriseCount = 0;
-    let recentSignups: any[] = [];
 
-    if (supabase) {
-      // 1. Fetch Merchants count
-      const { count: mCount } = await supabase
-        .from('merchants')
-        .select('*', { count: 'exact', head: true });
-      totalMerchants = mCount || 0;
+    allBusinesses.forEach((b: any) => {
+      const tier = (b.subscription_tier || 'free').toLowerCase();
+      if (tier === 'enterprise') enterpriseCount++;
+      else if (tier === 'pro' || tier === 'growth') proCount++;
+      else freeCount++;
+    });
 
-      // 2. Fetch Businesses & Tier split
-      const { data: bizData } = await supabase
-        .from('businesses')
-        .select('id, name, phone, subscription_tier, created_at, owner_name, city, is_active')
-        .order('created_at', { ascending: false });
-
-      if (bizData) {
-        totalBusinesses = bizData.length;
-        bizData.forEach((b: any) => {
-          const tier = (b.subscription_tier || 'free').toLowerCase();
-          if (tier === 'enterprise') enterpriseCount++;
-          else if (tier === 'pro' || tier === 'growth') proCount++;
-          else freeCount++;
-        });
-        recentSignups = bizData.slice(0, 10);
-      }
-    }
+    // Sort recent signups
+    const sorted = [...allBusinesses].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    const recentSignups = sorted.slice(0, 10);
 
     return NextResponse.json({
       success: true,
       metrics: {
-        totalMerchants,
-        totalBusinesses,
+        totalMerchants: allBusinesses.length,
+        totalBusinesses: allBusinesses.length,
         tiers: {
           free: freeCount,
           pro: proCount,

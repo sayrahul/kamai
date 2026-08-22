@@ -20,7 +20,6 @@ let storage: FirebaseStorage | null = null;
 let remoteConfig: RemoteConfig | null = null;
 
 export function getFirebaseApp(): FirebaseApp | null {
-  if (typeof window === 'undefined') return null;
   if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
     return null;
   }

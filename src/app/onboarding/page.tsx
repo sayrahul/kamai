@@ -6,6 +6,9 @@ import { db, seedBusinessStarterData } from '@/lib/db';
 import { useTranslation } from '@/lib/i18n';
 import { BusinessType, SupportedLanguage, Business } from '@/types';
 import { getStoredUser, setStoredUser } from '@/lib/auth';
+import { getFirestoreDb } from '@/lib/firebase/config';
+import { doc, setDoc } from 'firebase/firestore';
+import { sanitizeForFirestore } from '@/lib/firebase/firestoreSync';
 import { 
   Store, 
   ShoppingBag, 
@@ -159,6 +162,27 @@ export default function OnboardingPage() {
           phone: cleanPhone,
           name: newBusiness.owner_name,
         });
+      }
+
+      // Sync registered merchant to Cloud Firestore so Admin Panel sees it live
+      try {
+        const firestore = getFirestoreDb();
+        if (firestore) {
+          const bizDocRef = doc(firestore, 'businesses', businessId);
+          await setDoc(
+            bizDocRef,
+            sanitizeForFirestore({
+              ...newBusiness,
+              email: currentUser?.email || '',
+              subscription_tier: 'free',
+              is_active: true,
+              last_synced_at: now,
+            }),
+            { merge: true }
+          );
+        }
+      } catch (cloudErr) {
+        console.warn('Firestore initial merchant sync:', cloudErr);
       }
 
       router.push('/');
