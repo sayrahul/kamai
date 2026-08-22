@@ -15,6 +15,8 @@ import {
   QrCode,
   Globe,
   PackageCheck,
+  Pill,
+  Zap,
   Building2,
   Smartphone,
   Utensils,
@@ -43,15 +45,16 @@ export default function OnboardingPage() {
   const [seedProducts, setSeedProducts] = useState<boolean>(true);
 
   const businessTypes: Array<{ type: BusinessType; title: string; desc: string; icon: any }> = [
-    { type: 'grocery', title: 'Kirana & Grocery', desc: 'Atta, Dal, Oil, FMCG & Daily essentials', icon: Store },
-    { type: 'clothing', title: 'Clothing & Footwear', desc: 'Apparel, Sarees, Shoes & Garments', icon: ShoppingBag },
-    { type: 'electronics', title: 'Electronics & Mobile', desc: 'Phones, Accessories, Repairs', icon: Smartphone },
+    { type: 'grocery', title: 'Kirana & Grocery', desc: 'Tata Salt, Parle-G, Maggi, Atta & Daily essentials', icon: Store },
+    { type: 'pharmacy', title: 'Medical Store & Pharmacy', desc: 'Dolo 650, Crocin, Vicks, Syrups & First Aid', icon: Pill },
+    { type: 'restaurant', title: 'Cafe & Restaurant', desc: 'Dosa, Paneer, Biryani, Roti, Chai & Drinks', icon: Utensils },
+    { type: 'clothing', title: 'Clothing & Footwear', desc: 'T-Shirts, Jeans, Kurtis, Leggings & Garments', icon: ShoppingBag },
+    { type: 'electronics', title: 'Electronics & Mobile', desc: 'Chargers, Cables, Earbuds, Power Banks', icon: Smartphone },
+    { type: 'hardware', title: 'Hardware & Sanitary', desc: 'Paints, Fevicol, Taplon Tape, Nails & Tools', icon: Wrench },
+    { type: 'electrical', title: 'Electrical Goods', desc: 'LED Bulbs, Havells Wire, Switches & Multi-Plugs', icon: Zap },
+    { type: 'fmcg', title: 'FMCG & Supermarket', desc: 'Packaged foods, Biscuits, Soaps & Detergents', icon: Store },
     { type: 'bakery', title: 'Bakery & Sweets', desc: 'Cakes, Breads, Sweets & Snacks', icon: Sparkles },
-    { type: 'restaurant', title: 'Cafe & Restaurant', desc: 'Food items, Dine-in & Quick bites', icon: Utensils },
-    { type: 'hardware', title: 'Hardware & Electrical', desc: 'Paints, Tools, Pipes & Wires', icon: Wrench },
-    { type: 'stationery', title: 'Stationery & Books', desc: 'Registers, Pens, School/Office items', icon: BookOpen },
-    { type: 'salon', title: 'Salon & Beauty', desc: 'Haircut, Grooming & Beauty services', icon: Sparkles },
-    { type: 'services', title: 'Repair & Services', desc: 'AC/Bike repair, Freelance & Services', icon: Wrench },
+    { type: 'stationery', title: 'Stationery & Books', desc: 'Registers, Pens, School & Office items', icon: BookOpen },
     { type: 'other', title: 'General Business / Other', desc: 'Custom products and general trading', icon: Building2 },
   ];
 

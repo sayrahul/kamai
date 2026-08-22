@@ -16,6 +16,7 @@ import {
   BusinessType,
 } from '@/types';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
+import { seedCategoryDefaultProducts } from '@/lib/constants/defaultProducts';
 
 export class VyaparSetuDatabase extends Dexie {
   businesses!: Table<Business, string>;
@@ -125,56 +126,8 @@ export async function seedBusinessStarterData(businessId: string, businessType: 
     createdCategoryIds.push(catId);
   }
 
-  // 2. Seed Sample Products from Profile
-  for (let i = 0; i < profile.sampleProducts.length; i++) {
-    const sample = profile.sampleProducts[i];
-    const catIndex = profile.quickCategories.indexOf(sample.category);
-    const catId = catIndex >= 0 && createdCategoryIds[catIndex] ? createdCategoryIds[catIndex] : createdCategoryIds[0] || 'cat_default';
-
-    const prodId = `prod_${Date.now()}_${i}`;
-    await db.products.put({
-      id: prodId,
-      business_id: businessId,
-      name: sample.name,
-      barcode: sample.barcode || (profile.featureToggles.showBarcode ? `89010${i}0000${i+1}` : undefined),
-      category_id: catId,
-      category_name: sample.category,
-      selling_price: sample.selling_price,
-      purchase_price: sample.purchase_price,
-      mrp: sample.mrp,
-      unit: sample.unit || profile.defaultUnit,
-      current_stock: 50,
-      min_stock_level: 10,
-      tax_rate: sample.tax_rate,
-      is_tax_inclusive: true,
-      is_loose_item: sample.is_loose_item || false,
-      batch_number: sample.batch_number,
-      expiry_date: sample.expiry_date,
-      size: sample.size,
-      color: sample.color,
-      warranty_period_months: sample.warranty_period_months,
-      is_active: true,
-      is_favorite: i < 3,
-      created_at: now,
-      updated_at: now,
-      sync_status: 'synced',
-    });
-
-    // Add initial stock movement audit log
-    await db.inventory_movements.put({
-      id: `mov_init_${Date.now()}_${i}`,
-      business_id: businessId,
-      product_id: prodId,
-      product_name: sample.name,
-      movement_type: 'ADJUSTMENT',
-      quantity: 50,
-      previous_stock: 0,
-      new_stock: 50,
-      reason: 'Starter Catalog Setup',
-      created_by: 'system',
-      created_at: now,
-    });
-  }
+  // 2. Seed Default Category Retail Products into db.products (stock = 10, no barcode)
+  await seedCategoryDefaultProducts(businessId, businessType);
 
   // 3. Sample Customers with Udhar Khata balances
   const sampleCustomers: Array<Omit<Customer, 'id' | 'business_id' | 'created_at' | 'updated_at' | 'sync_status'>> = [
