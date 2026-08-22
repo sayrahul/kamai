@@ -51,7 +51,9 @@ import {
   BarChart3,
   Percent,
   CheckSquare,
-  Globe
+  Globe,
+  Mail,
+  MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -557,7 +559,7 @@ export default function MasterSuperAdminPage() {
   };
 
   // -------------------------------------------------------------
-  // VIEW: AUTHENTICATION LOCK SCREEN
+  // VIEW: AUTHENTICATION LOCK SCREEN (RESPONSIVE)
   // -------------------------------------------------------------
   if (isAuthenticated === null) {
     return (
@@ -572,16 +574,16 @@ export default function MasterSuperAdminPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#070A10] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-950/20 via-[#070A10] to-[#070A10] flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md bg-[#0E131F]/90 border border-slate-800 rounded-3xl p-8 shadow-2xl backdrop-blur-2xl relative overflow-hidden">
+      <div className="min-h-screen bg-[#070A10] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-950/20 via-[#070A10] to-[#070A10] flex flex-col items-center justify-center p-4 sm:p-6">
+        <div className="w-full max-w-md bg-[#0E131F]/95 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600" />
           
-          <div className="flex flex-col items-center text-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center mb-4 text-amber-400 shadow-inner">
-              <ShieldCheck className="w-8 h-8" />
+          <div className="flex flex-col items-center text-center mb-6 sm:mb-8">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center mb-3 sm:mb-4 text-amber-400 shadow-inner">
+              <ShieldCheck className="w-7 h-7 sm:w-8 sm:h-8" />
             </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">KamaiPlus SuperAdmin</h1>
-            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">KamaiPlus SuperAdmin</h1>
+            <p className="text-xs text-slate-400 mt-1 sm:mt-1.5 leading-relaxed">
               Master Platform Authority &amp; Merchant Ecosystem Control
             </p>
           </div>
@@ -622,8 +624,8 @@ export default function MasterSuperAdminPage() {
             </Button>
           </form>
 
-          <div className="mt-8 pt-4 border-t border-slate-800 text-center">
-            <p className="text-[11px] text-slate-500 font-mono">
+          <div className="mt-6 sm:mt-8 pt-4 border-t border-slate-800 text-center">
+            <p className="text-[10px] sm:text-[11px] text-slate-500 font-mono">
               Protected by multi-tier cryptographic token authentication.
             </p>
           </div>
@@ -633,78 +635,80 @@ export default function MasterSuperAdminPage() {
   }
 
   // -------------------------------------------------------------
-  // VIEW: AUTHENTICATED SUPERADMIN CONTROL CENTER
+  // VIEW: AUTHENTICATED SUPERADMIN CONTROL CENTER (RESPONSIVE)
   // -------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#070A10] text-slate-100 pb-16 font-sans">
+    <div className="min-h-screen bg-[#070A10] text-slate-100 pb-16 font-sans antialiased">
       {/* Toast Notification Banner */}
       {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 p-4 rounded-2xl bg-emerald-500/90 text-slate-950 font-black text-xs shadow-2xl flex items-center gap-2.5 backdrop-blur-md animate-in slide-in-from-top-4 duration-200">
+        <div className="fixed top-4 right-4 z-50 p-3.5 sm:p-4 rounded-2xl bg-emerald-500 text-slate-950 font-black text-xs shadow-2xl flex items-center gap-2.5 backdrop-blur-md animate-in slide-in-from-top-4 duration-200 border border-emerald-400/40">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Top Navbar Header */}
-      <header className="sticky top-0 z-40 bg-[#0B0F17]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-8 py-3.5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-md shadow-amber-400/20">
-              <ShieldCheck className="w-5 h-5" />
+      <header className="sticky top-0 z-40 bg-[#0B0F17]/95 backdrop-blur-xl border-b border-slate-800/80 px-3 sm:px-6 lg:px-8 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-md shadow-amber-400/20 shrink-0">
+              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-white tracking-tight">KamaiPlus SuperAdmin</span>
-                <span className="px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/30 text-[10px] font-black uppercase tracking-wider">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <span className="text-xs sm:text-sm font-black text-white tracking-tight truncate">
+                  KamaiPlus Admin
+                </span>
+                <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/30 text-[9px] sm:text-[10px] font-black uppercase tracking-wider">
                   Master
                 </span>
                 <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Live Firestore Sync
+                  Live Sync
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 hidden sm:block">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 hidden sm:block truncate">
                 Real-Time Platform Governance &amp; Multi-Store Infrastructure
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={loadAllAdminData}
               disabled={isLoadingData}
-              className="bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white text-xs h-8.5 gap-1.5 cursor-pointer"
+              className="bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white text-xs h-8 px-2 sm:px-3 gap-1.5 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoadingData ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{isLoadingData ? 'Syncing...' : 'Refresh'}</span>
+              <span className="hidden md:inline">{isLoadingData ? 'Syncing...' : 'Refresh'}</span>
             </Button>
 
             <Button
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs h-8.5 gap-1.5 cursor-pointer"
+              className="bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs h-8 px-2 sm:px-3 gap-1.5 cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Logout</span>
+              <span className="hidden md:inline">Logout</span>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Navigation Sub-Header Tabs */}
-      <div className="bg-[#0B0F17]/50 border-b border-slate-800/60 px-4 sm:px-8 py-2 overflow-x-auto">
-        <div className="max-w-7xl mx-auto flex items-center gap-2">
+      {/* Navigation Sub-Header Tabs (Horizontal Swipe on Mobile) */}
+      <div className="bg-[#0B0F17]/70 border-b border-slate-800/60 px-3 sm:px-6 lg:px-8 py-2 sticky top-[53px] sm:top-[57px] z-30 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
           {[
             { id: 'overview', label: 'Overview', icon: BarChart3 },
             { id: 'merchants', label: `Merchants (${merchants.length})`, icon: Store },
             { id: 'broadcast', label: 'Broadcasts', icon: BellRing },
             { id: 'coupons', label: `Coupons (${coupons.length})`, icon: Tag },
             { id: 'whatsapp', label: 'WhatsApp Automation', icon: MessageCircle },
-            { id: 'revenue', label: 'Transactions & Revenue', icon: CreditCard },
-            { id: 'config', label: 'Platform Config', icon: Sliders },
+            { id: 'revenue', label: 'Transactions', icon: CreditCard },
+            { id: 'config', label: 'Pricing & Config', icon: Sliders },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -712,13 +716,13 @@ export default function MasterSuperAdminPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                   isActive
                     ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-3.5 h-3.5 shrink-0" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -726,153 +730,153 @@ export default function MasterSuperAdminPage() {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-8 pt-6">
+      {/* Main Content Area (Mobile-First Responsive Padding) */}
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6">
         {/* ========================================================================= */}
         {/* TAB 1: EXECUTIVE OVERVIEW */}
         {/* ========================================================================= */}
         {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* KPI Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-4 sm:space-y-6">
+            {/* KPI Cards Grid (2 cols on mobile, 4 on desktop) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
               {/* Total Merchants */}
-              <div className="p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
-                <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-2">
+              <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-bold mb-1 sm:mb-2">
                   <span>Total Merchants</span>
-                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
-                    <Store className="w-4 h-4" />
+                  <div className="p-1.5 sm:p-2 rounded-xl bg-blue-500/10 text-blue-400 shrink-0">
+                    <Store className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-black text-white tracking-tight">
+                <div className="text-xl sm:text-2xl font-black text-white tracking-tight">
                   {merchants.length}
                 </div>
-                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-2">
-                  <span className="text-emerald-400 font-bold">● {merchants.filter((m) => m.is_active).length} Active</span>
+                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 truncate">
+                  <span className="text-emerald-400 font-bold">{merchants.filter((m) => m.is_active).length} Active</span>
                   <span>•</span>
                   <span>{merchants.filter((m) => !m.is_active).length} Frozen</span>
                 </div>
               </div>
 
               {/* Monthly Recurring Revenue (MRR) */}
-              <div className="p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
-                <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-2">
-                  <span>Monthly Run-Rate (MRR)</span>
-                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
-                    <TrendingUp className="w-4 h-4" />
+              <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-bold mb-1 sm:mb-2">
+                  <span>Monthly Run-Rate</span>
+                  <div className="p-1.5 sm:p-2 rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0">
+                    <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-black text-emerald-400 tracking-tight">
+                <div className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">
                   {formatINR(calculatedMRR)}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-2 font-mono">
-                  ARR Projection: {formatINR(calculatedARR)}/yr
+                <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 font-mono truncate">
+                  ARR: {formatINR(calculatedARR)}
                 </div>
               </div>
 
               {/* Active Paid Subscribers */}
-              <div className="p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
-                <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-2">
+              <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-bold mb-1 sm:mb-2">
                   <span>Pro Subscribers</span>
-                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
-                    <Crown className="w-4 h-4" />
+                  <div className="p-1.5 sm:p-2 rounded-xl bg-amber-500/10 text-amber-400 shrink-0">
+                    <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-black text-amber-400 tracking-tight">
+                <div className="text-xl sm:text-2xl font-black text-amber-400 tracking-tight">
                   {totalProCount}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-2">
+                <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 truncate">
                   <span>{totalFreeCount} on Free Tier</span>
                 </div>
               </div>
 
               {/* Firestore Cloud Status */}
-              <div className="p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
-                <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-2">
-                  <span>Platform Health</span>
-                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
-                    <Activity className="w-4 h-4" />
+              <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-bold mb-1 sm:mb-2">
+                  <span>Cloud Health</span>
+                  <div className="p-1.5 sm:p-2 rounded-xl bg-purple-500/10 text-purple-400 shrink-0">
+                    <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                 </div>
-                <div className="text-lg font-black text-white flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>100% Operational</span>
+                <div className="text-sm sm:text-lg font-black text-white flex items-center gap-1.5 sm:gap-2">
+                  <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="truncate">Operational</span>
                 </div>
-                <div className="text-[11px] text-slate-400 mt-2">
-                  Cloud Firestore &amp; Auth active
+                <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 truncate">
+                  Firestore &amp; Auth Active
                 </div>
               </div>
             </div>
 
             {/* Quick Actions Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-[#0E1320] border border-slate-800 rounded-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 bg-[#0E1320] border border-slate-800 rounded-2xl">
               <div>
-                <h2 className="text-sm font-bold text-white">Platform SuperAdmin Controls</h2>
-                <p className="text-xs text-slate-400">Instant merchant upgrades, coupon generation &amp; CSV export</p>
+                <h2 className="text-xs sm:text-sm font-bold text-white">Platform SuperAdmin Controls</h2>
+                <p className="text-[11px] sm:text-xs text-slate-400">Instant merchant upgrades, coupon generation &amp; CSV export</p>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   size="sm"
                   onClick={() => setIsCouponModalOpen(true)}
-                  className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs h-8.5 gap-1.5 cursor-pointer"
+                  className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs h-8 px-2.5 sm:px-3 gap-1.5 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>New Coupon</span>
+                  <span>Coupon</span>
                 </Button>
 
                 <Button
                   size="sm"
                   onClick={() => setIsManualSubModalOpen(true)}
-                  className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-8.5 gap-1.5 cursor-pointer"
+                  className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-8 px-2.5 sm:px-3 gap-1.5 cursor-pointer"
                 >
                   <Zap className="w-3.5 h-3.5" />
-                  <span>Manual Upgrade</span>
+                  <span>Upgrade</span>
                 </Button>
 
                 <Button
                   size="sm"
                   onClick={handleExportMerchantsCSV}
-                  className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs h-8.5 gap-1.5 cursor-pointer"
+                  className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs h-8 px-2.5 sm:px-3 gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Export CSV</span>
+                  <span>Export</span>
                 </Button>
               </div>
             </div>
 
             {/* Recently Joined Merchants Feed */}
-            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div>
-                  <h3 className="text-sm font-black text-white">Recently Joined Merchants</h3>
-                  <p className="text-xs text-slate-400">Latest shop owners onboarded to KamaiPlus</p>
+                  <h3 className="text-xs sm:text-sm font-black text-white">Recently Joined Merchants</h3>
+                  <p className="text-[11px] sm:text-xs text-slate-400">Latest shop owners onboarded to KamaiPlus</p>
                 </div>
                 <button
                   onClick={() => setActiveTab('merchants')}
                   className="text-xs font-bold text-amber-400 hover:underline cursor-pointer flex items-center gap-1"
                 >
-                  <span>View All {merchants.length} Merchants</span>
+                  <span>View All ({merchants.length})</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
 
               <div className="divide-y divide-slate-800/60">
                 {merchants.slice(0, 6).map((m) => (
-                  <div key={m.id} className="py-3 flex items-center justify-between gap-3 text-xs hover:bg-slate-800/20 px-2 rounded-xl transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-amber-400 flex items-center justify-center font-black text-xs shrink-0 shadow-inner">
+                  <div key={m.id} className="py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-3 text-xs hover:bg-slate-800/20 px-1 sm:px-2 rounded-xl transition-colors">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 border border-slate-700 text-amber-400 flex items-center justify-center font-black text-xs shrink-0 shadow-inner">
                         {m.name.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-bold text-white truncate text-sm">{m.name}</div>
-                        <div className="text-slate-400 font-mono text-[11px]">
-                          {m.owner_name ? `${m.owner_name} • ` : ''}{m.phone} {m.email ? `• ${m.email}` : ''}
+                        <div className="font-bold text-white truncate text-xs sm:text-sm">{m.name}</div>
+                        <div className="text-slate-400 font-mono text-[10px] sm:text-[11px] truncate">
+                          {m.owner_name ? `${m.owner_name} • ` : ''}{m.phone}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase ${
                         m.subscription_tier === 'pro' || m.subscription_tier === 'enterprise'
                           ? 'bg-amber-400/10 text-amber-400 border border-amber-400/30'
                           : 'bg-slate-800 text-slate-400 border border-slate-700'
@@ -881,10 +885,10 @@ export default function MasterSuperAdminPage() {
                       </span>
                       <button
                         onClick={() => handleOpenWhatsAppChat(m.phone, m.name)}
-                        className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 cursor-pointer transition-colors"
+                        className="p-1.5 sm:p-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 cursor-pointer transition-colors"
                         title="Chat on WhatsApp"
                       >
-                        <MessageCircle className="w-4 h-4" />
+                        <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                     </div>
                   </div>
@@ -895,20 +899,20 @@ export default function MasterSuperAdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 2: MERCHANTS DIRECTORY & 360° CONTROL */}
+        {/* TAB 2: MERCHANTS DIRECTORY & 360° CONTROL (RESPONSIVE DUAL-VIEW) */}
         {/* ========================================================================= */}
         {activeTab === 'merchants' && (
           <div className="space-y-4">
             {/* Search & Filter Toolbar */}
-            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <input
                   type="text"
-                  placeholder="Search by store name, phone, owner, email, city, or GSTIN..."
+                  placeholder="Search store name, phone, owner, email, city..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                  className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
                 />
               </div>
 
@@ -916,7 +920,7 @@ export default function MasterSuperAdminPage() {
                 <select
                   value={selectedTierFilter}
                   onChange={(e) => setSelectedTierFilter(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 focus:border-amber-400 focus:outline-none cursor-pointer"
+                  className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-2.5 py-2 focus:border-amber-400 focus:outline-none cursor-pointer shrink-0"
                 >
                   <option value="all">All Tiers</option>
                   <option value="free">Free Tier</option>
@@ -927,7 +931,7 @@ export default function MasterSuperAdminPage() {
                 <select
                   value={selectedStatusFilter}
                   onChange={(e) => setSelectedStatusFilter(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 focus:border-amber-400 focus:outline-none cursor-pointer"
+                  className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-2.5 py-2 focus:border-amber-400 focus:outline-none cursor-pointer shrink-0"
                 >
                   <option value="all">All Status</option>
                   <option value="active">Active Only</option>
@@ -937,7 +941,7 @@ export default function MasterSuperAdminPage() {
                 <Button
                   size="sm"
                   onClick={handleExportMerchantsCSV}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold h-9 px-3 gap-1.5 cursor-pointer shrink-0"
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold h-8.5 px-3 gap-1.5 cursor-pointer shrink-0"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Export</span>
@@ -945,8 +949,8 @@ export default function MasterSuperAdminPage() {
               </div>
             </div>
 
-            {/* Merchants Table */}
-            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+            {/* 1. DESKTOP VIEW: HIGH-DENSITY DATA TABLE (Visible on md: and up) */}
+            <div className="hidden md:block bg-[#0E1320] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
@@ -1070,22 +1074,133 @@ export default function MasterSuperAdminPage() {
                 </table>
               </div>
             </div>
+
+            {/* 2. MOBILE CARD STACK VIEW (Visible on mobile screens < 768px) */}
+            <div className="block md:hidden space-y-3">
+              {filteredMerchants.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 font-mono text-xs bg-[#0E1320] rounded-2xl border border-slate-800">
+                  No merchants found.
+                </div>
+              ) : (
+                filteredMerchants.map((m) => (
+                  <div key={m.id} className="p-4 rounded-2xl bg-[#0E1320] border border-slate-800 space-y-3 shadow-lg">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-amber-400 font-black flex items-center justify-center text-xs shrink-0">
+                          {m.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-white text-sm truncate">{m.name}</h4>
+                          <p className="text-[11px] text-slate-400 truncate">{m.owner_name || 'Owner not set'}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                          m.subscription_tier === 'pro' || m.subscription_tier === 'enterprise'
+                            ? 'bg-amber-400/10 text-amber-400 border border-amber-400/30'
+                            : 'bg-slate-800 text-slate-400 border border-slate-700'
+                        }`}>
+                          {m.subscription_tier}
+                        </span>
+
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                          m.is_active
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                        }`}>
+                          {m.is_active ? 'Active' : 'Frozen'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Details Info */}
+                    <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 grid grid-cols-2 gap-2 text-[11px] font-mono">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Mobile:</span>
+                        <span className="text-slate-200 font-bold">{m.phone || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Expiry:</span>
+                        <span className="text-slate-300">
+                          {m.subscription_expires_at ? new Date(m.subscription_expires_at).toLocaleDateString('en-IN') : 'Free / Lifetime'}
+                        </span>
+                      </div>
+                      {m.email && (
+                        <div className="col-span-2 truncate">
+                          <span className="text-slate-500 block text-[10px]">Google Email:</span>
+                          <span className="text-slate-300">{m.email}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Touch-Friendly Action Bar */}
+                    <div className="grid grid-cols-5 gap-1.5 pt-1 border-t border-slate-800/80">
+                      <button
+                        onClick={() => handleOpenWhatsAppChat(m.phone, m.name)}
+                        className="py-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>Chat</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleOpenEditModal(m)}
+                        className="py-2 rounded-xl bg-amber-400/10 text-amber-400 hover:bg-amber-400/20 flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-colors"
+                      >
+                        <Crown className="w-4 h-4" />
+                        <span>Plan</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleFreezeMerchant(m)}
+                        className={`py-2 rounded-xl flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-colors ${
+                          m.is_active
+                            ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
+                            : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                        }`}
+                      >
+                        <Ban className="w-4 h-4" />
+                        <span>{m.is_active ? 'Freeze' : 'Unfreeze'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => setSelectedMerchantForView(m)}
+                        className="py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>View</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteMerchant(m)}
+                        className="py-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 3: IN-APP ANNOUNCEMENT BROADCASTS */}
+        {/* TAB 3: IN-APP ANNOUNCEMENT BROADCASTS (RESPONSIVE) */}
         {/* ========================================================================= */}
         {activeTab === 'broadcast' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-7 bg-[#0E1320] border border-slate-800 rounded-2xl p-6 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+            <div className="lg:col-span-7 bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4">
               <div>
-                <h3 className="text-base font-black text-white">Publish Terminal Announcement</h3>
+                <h3 className="text-sm sm:text-base font-black text-white">Publish Terminal Announcement</h3>
                 <p className="text-xs text-slate-400">Push instant banner alerts to all active POS counters</p>
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-xl bg-slate-950 border border-slate-800">
+                <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-xl bg-slate-950 border border-slate-800">
                   <div>
                     <span className="text-xs font-bold text-white block">Broadcast Banner Active</span>
                     <span className="text-[11px] text-slate-400">When enabled, appears on all merchant screens.</span>
@@ -1093,7 +1208,7 @@ export default function MasterSuperAdminPage() {
                   <button
                     type="button"
                     onClick={() => setBroadcastEnabled(!broadcastEnabled)}
-                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
+                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 ${
                       broadcastEnabled ? 'bg-emerald-500' : 'bg-slate-800'
                     }`}
                   >
@@ -1152,14 +1267,14 @@ export default function MasterSuperAdminPage() {
             </div>
 
             {/* Live Terminal Preview */}
-            <div className="lg:col-span-5 bg-[#0E1320] border border-slate-800 rounded-2xl p-6 space-y-4">
+            <div className="lg:col-span-5 bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4">
               <h3 className="text-sm font-black text-white">Live Merchant Preview</h3>
               <p className="text-xs text-slate-400">How your banner appears on merchant billing terminals:</p>
 
               <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 border border-amber-400/30 text-amber-300 text-xs flex items-center justify-between gap-3 shadow-lg">
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="font-bold">{broadcastMessage}</span>
+                  <span className="font-bold truncate">{broadcastMessage}</span>
                 </div>
                 {broadcastLink && (
                   <span className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black text-[10px] shrink-0">
@@ -1172,27 +1287,27 @@ export default function MasterSuperAdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 4: COUPON MANAGEMENT */}
+        {/* TAB 4: COUPON MANAGEMENT (RESPONSIVE) */}
         {/* ========================================================================= */}
         {activeTab === 'coupons' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between bg-[#0E1320] border border-slate-800 rounded-2xl p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-[#0E1320] border border-slate-800 rounded-2xl p-4">
               <div>
                 <h3 className="text-sm font-black text-white">Subscription Promo Codes</h3>
                 <p className="text-xs text-slate-400">Discount codes for Kamai+ Pro upgrades</p>
               </div>
               <Button
                 onClick={() => setIsCouponModalOpen(true)}
-                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-8.5 gap-1.5 cursor-pointer"
+                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-8.5 gap-1.5 cursor-pointer self-start sm:self-auto"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Create Coupon</span>
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {coupons.map((coupon) => (
-                <div key={coupon.id} className="p-5 rounded-2xl bg-[#0E1320] border border-slate-800 space-y-3">
+                <div key={coupon.id} className="p-4 sm:p-5 rounded-2xl bg-[#0E1320] border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="px-3 py-1 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-400 font-mono font-black text-sm">
                       {coupon.code}
@@ -1230,13 +1345,13 @@ export default function MasterSuperAdminPage() {
         {/* ========================================================================= */}
         {activeTab === 'whatsapp' && (
           <div className="space-y-4">
-            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-6 space-y-4">
+            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4">
               <div>
-                <h3 className="text-base font-black text-white">WhatsApp Business Platform Controls</h3>
+                <h3 className="text-sm sm:text-base font-black text-white">WhatsApp Business Platform Controls</h3>
                 <p className="text-xs text-slate-400">Manage templates, webhooks, and direct merchant communications</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
                   <span className="text-xs font-bold text-slate-400 block">Cloud API Status</span>
                   <span className="text-sm font-black text-emerald-400 mt-1 block">Connected ✅</span>
@@ -1255,11 +1370,11 @@ export default function MasterSuperAdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 6: TRANSACTIONS & REVENUE */}
+        {/* TAB 6: TRANSACTIONS & REVENUE (RESPONSIVE) */}
         {/* ========================================================================= */}
         {activeTab === 'revenue' && (
           <div className="space-y-4">
-            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-5">
+            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-5">
               <h3 className="text-sm font-black text-white mb-1">Razorpay Platform Transactions</h3>
               <p className="text-xs text-slate-400">Live transaction history for paid subscription upgrades</p>
 
@@ -1270,16 +1385,16 @@ export default function MasterSuperAdminPage() {
                   </div>
                 ) : (
                   transactions.map((tx) => (
-                    <div key={tx.id} className="py-3 flex items-center justify-between text-xs">
-                      <div>
-                        <div className="font-bold text-white">{tx.business_name || tx.business_id}</div>
-                        <div className="text-slate-400 font-mono text-[11px]">
+                    <div key={tx.id} className="py-3 flex items-center justify-between text-xs gap-2">
+                      <div className="min-w-0">
+                        <div className="font-bold text-white truncate">{tx.business_name || tx.business_id}</div>
+                        <div className="text-slate-400 font-mono text-[10px] sm:text-[11px] truncate">
                           {tx.razorpay_payment_id || 'Manual Activation'} • {new Date(tx.created_at).toLocaleDateString()}
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <div className="font-black text-emerald-400">{formatINR(tx.amount || 0)}</div>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400">
+                        <span className="px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400">
                           {tx.status}
                         </span>
                       </div>
@@ -1292,12 +1407,12 @@ export default function MasterSuperAdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 7: PLATFORM CONFIG & PRICING */}
+        {/* TAB 7: PLATFORM CONFIG & PRICING (RESPONSIVE) */}
         {/* ========================================================================= */}
         {activeTab === 'config' && (
-          <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-6 space-y-5">
+          <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-5">
             <div>
-              <h3 className="text-base font-black text-white">Platform Settings &amp; Pricing Engine</h3>
+              <h3 className="text-sm sm:text-base font-black text-white">Platform Settings &amp; Pricing Engine</h3>
               <p className="text-xs text-slate-400">Manage dynamic plan pricing, hold bills quotas, and support hotlines</p>
             </div>
 
@@ -1353,7 +1468,7 @@ export default function MasterSuperAdminPage() {
                     supportPhone: formSupportPhone,
                   })
                 }
-                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-2.5 px-6 cursor-pointer"
+                className="w-full sm:w-auto bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-2.5 px-6 cursor-pointer"
               >
                 Save Remote Configuration
               </Button>
@@ -1481,28 +1596,28 @@ export default function MasterSuperAdminPage() {
           title={`Store Inspector: ${selectedMerchantForView.name}`}
         >
           <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-900 space-y-2">
-              <div className="flex justify-between">
+            <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-900 space-y-2.5">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
                 <span className="text-slate-500">Store ID:</span>
                 <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedMerchantForView.id}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-500">Owner Name:</span>
                 <span className="font-bold text-slate-800 dark:text-slate-200">{selectedMerchantForView.owner_name || 'N/A'}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-500">Phone:</span>
                 <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedMerchantForView.phone}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-500">Google Email:</span>
                 <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedMerchantForView.email || 'N/A'}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-500">Category:</span>
                 <span className="font-bold text-slate-800 dark:text-slate-200">{selectedMerchantForView.business_type || 'Grocery'}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-500">Registered On:</span>
                 <span className="font-mono text-slate-800 dark:text-slate-200">
                   {new Date(selectedMerchantForView.created_at).toLocaleString()}
