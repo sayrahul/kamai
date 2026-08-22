@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db, seedBusinessStarterData } from '@/lib/db';
 import { useTranslation } from '@/lib/i18n';
 import { BusinessType, SupportedLanguage, Business } from '@/types';
+import { getStoredUser, setStoredUser } from '@/lib/auth';
 import { 
   Store, 
   ShoppingBag, 
@@ -21,7 +22,10 @@ import {
   Smartphone,
   Utensils,
   Wrench,
-  BookOpen
+  BookOpen,
+  User,
+  Phone,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -31,6 +35,7 @@ export default function OnboardingPage() {
   const { language, setLanguage, t } = useTranslation();
   const [step, setStep] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [phoneError, setPhoneError] = useState<string>('');
 
   // Form State
   const [businessName, setBusinessName] = useState<string>('');
@@ -43,6 +48,17 @@ export default function OnboardingPage() {
   const [upiId, setUpiId] = useState<string>('');
   const [invoicePrefix, setInvoicePrefix] = useState<string>('INV-');
   const [seedProducts, setSeedProducts] = useState<boolean>(true);
+
+  // Auto-fill owner details from Google Auth session
+  useEffect(() => {
+    const user = getStoredUser();
+    if (user?.name && !ownerName) {
+      setOwnerName(user.name);
+    }
+    if (user?.phone && user.phone.length === 10 && !phone) {
+      setPhone(user.phone);
+    }
+  }, []);
 
   const businessTypes: Array<{ type: BusinessType; title: string; desc: string; icon: any }> = [
     { type: 'grocery', title: 'Kirana & Grocery', desc: 'Tata Salt, Parle-G, Maggi, Atta & Daily essentials', icon: Store },
@@ -58,9 +74,43 @@ export default function OnboardingPage() {
     { type: 'other', title: 'General Business / Other', desc: 'Custom products and general trading', icon: Building2 },
   ];
 
+  // Validate 10-Digit Indian Mobile Number
+  const validatePhoneNumber = (inputPhone: string): boolean => {
+    const clean = inputPhone.replace(/\D/g, '');
+    if (!clean) {
+      setPhoneError('Contact number is required.');
+      return false;
+    }
+    if (clean.length !== 10) {
+      setPhoneError('Please enter exactly 10 digits (e.g. 9876543210).');
+      return false;
+    }
+    if (!/^[6-9]/.test(clean)) {
+      setPhoneError('Mobile number must start with 6, 7, 8, or 9.');
+      return false;
+    }
+    setPhoneError('');
+    return true;
+  };
+
+  const handleStep1Next = () => {
+    if (!businessName.trim()) {
+      alert('Please enter your Store / Business name');
+      return;
+    }
+    if (!validatePhoneNumber(phone)) {
+      return;
+    }
+    setStep(2);
+  };
+
   const handleFinish = async () => {
     if (!businessName.trim()) {
       alert('Please enter your business name');
+      return;
+    }
+    if (!validatePhoneNumber(phone)) {
+      setStep(1);
       return;
     }
 
@@ -68,13 +118,14 @@ export default function OnboardingPage() {
     try {
       const businessId = `biz_${Date.now()}`;
       const now = new Date().toISOString();
+      const cleanPhone = phone.replace(/\D/g, '');
 
       const newBusiness: Business = {
         id: businessId,
         name: businessName.trim(),
         business_type: businessType,
         owner_name: ownerName.trim() || 'Business Owner',
-        phone: phone.trim(),
+        phone: cleanPhone,
         address: address.trim(),
         pincode: pincode.trim(),
         gstin: gstin.trim(),
@@ -93,9 +144,21 @@ export default function OnboardingPage() {
 
       await db.businesses.put(newBusiness);
 
-      // Seed starter catalog if checked
+      // Seed 8-category starter catalog
       if (seedProducts) {
         await seedBusinessStarterData(businessId, businessType);
+      }
+
+      // Update current user session with active business ID
+      const currentUser = getStoredUser();
+      if (currentUser) {
+        setStoredUser({
+          ...currentUser,
+          business_id: businessId,
+          business_name: newBusiness.name,
+          phone: cleanPhone,
+          name: newBusiness.owner_name,
+        });
       }
 
       router.push('/');
@@ -108,18 +171,18 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-vyapar-50/70 via-white to-slate-50 dark:from-slate-950 dark:to-slate-900 flex flex-col items-center justify-center p-4 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-4 py-8">
       {/* Top Header */}
       <div className="w-full max-w-2xl text-center mb-8">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-vyapar-100 dark:bg-vyapar-950 border border-vyapar-200 dark:border-vyapar-800 text-vyapar-800 dark:text-vyapar-300 text-xs font-bold mb-3 shadow-sm">
-          <Sparkles className="w-4 h-4 text-vyapar-500" />
-          <span>KamaiPlus (Kamai+) • Free & Offline-First</span>
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300 text-xs font-bold mb-3 shadow-sm">
+          <Sparkles className="w-4 h-4 text-amber-400" />
+          <span>KamaiPlus (Kamai+) • Free & Offline-First POS</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-          {t('onboarding.title')}
+        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          {step === 1 ? 'Store Setup & Details' : step === 2 ? 'Address & UPI Invoicing' : 'Preferences'}
         </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          {t('onboarding.subtitle')}
+        <p className="text-sm text-slate-400 mt-1">
+          {step === 1 ? 'Please answer a few quick questions to customize your billing counter.' : 'Add your shop details for invoices and QR receipts.'}
         </p>
 
         {/* Stepper Progress */}
@@ -129,60 +192,122 @@ export default function OnboardingPage() {
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                   step === s
-                    ? 'bg-vyapar-500 text-white ring-4 ring-vyapar-500/20 shadow-md'
+                    ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-400/20 shadow-md font-black'
                     : step > s
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                    ? 'bg-emerald-500 text-slate-950 font-bold'
+                    : 'bg-slate-800 text-slate-500'
                 }`}
               >
                 {step > s ? <CheckCircle2 className="w-4 h-4" /> : s}
               </div>
-              <span className={`text-xs font-semibold hidden sm:inline ${step === s ? 'text-slate-900 dark:text-slate-100 font-bold' : 'text-slate-400'}`}>
-                {s === 1 ? t('onboarding.step1') : s === 2 ? t('onboarding.step2') : t('onboarding.step3')}
+              <span className={`text-xs font-semibold hidden sm:inline ${step === s ? 'text-white font-bold' : 'text-slate-500'}`}>
+                {s === 1 ? 'Store & Contact' : s === 2 ? 'Address & UPI' : 'Preferences'}
               </span>
-              {s < 3 && <div className="w-6 sm:w-10 h-0.5 bg-slate-200 dark:bg-slate-800 rounded-full" />}
+              {s < 3 && <div className="w-6 sm:w-10 h-0.5 bg-slate-800 rounded-full" />}
             </div>
           ))}
         </div>
       </div>
 
       {/* Card Container */}
-      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-xl p-6 sm:p-8 backdrop-blur-sm">
-        {/* STEP 1: Business Profile & Type */}
+      <div className="w-full max-w-2xl bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl p-6 sm:p-8 backdrop-blur-xl">
+        {/* STEP 1: Store Type, Owner Name, Store Name, 10-Digit Mobile */}
         {step === 1 && (
           <div className="space-y-6 animate-in fade-in duration-200">
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">
-                {t('onboarding.step1')}
+              <h2 className="text-lg font-bold text-white mb-1">
+                Store & Owner Information
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Enter your shop name and choose your primary line of business.
+              <p className="text-xs text-slate-400">
+                Your owner name is fetched automatically from your Google account.
               </p>
             </div>
 
             <div className="space-y-4">
-              <Input
-                label={t('onboarding.businessName')}
-                placeholder={t('onboarding.businessNamePlaceholder')}
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-                leftIcon={<Store className="w-5 h-5" />}
-                required
-                autoFocus
-              />
-
-              <Input
-                label={t('onboarding.ownerName')}
-                placeholder="e.g. Ramesh Kumar"
-                value={ownerName}
-                onChange={(e) => setOwnerName(e.target.value)}
-              />
-
+              {/* 1. Store Name */}
               <div>
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200 block mb-2">
-                  {t('onboarding.businessType')}
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  Store / Business Name *
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                    <Store className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. Shri Ganesh Kirana Store"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    required
+                    autoFocus
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* 2. Owner Name (Pre-filled from Google) */}
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  Owner Name (Fetched from Google) *
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                    <User className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. Ramesh Sharma"
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    required
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* 3. Contact Number (10-Digit with validation) */}
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">
+                  Owner Contact Number (10-Digit Mobile) *
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 font-bold text-sm">
+                    +91
+                  </div>
+                  <input
+                    type="tel"
+                    placeholder="9876543210"
+                    maxLength={10}
+                    value={phone}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setPhone(val);
+                      if (val.length === 10) {
+                        validatePhoneNumber(val);
+                      }
+                    }}
+                    required
+                    className="w-full pl-14 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm font-mono text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                  />
+                </div>
+                {phoneError ? (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-rose-400 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{phoneError}</span>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Used for WhatsApp bill receipts and invoice headers.
+                  </p>
+                )}
+              </div>
+
+              {/* 4. Store Type / Business Category */}
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-2">
+                  Select Store Type / Line of Business *
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
                   {businessTypes.map((item) => {
                     const Icon = item.icon;
                     const isSelected = businessType === item.type;
@@ -191,18 +316,18 @@ export default function OnboardingPage() {
                         key={item.type}
                         type="button"
                         onClick={() => setBusinessType(item.type)}
-                        className={`flex items-start gap-3 p-3 text-left rounded-2xl border transition-all ${
+                        className={`flex items-start gap-3 p-3 text-left rounded-2xl border transition-all cursor-pointer ${
                           isSelected
-                            ? 'border-vyapar-500 bg-vyapar-50/60 dark:bg-vyapar-950/40 ring-2 ring-vyapar-500/20'
-                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                            ? 'border-amber-400 bg-amber-400/10 ring-2 ring-amber-400/20'
+                            : 'border-slate-800 bg-slate-950/60 hover:bg-slate-800/60'
                         }`}
                       >
-                        <div className={`p-2 rounded-xl flex-shrink-0 ${isSelected ? 'bg-vyapar-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+                        <div className={`p-2 rounded-xl shrink-0 ${isSelected ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>
                           <Icon className="w-4 h-4" />
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-slate-900 dark:text-slate-100">{item.title}</div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 leading-tight mt-0.5">{item.desc}</div>
+                          <div className={`text-xs font-bold ${isSelected ? 'text-amber-400' : 'text-white'}`}>{item.title}</div>
+                          <div className="text-[10px] text-slate-400 line-clamp-1 leading-tight mt-0.5">{item.desc}</div>
                         </div>
                       </button>
                     );
@@ -214,177 +339,179 @@ export default function OnboardingPage() {
             <div className="pt-4 flex justify-end">
               <Button
                 size="lg"
-                disabled={!businessName.trim()}
-                onClick={() => setStep(2)}
-                className="w-full sm:w-auto"
+                disabled={!businessName.trim() || phone.length < 10}
+                onClick={handleStep1Next}
+                className="w-full sm:w-auto bg-amber-400 hover:bg-amber-500 text-slate-950 font-black cursor-pointer"
               >
-                <span>{t('common.next')}</span>
+                <span>Continue to Address</span>
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
             </div>
           </div>
         )}
 
-        {/* STEP 2: Contact & UPI Details */}
+        {/* STEP 2: Address & UPI Details */}
         {step === 2 && (
           <div className="space-y-6 animate-in fade-in duration-200">
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">
-                {t('onboarding.step2')}
+              <h2 className="text-lg font-bold text-white mb-1">
+                Shop Address & UPI Payments
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Add your phone number and payment details for instant UPI QR code invoices.
+              <p className="text-xs text-slate-400">
+                Add your store address and UPI ID to generate auto-payment QR codes on receipts.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <Input
-                  label={t('onboarding.phone')}
-                  placeholder="e.g. 9876543210"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  helperText="Used on bill receipts and for customer WhatsApp sharing"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <Input
-                  label={t('onboarding.address')}
-                  placeholder="Shop No., Street, City"
+                <label className="text-xs font-bold text-slate-300 block mb-1">Shop Address</label>
+                <input
+                  type="text"
+                  placeholder="Shop No., Market, City"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
                 />
               </div>
 
-              <Input
-                label={t('onboarding.pincode')}
-                placeholder="e.g. 400001"
-                value={pincode}
-                onChange={(e) => setPincode(e.target.value)}
-              />
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Pincode</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 400001"
+                  maxLength={6}
+                  value={pincode}
+                  onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                />
+              </div>
 
-              <Input
-                label={t('onboarding.gstin')}
-                placeholder="e.g. 27AAAAA0000A1Z5"
-                value={gstin}
-                onChange={(e) => setGstin(e.target.value.toUpperCase())}
-              />
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">GSTIN (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 27AAAAA0000A1Z5"
+                  maxLength={15}
+                  value={gstin}
+                  onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                />
+              </div>
 
               <div className="sm:col-span-2">
-                <Input
-                  label={t('onboarding.upiId')}
-                  placeholder={t('onboarding.upiIdPlaceholder')}
-                  value={upiId}
-                  onChange={(e) => setUpiId(e.target.value)}
-                  leftIcon={<QrCode className="w-5 h-5 text-emerald-600" />}
-                  helperText="Enables auto-generated UPI QR on bills for zero-commission payments"
-                />
+                <label className="text-xs font-bold text-slate-300 block mb-1">UPI ID / VPA (Optional)</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-400">
+                    <QrCode className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. sharmakirana@upi or 9876543210@paytm"
+                    value={upiId}
+                    onChange={(e) => setUpiId(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Enables instant dynamic UPI QR on invoices for 0% commission direct customer payments.
+                </p>
               </div>
             </div>
 
             <div className="pt-4 flex items-center justify-between gap-3">
-              <Button variant="outline" size="md" onClick={() => setStep(1)}>
+              <Button variant="outline" size="md" onClick={() => setStep(1)} className="border-slate-700 text-slate-300 hover:bg-slate-800">
                 <ArrowLeft className="w-4 h-4 mr-1.5" />
-                <span>{t('common.back')}</span>
+                <span>Back</span>
               </Button>
-              <Button size="lg" onClick={() => setStep(3)}>
-                <span>{t('common.next')}</span>
+              <Button size="lg" onClick={() => setStep(3)} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black">
+                <span>Continue</span>
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
             </div>
           </div>
         )}
 
-        {/* STEP 3: Language & Catalog Preferences */}
+        {/* STEP 3: Language & Default Catalog Seeding */}
         {step === 3 && (
           <div className="space-y-6 animate-in fade-in duration-200">
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">
-                {t('onboarding.step3')}
+              <h2 className="text-lg font-bold text-white mb-1">
+                Final Preferences
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Choose your default language and personalize your invoice numbering.
+              <p className="text-xs text-slate-400">
+                Choose invoice language and starter inventory.
               </p>
             </div>
 
-            <div className="space-y-5">
-              {/* Language Selection Grid */}
+            <div className="space-y-4">
+              {/* Language Selection */}
               <div>
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200 block mb-2">
-                  {t('onboarding.language')}
+                <label className="text-xs font-bold text-slate-300 block mb-2">
+                  Preferred App Language
                 </label>
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { code: 'hi', label: 'हिंदी', sub: 'Hindi', flag: '🇮🇳' },
-                    { code: 'mr', label: 'मराठी', sub: 'Marathi', flag: '🇮🇳' },
-                    { code: 'en', label: 'English', sub: 'Global', flag: '🌐' },
-                  ].map((l) => (
+                    { code: 'hi', label: 'हिंदी' },
+                    { code: 'en', label: 'English' },
+                    { code: 'mr', label: 'मराठी' },
+                  ].map((lang) => (
                     <button
-                      key={l.code}
+                      key={lang.code}
                       type="button"
-                      onClick={() => setLanguage(l.code as SupportedLanguage)}
-                      className={`p-3.5 rounded-2xl border text-center transition-all ${
-                        language === l.code
-                          ? 'border-vyapar-500 bg-vyapar-50/60 dark:bg-vyapar-950/40 ring-2 ring-vyapar-500/20'
-                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      onClick={() => setLanguage(lang.code as SupportedLanguage)}
+                      className={`py-3 px-4 rounded-2xl border text-center font-bold text-sm transition cursor-pointer ${
+                        language === lang.code
+                          ? 'border-amber-400 bg-amber-400/10 text-amber-400 ring-2 ring-amber-400/20'
+                          : 'border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800'
                       }`}
                     >
-                      <div className="text-xl mb-1">{l.flag}</div>
-                      <div className="text-sm font-bold text-slate-900 dark:text-slate-100">{l.label}</div>
-                      <div className="text-[10px] text-slate-400">{l.sub}</div>
+                      {lang.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <Input
-                label={t('onboarding.invoicePrefix')}
-                placeholder="e.g. INV- or BILL-"
-                value={invoicePrefix}
-                onChange={(e) => setInvoicePrefix(e.target.value)}
-                helperText="Bills will be generated as INV-001, INV-002, etc."
-              />
-
-              {/* Seed Products Checkbox Card */}
-              <div 
-                onClick={() => setSeedProducts(!seedProducts)}
-                className={`p-4 rounded-2xl border cursor-pointer flex items-start gap-3.5 transition-all ${
-                  seedProducts 
-                    ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30' 
-                    : 'border-slate-200 dark:border-slate-800'
-                }`}
-              >
-                <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center ${seedProducts ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300'}`}>
-                  {seedProducts && <CheckCircle2 className="w-4 h-4" />}
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <PackageCheck className="w-4 h-4 text-emerald-600" />
-                    <span>{t('onboarding.sampleProducts')}</span>
+              {/* Seed Products Checkbox */}
+              <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={seedProducts}
+                    onChange={(e) => setSeedProducts(e.target.checked)}
+                    className="w-5 h-5 rounded border-slate-700 text-amber-400 focus:ring-amber-400 mt-0.5"
+                  />
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-2">
+                      <PackageCheck className="w-4 h-4 text-emerald-400" />
+                      <span>Pre-load Popular Products for my store</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                      Auto-populates 8-10 popular items for your selected category with realistic prices and 10 units stock.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Pre-loads popular items, realistic Indian MRPs, barcodes, and sample customers so you can test billing immediately.
-                  </p>
-                </div>
+                </label>
               </div>
             </div>
 
             <div className="pt-4 flex items-center justify-between gap-3">
-              <Button variant="outline" size="md" onClick={() => setStep(2)}>
+              <Button variant="outline" size="md" onClick={() => setStep(2)} className="border-slate-700 text-slate-300 hover:bg-slate-800">
                 <ArrowLeft className="w-4 h-4 mr-1.5" />
-                <span>{t('common.back')}</span>
+                <span>Back</span>
               </Button>
               <Button
-                variant="success"
                 size="lg"
-                isLoading={isLoading}
                 onClick={handleFinish}
-                className="w-full sm:w-auto"
+                disabled={isLoading}
+                className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black cursor-pointer"
               >
-                <Sparkles className="w-5 h-5 mr-2" />
-                <span>{t('onboarding.completeSetup')}</span>
+                {isLoading ? (
+                  <span>Setting Up Your Store...</span>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-1.5" />
+                    <span>Launch Store & POS Counter 🚀</span>
+                  </>
+                )}
               </Button>
             </div>
           </div>

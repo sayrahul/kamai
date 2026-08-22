@@ -4,32 +4,25 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithGoogle } from '@/lib/firebase/googleAuth';
 import { setStoredUser } from '@/lib/auth';
-import { db, seedBusinessStarterData } from '@/lib/db';
-import { BusinessType } from '@/types';
-import { getAllStoreProfiles, getStoreProfile } from '@/lib/constants/storeProfiles';
+import { db } from '@/lib/db';
 import { 
-  Store, 
   Sparkles, 
   CheckCircle2, 
   AlertCircle, 
-  ArrowRight,
   ShieldCheck,
-  Building2
+  Zap,
+  ArrowRight
 } from 'lucide-react';
 
 export const GoogleAuthCard: React.FC = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<BusinessType>('grocery');
-  const [storeName, setStoreName] = useState('');
-  const [showStoreSetup, setShowStoreSetup] = useState(false);
-
-  const storeProfiles = getAllStoreProfiles();
-  const activeProfile = getStoreProfile(selectedCategory);
+  const [welcomeUser, setWelcomeUser] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
     setError('');
+    setWelcomeUser(null);
     setLoading(true);
 
     try {
@@ -44,66 +37,52 @@ export const GoogleAuthCard: React.FC = () => {
       const googleUser = result.user;
       const now = new Date().toISOString();
 
-      // Check if a business already exists in local Dexie database
-      let existingBiz = await db.businesses.toCollection().first();
+      // Check if store/business is already set up in local database
+      const existingBiz = await db.businesses.toCollection().first();
 
-      if (!existingBiz) {
-        // Create new business with Google Account Details
-        const newBizId = `biz_${Date.now()}`;
-        const finalStoreName = storeName.trim() || `${googleUser.displayName || 'My'} Store`;
+      if (existingBiz && existingBiz.is_onboarded) {
+        // ALREADY REGISTERED USER -> Welcome back message & Instant POS Launch
+        const displayName = existingBiz.owner_name || googleUser.displayName || 'Merchant';
+        setWelcomeUser(displayName);
 
-        existingBiz = {
-          id: newBizId,
-          name: finalStoreName,
-          business_type: selectedCategory,
-          owner_name: googleUser.displayName || 'Store Owner',
-          phone: googleUser.phoneNumber || '',
-          address: 'Main Market',
-          pincode: '400001',
-          currency: 'INR',
-          language: 'hi',
-          invoice_prefix: 'INV-',
-          next_invoice_number: 1001,
-          terms_conditions: 'Thank you for your business! Goods once sold will be exchanged within 7 days.',
-          footer_message: 'Powered by KamaiPlus (Kamai+)',
-          is_onboarded: true,
-          created_at: now,
-          updated_at: now,
-          sync_status: 'synced',
-        };
+        // Update local session
+        setStoredUser({
+          uid: googleUser.uid,
+          id: googleUser.uid,
+          name: displayName,
+          phone: existingBiz.phone || googleUser.phoneNumber || googleUser.email || '',
+          role: 'owner',
+          business_id: existingBiz.id,
+          business_name: existingBiz.name,
+        });
 
-        await db.businesses.put(existingBiz);
-
-        // Seed 8-category default inventory items
-        try {
-          await seedBusinessStarterData(newBizId, selectedCategory);
-        } catch (seedErr) {
-          console.warn('Could not seed starter catalog:', seedErr);
-        }
-      } else {
-        // Update existing business owner name
+        // Update owner name in database if changed
         await db.businesses.update(existingBiz.id, {
-          owner_name: googleUser.displayName || existingBiz.owner_name,
+          owner_name: displayName,
           updated_at: now,
         });
+
+        // Short delay for the user to enjoy the welcome banner
+        setTimeout(() => {
+          router.push('/');
+        }, 1000);
+      } else {
+        // FIRST TIME USER (NEW SIGNUP) -> Store Google session and redirect to onboarding wizard
+        setStoredUser({
+          uid: googleUser.uid,
+          id: googleUser.uid,
+          name: googleUser.displayName || 'Store Owner',
+          phone: googleUser.phoneNumber || '',
+          role: 'owner',
+          business_id: 'biz_pending',
+        });
+
+        // Redirect directly to questions: Store Type, Owner Name, Store Name, 10-Digit Contact
+        router.push('/onboarding');
       }
-
-      // Set stored session user
-      setStoredUser({
-        uid: googleUser.uid,
-        id: googleUser.uid,
-        name: googleUser.displayName || 'Store Owner',
-        phone: googleUser.phoneNumber || googleUser.email || 'Google User',
-        role: 'owner',
-        business_id: existingBiz.id,
-      });
-
-      // Redirect to POS Counter
-      router.push('/');
     } catch (err: any) {
       console.error('Sign-in error:', err);
       setError(err?.message || 'An unexpected error occurred. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -119,9 +98,22 @@ export const GoogleAuthCard: React.FC = () => {
           Welcome to KamaiPlus
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          Fast, offline-first billing & cloud backup for Indian retail stores
+          India's 100% Offline-First POS & Digital Khata Software
         </p>
       </div>
+
+      {/* Welcome Back Banner for Returning Users */}
+      {welcomeUser && (
+        <div className="mb-5 p-4 bg-emerald-950/70 border border-emerald-600/60 rounded-2xl flex items-center gap-3 text-emerald-200 animate-fadeIn">
+          <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5 text-emerald-400 animate-pulse" />
+          </div>
+          <div>
+            <div className="text-xs font-black text-emerald-300">Welcome Back, {welcomeUser}! 👋</div>
+            <div className="text-[11px] text-emerald-400/80">Opening your store & POS billing counter...</div>
+          </div>
+        </div>
+      )}
 
       {/* Error Alert Box */}
       {error && (
@@ -131,63 +123,12 @@ export const GoogleAuthCard: React.FC = () => {
         </div>
       )}
 
-      {/* Optional Store Customizer Toggle for New Users */}
-      <div className="mb-6">
-        <button
-          type="button"
-          onClick={() => setShowStoreSetup(!showStoreSetup)}
-          className="w-full py-2.5 px-3.5 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-2xl text-xs font-bold text-slate-300 flex items-center justify-between transition cursor-pointer"
-        >
-          <div className="flex items-center gap-2">
-            <Store className="w-4 h-4 text-amber-400" />
-            <span>Store Type: <strong className="text-amber-400">{activeProfile.name}</strong></span>
-          </div>
-          <span className="text-[11px] text-slate-400 underline">
-            {showStoreSetup ? 'Close Options' : 'Change Store Type'}
-          </span>
-        </button>
-
-        {showStoreSetup && (
-          <div className="mt-3 p-4 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-3 animate-fadeIn">
-            <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                Store Name (Optional)
-              </label>
-              <input
-                type="text"
-                value={storeName}
-                onChange={(e) => setStoreName(e.target.value)}
-                placeholder="e.g. Shri Ganesh Kirana Store"
-                className="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                Business Category
-              </label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value as BusinessType)}
-                className="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-amber-400 focus:outline-none"
-              >
-                {storeProfiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.tagline})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Main Google Sign-In Button */}
       <div className="space-y-4">
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          disabled={loading}
+          disabled={loading || Boolean(welcomeUser)}
           className="w-full group relative flex items-center justify-center gap-3 py-3.5 px-4 bg-white hover:bg-slate-100 text-slate-900 rounded-2xl font-bold text-sm shadow-xl hover:shadow-2xl transition-all duration-200 transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
         >
           {loading ? (
@@ -213,7 +154,9 @@ export const GoogleAuthCard: React.FC = () => {
             </svg>
           )}
 
-          <span>{loading ? 'Connecting to Google...' : 'Continue with Google'}</span>
+          <span>
+            {loading ? 'Connecting to Google...' : welcomeUser ? 'Redirecting to Dashboard...' : 'Continue with Google'}
+          </span>
         </button>
 
         {/* Feature badges */}
