@@ -124,6 +124,179 @@ function getInitialTabs(): { tabs: BillTab[]; activeTabId: string } {
   return { tabs: [defaultTab], activeTabId: 'tab_1' };
 }
 
+export function getQuantityConfigForUnit(unit?: ProductUnit, businessType?: string) {
+  const normUnit = (unit || '').toLowerCase() || 'piece';
+
+  // 1. Kilograms (Kirana / Grocery / Fruits & Veg / Meat)
+  if (normUnit === 'kg') {
+    return {
+      unitLabel: 'Weight (Kilograms - kg)',
+      step: 'any',
+      placeholder: 'e.g. 0.05, 0.25, 0.5, 1',
+      decimalNotice: 'Decimals supported (Grams / Kg)',
+      chips: [
+        { label: '10g', val: '0.01' },
+        { label: '25g', val: '0.025' },
+        { label: '50g', val: '0.05' },
+        { label: '100g', val: '0.1' },
+        { label: '250g', val: '0.25' },
+        { label: '500g', val: '0.5' },
+        { label: '1 kg', val: '1' },
+        { label: '2 kg', val: '2' },
+        { label: '5 kg', val: '5' },
+      ],
+    };
+  }
+
+  // 2. Grams (Spices / Gold / Seeds / Loose Grocery)
+  if (normUnit === 'gram') {
+    return {
+      unitLabel: 'Weight (Grams - g)',
+      step: 'any',
+      placeholder: 'e.g. 10, 25, 50, 100, 250, 500',
+      decimalNotice: 'Grams count',
+      chips: [
+        { label: '10g', val: '10' },
+        { label: '25g', val: '25' },
+        { label: '50g', val: '50' },
+        { label: '100g', val: '100' },
+        { label: '250g', val: '250' },
+        { label: '500g', val: '500' },
+        { label: '1000g', val: '1000' },
+      ],
+    };
+  }
+
+  // 3. Litres (Dairy / Oils / Chemicals / Juice)
+  if (normUnit === 'litre') {
+    return {
+      unitLabel: 'Volume (Litres - L)',
+      step: 'any',
+      placeholder: 'e.g. 0.25, 0.5, 1, 2',
+      decimalNotice: 'Decimals supported (ml / Litres)',
+      chips: [
+        { label: '100ml', val: '0.1' },
+        { label: '250ml', val: '0.25' },
+        { label: '500ml', val: '0.5' },
+        { label: '1 L', val: '1' },
+        { label: '2 L', val: '2' },
+        { label: '5 L', val: '5' },
+      ],
+    };
+  }
+
+  // 4. Millilitres (ml)
+  if (normUnit === 'ml') {
+    return {
+      unitLabel: 'Volume (Millilitres - ml)',
+      step: '1',
+      placeholder: 'e.g. 50, 100, 250, 500',
+      decimalNotice: 'Millilitres count',
+      chips: [
+        { label: '50 ml', val: '50' },
+        { label: '100 ml', val: '100' },
+        { label: '200 ml', val: '200' },
+        { label: '250 ml', val: '250' },
+        { label: '500 ml', val: '500' },
+        { label: '1000 ml', val: '1000' },
+      ],
+    };
+  }
+
+  // 5. Pharmacy Tablet Strips (Strip)
+  if (normUnit === 'strip') {
+    return {
+      unitLabel: 'Quantity (Strips)',
+      step: 'any',
+      placeholder: 'e.g. 1, 2, 3 or 0.5 (half strip)',
+      decimalNotice: 'Strip counts (0.5 for loose/half strip)',
+      chips: [
+        { label: '1 Strip', val: '1' },
+        { label: '2 Strips', val: '2' },
+        { label: '3 Strips', val: '3' },
+        { label: '4 Strips', val: '4' },
+        { label: '5 Strips', val: '5' },
+        { label: '10 Strips', val: '10' },
+        { label: '½ Strip (Loose)', val: '0.5' },
+      ],
+    };
+  }
+
+  // 6. Dozen (Fruits / Bakery / Eggs)
+  if (normUnit === 'dozen') {
+    return {
+      unitLabel: 'Quantity (Dozen)',
+      step: 'any',
+      placeholder: 'e.g. 0.5, 1, 1.5, 2',
+      decimalNotice: 'Dozen count (0.5 = 6 pcs)',
+      chips: [
+        { label: '½ Dozen (6)', val: '0.5' },
+        { label: '1 Dozen (12)', val: '1' },
+        { label: '1.5 Dozen (18)', val: '1.5' },
+        { label: '2 Dozen (24)', val: '2' },
+        { label: '3 Dozen (36)', val: '3' },
+        { label: '5 Dozen (60)', val: '5' },
+      ],
+    };
+  }
+
+  // 7. Length / Area (Meter / Foot / Sqft)
+  if (normUnit === 'meter' || normUnit === 'foot' || normUnit === 'sqft') {
+    return {
+      unitLabel: `Length / Area (${normUnit.toUpperCase()})`,
+      step: 'any',
+      placeholder: 'e.g. 0.5, 1, 2.5, 5',
+      decimalNotice: 'Decimals supported',
+      chips: [
+        { label: '0.5', val: '0.5' },
+        { label: '1', val: '1' },
+        { label: '2', val: '2' },
+        { label: '2.5', val: '2.5' },
+        { label: '3', val: '3' },
+        { label: '5', val: '5' },
+        { label: '10', val: '10' },
+      ],
+    };
+  }
+
+  // 8. Restaurant (Plate / Portion)
+  if (normUnit === 'plate' || normUnit === 'portion') {
+    return {
+      unitLabel: `Order Quantity (${normUnit === 'plate' ? 'Plates' : 'Portions'})`,
+      step: 'any',
+      placeholder: 'e.g. 0.5 (half), 1 (full), 2',
+      decimalNotice: 'Plates / Portions (0.5 for Half)',
+      chips: [
+        { label: '½ (Half)', val: '0.5' },
+        { label: '1 (Full)', val: '1' },
+        { label: '2', val: '2' },
+        { label: '3', val: '3' },
+        { label: '4', val: '4' },
+        { label: '5', val: '5' },
+      ],
+    };
+  }
+
+  // 9. Standard Discrete units (Piece, Packet, Box, Bottle, Pair, Set, Bundle, Custom)
+  return {
+    unitLabel: `Quantity (${normUnit.charAt(0).toUpperCase() + normUnit.slice(1)})`,
+    step: '1',
+    placeholder: 'e.g. 1, 2, 3, 5',
+    decimalNotice: 'Whole count / Units',
+    chips: [
+      { label: '1', val: '1' },
+      { label: '2', val: '2' },
+      { label: '3', val: '3' },
+      { label: '4', val: '4' },
+      { label: '5', val: '5' },
+      { label: '6', val: '6' },
+      { label: '10', val: '10' },
+      { label: '12', val: '12' },
+      { label: '24', val: '24' },
+    ],
+  };
+}
+
 export default function BillingPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { language, t } = useTranslation();
@@ -1580,79 +1753,85 @@ export default function BillingPage() {
       </Modal>
 
       {/* Quick Edit Cart Item Modal */}
-      <Modal
-        isOpen={Boolean(editingCartItem)}
-        onClose={() => setEditingCartItem(null)}
-        title={`Edit Item: ${editingCartItem?.product_name || ''}`}
-        size="sm"
-      >
-        <div className="space-y-3 p-2">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-bold text-slate-700 block">Quantity / Weight</label>
-              <span className="text-[10px] text-slate-500 font-semibold">Decimals supported</span>
+      {editingCartItem && (() => {
+        const qtyConfig = getQuantityConfigForUnit(editingCartItem.unit, business?.business_type);
+        return (
+          <Modal
+            isOpen={Boolean(editingCartItem)}
+            onClose={() => setEditingCartItem(null)}
+            title={`Edit Item: ${editingCartItem.product_name || ''}`}
+            size="sm"
+          >
+            <div className="space-y-3 p-2">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <span>{qtyConfig.unitLabel}</span>
+                    <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-mono text-[10px] font-black uppercase">
+                      {editingCartItem.unit || 'Unit'}
+                    </span>
+                  </label>
+                  <span className="text-[10px] text-slate-500 font-semibold">{qtyConfig.decimalNotice}</span>
+                </div>
+                <Input
+                  type="number"
+                  step={qtyConfig.step}
+                  placeholder={qtyConfig.placeholder}
+                  value={editItemQty}
+                  onChange={(e) => setEditItemQty(e.target.value)}
+                  autoFocus
+                />
+                {/* Dynamic Unit-Specific Chips */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  {qtyConfig.chips.map((chip) => (
+                    <button
+                      key={chip.val}
+                      type="button"
+                      onClick={() => setEditItemQty(chip.val)}
+                      className={`px-2 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                        editItemQty === chip.val
+                          ? 'bg-amber-400 text-slate-950 font-black shadow-xs ring-1 ring-amber-500'
+                          : 'bg-slate-100 hover:bg-amber-100 hover:text-amber-950 border border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Unit Price (₹)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editItemPrice}
+                  onChange={(e) => setEditItemPrice(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Flat Discount (₹)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editItemDiscount}
+                  onChange={(e) => setEditItemDiscount(e.target.value)}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setEditingCartItem(null)}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleSaveEditItem} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
+                  Update Line Item
+                </Button>
+              </div>
             </div>
-            <Input
-              type="number"
-              step="any"
-              placeholder="e.g. 0.25, 0.5, 1"
-              value={editItemQty}
-              onChange={(e) => setEditItemQty(e.target.value)}
-              autoFocus
-            />
-            {/* Quick Weight Chips for Kirana Loose Selling */}
-            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              {[
-                { label: '50g', val: '0.05' },
-                { label: '100g', val: '0.1' },
-                { label: '250g', val: '0.25' },
-                { label: '500g', val: '0.5' },
-                { label: '1 kg', val: '1' },
-                { label: '2 kg', val: '2' },
-                { label: '5 kg', val: '5' },
-              ].map((chip) => (
-                <button
-                  key={chip.val}
-                  type="button"
-                  onClick={() => setEditItemQty(chip.val)}
-                  className="px-2 py-0.5 rounded bg-slate-100 hover:bg-amber-100 hover:text-amber-950 border border-slate-200 text-[11px] font-bold text-slate-700 transition-colors"
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Unit Price (₹)</label>
-            <Input
-              type="number"
-              step="0.01"
-              value={editItemPrice}
-              onChange={(e) => setEditItemPrice(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Flat Discount (₹)</label>
-            <Input
-              type="number"
-              step="0.01"
-              value={editItemDiscount}
-              onChange={(e) => setEditItemDiscount(e.target.value)}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => setEditingCartItem(null)}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleSaveEditItem} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
-              Update Line Item
-            </Button>
-          </div>
-        </div>
-      </Modal>
+          </Modal>
+        );
+      })()}
 
       {/* Quick Add Customer Modal */}
       <Modal
