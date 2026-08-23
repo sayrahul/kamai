@@ -11,6 +11,7 @@ import { GlobalBroadcastBanner } from '@/components/common/GlobalBroadcastBanner
 import { useFirebasePageTracking } from '@/lib/firebase/analytics';
 import { initFirebaseAppCheck } from '@/lib/firebase/appCheck';
 import { initBackgroundCloudSync } from '@/lib/firebase/backgroundSync';
+import { restoreFirestoreToLocalDexie } from '@/lib/firebase/firestoreSync';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -96,7 +97,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     checkServerSession();
 
-    // Ensure DB is open
+    // Ensure DB is open & auto-align cloud business if mismatched on this device
     const initDb = async () => {
       try {
         if (!localDb.isOpen()) {
@@ -104,9 +105,19 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         }
         if (!isPublicRoute && !cachedUser) {
           router.replace('/auth');
+          return;
+        }
+
+        // Auto-align cloud store if mobile local DB is empty or has a different store/type
+        if (cachedUser?.business_id && cachedUser.business_id !== 'biz_pending' && typeof navigator !== 'undefined' && navigator.onLine) {
+          const localBiz = await localDb.businesses.toCollection().first();
+          if (!localBiz || localBiz.id !== cachedUser.business_id) {
+            console.log('🔄 Aligning local device store with Cloud profile:', cachedUser.business_id);
+            await restoreFirestoreToLocalDexie(cachedUser.business_id);
+          }
         }
       } catch (err) {
-        console.warn('DB init check:', err);
+        console.warn('DB init & cloud alignment check:', err);
       }
     };
 

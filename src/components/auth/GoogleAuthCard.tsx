@@ -7,6 +7,7 @@ import { setStoredUser } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { getFirestoreDb } from '@/lib/firebase/config';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { restoreFirestoreToLocalDexie } from '@/lib/firebase/firestoreSync';
 import { 
   Sparkles, 
   CheckCircle2, 
@@ -102,8 +103,32 @@ export const GoogleAuthCard: React.FC = () => {
         const displayName = registeredBiz.owner_name || googleUser.displayName || 'Merchant';
         setWelcomeUser(displayName);
 
-        // Put business into local Dexie
+        // 1. Wipe ANY old background/sample local tables on this device first so nothing stale remains!
+        try {
+          await db.sales.clear();
+          await db.customers.clear();
+          await db.products.clear();
+          await db.categories.clear();
+          await db.ledger_transactions.clear();
+          await db.cash_expenses.clear();
+          await db.cash_registers.clear();
+          await db.inventory_movements.clear();
+          await db.purchase_bills.clear();
+          await db.sales_returns.clear();
+          await db.businesses.clear();
+        } catch (clearErr) {
+          console.warn('Wipe stale local data on login:', clearErr);
+        }
+
+        // 2. Put registered business into local Dexie
         await db.businesses.put(registeredBiz);
+
+        // 3. Fresh restore all products, categories, sales, and settings from Cloud Firestore onto this device!
+        try {
+          await restoreFirestoreToLocalDexie(registeredBiz.id);
+        } catch (restErr) {
+          console.warn('Restore firestore on login:', restErr);
+        }
 
         // Update local session
         setStoredUser({

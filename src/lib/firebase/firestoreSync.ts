@@ -3,6 +3,7 @@ import {
   collection, 
   doc, 
   setDoc, 
+  getDoc,
   getDocs, 
   writeBatch, 
   onSnapshot, 
@@ -145,6 +146,19 @@ export async function restoreFirestoreToLocalDexie(businessId: string): Promise<
     expenses: 0,
   };
 
+  // 0. Business Profile Document (Syncs store type, name, phone, address across all devices)
+  try {
+    const bizSnap = await getDoc(doc(firestore, 'businesses', businessId));
+    if (bizSnap.exists()) {
+      const bizData = bizSnap.data() as Business;
+      if (bizData && bizData.name) {
+        await db.businesses.put(bizData);
+      }
+    }
+  } catch (bizErr) {
+    console.warn('Business profile cloud restore notice:', bizErr);
+  }
+
   // 1. Categories
   const catSnap = await getDocs(collection(firestore, `businesses/${businessId}/categories`));
   const categories: Category[] = [];
@@ -269,6 +283,21 @@ export function subscribeToMultiDeviceSync(businessId: string): Unsubscribe[] {
   const unsubs: Unsubscribe[] = [];
 
   try {
+    // 0. Business Profile live stream (mirrors store type and config changes across devices)
+    const bizDocUnsub = onSnapshot(
+      doc(firestore, `businesses/${businessId}`),
+      async (snapshot) => {
+        if (snapshot.exists()) {
+          const cloudBiz = snapshot.data() as Business;
+          if (cloudBiz && cloudBiz.name) {
+            await db.businesses.put(cloudBiz);
+          }
+        }
+      },
+      (err) => console.warn('Realtime business sync notice:', err.message)
+    );
+    unsubs.push(bizDocUnsub);
+
     // 1. Products live stream
     const prodUnsub = onSnapshot(
       collection(firestore, `businesses/${businessId}/products`),
