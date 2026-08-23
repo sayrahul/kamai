@@ -311,8 +311,7 @@ export function PurchaseInwardOptionsSheet({
       <input
         ref={imageInputRef}
         type="file"
-        accept="image/*"
-        capture="environment"
+        accept="image/*,image/jpeg,image/png,image/webp,image/jpg,image/heic"
         onChange={handleImageSelected}
         className="hidden"
       />
@@ -459,7 +458,7 @@ export function PurchaseInwardOptionsSheet({
                         </span>
                       </div>
                       <div className="text-[11px] text-amber-900 dark:text-amber-300 font-medium truncate mt-0.5">
-                        Take a Bill Picture from Camera
+                        Camera Photo or Pick Recent from Gallery
                       </div>
                     </div>
                   </div>
