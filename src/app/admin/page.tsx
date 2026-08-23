@@ -69,6 +69,7 @@ import { Badge } from '@/components/ui/Badge';
 import { formatINR } from '@/lib/utils';
 import { AdminCoupon } from '@/app/api/admin/coupons/route';
 import { PlatformRemoteConfig } from '@/app/api/admin/config/route';
+import { clearLocalDexieAndFreshSync } from '@/lib/firebase/firestoreSync';
 
 interface MerchantRecord {
   id: string;
@@ -177,11 +178,39 @@ export default function MasterSuperAdminPage() {
   const [formHoldBillsLimit, setFormHoldBillsLimit] = useState<number>(3);
   const [formHistoryDaysLimit, setFormHistoryDaysLimit] = useState<number>(7);
   const [formSupportPhone, setFormSupportPhone] = useState<string>('+919595997711');
+  const [isResettingLocalData, setIsResettingLocalData] = useState<boolean>(false);
+  const [resetStats, setResetStats] = useState<Record<string, number> | null>(null);
+  const [customResetBizId, setCustomResetBizId] = useState<string>('');
 
   // Helper for toast notification
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleClearLocalDataAndFreshPull = async (targetBizId?: string) => {
+    const bizId = targetBizId || customResetBizId || (merchants[0]?.id) || 'biz_default';
+    if (
+      !confirm(
+        `⚠️ CLEAR LOCAL DATA & FRESH CLOUD PULL:\n\nThis will completely wipe local IndexedDB cache on this device (Products, Sales, Khata, Inventory) and freshly pull all latest records from Cloud Firestore for business ${bizId}.\n\nDo you want to proceed?`
+      )
+    ) {
+      return;
+    }
+
+    setIsResettingLocalData(true);
+    setResetStats(null);
+    try {
+      const res = await clearLocalDexieAndFreshSync(bizId);
+      setResetStats(res.stats);
+      showToast(
+        `🎉 Local data cleared & fresh sync complete! ${res.stats.products} products, ${res.stats.sales} sales, ${res.stats.customers} customers restored.`
+      );
+    } catch (err: any) {
+      alert(`Local reset and sync failed: ${err.message || 'Check connection'}`);
+    } finally {
+      setIsResettingLocalData(false);
+    }
   };
 
   // Check existing session
@@ -1092,6 +1121,15 @@ export default function MasterSuperAdminPage() {
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
 
+                              {/* Wipe Local Cache & Fresh Cloud Pull */}
+                              <button
+                                onClick={() => handleClearLocalDataAndFreshPull(m.id)}
+                                className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 cursor-pointer transition-colors"
+                                title="Wipe Local Device Cache & Fresh Pull from Cloud"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                              </button>
+
                               {/* Delete Merchant Permanently */}
                               <button
                                 onClick={() => handleDeleteMerchant(m)}
@@ -1507,6 +1545,74 @@ export default function MasterSuperAdminPage() {
               >
                 Save Remote Configuration
               </Button>
+            </div>
+
+            {/* SUPERADMIN DATABASE RESET & FRESH CLOUD PULL TOOL */}
+            <div className="mt-6 pt-6 border-t border-slate-800 space-y-4 bg-slate-950/60 p-4 sm:p-5 rounded-2xl border border-rose-500/20">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center font-black shrink-0 border border-rose-500/30">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-black text-white">Local Device Database Reset &amp; Fresh Cloud Sync</h4>
+                    <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 text-[10px] font-black uppercase">
+                      Admin Recovery
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Wipes all local browser/IndexedDB tables (Products, Sales, Khata, Ledger, Expenses) on this device and performs a 100% fresh pull directly from Cloud Firestore.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Target Business ID to Freshly Pull</label>
+                  <input
+                    type="text"
+                    placeholder="Enter Business ID (or select merchant from table)..."
+                    value={customResetBizId}
+                    onChange={(e) => setCustomResetBizId(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white font-mono focus:border-rose-400 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <Button
+                    onClick={() => handleClearLocalDataAndFreshPull()}
+                    disabled={isResettingLocalData}
+                    className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs py-2.5 px-4 cursor-pointer gap-2 border-none shadow-md"
+                  >
+                    {isResettingLocalData ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Wiping &amp; Pulling...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        <span>Wipe &amp; Fresh Pull from Cloud</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {resetStats && (
+                <div className="p-3.5 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-xs space-y-1.5 animate-in fade-in">
+                  <div className="font-bold text-emerald-300 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Local Data Cleared &amp; Cloud Records Successfully Restored:</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px] text-slate-300 pt-1">
+                    <div>📦 Products: <strong className="text-white">{resetStats.products || 0}</strong></div>
+                    <div>🧾 Sales: <strong className="text-white">{resetStats.sales || 0}</strong></div>
+                    <div>👥 Customers: <strong className="text-white">{resetStats.customers || 0}</strong></div>
+                    <div>📒 Khata Ledger: <strong className="text-white">{resetStats.ledger || 0}</strong></div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

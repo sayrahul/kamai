@@ -212,6 +212,31 @@ export async function restoreFirestoreToLocalDexie(businessId: string): Promise<
 }
 
 /**
+ * Completely clears local IndexedDB tables and pulls fresh datasets from Cloud
+ */
+export async function clearLocalDexieAndFreshSync(
+  businessId: string
+): Promise<{ success: boolean; stats: Record<string, number> }> {
+  // 1. Wipe local tables
+  await Promise.all([
+    db.products.clear(),
+    db.categories.clear(),
+    db.customers.clear(),
+    db.suppliers.clear(),
+    db.sales.clear(),
+    db.ledger_transactions.clear(),
+    db.cash_expenses.clear(),
+    db.inventory_movements.clear(),
+    db.purchase_bills.clear(),
+    db.cash_registers.clear(),
+    db.cash_movements.clear(),
+  ]);
+
+  // 2. Fresh restore from Cloud Database
+  return await restoreFirestoreToLocalDexie(businessId);
+}
+
+/**
  * Subscribes to real-time sales stream in Firestore for live Owner Mobile Dashboard
  */
 export function subscribeToLiveSales(

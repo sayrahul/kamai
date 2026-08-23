@@ -109,6 +109,7 @@ export default function ProductsPage() {
   }, [searchQuery, selectedCategory, showLowStockOnly]) || [];
 
   const storeProfile = getStoreProfile(business?.business_type);
+  const canInwardBill = business?.business_type !== 'restaurant' && storeProfile.featureToggles.hasBillScan;
 
   const handleOpenAddModal = () => {
     setEditingProduct(null);
@@ -317,19 +318,21 @@ export default function ProductsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <CashierPrivacyToggleButton />
 
-          <Button
-            type="button"
-            onClick={() => setIsPurchaseSheetOpen(true)}
-            size="md"
-            className="gap-1.5 text-xs font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs cursor-pointer border-none"
-          >
-            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-            <span>+ Inward Stock (5 Ways)</span>
-          </Button>
+          {canInwardBill && (
+            <Button
+              type="button"
+              onClick={() => setIsPurchaseSheetOpen(true)}
+              size="md"
+              className="gap-1.5 text-xs font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs cursor-pointer border-none"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+              <span>+ Inward Stock (5 Ways)</span>
+            </Button>
+          )}
 
           <Button onClick={handleOpenAddModal} size="md" className="gap-2 text-xs font-bold">
             <Plus className="w-4 h-4" />
-            <span>{t('products.addProduct')}</span>
+            <span>{business?.business_type === 'restaurant' ? '+ Add Menu Item' : t('products.addProduct')}</span>
           </Button>
         </div>
       </div>
