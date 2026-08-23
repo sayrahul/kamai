@@ -22,6 +22,8 @@ import { matchExtractedItemsWithProducts } from '@/lib/purchases/matchProductByN
 import { BillScanReviewModal } from './BillScanReviewModal';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { getStoredUser } from '@/lib/auth';
+import { getFirebaseAuth } from '@/lib/firebase/config';
 
 interface PurchaseInwardOptionsSheetProps {
   isOpen: boolean;
@@ -125,14 +127,29 @@ export function PurchaseInwardOptionsSheet({
       const compressedBase64 = await compressImageFile(file, 1600, 0.82);
       setProcessingStatus('AI Vision extracting items & prices...');
 
+      const user = getStoredUser();
+      const auth = getFirebaseAuth();
+      let idToken = '';
+      try {
+        if (auth?.currentUser) {
+          idToken = await auth.currentUser.getIdToken();
+        }
+      } catch (e) {}
+
       const res = await fetch('/api/purchases/scan-bill', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          'x-business-id': businessId || user?.business_id || '',
+          'x-user-id': user?.uid || user?.id || '',
+        },
         credentials: 'include',
         body: JSON.stringify({
           imageBase64: compressedBase64,
           mimeType: 'image/jpeg',
           businessType: businessType || 'grocery',
+          businessId: businessId || user?.business_id || '',
         }),
       });
 
@@ -180,14 +197,29 @@ export function PurchaseInwardOptionsSheet({
       const pdfBase64 = await readPdfAsBase64(file);
       setProcessingStatus('AI Vision parsing PDF tables & tax invoice...');
 
+      const user = getStoredUser();
+      const auth = getFirebaseAuth();
+      let idToken = '';
+      try {
+        if (auth?.currentUser) {
+          idToken = await auth.currentUser.getIdToken();
+        }
+      } catch (e) {}
+
       const res = await fetch('/api/purchases/scan-bill', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          'x-business-id': businessId || user?.business_id || '',
+          'x-user-id': user?.uid || user?.id || '',
+        },
         credentials: 'include',
         body: JSON.stringify({
           imageBase64: pdfBase64,
           mimeType: 'application/pdf',
           businessType: businessType || 'grocery',
+          businessId: businessId || user?.business_id || '',
         }),
       });
 
@@ -311,7 +343,7 @@ export function PurchaseInwardOptionsSheet({
       <input
         ref={imageInputRef}
         type="file"
-        accept="image/*,image/jpeg,image/png,image/webp,image/jpg,image/heic"
+        accept="image/*"
         onChange={handleImageSelected}
         className="hidden"
       />
