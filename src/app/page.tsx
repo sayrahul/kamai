@@ -254,34 +254,34 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* ---------------- 1-TAP DAY-END CLOSING ACTION ---------------- */}
+      {/* ---------------- 1-TAP DAY-END CLOSING ACTION (RESPONSIVE FOR ALL SCREEN SIZES) ---------------- */}
       <div 
         onClick={() => setIsClosingReportOpen(true)}
-        className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-md shadow-emerald-600/15 cursor-pointer active:scale-[0.99] transition-all border border-emerald-500/30"
+        className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between gap-2 sm:gap-3 shadow-md shadow-emerald-600/15 cursor-pointer active:scale-[0.99] transition-all border border-emerald-500/30"
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold flex-shrink-0">
-            <MessageCircle className="w-5 h-5 text-white" />
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold flex-shrink-0">
+            <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
-          <div className="min-w-0">
-            <div className="text-xs sm:text-sm font-black truncate flex items-center gap-2">
-              <span>Day-End Sales Summary</span>
-              <span className="px-2 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase">
-                Store Closing
+          <div className="min-w-0 flex-1">
+            <div className="text-xs sm:text-sm font-black flex items-center gap-1.5 flex-wrap">
+              <span className="truncate">Day-End Sales Summary</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[9px] sm:text-[10px] font-black uppercase tracking-tight flex-shrink-0">
+                Closing
               </span>
             </div>
-            <div className="text-[11px] text-emerald-100 font-medium truncate">
-              Daily sales PDF report &amp; WhatsApp breakdown (Sales, Cash, UPI &amp; Udhar)
+            <div className="text-[10.5px] sm:text-[11px] text-emerald-100 font-medium truncate">
+              Daily sales PDF &amp; WhatsApp report (Cash, UPI &amp; Udhar)
             </div>
           </div>
         </div>
 
         <button
           type="button"
-          className="px-3.5 py-1.5 rounded-xl bg-white text-slate-950 font-black text-xs flex items-center gap-1.5 flex-shrink-0 shadow-xs hover:bg-emerald-50 transition"
+          className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-white text-slate-950 font-black text-[11px] sm:text-xs flex items-center gap-1 flex-shrink-0 shadow-xs hover:bg-emerald-50 transition"
         >
-          <span>PDF / Summary</span>
-          <ArrowRight className="w-3.5 h-3.5" />
+          <span>Summary</span>
+          <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
         </button>
       </div>
 

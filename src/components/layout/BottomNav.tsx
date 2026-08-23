@@ -14,146 +14,99 @@ export const BottomNav: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const isHomeActive = pathname === '/';
-  const isInventoryActive = pathname.startsWith('/inventory') || pathname.startsWith('/products');
+  const isProductActive = pathname.startsWith('/products') || pathname.startsWith('/inventory');
   const isBillingActive = pathname.startsWith('/billing') || pathname.startsWith('/invoice');
   const isKhataActive = pathname.startsWith('/khata') || pathname.startsWith('/customers');
 
   return (
     <>
-      <div className="md:hidden fixed bottom-3 left-4 right-4 z-40 max-w-md mx-auto pointer-events-none">
-        <div className="relative pointer-events-auto filter drop-shadow-[0_8px_24px_rgba(15,23,42,0.14)]">
-          {/* ─── SVG Notched Floating Background ─── */}
-          <svg
-            className="w-full h-[64px] block overflow-visible"
-            viewBox="0 0 380 64"
-            fill="none"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M 0 32 C 0 14.327 14.327 0 32 0 L 148 0 C 160 0 165 30 190 30 C 215 30 220 0 232 0 L 348 0 C 365.673 0 380 14.327 380 32 C 380 49.673 365.673 64 348 64 L 32 64 C 14.327 64 0 49.673 0 32 Z"
-              fill="#FFFFFF"
-              stroke="#E2E8F0"
-              strokeWidth="1.5"
-            />
-          </svg>
-
-          {/* ─── Center Elevated Floating Button (Billing POS) ─── */}
-          <div className="absolute left-1/2 -translate-x-1/2 -top-6 flex flex-col items-center">
-            <Link
-              href="/billing"
-              className={cn(
-                'w-14 h-14 rounded-full bg-emerald-600 text-white flex items-center justify-center border-4 border-white shadow-lg transition-all active:scale-95',
-                isBillingActive
-                  ? 'bg-emerald-600 shadow-emerald-600/50 ring-2 ring-emerald-500'
-                  : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30'
-              )}
-              title={t('nav.sell')}
-              aria-label={t('nav.sell')}
-            >
-              <Receipt className="w-6 h-6 text-white stroke-[2.2]" />
-            </Link>
-            {/* Center Active Dot */}
-            {isBillingActive && (
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-2 block" />
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-safe">
+        <div className="grid grid-cols-5 items-center justify-around h-16 max-w-lg mx-auto px-1">
+          {/* 1. Home */}
+          <Link
+            href="/"
+            className={cn(
+              'flex flex-col items-center justify-center py-1 group transition-all text-center',
+              isHomeActive
+                ? 'text-emerald-700 font-extrabold'
+                : 'text-slate-500 hover:text-slate-900 font-medium'
             )}
-          </div>
+          >
+            <Home className={cn('w-5 h-5 transition-transform', isHomeActive ? 'scale-110 stroke-[2.4]' : '')} />
+            <span className="text-[10.5px] tracking-tight mt-1 truncate w-full">Home</span>
+            {isHomeActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-0.5" />}
+          </Link>
 
-          {/* ─── Navigation Action Icons Container ─── */}
-          <div className="absolute inset-0 flex items-center justify-between px-3 sm:px-5">
-            {/* Left Group (Home & Inventory) */}
-            <div className="flex items-center justify-around w-[38%]">
-              {/* 1. Dashboard / Home */}
-              <Link
-                href="/"
-                className="flex flex-col items-center justify-center p-2 text-center group cursor-pointer"
-                title={t('nav.dashboard')}
-                aria-label={t('nav.dashboard')}
-              >
-                <Home
-                  className={cn(
-                    'w-5 h-5 transition-colors',
-                    isHomeActive ? 'text-emerald-600 stroke-[2.5]' : 'text-slate-400 group-hover:text-slate-600'
-                  )}
-                />
-                <span
-                  className={cn(
-                    'w-1.5 h-1.5 rounded-full mt-1 transition-opacity',
-                    isHomeActive ? 'bg-emerald-600 opacity-100' : 'opacity-0'
-                  )}
-                />
-              </Link>
+          {/* 2. Product */}
+          <Link
+            href="/products"
+            className={cn(
+              'flex flex-col items-center justify-center py-1 group transition-all text-center',
+              isProductActive
+                ? 'text-emerald-700 font-extrabold'
+                : 'text-slate-500 hover:text-slate-900 font-medium'
+            )}
+          >
+            <Boxes className={cn('w-5 h-5 transition-transform', isProductActive ? 'scale-110 stroke-[2.4]' : '')} />
+            <span className="text-[10.5px] tracking-tight mt-1 truncate w-full">Product</span>
+            {isProductActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-0.5" />}
+          </Link>
 
-              {/* 2. Inventory / Stock */}
-              <Link
-                href="/inventory"
-                className="flex flex-col items-center justify-center p-2 text-center group cursor-pointer"
-                title={t('nav.inventory')}
-                aria-label={t('nav.inventory')}
-              >
-                <Boxes
-                  className={cn(
-                    'w-5 h-5 transition-colors',
-                    isInventoryActive ? 'text-emerald-600 stroke-[2.5]' : 'text-slate-400 group-hover:text-slate-600'
-                  )}
-                />
-                <span
-                  className={cn(
-                    'w-1.5 h-1.5 rounded-full mt-1 transition-opacity',
-                    isInventoryActive ? 'bg-emerald-600 opacity-100' : 'opacity-0'
-                  )}
-                />
-              </Link>
+          {/* 3. Billing POS (Elevated Highlight) */}
+          <Link
+            href="/billing"
+            className="flex flex-col items-center justify-center relative -top-3 group transition-all"
+          >
+            <div
+              className={cn(
+                'w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95 border-2 border-white dark:border-slate-900',
+                isBillingActive
+                  ? 'bg-emerald-600 text-white ring-4 ring-emerald-500/25 shadow-emerald-600/40'
+                  : 'bg-emerald-700 text-white shadow-emerald-800/30 group-hover:bg-emerald-800'
+              )}
+            >
+              <Receipt className="w-6 h-6 stroke-[2.2]" />
             </div>
+            <span
+              className={cn(
+                'text-[10px] tracking-tight mt-1 truncate font-bold',
+                isBillingActive ? 'text-emerald-700' : 'text-slate-600'
+              )}
+            >
+              Billing POS
+            </span>
+          </Link>
 
-            {/* Middle Spacer for Center Floating Notch */}
-            <div className="w-[20%]" />
+          {/* 4. Khata Ledger */}
+          <Link
+            href="/khata"
+            className={cn(
+              'flex flex-col items-center justify-center py-1 group transition-all text-center',
+              isKhataActive
+                ? 'text-emerald-700 font-extrabold'
+                : 'text-slate-500 hover:text-slate-900 font-medium'
+            )}
+          >
+            <BookOpen className={cn('w-5 h-5 transition-transform', isKhataActive ? 'scale-110 stroke-[2.4]' : '')} />
+            <span className="text-[10.5px] tracking-tight mt-1 truncate w-full">Khata Ledger</span>
+            {isKhataActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-0.5" />}
+          </Link>
 
-            {/* Right Group (Khata & All Apps Modal) */}
-            <div className="flex items-center justify-around w-[38%]">
-              {/* 3. Khata (Customer Ledger) */}
-              <Link
-                href="/khata"
-                className="flex flex-col items-center justify-center p-2 text-center group cursor-pointer"
-                title={t('nav.khata')}
-                aria-label={t('nav.khata')}
-              >
-                <BookOpen
-                  className={cn(
-                    'w-5 h-5 transition-colors',
-                    isKhataActive ? 'text-emerald-600 stroke-[2.5]' : 'text-slate-400 group-hover:text-slate-600'
-                  )}
-                />
-                <span
-                  className={cn(
-                    'w-1.5 h-1.5 rounded-full mt-1 transition-opacity',
-                    isKhataActive ? 'bg-emerald-600 opacity-100' : 'opacity-0'
-                  )}
-                />
-              </Link>
-
-              {/* 4. All Apps / Tools (Opens Card Grid Modal) */}
-              <button
-                type="button"
-                onClick={() => setIsMenuOpen(true)}
-                className="flex flex-col items-center justify-center p-2 text-center group cursor-pointer"
-                title="All Apps & Tools"
-                aria-label="All Apps & Tools"
-              >
-                <LayoutGrid
-                  className={cn(
-                    'w-5 h-5 transition-colors',
-                    isMenuOpen ? 'text-emerald-600 stroke-[2.5]' : 'text-slate-400 group-hover:text-slate-600'
-                  )}
-                />
-                <span
-                  className={cn(
-                    'w-1.5 h-1.5 rounded-full mt-1 transition-opacity',
-                    isMenuOpen ? 'bg-emerald-600 opacity-100' : 'opacity-0'
-                  )}
-                />
-              </button>
-            </div>
-          </div>
+          {/* 5. Menu */}
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen(true)}
+            className={cn(
+              'flex flex-col items-center justify-center py-1 group transition-all text-center cursor-pointer',
+              isMenuOpen
+                ? 'text-emerald-700 font-extrabold'
+                : 'text-slate-500 hover:text-slate-900 font-medium'
+            )}
+          >
+            <LayoutGrid className={cn('w-5 h-5 transition-transform', isMenuOpen ? 'scale-110 stroke-[2.4]' : '')} />
+            <span className="text-[10.5px] tracking-tight mt-1 truncate w-full">Menu</span>
+            {isMenuOpen && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-0.5" />}
+          </button>
         </div>
       </div>
 

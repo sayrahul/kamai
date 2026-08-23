@@ -26,10 +26,11 @@ import { Product, PurchaseBill } from '@/types';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
-import { ScanBillButton } from '@/components/purchases/ScanBillButton';
+import { PurchaseInwardOptionsSheet } from '@/components/purchases/PurchaseInwardOptionsSheet';
 
 export default function PurchasesPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
+  const [isPurchaseSheetOpen, setIsPurchaseSheetOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -121,22 +122,24 @@ export default function PurchasesPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* AI Bill Scanner (conditionally visible per vertical) */}
-          {canScanBill && (
-            <ScanBillButton
-              businessType={business?.business_type}
-              businessId={business?.id}
-              existingProducts={products}
-              onScanSuccess={(_billId, updated, created) => {
-                showToast(`🎉 Bill inward complete! ${updated} items restocked, ${created} new products created.`);
-              }}
-            />
+          {/* 4-Way Purchase Inward Sheet Trigger */}
+          {canScanBill ? (
+            <Button
+              type="button"
+              onClick={() => setIsPurchaseSheetOpen(true)}
+              size="md"
+              className="relative group bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs gap-1.5 shadow-md border-none cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+              <span>+ Inward Purchase Bill (4 Ways)</span>
+              {!isPro && <ProFeatureBadge className="ml-1" />}
+            </Button>
+          ) : (
+            <Button onClick={() => setIsModalOpen(true)} size="md" className="text-xs font-bold gap-1.5">
+              <Plus className="w-4 h-4" />
+              <span>Manual Inward</span>
+            </Button>
           )}
-
-          <Button onClick={() => setIsModalOpen(true)} size="md" className="text-xs font-bold gap-1.5">
-            <Plus className="w-4 h-4" />
-            <span>Manual Inward</span>
-          </Button>
         </div>
       </div>
 
@@ -287,6 +290,19 @@ export default function PurchasesPage() {
           </div>
         </form>
       </Modal>
+
+      {/* 4-Way Purchase Inward Bottom Sheet */}
+      <PurchaseInwardOptionsSheet
+        isOpen={isPurchaseSheetOpen}
+        onClose={() => setIsPurchaseSheetOpen(false)}
+        businessType={business?.business_type}
+        businessId={business?.id}
+        existingProducts={products}
+        onManualInwardClick={() => setIsModalOpen(true)}
+        onScanSuccess={(_billId, updated, created) => {
+          showToast(`🎉 Bill inward complete! ${updated} items restocked, ${created} new products created.`);
+        }}
+      />
 
       {/* Razorpay Pro Upgrade Modal */}
       <UpgradeModal
