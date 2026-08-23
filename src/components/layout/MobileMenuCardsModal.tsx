@@ -47,8 +47,8 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
     {
       title: 'Stock & Sourcing',
       items: [
-        { href: '/products', title: 'Products', desc: 'Item Catalog', icon: Package, bg: 'bg-blue-100 text-blue-900', border: 'border-blue-300' },
-        { href: '/purchases', title: 'Purchase Inward', desc: 'AI OCR / PDF / CSV', icon: ShoppingBag, bg: 'bg-rose-100 text-rose-900', border: 'border-rose-300', highlight: true },
+        { href: '/products', title: 'Products', desc: 'Item Catalog & Prices', icon: Package, bg: 'bg-blue-100 text-blue-900', border: 'border-blue-300' },
+        { href: '/products', title: 'Stock Inward', desc: '5-Way AI / PDF / CSV / Barcode', icon: ShoppingBag, bg: 'bg-rose-100 text-rose-900', border: 'border-rose-300', highlight: true },
         { href: '/inventory', title: 'Inventory & Expiry', desc: 'Batches & Low Stock', icon: Boxes, bg: 'bg-cyan-100 text-cyan-900', border: 'border-cyan-300' },
         { href: '/barcode-generator', title: 'Barcode Studio', desc: 'Price Stickers & Tags', icon: Barcode, bg: 'bg-purple-100 text-purple-900', border: 'border-purple-300' },
       ],

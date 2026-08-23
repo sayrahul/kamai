@@ -49,8 +49,7 @@ export function ScanBillButton({
         existingProducts={existingProducts}
         onManualInwardClick={() => {
           setIsSheetOpen(false);
-          // Navigate or trigger manual add
-          window.location.href = '/purchases';
+          window.location.href = '/products';
         }}
         onScanSuccess={onScanSuccess}
       />

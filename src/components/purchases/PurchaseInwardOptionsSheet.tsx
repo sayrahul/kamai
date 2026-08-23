@@ -30,6 +30,7 @@ interface PurchaseInwardOptionsSheetProps {
   businessId?: string;
   existingProducts: Product[];
   onManualInwardClick: () => void;
+  onRapidBarcodeClick?: () => void;
   onScanSuccess?: (billId: string, updatedCount: number, createdCount: number) => void;
 }
 
@@ -89,6 +90,7 @@ export function PurchaseInwardOptionsSheet({
   businessId = 'biz_default',
   existingProducts,
   onManualInwardClick,
+  onRapidBarcodeClick,
   onScanSuccess,
 }: PurchaseInwardOptionsSheetProps) {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
@@ -348,7 +350,7 @@ export function PurchaseInwardOptionsSheet({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-base font-black text-slate-900 dark:text-white">
-                    4 Ways to Inward Purchase Bill
+                    5 Ways to Inward Stock &amp; Bills
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-black uppercase">
                     Auto-Stock
@@ -382,7 +384,7 @@ export function PurchaseInwardOptionsSheet({
                 </div>
               </div>
             ) : (
-              /* 4 Options Grid */
+              /* 5 Options Grid */
               <div className="space-y-2.5">
                 {/* 1. Upload a CSV File (Fastest) */}
                 <div
@@ -465,7 +467,42 @@ export function PurchaseInwardOptionsSheet({
                   <ArrowRight className="w-4 h-4 text-amber-700 dark:text-amber-400 group-hover:translate-x-1 transition-transform shrink-0" />
                 </div>
 
-                {/* 4. Add Bill Manually */}
+                {/* 4. Rapid Barcode Scanner ⚡ (Continuous) */}
+                <div
+                  onClick={() => {
+                    onClose();
+                    if (!isPro) {
+                      setIsUpgradeModalOpen(true);
+                    } else if (onRapidBarcodeClick) {
+                      onRapidBarcodeClick();
+                    }
+                  }}
+                  className="p-3.5 rounded-2xl border border-yellow-300 dark:border-yellow-900/60 bg-yellow-50/70 dark:bg-yellow-950/20 hover:bg-yellow-100/70 hover:border-yellow-400 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 group shadow-xs"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                      <Zap className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
+                          Rapid Barcode Inward
+                        </span>
+                        <span className="px-1.5 py-0.2 rounded-md bg-amber-400 text-slate-950 text-[9px] font-black uppercase tracking-tight">
+                          Continuous ⚡
+                        </span>
+                        {!isPro && <ProFeatureBadge />}
+                      </div>
+                      <div className="text-[11px] text-yellow-900 dark:text-yellow-300 font-medium truncate mt-0.5">
+                        Continuous laser gun &amp; camera barcode intake
+                      </div>
+                    </div>
+                  </div>
+
+                  <ArrowRight className="w-4 h-4 text-yellow-800 dark:text-yellow-400 group-hover:translate-x-1 transition-transform shrink-0" />
+                </div>
+
+                {/* 5. Add Bill Manually */}
                 <div
                   onClick={() => {
                     onClose();

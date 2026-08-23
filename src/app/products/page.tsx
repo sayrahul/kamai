@@ -324,24 +324,7 @@ export default function ProductsPage() {
             className="gap-1.5 text-xs font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs cursor-pointer border-none"
           >
             <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-            <span>Inward Stock (4 Ways)</span>
-          </Button>
-
-          <Button
-            type="button"
-            onClick={() => {
-              if (!isPro) {
-                setIsUpgradeModalOpen(true);
-              } else {
-                setIsRapidInwardOpen(true);
-              }
-            }}
-            size="md"
-            className="gap-1.5 text-xs font-black bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400 shadow-xs cursor-pointer"
-          >
-            <Zap className="w-4 h-4 text-slate-950" />
-            <span>Rapid Barcode Inward ⚡</span>
-            {!isPro && <Lock className="w-3 h-3 text-slate-950" />}
+            <span>+ Inward Stock (5 Ways)</span>
           </Button>
 
           <Button onClick={handleOpenAddModal} size="md" className="gap-2 text-xs font-bold">
@@ -999,7 +982,7 @@ export default function ProductsPage() {
         businessId={business?.id || 'biz_default'}
       />
 
-      {/* 4-Way Inward Bottom Sheet (AI OCR / PDF / CSV / Manual) */}
+      {/* 5-Way Inward Bottom Sheet (AI OCR / PDF / CSV / Continuous Barcode / Manual) */}
       <PurchaseInwardOptionsSheet
         isOpen={isPurchaseSheetOpen}
         onClose={() => setIsPurchaseSheetOpen(false)}
@@ -1007,6 +990,7 @@ export default function ProductsPage() {
         businessId={business?.id}
         existingProducts={products}
         onManualInwardClick={handleOpenAddModal}
+        onRapidBarcodeClick={() => setIsRapidInwardOpen(true)}
         onScanSuccess={(_billId, updated, created) => {
           alert(`🎉 Stock inward complete! ${updated} items restocked, ${created} new products created.`);
         }}

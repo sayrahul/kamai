@@ -50,7 +50,6 @@ export const Sidebar: React.FC = () => {
       items: [
         { href: '/products', label: t('nav.products'), icon: Package, iconBg: 'bg-blue-100 text-blue-800', activeIcon: 'text-blue-300' },
         { href: '/inventory', label: 'Inventory & Expiry', icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' },
-        { href: '/purchases', label: t('nav.purchases'), icon: ShoppingBag, iconBg: 'bg-rose-100 text-rose-800', activeIcon: 'text-rose-300' },
       ],
     },
     {
