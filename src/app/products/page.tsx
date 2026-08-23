@@ -35,6 +35,7 @@ import { lookupCategoryBarcode } from '@/lib/barcode/categoryBarcodeLoader';
 import { getStoreProfile, MASTER_UNITS } from '@/lib/constants/storeProfiles';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { PurchaseInwardOptionsSheet } from '@/components/purchases/PurchaseInwardOptionsSheet';
 import { Lock } from 'lucide-react';
 
 export default function ProductsPage() {
@@ -46,6 +47,7 @@ export default function ProductsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isRapidInwardOpen, setIsRapidInwardOpen] = useState(false);
+  const [isPurchaseSheetOpen, setIsPurchaseSheetOpen] = useState(false);
   const [isExcelImporterOpen, setIsExcelImporterOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -317,13 +319,12 @@ export default function ProductsPage() {
 
           <Button
             type="button"
-            variant="outline"
-            onClick={() => setIsExcelImporterOpen(true)}
+            onClick={() => setIsPurchaseSheetOpen(true)}
             size="md"
-            className="gap-1.5 text-xs font-bold bg-white hover:bg-slate-50 text-slate-800 border-slate-200 shadow-xs cursor-pointer"
+            className="gap-1.5 text-xs font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs cursor-pointer border-none"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            <span>Import Excel/CSV</span>
+            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+            <span>Inward Stock (4 Ways)</span>
           </Button>
 
           <Button
@@ -996,6 +997,19 @@ export default function ProductsPage() {
         isOpen={isExcelImporterOpen}
         onClose={() => setIsExcelImporterOpen(false)}
         businessId={business?.id || 'biz_default'}
+      />
+
+      {/* 4-Way Inward Bottom Sheet (AI OCR / PDF / CSV / Manual) */}
+      <PurchaseInwardOptionsSheet
+        isOpen={isPurchaseSheetOpen}
+        onClose={() => setIsPurchaseSheetOpen(false)}
+        businessType={business?.business_type}
+        businessId={business?.id}
+        existingProducts={products}
+        onManualInwardClick={handleOpenAddModal}
+        onScanSuccess={(_billId, updated, created) => {
+          alert(`🎉 Stock inward complete! ${updated} items restocked, ${created} new products created.`);
+        }}
       />
 
       {/* Razorpay Pro Upgrade Modal */}
