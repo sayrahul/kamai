@@ -2,13 +2,100 @@ import { NextRequest, NextResponse } from 'next/server';
 import { extractPurchaseBillWithGemini } from '@/lib/ai/geminiClient';
 import { parseRupeesToPaise } from '@/lib/utils';
 import { PurchaseBillLineItem } from '@/types';
+import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth/session';
+import { getSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
+    // 1. Server-side Auth Check
+    const authHeader = req.headers.get('authorization');
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    const token = sessionCookie || bearerToken;
+
+    if (!token) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'UNAUTHENTICATED',
+          message: 'Authentication required. Please log in to use AI Bill OCR.',
+        },
+        { status: 401 }
+      );
+    }
+
+    const sessionPayload = verifySessionToken(token);
+    if (!sessionPayload) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'INVALID_SESSION',
+          message: 'Invalid or expired session. Please log in again.',
+        },
+        { status: 401 }
+      );
+    }
+
+    const businessId = sessionPayload.business_id;
+
+    // 2. Server-side Subscription & Quota Enforcement
+    const supabase = getSupabaseServerClient();
+    if (supabase && isSupabaseServerConfigured()) {
+      const { data: business, error: bizError } = await supabase
+        .from('businesses')
+        .select('id, business_type, subscription_tier, subscription_valid_until, is_active')
+        .eq('id', businessId)
+        .maybeSingle();
+
+      if (bizError) {
+        console.warn('Supabase business query warning during scan check:', bizError);
+      }
+
+      if (business) {
+        if (business.is_active === false) {
+          return NextResponse.json(
+            { success: false, message: 'Store account is deactivated.' },
+            { status: 403 }
+          );
+        }
+
+        const isPro =
+          (business.subscription_tier === 'pro' || business.subscription_tier === 'enterprise') &&
+          (!business.subscription_valid_until ||
+            new Date(business.subscription_valid_until) > new Date());
+
+        if (!isPro) {
+          // Free Tier: Quota enforcement (max 3 free lifetime/trial scans)
+          const { count, error: countError } = await supabase
+            .from('purchase_bills')
+            .select('*', { count: 'exact', head: true })
+            .eq('business_id', businessId);
+
+          const usedScans = count || 0;
+          const FREE_SCAN_LIMIT = 3;
+
+          if (!countError && usedScans >= FREE_SCAN_LIMIT) {
+            return NextResponse.json(
+              {
+                success: false,
+                code: 'UPGRADE_REQUIRED',
+                message: `Free scan limit reached (${usedScans}/${FREE_SCAN_LIMIT} scans used). Please upgrade to Kamai+ Pro for unlimited AI Bill OCR scans.`,
+                usedScans,
+                limit: FREE_SCAN_LIMIT,
+              },
+              { status: 403 }
+            );
+          }
+        }
+      }
+    }
+
     const body = await req.json();
     const { imageBase64, mimeType, businessType } = body;
 
-    // 1. Validate payload
+    // 3. Validate payload
     if (!imageBase64 || typeof imageBase64 !== 'string') {
       return NextResponse.json(
         { success: false, message: 'No image data provided for bill scan.' },
@@ -16,7 +103,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Vertical Gate Check (Server-side defense in depth)
+    // 4. Vertical Gate Check (Server-side defense in depth)
     if (businessType === 'restaurant') {
       return NextResponse.json(
         { 
@@ -27,7 +114,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Check Gemini API Key configuration
+    // 5. Check Gemini API Key configuration
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
         {

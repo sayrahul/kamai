@@ -114,6 +114,7 @@ export function ScanBillButton({
       const res = await fetch('/api/purchases/scan-bill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           imageBase64: compressedBase64,
           mimeType: 'image/jpeg',
@@ -124,6 +125,14 @@ export function ScanBillButton({
       const data = await res.json();
 
       if (!res.ok || !data.success) {
+        if (data.code === 'UPGRADE_REQUIRED') {
+          setIsUpgradeModalOpen(true);
+          return;
+        }
+        if (data.code === 'UNAUTHENTICATED' || data.code === 'INVALID_SESSION') {
+          alert('Please log in to your store account to use the AI Bill OCR Scanner.');
+          return;
+        }
         throw new Error(data.message || 'Failed to extract items from invoice.');
       }
 
