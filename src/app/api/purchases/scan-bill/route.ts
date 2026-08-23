@@ -4,43 +4,89 @@ import { parseRupeesToPaise } from '@/lib/utils';
 import { PurchaseBillLineItem } from '@/types';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth/session';
 import { getSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { imageBase64, mimeType, businessType } = body;
+    // 1. Basic Per-IP Rate Limiting (5 requests / minute per IP)
+    const clientIp = getClientIp(req);
+    const rateLimit = checkRateLimit(clientIp, 5, 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'RATE_LIMITED',
+          message: `Too many bill scan requests. Please wait ${rateLimit.resetInSeconds} seconds before scanning another bill.`,
+          retryAfter: rateLimit.resetInSeconds,
+        },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': rateLimit.resetInSeconds.toString(),
+          }
+        }
+      );
+    }
 
-    // 1. Server-side Auth Check
+    // 2. Strict Server-Side Authentication
+    // Token must be present via cookie or Authorization header
     const authHeader = req.headers.get('authorization');
     const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
-    const headerBusinessId = req.headers.get('x-business-id');
-    const headerUserId = req.headers.get('x-user-id');
     const token = sessionCookie || bearerToken;
 
-    let businessId = body.businessId || headerBusinessId || 'biz_default';
-
-    if (token) {
-      const sessionPayload = verifySessionToken(token);
-      if (sessionPayload?.business_id) {
-        businessId = sessionPayload.business_id;
-      }
-    }
-
-    if (!businessId && !token && !headerUserId) {
+    if (!token) {
       return NextResponse.json(
         {
           success: false,
           code: 'UNAUTHENTICATED',
-          message: 'Authentication required. Please log in to use AI Bill OCR.',
+          message: 'Authentication required. Please log in to your store account to use AI Bill OCR.',
         },
         { status: 401 }
       );
     }
 
-    // 2. Server-side Subscription & Quota Enforcement
+    // Verify session token cryptographically
+    const sessionPayload = verifySessionToken(token);
+    if (!sessionPayload || !sessionPayload.business_id) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'UNAUTHENTICATED',
+          message: 'Invalid or expired session. Please log in again.',
+        },
+        { status: 401 }
+      );
+    }
+
+    // Strictly derive businessId from verified session (no client-supplied body/header fallback allowed)
+    const businessId = sessionPayload.business_id;
+
+    // 3. Payload Validation
+    const body = await req.json().catch(() => ({}));
+    const { imageBase64, mimeType, businessType } = body;
+
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      return NextResponse.json(
+        { success: false, message: 'No image data provided for bill scan.' },
+        { status: 400 }
+      );
+    }
+
+    // 4. Vertical Gate Check (Server-side defense in depth)
+    if (businessType === 'restaurant') {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Purchase bill scanning is not enabled for restaurant/cafe businesses (loose mandi ingredients).' 
+        },
+        { status: 400 }
+      );
+    }
+
+    // 5. Server-side Subscription & Quota Enforcement on Verified Business
     const supabase = getSupabaseServerClient();
     if (supabase && isSupabaseServerConfigured()) {
       const { data: business, error: bizError } = await supabase
@@ -92,26 +138,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Validate payload
-    if (!imageBase64 || typeof imageBase64 !== 'string') {
-      return NextResponse.json(
-        { success: false, message: 'No image data provided for bill scan.' },
-        { status: 400 }
-      );
-    }
-
-    // 4. Vertical Gate Check (Server-side defense in depth)
-    if (businessType === 'restaurant') {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: 'Purchase bill scanning is not enabled for restaurant/cafe businesses (loose mandi ingredients).' 
-        },
-        { status: 400 }
-      );
-    }
-
-    // 5. Check Gemini API Key configuration
+    // 6. Check Gemini API Key configuration
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
         {
@@ -122,13 +149,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Extract bill details with Gemini Vision
+    // 7. Extract bill details with Gemini Vision
     const extraction = await extractPurchaseBillWithGemini(
       imageBase64,
       mimeType || 'image/jpeg'
     );
 
-    // 5. Convert currency amounts to paise for internal store accounting
+    // 8. Convert currency amounts to paise for internal store accounting
     const convertedLineItems: PurchaseBillLineItem[] = (extraction.line_items || []).map((item) => {
       const unitPricePaise = parseRupeesToPaise(item.unit_price.toString());
       const totalPricePaise = item.total_price 
