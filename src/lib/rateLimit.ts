@@ -14,11 +14,11 @@ const ipRequestMap = new Map<string, RateLimitRecord>();
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now();
-    for (const [key, value] of ipRequestMap.entries()) {
+    ipRequestMap.forEach((value, key) => {
       if (now > value.resetAt) {
         ipRequestMap.delete(key);
       }
-    }
+    });
   }, 5 * 60 * 1000);
 }
 
