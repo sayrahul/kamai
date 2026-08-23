@@ -24,6 +24,7 @@ import {
   Sparkles,
   Lock
 } from 'lucide-react';
+import { APP_VERSION } from '@/lib/constants/version';
 import { cn } from '@/lib/utils';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 
@@ -141,7 +142,7 @@ export const Sidebar: React.FC = () => {
           <span className="font-bold text-slate-800">KamaiPlus</span>
         </span>
         <span className="font-mono text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold border border-slate-200/60">
-          v1.2
+          {APP_VERSION}
         </span>
       </div>
     </aside>

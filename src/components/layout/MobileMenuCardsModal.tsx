@@ -21,9 +21,9 @@ import {
   Cloud, 
   Settings,
   Sparkles,
-  Zap,
-  Globe
+  Lock
 } from 'lucide-react';
+import { APP_VERSION } from '@/lib/constants/version';
 
 interface MobileMenuCardsModalProps {
   isOpen: boolean;
@@ -149,7 +149,7 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
         <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
           <span className="font-semibold">KamaiPlus Business Suite</span>
           <span className="font-mono text-[10px] bg-white border border-slate-300 px-2 py-0.5 rounded font-bold">
-            v1.2
+            {APP_VERSION}
           </span>
         </div>
       </div>
