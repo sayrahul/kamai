@@ -21,7 +21,9 @@ import {
   Cloud, 
   Settings,
   Sparkles,
-  Lock
+  Lock,
+  Globe,
+  Zap
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 
