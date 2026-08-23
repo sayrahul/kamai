@@ -12,13 +12,13 @@ export async function extractPurchaseBillWithGemini(
     throw new Error('GEMINI_API_KEY is not configured in server environment.');
   }
 
-  // Primary model with fallback (Gemini 3.6-flash / 2.0-flash / 1.5-flash)
+  // Primary model with fallback (Gemini 3.6-flash / 3.7-flash / 3.5-flash / flash-latest)
   const modelsToTry = [
     'gemini-3.6-flash',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro'
+    'gemini-3.7-flash',
+    'gemini-3.5-flash',
+    'gemini-flash-latest',
+    'gemini-3.1-flash-lite'
   ];
   let lastError: any = null;
 
@@ -70,6 +70,11 @@ export async function extractPurchaseBillWithGemini(
       if (!response.ok) {
         const errorText = await response.text();
         console.warn(`Gemini model ${model} returned error status ${response.status}:`, errorText);
+        
+        if (response.status === 429) {
+          throw new Error('Gemini API Quota Exhausted: Your Google AI Studio prepayment credits or free quota limit has been depleted. Please refill credits or update GEMINI_API_KEY at https://aistudio.google.com/');
+        }
+
         lastError = new Error(`Gemini API error (${response.status}): ${errorText}`);
         continue;
       }
