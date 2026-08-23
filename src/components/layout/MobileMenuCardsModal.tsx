@@ -113,7 +113,7 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
 
                   return (
                     <Link
-                      key={item.href}
+                      key={`${secIdx}-${item.href}-${item.title}`}
                       href={item.href}
                       onClick={onClose}
                       className={`p-3 rounded-xl border flex items-center gap-2.5 transition-all active:scale-95 ${

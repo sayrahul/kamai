@@ -6,7 +6,24 @@ import { usePWAInstall } from '@/lib/pwa/usePWAInstall';
 
 export const PWAInstallBanner: React.FC = () => {
   const { isInstalled, isIOS, showIOSModal, setShowIOSModal, triggerInstall } = usePWAInstall();
-  const [isDismissed, setIsDismissed] = useState<boolean>(false);
+  const [isDismissed, setIsDismissed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return (
+        localStorage.getItem('kamai_pwa_banner_dismissed') === 'true' ||
+        localStorage.getItem('kamai_app_installed') === 'true'
+      );
+    }
+    return false;
+  });
+
+  const handleDismiss = () => {
+    setIsDismissed(true);
+    try {
+      localStorage.setItem('kamai_pwa_banner_dismissed', 'true');
+    } catch (e) {
+      // ignore
+    }
+  };
 
   if (isInstalled || isDismissed) {
     return null;
@@ -50,7 +67,7 @@ export const PWAInstallBanner: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setIsDismissed(true)}
+              onClick={handleDismiss}
               className="p-1.5 rounded text-slate-400 hover:text-white bg-slate-800 border border-slate-700 cursor-pointer"
               aria-label="Dismiss banner"
             >

@@ -93,7 +93,7 @@ export const Sidebar: React.FC = () => {
 
                 return (
                   <Link
-                    key={item.href}
+                    key={`${idx}-${item.href}-${item.label}`}
                     href={item.href}
                     className={cn(
                       'group flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-bold transition-all leading-none',

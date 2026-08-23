@@ -24,18 +24,37 @@ if (typeof window !== 'undefined') {
 
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(globalDeferredPrompt);
-  const [isInstalled, setIsInstalled] = useState<boolean>(false);
+  const [isInstalled, setIsInstalled] = useState<boolean>(true); // default to true during SSR to prevent flash
   const [isIOS, setIsIOS] = useState<boolean>(false);
   const [showIOSModal, setShowIOSModal] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check if running in standalone PWA mode
-    const isStandalone = 
-      window.matchMedia('(display-mode: standalone)').matches || 
-      (window.navigator as any).standalone === true ||
-      document.referrer.includes('android-app://');
+    // Comprehensive check for installed state
+    const checkInstalled = () => {
+      if (typeof window === 'undefined') return false;
 
-    setIsInstalled(isStandalone);
+      // 1. Stored installation flag
+      const storedInstalled = localStorage.getItem('kamai_app_installed') === 'true';
+
+      // 2. Electron / Desktop App wrapper
+      const isElectron = 
+        Boolean((window as any).electron) || 
+        Boolean((window as any).isElectron) || 
+        navigator.userAgent.toLowerCase().includes('electron');
+
+      // 3. Standalone display mode (PWA / Fullscreen window)
+      const isStandalone = 
+        window.matchMedia('(display-mode: standalone)').matches || 
+        window.matchMedia('(display-mode: fullscreen)').matches || 
+        window.matchMedia('(display-mode: window-controls-overlay)').matches || 
+        (window.navigator as any).standalone === true ||
+        document.referrer.includes('android-app://');
+
+      return storedInstalled || isElectron || isStandalone;
+    };
+
+    const installed = checkInstalled();
+    setIsInstalled(installed);
 
     // Detect iOS
     const userAgent = window.navigator.userAgent.toLowerCase();
@@ -47,17 +66,35 @@ export function usePWAInstall() {
     }
 
     const handlePromptAvailable = () => {
-      setDeferredPrompt(globalDeferredPrompt);
+      if (!checkInstalled()) {
+        setDeferredPrompt(globalDeferredPrompt);
+      }
     };
 
     const handleAppInstalled = () => {
       setIsInstalled(true);
+      try {
+        localStorage.setItem('kamai_app_installed', 'true');
+        localStorage.setItem('kamai_pwa_banner_dismissed', 'true');
+      } catch (e) {
+        // ignore
+      }
       setDeferredPrompt(null);
       globalDeferredPrompt = null;
     };
 
+    const standaloneMedia = window.matchMedia('(display-mode: standalone)');
+    const handleDisplayModeChange = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        handleAppInstalled();
+      }
+    };
+
     window.addEventListener('pwa_prompt_available', handlePromptAvailable);
     window.addEventListener('appinstalled', handleAppInstalled);
+    if (standaloneMedia.addEventListener) {
+      standaloneMedia.addEventListener('change', handleDisplayModeChange);
+    }
 
     // Register service worker if supported
     if ('serviceWorker' in navigator && process.env.NODE_ENV !== 'development') {
@@ -69,6 +106,9 @@ export function usePWAInstall() {
     return () => {
       window.removeEventListener('pwa_prompt_available', handlePromptAvailable);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      if (standaloneMedia.removeEventListener) {
+        standaloneMedia.removeEventListener('change', handleDisplayModeChange);
+      }
     };
   }, []);
 

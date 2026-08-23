@@ -56,7 +56,9 @@ module.exports = {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['Inter', 'Mukta', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        marathi: ['Mukta', 'Inter', 'sans-serif'],
+        hindi: ['Mukta', 'Inter', 'sans-serif'],
       }
     },
   },
