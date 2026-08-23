@@ -229,7 +229,7 @@ export async function clearLocalDexieAndFreshSync(
     db.inventory_movements.clear(),
     db.purchase_bills.clear(),
     db.cash_registers.clear(),
-    db.cash_movements.clear(),
+    db.sales_returns.clear(),
   ]);
 
   // 2. Fresh restore from Cloud Database

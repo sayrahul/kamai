@@ -349,7 +349,7 @@ export default function ProductsPage() {
             <span>{t('products.title')}</span>
           </h1>
           <p className="text-xs text-slate-500">
-            {t('products.subtitle')} • {products.length} {products.length === 1 ? 'item' : 'items'}
+            {t('products.subtitle')} • {allProducts.length} {allProducts.length === 1 ? 'item' : 'items'}
           </p>
         </div>
 
@@ -1046,7 +1046,7 @@ export default function ProductsPage() {
         onClose={() => setIsPurchaseSheetOpen(false)}
         businessType={business?.business_type}
         businessId={business?.id}
-        existingProducts={products}
+        existingProducts={allProducts}
         onManualInwardClick={handleOpenAddModal}
         onRapidBarcodeClick={() => setIsRapidInwardOpen(true)}
         onScanSuccess={(_billId, updated, created) => {
