@@ -56,9 +56,9 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
     {
       title: 'Customer & Credit Ledger',
       items: [
-        { href: '/khata', title: 'Khata Ledger', desc: 'Customer Credit', icon: BookOpen, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
-        { href: '/customers', title: 'Customers', desc: 'Profiles & Loyalty', icon: Users, bg: 'bg-indigo-100 text-indigo-900', border: 'border-indigo-300' },
+        { href: '/khata', title: 'Khata Ledger', desc: 'Customer Credit & Profiles', icon: BookOpen, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
         { href: '/growth', title: 'WhatsApp Growth', desc: 'Festival Greetings', icon: TrendingUp, bg: 'bg-emerald-100 text-emerald-900', border: 'border-emerald-300' },
+        { href: '/pricing', title: 'Upgrade & Plans', desc: 'Kamai+ Pro', icon: Sparkles, bg: 'bg-purple-100 text-purple-900', border: 'border-purple-300' },
       ],
     },
     {

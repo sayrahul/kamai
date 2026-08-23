@@ -22,17 +22,28 @@ export async function PATCH(
     };
 
     if (subscription_tier !== undefined) {
-      updates.subscription_tier = subscription_tier;
+      updates.subscription_tier = subscription_tier === 'pro' || subscription_tier === 'enterprise' ? 'pro' : 'free';
+      if (updates.subscription_tier === 'free') {
+        updates.subscription_valid_until = null;
+        updates.subscription_expires_at = null;
+      }
     }
 
     if (is_active !== undefined) {
       updates.is_active = is_active;
     }
 
-    if (days_extension && typeof days_extension === 'number') {
+    if (days_extension && typeof days_extension === 'number' && days_extension > 0) {
       const expiry = new Date();
       expiry.setDate(expiry.getDate() + days_extension);
       updates.subscription_expires_at = expiry.toISOString();
+      updates.subscription_valid_until = expiry.toISOString();
+    } else if (updates.subscription_tier === 'pro') {
+      // Default to 1 year validity if upgrading to pro without custom days
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + 365);
+      updates.subscription_expires_at = expiry.toISOString();
+      updates.subscription_valid_until = expiry.toISOString();
     }
 
     // 1. Update in Cloud Firestore

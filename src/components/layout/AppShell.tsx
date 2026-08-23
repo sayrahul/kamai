@@ -12,6 +12,7 @@ import { useFirebasePageTracking } from '@/lib/firebase/analytics';
 import { initFirebaseAppCheck } from '@/lib/firebase/appCheck';
 import { initBackgroundCloudSync } from '@/lib/firebase/backgroundSync';
 import { restoreFirestoreToLocalDexie } from '@/lib/firebase/firestoreSync';
+import { subscriptionService } from '@/lib/subscription/subscriptionService';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -86,6 +87,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             };
             setStoredUser(verifiedUser);
             setCurrentUser(verifiedUser);
+
+            // Instant sync of subscription tier from Cloud DB
+            if (data.business?.subscription_tier) {
+              subscriptionService.setTierFromCloud(
+                data.business.subscription_tier,
+                data.business.subscription_valid_until || data.business.subscription_expires_at
+              );
+            }
           } else if (!isPublicRoute && navigator.onLine && !cachedUser) {
             router.replace('/auth');
           }
@@ -114,6 +123,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           if (!localBiz || localBiz.id !== cachedUser.business_id) {
             console.log('🔄 Aligning local device store with Cloud profile:', cachedUser.business_id);
             await restoreFirestoreToLocalDexie(cachedUser.business_id);
+          } else if (localBiz?.subscription_tier) {
+            subscriptionService.setTierFromCloud(
+              localBiz.subscription_tier,
+              localBiz.subscription_valid_until
+            );
           }
         }
       } catch (err) {

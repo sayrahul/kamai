@@ -76,6 +76,30 @@ export const subscriptionService = {
     return state;
   },
 
+  setTierFromCloud(cloudTier: string, activeUntil?: string): SubscriptionState {
+    const normalizedTier: SubscriptionTier = (cloudTier === 'pro' || cloudTier === 'enterprise') ? 'pro' : 'free';
+    const currentState = this.getSubscription();
+    
+    // Check if state actually changed to avoid unnecessary re-renders
+    if (currentState.tier === normalizedTier && currentState.activeUntil === activeUntil) {
+      return currentState;
+    }
+
+    const state: SubscriptionState = {
+      ...currentState,
+      tier: normalizedTier,
+      activeUntil: activeUntil || currentState.activeUntil,
+      activatedAt: currentState.activatedAt || new Date().toISOString(),
+    };
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      window.dispatchEvent(new Event('subscription_changed'));
+    }
+
+    return state;
+  },
+
   cancelSubscription(): SubscriptionState {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_STATE));

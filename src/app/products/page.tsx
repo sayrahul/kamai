@@ -353,25 +353,33 @@ export default function ProductsPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <CashierPrivacyToggleButton />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <div className="hidden sm:block">
+            <CashierPrivacyToggleButton />
+          </div>
 
-          {canInwardBill && (
-            <Button
-              type="button"
-              onClick={() => setIsPurchaseSheetOpen(true)}
-              size="md"
-              className="gap-1.5 text-xs font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs cursor-pointer border-none"
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+            {canInwardBill && (
+              <Button
+                type="button"
+                onClick={() => setIsPurchaseSheetOpen(true)}
+                size="md"
+                className="gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs cursor-pointer border-none px-2 sm:px-3.5 py-2 justify-center truncate"
+              >
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 animate-pulse shrink-0" />
+                <span className="truncate">+ Inward Stock</span>
+              </Button>
+            )}
+
+            <Button 
+              onClick={handleOpenAddModal} 
+              size="md" 
+              className="gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-bold px-2 sm:px-3.5 py-2 justify-center truncate"
             >
-              <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-              <span>+ Inward Stock (5 Ways)</span>
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="truncate">{business?.business_type === 'restaurant' ? '+ Add Menu' : '+ Add Product'}</span>
             </Button>
-          )}
-
-          <Button onClick={handleOpenAddModal} size="md" className="gap-2 text-xs font-bold">
-            <Plus className="w-4 h-4" />
-            <span>{business?.business_type === 'restaurant' ? '+ Add Menu Item' : t('products.addProduct')}</span>
-          </Button>
+          </div>
         </div>
       </div>
 

@@ -345,6 +345,58 @@ export default function HomePage() {
               </div>
             </div>
           </Link>
+
+          {/* Tile 5: Inventory & Expiry */}
+          <Link href="/inventory" className="group">
+            <div className="bg-white border border-cyan-200 hover:border-cyan-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-cyan-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-cyan-100 text-cyan-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Boxes className="w-4.5 h-4.5 text-cyan-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Inventory & Expiry</div>
+                <div className="text-[11px] text-cyan-800 font-medium truncate">Batches & Alerts</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 6: Barcode Studio */}
+          <Link href="/barcode-generator" className="group">
+            <div className="bg-white border border-purple-200 hover:border-purple-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-purple-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Barcode className="w-4.5 h-4.5 text-purple-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Barcode Studio</div>
+                <div className="text-[11px] text-purple-800 font-medium truncate">Price Stickers & QR</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 7: Transactions & Audit */}
+          <Link href="/transactions" className="group">
+            <div className="bg-white border border-teal-200 hover:border-teal-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-teal-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-teal-100 text-teal-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <ShieldCheck className="w-4.5 h-4.5 text-teal-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Transactions</div>
+                <div className="text-[11px] text-teal-800 font-medium truncate">Bills & Returns</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 8: WhatsApp Growth */}
+          <Link href="/growth" className="group">
+            <div className="bg-white border border-emerald-200 hover:border-emerald-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-emerald-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <TrendingUp className="w-4.5 h-4.5 text-emerald-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">WhatsApp Growth</div>
+                <div className="text-[11px] text-emerald-800 font-medium truncate">Offers & Festivals</div>
+              </div>
+            </div>
+          </Link>
         </div>
       </div>
 

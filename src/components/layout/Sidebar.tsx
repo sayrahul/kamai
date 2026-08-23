@@ -54,11 +54,10 @@ export const Sidebar: React.FC = () => {
       ],
     },
     {
-      title: 'Khata & Customers',
+      title: 'Ledger & Growth',
       dotColor: 'bg-amber-500',
       items: [
         { href: '/khata', label: 'Khata Ledger', icon: BookOpen, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
-        { href: '/customers', label: t('nav.customers'), icon: Users, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300' },
         { href: '/growth', label: 'Growth & WhatsApp', icon: TrendingUp, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300', isPro: true },
       ],
     },

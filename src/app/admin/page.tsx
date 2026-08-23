@@ -987,9 +987,8 @@ export default function MasterSuperAdminPage() {
                   className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-2.5 py-2 focus:border-amber-400 focus:outline-none cursor-pointer shrink-0"
                 >
                   <option value="all">All Tiers</option>
-                  <option value="free">Free Tier</option>
-                  <option value="pro">Pro Tier</option>
-                  <option value="enterprise">Enterprise</option>
+                  <option value="free">Free Plan</option>
+                  <option value="pro">Paid (Pro) Plan</option>
                 </select>
 
                 <select
@@ -1059,7 +1058,7 @@ export default function MasterSuperAdminPage() {
                                 ? 'bg-amber-400/10 text-amber-400 border border-amber-400/30'
                                 : 'bg-slate-800 text-slate-400 border border-slate-700'
                             }`}>
-                              {m.subscription_tier}
+                              {m.subscription_tier === 'pro' || m.subscription_tier === 'enterprise' ? 'Paid (Pro)' : 'Free'}
                             </span>
                             <div className="text-[10px] text-slate-500 font-mono mt-0.5">
                               {m.subscription_expires_at
@@ -1175,7 +1174,7 @@ export default function MasterSuperAdminPage() {
                             ? 'bg-amber-400/10 text-amber-400 border border-amber-400/30'
                             : 'bg-slate-800 text-slate-400 border border-slate-700'
                         }`}>
-                          {m.subscription_tier}
+                          {m.subscription_tier === 'pro' || m.subscription_tier === 'enterprise' ? 'Paid (Pro)' : 'Free'}
                         </span>
 
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
@@ -1778,10 +1777,8 @@ export default function MasterSuperAdminPage() {
                 onChange={(e) => setEditTier(e.target.value)}
                 className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white"
               >
-                <option value="free">Free Forever Tier</option>
-                <option value="pro">Kamai+ Pro Plan</option>
-                <option value="growth">Growth Super Plan</option>
-                <option value="enterprise">Enterprise VIP</option>
+                <option value="free">Free Plan</option>
+                <option value="pro">Paid (Pro) Plan</option>
               </select>
             </div>
 

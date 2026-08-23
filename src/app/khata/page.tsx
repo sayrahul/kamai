@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { formatINR, generateWhatsAppReceiptLink } from '@/lib/utils';
-import { LedgerTransaction, Customer } from '@/types';
+import { LedgerTransaction, Customer, CustomerType } from '@/types';
 import { 
   BookOpen, 
   Search, 
@@ -14,24 +14,35 @@ import {
   ArrowDownLeft, 
   Plus, 
   MessageCircle,
-  Edit2,
-  Trash2,
+  Edit2, 
+  Trash2, 
   AlertTriangle,
-  UserPlus,
-  Calendar,
-  CheckCircle2,
-  HelpCircle,
+  UserPlus, 
+  Calendar, 
+  CheckCircle2, 
+  HelpCircle, 
   Wallet,
-  Receipt
+  Receipt,
+  Users,
+  MapPin,
+  Star,
+  Tag,
+  CreditCard,
+  Edit3,
+  Award,
+  Clock,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
+import { Badge } from '@/components/ui/Badge';
 
 export default function KhataPage() {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'due' | 'vip' | 'settled'>('all');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   
   // Manual Entry Modal (You Gave / You Got)
@@ -42,14 +53,20 @@ export default function KhataPage() {
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
   const [entryPaymentMode, setEntryPaymentMode] = useState<'cash' | 'upi' | 'bank' | 'other'>('cash');
 
-  // Quick Add Customer Modal
-  const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
-  const [newCustName, setNewCustName] = useState('');
-  const [newCustPhone, setNewCustPhone] = useState('');
-  const [newCustAddress, setNewCustAddress] = useState('');
-  const [newCustOpeningBalance, setNewCustOpeningBalance] = useState('');
+  // Add / Edit Customer Modal
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [custName, setCustName] = useState('');
+  const [custPhone, setCustPhone] = useState('');
+  const [custEmail, setCustEmail] = useState('');
+  const [custAddress, setCustAddress] = useState('');
+  const [custGstin, setCustGstin] = useState('');
+  const [custType, setCustType] = useState<CustomerType>('regular');
+  const [custOpeningBalance, setCustOpeningBalance] = useState('');
+  const [custLoyaltyPoints, setCustLoyaltyPoints] = useState('0');
+  const [custNotes, setCustNotes] = useState('');
 
-  // Edit Entry Modal
+  // Edit Ledger Entry Modal
   const [editingTx, setEditingTx] = useState<LedgerTransaction | null>(null);
   const [editTxAmount, setEditTxAmount] = useState('');
   const [editTxNotes, setEditTxNotes] = useState('');
@@ -60,16 +77,49 @@ export default function KhataPage() {
   const [clearConfirmationText, setClearConfirmationText] = useState('');
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
-  const customers = useLiveQuery(async () => {
-    let list = await db.customers.toArray();
+  
+  const rawCustomers = useLiveQuery(async () => {
+    return await db.customers.toArray();
+  }) || [];
+
+  // Filtered & Searched Customers
+  const customers = useMemo(() => {
+    let list = [...rawCustomers];
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      list = list.filter(c => c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q)));
+      const cleanDigits = q.replace(/\D/g, '');
+      list = list.filter((c) => {
+        const cleanPhone = (c.phone || '').replace(/\D/g, '');
+        const phoneDigitsMatch = cleanDigits && cleanPhone ? cleanPhone.includes(cleanDigits) : false;
+        return (
+          c.name.toLowerCase().includes(q) || 
+          (c.phone && c.phone.toLowerCase().includes(q)) ||
+          phoneDigitsMatch ||
+          (c.address && c.address.toLowerCase().includes(q)) ||
+          (c.gstin && c.gstin.toLowerCase().includes(q))
+        );
+      });
     }
-    return list.sort((a, b) => (b.current_balance || 0) - (a.current_balance || 0));
-  }, [searchQuery]) || [];
 
-  const selectedCustomer = customers.find(c => c.id === selectedCustomerId) || customers[0];
+    if (selectedFilter === 'due') {
+      list = list.filter((c) => (c.current_balance || 0) > 0);
+    } else if (selectedFilter === 'vip') {
+      list = list.filter((c) => c.customer_type === 'vip');
+    } else if (selectedFilter === 'settled') {
+      list = list.filter((c) => (c.current_balance || 0) <= 0);
+    }
+
+    return list.sort((a, b) => (b.current_balance || 0) - (a.current_balance || 0));
+  }, [rawCustomers, searchQuery, selectedFilter]);
+
+  const selectedCustomer = useMemo(() => {
+    if (selectedCustomerId) {
+      const found = rawCustomers.find((c) => c.id === selectedCustomerId);
+      if (found) return found;
+    }
+    return customers[0] || rawCustomers[0] || null;
+  }, [selectedCustomerId, rawCustomers, customers]);
 
   const transactions = useLiveQuery(async () => {
     if (!selectedCustomer) return [];
@@ -80,7 +130,13 @@ export default function KhataPage() {
       .toArray();
   }, [selectedCustomer]) || [];
 
-  const totalOutstanding = customers.reduce((acc, c) => acc + (c.current_balance > 0 ? c.current_balance : 0), 0);
+  const totalOutstanding = useMemo(() => {
+    return rawCustomers.reduce((acc, c) => acc + ((c.current_balance || 0) > 0 ? c.current_balance : 0), 0);
+  }, [rawCustomers]);
+
+  const dueCount = useMemo(() => rawCustomers.filter((c) => (c.current_balance || 0) > 0).length, [rawCustomers]);
+  const vipCount = useMemo(() => rawCustomers.filter((c) => c.customer_type === 'vip').length, [rawCustomers]);
+  const settledCount = useMemo(() => rawCustomers.filter((c) => (c.current_balance || 0) <= 0).length, [rawCustomers]);
 
   // Recalculates customer balance by summing all transactions
   const recalculateCustomerBalance = async (customerId: string) => {
@@ -173,59 +229,105 @@ export default function KhataPage() {
     setIsEntryModalOpen(false);
   };
 
-  // Create New Customer directly from Khata
-  const handleCreateCustomer = async (e: React.FormEvent) => {
+  // Open Add Customer Modal
+  const handleOpenAddCustomer = () => {
+    setEditingCustomer(null);
+    setCustName('');
+    setCustPhone('');
+    setCustEmail('');
+    setCustAddress('');
+    setCustGstin('');
+    setCustType('regular');
+    setCustOpeningBalance('');
+    setCustLoyaltyPoints('0');
+    setCustNotes('');
+    setIsCustomerModalOpen(true);
+  };
+
+  // Open Edit Customer Modal
+  const handleOpenEditCustomer = (c: Customer) => {
+    setEditingCustomer(c);
+    setCustName(c.name || '');
+    setCustPhone(c.phone || '');
+    setCustEmail(c.email || '');
+    setCustAddress(c.address || '');
+    setCustGstin(c.gstin || '');
+    setCustType(c.customer_type || 'regular');
+    setCustOpeningBalance(c.opening_balance ? (c.opening_balance / 100).toFixed(2) : '');
+    setCustLoyaltyPoints(c.loyalty_points ? String(c.loyalty_points) : '0');
+    setCustNotes(c.notes || '');
+    setIsCustomerModalOpen(true);
+  };
+
+  // Save Customer (Create or Update)
+  const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCustName.trim()) {
+    if (!custName.trim()) {
       alert('Please enter customer name');
       return;
     }
 
     const now = new Date().toISOString();
-    const custId = `cust_${Date.now()}`;
-    const openingBalPaise = Math.round((parseFloat(newCustOpeningBalance) || 0) * 100);
+    const opBalPaise = custOpeningBalance ? Math.round(parseFloat(custOpeningBalance) * 100) : 0;
+    const pts = parseInt(custLoyaltyPoints) || 0;
 
-    const newCust: Customer = {
-      id: custId,
-      business_id: business?.id || 'biz_default',
-      name: newCustName.trim(),
-      phone: newCustPhone.trim(),
-      address: newCustAddress.trim(),
-      customer_type: 'regular',
-      opening_balance: openingBalPaise,
-      current_balance: openingBalPaise,
-      loyalty_points: 0,
-      total_spent: 0,
-      total_visits: 0,
-      created_at: now,
-      updated_at: now,
-      sync_status: 'synced',
-    };
-
-    await db.customers.put(newCust);
-
-    // If opening balance > 0, record initial ledger transaction
-    if (openingBalPaise > 0) {
-      await db.ledger_transactions.put({
-        id: `ledg_${Date.now()}`,
+    if (editingCustomer) {
+      const updated: Customer = {
+        ...editingCustomer,
+        name: custName.trim(),
+        phone: custPhone.trim(),
+        email: custEmail.trim() || undefined,
+        address: custAddress.trim() || undefined,
+        gstin: custGstin.trim() || undefined,
+        customer_type: custType,
+        loyalty_points: pts,
+        notes: custNotes.trim() || undefined,
+        updated_at: now,
+      };
+      await db.customers.put(updated);
+    } else {
+      const custId = `cust_${Date.now()}`;
+      const newCust: Customer = {
+        id: custId,
         business_id: business?.id || 'biz_default',
-        party_type: 'customer',
-        party_id: custId,
-        party_name: newCust.name,
-        transaction_type: 'OPENING_BALANCE',
-        amount: openingBalPaise,
-        balance_after: openingBalPaise,
-        notes: 'Opening Balance (Purana Udhar)',
+        name: custName.trim(),
+        phone: custPhone.trim(),
+        email: custEmail.trim() || undefined,
+        address: custAddress.trim() || undefined,
+        gstin: custGstin.trim() || undefined,
+        customer_type: custType,
+        opening_balance: opBalPaise,
+        current_balance: opBalPaise,
+        loyalty_points: pts,
+        total_spent: 0,
+        total_visits: 0,
+        notes: custNotes.trim() || undefined,
         created_at: now,
-      });
+        updated_at: now,
+        sync_status: 'synced',
+      };
+
+      await db.customers.put(newCust);
+
+      if (opBalPaise > 0) {
+        await db.ledger_transactions.put({
+          id: `ledg_${Date.now()}`,
+          business_id: business?.id || 'biz_default',
+          party_type: 'customer',
+          party_id: custId,
+          party_name: newCust.name,
+          transaction_type: 'OPENING_BALANCE',
+          amount: opBalPaise,
+          balance_after: opBalPaise,
+          notes: 'Opening Balance (Purana Udhar)',
+          created_at: now,
+        });
+      }
+
+      setSelectedCustomerId(custId);
     }
 
-    setSelectedCustomerId(custId);
-    setNewCustName('');
-    setNewCustPhone('');
-    setNewCustAddress('');
-    setNewCustOpeningBalance('');
-    setIsAddCustomerOpen(false);
+    setIsCustomerModalOpen(false);
   };
 
   // Open Edit Entry
@@ -287,9 +389,9 @@ export default function KhataPage() {
     setClearConfirmationText('');
   };
 
-  const handleSendReminder = (c: typeof selectedCustomer) => {
+  const handleSendReminder = (c: Customer) => {
     if (!c) return;
-    const dueAmount = (c.current_balance / 100).toFixed(2);
+    const dueAmount = ((c.current_balance || 0) / 100).toFixed(2);
     const storeName = business?.name || 'Our Store';
     const upiTarget = business?.upi_id ? business.upi_id : '';
     
@@ -303,65 +405,126 @@ export default function KhataPage() {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <div>
-          <h1 className="text-xl font-black text-slate-900 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-amber-500" />
-            <span>Digital Credit Khata Ledger</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Manage customer credit, record payments, and send instant WhatsApp reminders.
-          </p>
+    <div className="space-y-4 pb-12">
+      {/* ---------------- TOP COMPACT HEADER BANNER ---------------- */}
+      <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold shrink-0">
+            <BookOpen className="w-4.5 h-4.5 text-amber-700" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-base font-black text-slate-900 truncate flex items-center gap-1.5">
+              <span>Khata Ledger</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+                {rawCustomers.length} Customers
+              </span>
+            </h1>
+            <p className="text-[11px] text-slate-500 truncate">
+              Manage customer credit, balance ledger & WhatsApp reminders
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl text-right">
-            <span className="text-[10px] uppercase font-bold text-rose-700 block">Total Market Udhar</span>
-            <span className="font-extrabold text-rose-800 text-sm font-mono">{formatINR(totalOutstanding)}</span>
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+          <div className="bg-rose-50 border border-rose-200 px-3 py-1 rounded-xl text-right flex items-center gap-2">
+            <span className="text-[10px] uppercase font-bold text-rose-700">Total Udhar:</span>
+            <span className="font-extrabold text-rose-800 text-xs sm:text-sm font-mono">{formatINR(totalOutstanding)}</span>
           </div>
-
-          <Button
-            size="sm"
-            onClick={() => setIsAddCustomerOpen(true)}
-            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs"
-          >
-            <UserPlus className="w-4 h-4 mr-1" />
-            <span>+ Add Customer</span>
-          </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left: Customer List */}
+        {/* ---------------- LEFT PANEL: CUSTOMER LIST ---------------- */}
         <div className="lg:col-span-5 space-y-2.5">
+          {/* Search Bar & Single Add Customer Button */}
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <Input
-                placeholder="Search customer by name or phone..."
+                placeholder="Search name, phone or GSTIN..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 leftIcon={<Search className="w-4 h-4 text-slate-400" />}
               />
             </div>
+            <Button
+              size="sm"
+              onClick={handleOpenAddCustomer}
+              className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs shrink-0 gap-1 h-9 px-3"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>+ Add Customer</span>
+            </Button>
           </div>
 
-          <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+          {/* Filter Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setSelectedFilter('all')}
+              className={`px-2.5 py-1 rounded-lg transition-all shrink-0 cursor-pointer ${
+                selectedFilter === 'all'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              All ({rawCustomers.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedFilter('due')}
+              className={`px-2.5 py-1 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
+                selectedFilter === 'due'
+                  ? 'bg-rose-600 text-white shadow-2xs'
+                  : 'bg-white text-rose-700 border border-rose-200 hover:bg-rose-50'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              <span>Udhar Due ({dueCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedFilter('vip')}
+              className={`px-2.5 py-1 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
+                selectedFilter === 'vip'
+                  ? 'bg-purple-600 text-white shadow-2xs'
+                  : 'bg-white text-purple-700 border border-purple-200 hover:bg-purple-50'
+              }`}
+            >
+              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+              <span>VIP ({vipCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedFilter('settled')}
+              className={`px-2.5 py-1 rounded-lg transition-all shrink-0 cursor-pointer ${
+                selectedFilter === 'settled'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50'
+              }`}
+            >
+              Settled ({settledCount})
+            </button>
+          </div>
+
+          {/* Customer Cards List */}
+          <div className="space-y-2 max-h-[calc(100vh-230px)] overflow-y-auto pr-1">
             {customers.length === 0 ? (
               <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 space-y-3">
                 <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">No Customers Added Yet</h3>
-                  <p className="text-xs text-slate-500 mt-1">Add your customers to record Udhar credit and Jama payments.</p>
+                  <h3 className="text-sm font-bold text-slate-800">No Customers Matching</h3>
+                  <p className="text-xs text-slate-500 mt-1">Add customers to record Udhar credit and track ledger history.</p>
                 </div>
                 <Button
                   size="sm"
-                  onClick={() => setIsAddCustomerOpen(true)}
+                  onClick={handleOpenAddCustomer}
                   className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs"
                 >
                   <UserPlus className="w-4 h-4 mr-1" />
-                  <span>+ Add First Customer</span>
+                  <span>+ Add Customer</span>
                 </Button>
               </div>
             ) : (
@@ -378,19 +541,26 @@ export default function KhataPage() {
                     }`}
                   >
                     <div className="min-w-0 pr-2">
-                      <div className="text-xs font-bold text-slate-900 truncate">{c.name}</div>
-                      <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 font-mono">
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-xs font-bold text-slate-900 truncate">{c.name}</div>
+                        {c.customer_type === 'vip' && (
+                          <span className="px-1 py-0.2 rounded text-[9px] font-black bg-purple-100 text-purple-900 border border-purple-200">
+                            VIP
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 font-mono truncate">
                         <Phone className="w-3 h-3 text-slate-400 shrink-0" />
                         <span className="truncate">{c.phone || 'No phone'}</span>
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <div className={`text-xs font-black font-mono ${c.current_balance > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-                        {formatINR(c.current_balance)}
+                      <div className={`text-xs font-black font-mono ${(c.current_balance || 0) > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                        {formatINR(c.current_balance || 0)}
                       </div>
-                      <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${c.current_balance > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                        {c.current_balance > 0 ? 'Due Udhar' : 'Settled'}
+                      <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${(c.current_balance || 0) > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                        {(c.current_balance || 0) > 0 ? 'Due Udhar' : 'Settled'}
                       </span>
                     </div>
                   </div>
@@ -400,32 +570,53 @@ export default function KhataPage() {
           </div>
         </div>
 
-        {/* Right: Selected Customer Khata Ledger */}
+        {/* ---------------- RIGHT PANEL: SELECTED CUSTOMER LEDGER & PROFILE ---------------- */}
         <div className="lg:col-span-7 space-y-4">
           {selectedCustomer ? (
-            <Card className="p-4 bg-white border border-slate-200 shadow-xs rounded-2xl space-y-4">
-              {/* Customer Banner */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-3">
+            <Card className="p-4 bg-white border border-slate-200 shadow-xs rounded-2xl space-y-3.5">
+              {/* Customer Header Banner */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2.5">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-base font-black text-slate-900">{selectedCustomer.name}</h2>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${selectedCustomer.current_balance > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                      {selectedCustomer.current_balance > 0 ? `Due: ${formatINR(selectedCustomer.current_balance)}` : 'All Paid'}
+                    {selectedCustomer.customer_type === 'vip' && (
+                      <span className="text-[9.5px] font-black px-1.5 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-200 uppercase">
+                        ⭐ VIP Client
+                      </span>
+                    )}
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                      (selectedCustomer.current_balance || 0) > 0 ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    }`}>
+                      {(selectedCustomer.current_balance || 0) > 0 ? `Due: ${formatINR(selectedCustomer.current_balance)}` : 'All Paid (₹0)'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 font-mono mt-0.5">
-                    {selectedCustomer.phone || 'No phone'} • {selectedCustomer.address || 'Local Customer'}
+                  <p className="text-xs text-slate-500 font-mono mt-0.5 flex items-center gap-1.5 flex-wrap">
+                    <span>📞 {selectedCustomer.phone || 'No phone'}</span>
+                    {selectedCustomer.address && <span>• 📍 {selectedCustomer.address}</span>}
+                    {selectedCustomer.gstin && <span>• 🏛️ {selectedCustomer.gstin}</span>}
                   </p>
                 </div>
 
-                {/* Top Action Buttons */}
-                <div className="flex items-center gap-2 flex-wrap">
+                {/* Header Actions */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs font-bold border-slate-300 hover:bg-slate-50 text-slate-700"
+                    onClick={() => handleOpenEditCustomer(selectedCustomer)}
+                    title="Edit Customer Profile"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 mr-1" />
+                    <span>Edit Profile</span>
+                  </Button>
+
                   {selectedCustomer.phone && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="text-xs font-bold bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-800"
                       onClick={() => handleSendReminder(selectedCustomer)}
+                      title="Send WhatsApp Payment Reminder"
                     >
                       <MessageCircle className="w-3.5 h-3.5 mr-1 text-emerald-600" />
                       <span>WhatsApp</span>
@@ -446,8 +637,24 @@ export default function KhataPage() {
                 </div>
               </div>
 
+              {/* Customer Stats Strip */}
+              <div className="grid grid-cols-3 gap-2 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 text-xs">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Spent</span>
+                  <span className="font-extrabold text-slate-800 font-mono">{formatINR(selectedCustomer.total_spent || 0)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Visits / Bills</span>
+                  <span className="font-extrabold text-slate-800 font-mono">{selectedCustomer.total_visits || 0} times</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Loyalty Points</span>
+                  <span className="font-extrabold text-purple-700 font-mono">{selectedCustomer.loyalty_points || 0} Pts</span>
+                </div>
+              </div>
+
               {/* Core 2 Manual Action Buttons: You Gave (Udhar) vs You Got (Jama) */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => handleOpenEntryModal('CREDIT_SALE')}
@@ -457,7 +664,7 @@ export default function KhataPage() {
                     <span className="text-xs font-black text-rose-800">🔴 You Gave ₹ (Udhar)</span>
                     <ArrowUpRight className="w-4 h-4 text-rose-600 group-hover:translate-x-0.5 transition-transform" />
                   </div>
-                  <p className="text-[11px] text-rose-600/90 mt-1 font-medium">Record credit sale or goods given</p>
+                  <p className="text-[11px] text-rose-600/90 mt-0.5 font-medium">Record credit sale or goods given</p>
                 </button>
 
                 <button
@@ -469,7 +676,7 @@ export default function KhataPage() {
                     <span className="text-xs font-black text-emerald-800">🟢 You Got ₹ (Jama)</span>
                     <ArrowDownLeft className="w-4 h-4 text-emerald-600 group-hover:translate-y-0.5 transition-transform" />
                   </div>
-                  <p className="text-[11px] text-emerald-600/90 mt-1 font-medium">Record cash or UPI payment received</p>
+                  <p className="text-[11px] text-emerald-600/90 mt-0.5 font-medium">Record cash or UPI payment received</p>
                 </button>
               </div>
 
@@ -487,7 +694,7 @@ export default function KhataPage() {
                     <div className="py-12 text-center text-xs text-slate-400 space-y-2">
                       <Wallet className="w-8 h-8 text-slate-300 mx-auto" />
                       <p>No transactions recorded for this customer yet.</p>
-                      <p className="text-[11px] text-slate-400">Click <b>"You Gave (Udhar)"</b> or <b>"You Got (Jama)"</b> above to add manual entries.</p>
+                      <p className="text-[11px] text-slate-400">Click <b>"You Gave (Udhar)"</b> or <b>"You Got (Jama)"</b> above to add entries.</p>
                     </div>
                   ) : (
                     transactions.map((tx) => {
@@ -549,275 +756,325 @@ export default function KhataPage() {
               </div>
             </Card>
           ) : (
-            <div className="p-12 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-2xl bg-white space-y-3">
-              <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
-              <p>Select a customer from the left or add a new customer to start your digital Khata ledger.</p>
-              <Button
-                size="sm"
-                onClick={() => setIsAddCustomerOpen(true)}
-                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs"
-              >
-                <UserPlus className="w-4 h-4 mr-1" />
-                <span>+ Add Customer</span>
-              </Button>
+            <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 space-y-3">
+              <Users className="w-12 h-12 text-slate-300 mx-auto" />
+              <div className="text-sm font-bold text-slate-800">Select a customer from the left list</div>
+              <p className="text-xs text-slate-500">View statement, record Udhar/Jama, or manage customer profile.</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Manual Entry Modal (You Gave / You Got) */}
-      <Modal
-        isOpen={isEntryModalOpen}
-        onClose={() => setIsEntryModalOpen(false)}
-        title={entryType === 'CREDIT_SALE' ? `🔴 Record Udhar Given to ${selectedCustomer?.name}` : `🟢 Record Payment Received from ${selectedCustomer?.name}`}
-        size="md"
-      >
-        <form onSubmit={handleSaveManualEntry} className="space-y-3 p-1">
-          {/* Segmented Toggle */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setEntryType('CREDIT_SALE')}
-              className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                entryType === 'CREDIT_SALE'
-                  ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              🔴 You Gave ₹ (Udhar)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setEntryType('PAYMENT_RECEIVED')}
-              className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                entryType === 'PAYMENT_RECEIVED'
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              🟢 You Got ₹ (Jama)
-            </button>
-          </div>
-
-          <Input
-            label="Amount (₹) *"
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            value={entryAmount}
-            onChange={(e) => setEntryAmount(e.target.value)}
-            required
-            autoFocus
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* ---------------- MODAL 1: MANUAL ENTRY (YOU GAVE / YOU GOT) ---------------- */}
+      {isEntryModalOpen && selectedCustomer && (
+        <Modal
+          isOpen={isEntryModalOpen}
+          onClose={() => setIsEntryModalOpen(false)}
+          title={entryType === 'CREDIT_SALE' ? `🔴 You Gave Udhar to ${selectedCustomer.name}` : `🟢 You Got Payment from ${selectedCustomer.name}`}
+          description={entryType === 'CREDIT_SALE' ? 'This increases customer pending balance' : 'This reduces customer pending balance'}
+        >
+          <form onSubmit={handleSaveManualEntry} className="space-y-4 text-xs">
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Date</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Amount (₹) *
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 font-bold text-slate-500 text-sm">₹</span>
+                <input
+                  type="number"
+                  step="any"
+                  autoFocus
+                  required
+                  placeholder="0.00"
+                  value={entryAmount}
+                  onChange={(e) => setEntryAmount(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2.5 text-base font-mono font-black border border-slate-300 rounded-xl focus:outline-none focus:border-slate-900 bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Transaction Date
+                </label>
+                <input
+                  type="date"
+                  value={entryDate}
+                  onChange={(e) => setEntryDate(e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded-xl text-xs bg-white"
+                />
+              </div>
+
+              {entryType === 'PAYMENT_RECEIVED' && (
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Payment Mode
+                  </label>
+                  <select
+                    value={entryPaymentMode}
+                    onChange={(e) => setEntryPaymentMode(e.target.value as any)}
+                    className="w-full p-2 border border-slate-300 rounded-xl text-xs bg-white"
+                  >
+                    <option value="cash">Cash 💵</option>
+                    <option value="upi">UPI / GPay / PhonePe 📲</option>
+                    <option value="bank">Bank Transfer 🏛️</option>
+                    <option value="other">Other / Cheque 📝</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Notes / Bill Reference (Optional)
+              </label>
               <input
-                type="date"
-                value={entryDate}
-                onChange={(e) => setEntryDate(e.target.value)}
-                className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-xl p-2.5 focus:outline-none focus:border-slate-900"
+                type="text"
+                placeholder={entryType === 'CREDIT_SALE' ? 'e.g. 5kg Atta + Sugar' : 'e.g. Cleared Diwali Bill'}
+                value={entryNotes}
+                onChange={(e) => setEntryNotes(e.target.value)}
+                className="w-full p-2.5 border border-slate-300 rounded-xl text-xs bg-white"
               />
             </div>
 
-            {entryType === 'PAYMENT_RECEIVED' && (
+            <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsEntryModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                size="sm" 
+                className={entryType === 'CREDIT_SALE' ? 'bg-rose-600 hover:bg-rose-700 text-white font-bold' : 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold'}
+              >
+                Save {entryType === 'CREDIT_SALE' ? 'Udhar Given' : 'Payment Received'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ---------------- MODAL 2: ADD / EDIT CUSTOMER PROFILE ---------------- */}
+      {isCustomerModalOpen && (
+        <Modal
+          isOpen={isCustomerModalOpen}
+          onClose={() => setIsCustomerModalOpen(false)}
+          title={editingCustomer ? `Edit Profile: ${editingCustomer.name}` : 'Add New Customer to Khata'}
+          description="Customer contact details, profile tags & opening ledger balance"
+        >
+          <form onSubmit={handleSaveCustomer} className="space-y-3.5 text-xs">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Customer Name *
+              </label>
+              <Input
+                required
+                autoFocus
+                placeholder="e.g. Rajesh Sharma"
+                value={custName}
+                onChange={(e) => setCustName(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Payment Mode</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Phone (WhatsApp)
+                </label>
+                <Input
+                  placeholder="e.g. 9876543210"
+                  value={custPhone}
+                  onChange={(e) => setCustPhone(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Customer Type
+                </label>
                 <select
-                  value={entryPaymentMode}
-                  onChange={(e) => setEntryPaymentMode(e.target.value as any)}
-                  className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-xl p-2.5 focus:outline-none focus:border-slate-900"
+                  value={custType}
+                  onChange={(e) => setCustType(e.target.value as any)}
+                  className="w-full p-2 border border-slate-300 rounded-xl text-xs bg-white"
                 >
-                  <option value="cash">Cash 💵</option>
-                  <option value="upi">UPI / GPay / PhonePe 📲</option>
-                  <option value="bank">Bank Transfer 🏦</option>
-                  <option value="other">Cheque / Other 📄</option>
+                  <option value="regular">Regular Customer</option>
+                  <option value="vip">⭐ VIP / Wholesaler</option>
                 </select>
               </div>
-            )}
-          </div>
-
-          <Input
-            label="Notes / Items Description (Optional)"
-            placeholder={entryType === 'CREDIT_SALE' ? "e.g. 2 Strips Dolo + Cough Syrup / Ration items" : "e.g. Cleared full month balance"}
-            value={entryNotes}
-            onChange={(e) => setEntryNotes(e.target.value)}
-          />
-
-          <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsEntryModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              className={`text-white font-bold ${entryType === 'CREDIT_SALE' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-            >
-              {entryType === 'CREDIT_SALE' ? 'Save Udhar Entry' : 'Save Payment Entry'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Quick Add Customer Modal */}
-      <Modal
-        isOpen={isAddCustomerOpen}
-        onClose={() => setIsAddCustomerOpen(false)}
-        title="Add New Customer to Khata"
-        size="md"
-      >
-        <form onSubmit={handleCreateCustomer} className="space-y-3 p-1">
-          <Input
-            label="Customer Name *"
-            placeholder="e.g. Rahul Sharma"
-            value={newCustName}
-            onChange={(e) => setNewCustName(e.target.value)}
-            required
-            autoFocus
-          />
-
-          <Input
-            label="Phone Number (for WhatsApp Reminders)"
-            placeholder="e.g. 9876543210"
-            value={newCustPhone}
-            onChange={(e) => setNewCustPhone(e.target.value)}
-          />
-
-          <Input
-            label="Address / Area"
-            placeholder="e.g. Market Road, Shop #4"
-            value={newCustAddress}
-            onChange={(e) => setNewCustAddress(e.target.value)}
-          />
-
-          <Input
-            label="Opening Udhar Balance (₹) (If any old pending amount)"
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            value={newCustOpeningBalance}
-            onChange={(e) => setNewCustOpeningBalance(e.target.value)}
-          />
-
-          <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsAddCustomerOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
-              Add Customer to Khata
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Edit Entry Modal */}
-      <Modal
-        isOpen={Boolean(editingTx)}
-        onClose={() => setEditingTx(null)}
-        title="Edit Khata Ledger Entry"
-        size="sm"
-      >
-        <form onSubmit={handleSaveEditTx} className="space-y-3 p-1">
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Transaction Type</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setEditTxType('PAYMENT_RECEIVED')}
-                className={`py-2 rounded-xl border text-xs font-bold cursor-pointer ${
-                  editTxType === 'PAYMENT_RECEIVED'
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                Payment Got (-)
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditTxType('CREDIT_SALE')}
-                className={`py-2 rounded-xl border text-xs font-bold cursor-pointer ${
-                  editTxType === 'CREDIT_SALE'
-                    ? 'bg-rose-600 text-white border-rose-600'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                Udhar Given (+)
-              </button>
             </div>
-          </div>
 
-          <Input
-            label="Amount (₹)"
-            type="number"
-            step="0.01"
-            value={editTxAmount}
-            onChange={(e) => setEditTxAmount(e.target.value)}
-            required
-            autoFocus
-          />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Address / City
+                </label>
+                <Input
+                  placeholder="e.g. Shop 4, Main Market"
+                  value={custAddress}
+                  onChange={(e) => setCustAddress(e.target.value)}
+                />
+              </div>
 
-          <Input
-            label="Notes"
-            value={editTxNotes}
-            onChange={(e) => setEditTxNotes(e.target.value)}
-            placeholder="e.g. Cleared via PhonePe"
-          />
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  GSTIN (If B2B)
+                </label>
+                <Input
+                  placeholder="e.g. 07AAAAA0000A1Z5"
+                  value={custGstin}
+                  onChange={(e) => setCustGstin(e.target.value)}
+                />
+              </div>
+            </div>
 
-          <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={() => setEditingTx(null)}>
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" className="bg-slate-900 hover:bg-slate-800 text-white font-bold">
-              Update Entry
-            </Button>
-          </div>
-        </form>
-      </Modal>
+            {!editingCustomer && (
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Opening Purana Udhar (₹)
+                </label>
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder="0.00 (Optional past balance)"
+                  value={custOpeningBalance}
+                  onChange={(e) => setCustOpeningBalance(e.target.value)}
+                />
+              </div>
+            )}
 
-      {/* Clear All Confirmation Modal */}
-      <Modal
-        isOpen={isClearAllModalOpen}
-        onClose={() => setIsClearAllModalOpen(false)}
-        title="⚠️ Clear Customer Khata History"
-        size="sm"
-      >
-        <div className="space-y-3 p-1">
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800">
-            <div className="font-bold mb-1">Customer: {selectedCustomer?.name}</div>
-            <div>Current Outstanding: {formatINR(selectedCustomer?.current_balance || 0)}</div>
-          </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Loyalty Points
+              </label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={custLoyaltyPoints}
+                onChange={(e) => setCustLoyaltyPoints(e.target.value)}
+              />
+            </div>
 
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">
-              Type <span className="text-rose-600 font-mono font-black">DELETE</span> to confirm:
-            </label>
-            <Input
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Notes
+              </label>
+              <Input
+                placeholder="e.g. Trusted neighborhood client"
+                value={custNotes}
+                onChange={(e) => setCustNotes(e.target.value)}
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsCustomerModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black">
+                {editingCustomer ? 'Update Profile' : 'Add to Khata'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ---------------- MODAL 3: EDIT LEDGER ENTRY ---------------- */}
+      {editingTx && (
+        <Modal
+          isOpen={Boolean(editingTx)}
+          onClose={() => setEditingTx(null)}
+          title="Edit Khata Transaction Entry"
+        >
+          <form onSubmit={handleSaveEditTx} className="space-y-4 text-xs">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Transaction Type
+              </label>
+              <select
+                value={editTxType}
+                onChange={(e) => setEditTxType(e.target.value as any)}
+                className="w-full p-2 border border-slate-300 rounded-xl text-xs bg-white font-bold"
+              >
+                <option value="CREDIT_SALE">🔴 You Gave Udhar (Credit Sale)</option>
+                <option value="PAYMENT_RECEIVED">🟢 You Got Payment (Jama)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Amount (₹) *
+              </label>
+              <input
+                type="number"
+                step="any"
+                required
+                value={editTxAmount}
+                onChange={(e) => setEditTxAmount(e.target.value)}
+                className="w-full p-2 text-sm font-mono font-bold border border-slate-300 rounded-xl bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Notes
+              </label>
+              <input
+                type="text"
+                value={editTxNotes}
+                onChange={(e) => setEditTxNotes(e.target.value)}
+                className="w-full p-2 border border-slate-300 rounded-xl text-xs bg-white"
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2 border-t border-slate-200">
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditingTx(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="bg-slate-900 text-white font-bold">
+                Update Entry
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ---------------- MODAL 4: CLEAR ALL KHATA ---------------- */}
+      {isClearAllModalOpen && selectedCustomer && (
+        <Modal
+          isOpen={isClearAllModalOpen}
+          onClose={() => setIsClearAllModalOpen(false)}
+          title={`Wipe Ledger History for ${selectedCustomer.name}?`}
+        >
+          <div className="space-y-4 text-xs">
+            <p className="text-slate-600">
+              This will permanently delete all transaction history for <b>{selectedCustomer.name}</b> and reset their pending balance to <b>₹0.00</b>.
+            </p>
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+              Type <b>DELETE</b> below to confirm:
+            </div>
+            <input
               type="text"
               placeholder="DELETE"
               value={clearConfirmationText}
               onChange={(e) => setClearConfirmationText(e.target.value)}
-              autoFocus
+              className="w-full p-2 border border-slate-300 rounded-xl text-xs font-mono font-bold bg-white"
             />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsClearAllModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleClearCustomerKhata}
+                disabled={clearConfirmationText.toUpperCase() !== 'DELETE'}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+              >
+                Permanently Wipe
+              </Button>
+            </div>
           </div>
-
-          <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsClearAllModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={clearConfirmationText.toUpperCase() !== 'DELETE'}
-              onClick={handleClearCustomerKhata}
-              className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
-            >
-              Confirm Wipe
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
     </div>
   );
 }
