@@ -196,7 +196,7 @@ export default function KhataPage() {
       current_balance: openingBalPaise,
       loyalty_points: 0,
       total_spent: 0,
-      visit_count: 0,
+      total_visits: 0,
       created_at: now,
       updated_at: now,
       sync_status: 'synced',
