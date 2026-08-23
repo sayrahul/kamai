@@ -47,16 +47,31 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
-import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
-import { HardwareManagerModal } from '@/components/hardware/HardwareManagerModal';
+import dynamic from 'next/dynamic';
 import { useHardwareBarcodeScanner } from '@/lib/hardware/barcodeScannerListener';
 import { performHybridBarcodeScan, autoCreateProductFromCategoryItem } from '@/lib/barcode/offlineBarcodeLookup';
-import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { CustomerSearchAutocomplete } from '@/components/customers/CustomerSearchAutocomplete';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { Sale } from '@/types';
+
+// Lazy-load non-critical heavy modals
+const BarcodeScannerModal = dynamic(
+  () => import('@/components/barcode/BarcodeScannerModal').then((m) => m.BarcodeScannerModal),
+  { ssr: false }
+);
+const HardwareManagerModal = dynamic(
+  () => import('@/components/hardware/HardwareManagerModal').then((m) => m.HardwareManagerModal),
+  { ssr: false }
+);
+const InvoiceModal = dynamic(
+  () => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal),
+  { ssr: false }
+);
+const UpgradeModal = dynamic(
+  () => import('@/components/subscription/UpgradeModal').then((m) => m.UpgradeModal),
+  { ssr: false }
+);
 
 export interface BillTab {
   id: string;

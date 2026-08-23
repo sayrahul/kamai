@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
@@ -17,26 +18,43 @@ import {
   Edit3, 
   Trash2, 
   CheckCircle2, 
-  Sparkles,
-  ArrowUpDown,
-  Tag,
-  Camera,
-  Zap,
-  FileSpreadsheet
+  Sparkles, 
+  ArrowUpDown, 
+  Tag, 
+  Camera, 
+  Zap, 
+  FileSpreadsheet,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
-import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
-import { RapidBarcodeInwardModal } from '@/components/products/RapidBarcodeInwardModal';
-import { ExcelInventoryImporter } from '@/components/inventory/ExcelInventoryImporter';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
 import { lookupCategoryBarcode } from '@/lib/barcode/categoryBarcodeLoader';
 import { getStoreProfile, MASTER_UNITS } from '@/lib/constants/storeProfiles';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { PurchaseInwardOptionsSheet } from '@/components/purchases/PurchaseInwardOptionsSheet';
-import { Lock } from 'lucide-react';
+
+// Lazy-load heavy modals & external libraries (xlsx, zxing, qr scanner)
+const PurchaseInwardOptionsSheet = dynamic(
+  () => import('@/components/purchases/PurchaseInwardOptionsSheet').then((m) => m.PurchaseInwardOptionsSheet),
+  { ssr: false }
+);
+const ExcelInventoryImporter = dynamic(
+  () => import('@/components/inventory/ExcelInventoryImporter').then((m) => m.ExcelInventoryImporter),
+  { ssr: false }
+);
+const BarcodeScannerModal = dynamic(
+  () => import('@/components/barcode/BarcodeScannerModal').then((m) => m.BarcodeScannerModal),
+  { ssr: false }
+);
+const RapidBarcodeInwardModal = dynamic(
+  () => import('@/components/products/RapidBarcodeInwardModal').then((m) => m.RapidBarcodeInwardModal),
+  { ssr: false }
+);
+const UpgradeModal = dynamic(
+  () => import('@/components/subscription/UpgradeModal').then((m) => m.UpgradeModal),
+  { ssr: false }
+);
 
 export default function ProductsPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
@@ -83,9 +101,23 @@ export default function ProductsPage() {
   // Live queries
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
-  const products = useLiveQuery(async () => {
-    let collection = db.products.toCollection();
-    let prods = await collection.toArray();
+  const allProducts = useLiveQuery(async () => db.products.toArray()) || [];
+
+  // O(N) pre-computed category counts (avoids O(N*M) lag in render loops)
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (let i = 0; i < allProducts.length; i++) {
+      const catId = allProducts[i].category_id;
+      if (catId) {
+        counts.set(catId, (counts.get(catId) || 0) + 1);
+      }
+    }
+    return counts;
+  }, [allProducts]);
+
+  // Memoized filtered product list
+  const filteredProducts = useMemo(() => {
+    let prods = allProducts;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -106,7 +138,13 @@ export default function ProductsPage() {
     }
 
     return prods;
-  }, [searchQuery, selectedCategory, showLowStockOnly]) || [];
+  }, [allProducts, searchQuery, selectedCategory, showLowStockOnly]);
+
+  // Client-side batch rendering (prevents initial DOM lag)
+  const [displayLimit, setDisplayLimit] = useState<number>(36);
+  const visibleProducts = useMemo(() => {
+    return filteredProducts.slice(0, displayLimit);
+  }, [filteredProducts, displayLimit]);
 
   const storeProfile = getStoreProfile(business?.business_type);
   const canInwardBill = business?.business_type !== 'restaurant' && storeProfile.featureToggles.hasBillScan;
@@ -389,11 +427,11 @@ export default function ProductsPage() {
               "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
               selectedCategory === 'all' ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
             )}>
-              {products.length}
+              {allProducts.length}
             </span>
           </button>
           {categories.map((cat) => {
-            const count = products.filter(p => p.category_id === cat.id).length;
+            const count = categoryCounts.get(cat.id) || 0;
             return (
               <button
                 key={cat.id}
@@ -430,7 +468,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Products Grid */}
-      {products.length === 0 ? (
+      {filteredProducts.length === 0 ? (
         <div className="bg-white border border-dashed border-slate-300 rounded-xl p-12 text-center">
           <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
             <Package className="w-6 h-6" />
@@ -441,140 +479,157 @@ export default function ProductsPage() {
           </p>
           <Button onClick={handleOpenAddModal} size="md" className="mt-3 text-xs">
             <Plus className="w-4 h-4 mr-1.5" />
-            <span>{t('products.addProduct')}</span>
+            <span>{business?.business_type === 'restaurant' ? '+ Add Menu Item' : t('products.addProduct')}</span>
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {products.map((p) => {
-            const isLowStock = p.current_stock <= p.min_stock_level;
-            const isOutOfStock = p.current_stock <= 0;
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {visibleProducts.map((p) => {
+              const isLowStock = p.current_stock <= p.min_stock_level;
+              const isOutOfStock = p.current_stock <= 0;
 
-            return (
-              <div
-                key={p.id}
-                onClick={() => handleOpenEditModal(p)}
-                className="bg-white border border-slate-200 hover:border-slate-400 rounded-xl p-4 cursor-pointer flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-semibold text-slate-500 uppercase">
-                          {p.category_name || 'General'}
-                        </span>
-                        {p.barcode && (
-                          <span className="text-[10px] bg-slate-100 text-slate-600 font-mono px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-slate-200">
-                            <Barcode className="w-2.5 h-2.5" />
-                            {p.barcode}
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => handleOpenEditModal(p)}
+                  className="bg-white border border-slate-200 hover:border-slate-400 rounded-xl p-4 cursor-pointer flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-semibold text-slate-500 uppercase">
+                            {p.category_name || 'General'}
                           </span>
-                        )}
+                          {p.barcode && (
+                            <span className="text-[10px] bg-slate-100 text-slate-600 font-mono px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-slate-200">
+                              <Barcode className="w-2.5 h-2.5" />
+                              {p.barcode}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-900 line-clamp-2 mt-0.5">
+                          {p.name}
+                        </h3>
+
+                        {/* Dynamic Store Category Attributes Badges */}
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {(p.batch_number || p.expiry_date) && (
+                            <span className={cn(
+                              "text-[10px] px-1.5 py-0.5 rounded font-mono font-medium border flex items-center gap-1",
+                              p.expiry_date && new Date(p.expiry_date).getTime() < Date.now()
+                                ? "bg-rose-50 text-rose-800 border-rose-200 font-bold"
+                                : "bg-amber-50 text-amber-900 border-amber-200"
+                            )}>
+                              {p.batch_number && <span>B:{p.batch_number}</span>}
+                              {p.expiry_date && (
+                                <span>
+                                  {p.batch_number ? '•' : ''} Exp: {p.expiry_date}
+                                  {new Date(p.expiry_date).getTime() < Date.now() && ' (EXPIRED)'}
+                                </span>
+                              )}
+                            </span>
+                          )}
+
+                          {(p.size || p.color) && (
+                            <span className="text-[10px] bg-indigo-50 text-indigo-900 border border-indigo-200 px-1.5 py-0.5 rounded font-medium">
+                              {p.size && <span>Size: {p.size} </span>}
+                              {p.color && <span>• {p.color}</span>}
+                            </span>
+                          )}
+
+                          {(p.imei_serial || p.warranty_period_months) && (
+                            <span className="text-[10px] bg-cyan-50 text-cyan-900 border border-cyan-200 px-1.5 py-0.5 rounded font-mono">
+                              {p.imei_serial && <span>SN:{p.imei_serial} </span>}
+                              {p.warranty_period_months && <span>• {p.warranty_period_months}M War</span>}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <h3 className="text-sm font-bold text-slate-900 line-clamp-2 mt-0.5">
-                        {p.name}
-                      </h3>
 
-                      {/* Dynamic Store Category Attributes Badges */}
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {(p.batch_number || p.expiry_date) && (
-                          <span className={cn(
-                            "text-[10px] px-1.5 py-0.5 rounded font-mono font-medium border flex items-center gap-1",
-                            p.expiry_date && new Date(p.expiry_date).getTime() < Date.now()
-                              ? "bg-rose-50 text-rose-800 border-rose-200 font-bold"
-                              : "bg-amber-50 text-amber-900 border-amber-200"
-                          )}>
-                            {p.batch_number && <span>B:{p.batch_number}</span>}
-                            {p.expiry_date && (
-                              <span>
-                                {p.batch_number ? '•' : ''} Exp: {p.expiry_date}
-                                {new Date(p.expiry_date).getTime() < Date.now() && ' (EXPIRED)'}
-                              </span>
-                            )}
-                          </span>
-                        )}
-
-                        {(p.size || p.color) && (
-                          <span className="text-[10px] bg-indigo-50 text-indigo-900 border border-indigo-200 px-1.5 py-0.5 rounded font-medium">
-                            {p.size && <span>Size: {p.size} </span>}
-                            {p.color && <span>• {p.color}</span>}
-                          </span>
-                        )}
-
-                        {(p.imei_serial || p.warranty_period_months) && (
-                          <span className="text-[10px] bg-cyan-50 text-cyan-900 border border-cyan-200 px-1.5 py-0.5 rounded font-mono">
-                            {p.imei_serial && <span>SN:{p.imei_serial} </span>}
-                            {p.warranty_period_months && <span>• {p.warranty_period_months}M War</span>}
-                          </span>
-                        )}
-                      </div>
+                      <button
+                        onClick={(e) => handleToggleFavorite(p, e)}
+                        className={`p-1 rounded ${
+                          p.is_favorite
+                            ? 'text-amber-500'
+                            : 'text-slate-300 hover:text-slate-400'
+                        }`}
+                      >
+                        <Star className={`w-4 h-4 ${p.is_favorite ? 'fill-current' : ''}`} />
+                      </button>
                     </div>
 
-                    <button
-                      onClick={(e) => handleToggleFavorite(p, e)}
-                      className={`p-1 rounded ${
-                        p.is_favorite
-                          ? 'text-amber-500'
-                          : 'text-slate-300 hover:text-slate-400'
-                      }`}
-                    >
-                      <Star className={`w-4 h-4 ${p.is_favorite ? 'fill-current' : ''}`} />
-                    </button>
+                    {/* Pricing Matrix */}
+                    <div className="flex flex-wrap items-baseline gap-2 mt-2">
+                      <span className="text-base font-extrabold text-slate-900 font-mono">
+                        {formatINR(p.selling_price)}
+                      </span>
+                      <span className="text-xs text-slate-500 font-medium">/{p.unit}</span>
+                      {p.mrp > p.selling_price && (
+                        <span className="text-xs text-slate-400 line-through font-mono">
+                          {formatINR(p.mrp)}
+                        </span>
+                      )}
+                      {p.wholesale_price && (
+                        <span className="text-[10px] text-amber-800 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                          Thok: {formatINR(p.wholesale_price)} (Min {p.wholesale_min_qty || 5})
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Pricing Matrix */}
-                  <div className="flex flex-wrap items-baseline gap-2 mt-2">
-                    <span className="text-base font-extrabold text-slate-900 font-mono">
-                      {formatINR(p.selling_price)}
-                    </span>
-                    <span className="text-xs text-slate-500 font-medium">/{p.unit}</span>
-                    {p.mrp > p.selling_price && (
-                      <span className="text-xs text-slate-400 line-through font-mono">
-                        {formatINR(p.mrp)}
-                      </span>
-                    )}
-                    {p.wholesale_price && (
-                      <span className="text-[10px] text-amber-800 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                        Thok: {formatINR(p.wholesale_price)} (Min {p.wholesale_min_qty || 5})
-                      </span>
-                    )}
+                  {/* Stock Footer */}
+                  <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5">
+                      {isOutOfStock ? (
+                        <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-bold">
+                          {t('products.outOfStock')}
+                        </span>
+                      ) : isLowStock ? (
+                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-bold flex items-center gap-1 border border-amber-300">
+                          <AlertTriangle className="w-3 h-3 text-amber-700" />
+                          <span>{p.current_stock} {p.unit} left</span>
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          <span>{p.current_stock} {p.unit}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProduct(p.id, p.name);
+                        }}
+                        className="p-1 rounded text-slate-400 hover:text-rose-600"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Stock Footer */}
-                <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5">
-                    {isOutOfStock ? (
-                      <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-bold">
-                        {t('products.outOfStock')}
-                      </span>
-                    ) : isLowStock ? (
-                      <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-bold flex items-center gap-1 border border-amber-300">
-                        <AlertTriangle className="w-3 h-3 text-amber-700" />
-                        <span>{p.current_stock} {p.unit} left</span>
-                      </span>
-                    ) : (
-                      <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                        <span>{p.current_stock} {p.unit}</span>
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteProduct(p.id, p.name);
-                      }}
-                      className="p-1 rounded text-slate-400 hover:text-rose-600"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {/* Load More Pagination */}
+          {visibleProducts.length < filteredProducts.length && (
+            <div className="text-center py-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                onClick={() => setDisplayLimit((prev) => prev + 36)}
+                className="bg-white hover:bg-slate-50 border-slate-300 text-slate-800 font-bold text-xs shadow-xs px-6 py-2"
+              >
+                Showing {visibleProducts.length} of {filteredProducts.length} Products • Load More (+36)
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
