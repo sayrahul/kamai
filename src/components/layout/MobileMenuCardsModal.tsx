@@ -22,7 +22,6 @@ import {
   Settings,
   Sparkles,
   Lock,
-  Globe,
   Zap
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
@@ -35,7 +34,7 @@ interface MobileMenuCardsModalProps {
 export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
 
-  // Exactly 4 sections with 4 items each (perfect 2x2 grid per section)
+  // Exactly 4 sections
   const menuSections = [
     {
       title: 'Daily Billing & Counter',
@@ -60,7 +59,6 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
         { href: '/khata', title: 'Khata Ledger', desc: 'Customer Credit', icon: BookOpen, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
         { href: '/customers', title: 'Customers', desc: 'Profiles & Loyalty', icon: Users, bg: 'bg-indigo-100 text-indigo-900', border: 'border-indigo-300' },
         { href: '/growth', title: 'WhatsApp Growth', desc: 'Festival Greetings', icon: TrendingUp, bg: 'bg-emerald-100 text-emerald-900', border: 'border-emerald-300' },
-        { href: '/online-store', title: 'Digital Store', desc: 'WhatsApp Catalog', icon: Globe, bg: 'bg-sky-100 text-sky-900', border: 'border-sky-300' },
       ],
     },
     {
