@@ -482,7 +482,8 @@ export default function ProductsPage() {
             <span>{business?.business_type === 'restaurant' ? '+ Add Menu Item' : t('products.addProduct')}</span>
           </Button>
         </div>
-      ) :         <div className="space-y-4">
+      ) : (
+        <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3">
             {visibleProducts.map((p) => {
               const isLowStock = p.current_stock <= p.min_stock_level;
