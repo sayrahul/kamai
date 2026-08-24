@@ -271,18 +271,20 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-4 pb-12">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-slate-800" />
-            {t('nav.transactions')}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-2xs">
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-slate-800 flex-shrink-0" />
+            <span>{t('nav.transactions')}</span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Audit history, reprint thermal bills, customer khata credit tracking, and 1-click Tally export.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Strictly One-Row Action Bar */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap overflow-x-auto pb-0.5 lg:pb-0">
+          {/* Sales Return */}
           <Button
             variant="outline"
             size="sm"
@@ -294,24 +296,26 @@ export default function TransactionsPage() {
                 setIsReturnModalOpen(true);
               }
             }}
-            className="text-xs font-bold gap-1.5 border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 cursor-pointer"
+            className="text-xs font-bold gap-1.5 border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 cursor-pointer whitespace-nowrap flex-shrink-0"
           >
             <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
             <span>Sales Return</span>
             {!isPro && <Lock className="w-3 h-3 text-amber-700" />}
           </Button>
 
+          {/* Export CSV */}
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportCSV}
-            className="text-xs font-bold gap-1.5"
+            className="text-xs font-bold gap-1.5 whitespace-nowrap flex-shrink-0"
             disabled={filteredSales.length === 0}
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export CSV</span>
           </Button>
 
+          {/* Tally Prime XML */}
           <Button
             size="sm"
             onClick={() => {
@@ -321,7 +325,7 @@ export default function TransactionsPage() {
                 handleExportTallyXML();
               }
             }}
-            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs gap-1.5 shadow-2xs cursor-pointer"
+            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs gap-1.5 shadow-2xs cursor-pointer whitespace-nowrap flex-shrink-0"
             disabled={filteredSales.length === 0}
           >
             <Download className="w-3.5 h-3.5 text-slate-950" />
@@ -329,16 +333,16 @@ export default function TransactionsPage() {
             {!isPro && <Lock className="w-3 h-3 text-slate-950" />}
           </Button>
 
+          {/* Clear History */}
           {allSales.length > 0 && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsClearHistoryModalOpen(true)}
-              className="text-xs font-bold text-rose-600 hover:bg-rose-50 border-rose-200 gap-1"
+              className="text-xs font-bold text-rose-600 hover:bg-rose-50 border-rose-200 px-2.5 flex-shrink-0"
               title="Delete / Reset All Transaction History"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Clear History</span>
             </Button>
           )}
         </div>
