@@ -400,118 +400,159 @@ export default function TransactionsPage() {
         </Card>
       </div>
 
-      {/* Filter Control Box — Strictly One Systematic Row */}
-      <Card className="p-3 sm:p-3.5 bg-white border border-slate-200 shadow-sm space-y-2.5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5 items-center">
-          {/* 1. Search Box (4 cols) */}
-          <div className="sm:col-span-2 lg:col-span-4">
-            <Input
-              placeholder="Search by Invoice #, Customer, phone, or item..."
+      {/* Ultra Space-Saving Systematic Filter Toolbar */}
+      <Card className="p-2 sm:p-2.5 bg-white border border-slate-200 shadow-2xs space-y-2">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+          
+          {/* Main Search Input */}
+          <div className="relative flex-1 min-w-0">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search invoice #, customer, phone, or item..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+              className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-slate-800 rounded-lg pl-8 pr-7 py-1.5 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none transition shadow-2xs"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          {/* 2. Customer Dropdown (2 cols) */}
-          <div className="lg:col-span-2">
-            <select
-              value={selectedCustomerId}
-              onChange={(e) => setSelectedCustomerId(e.target.value)}
-              className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2.5 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px] shadow-2xs cursor-pointer truncate"
-            >
-              <option value="all">👥 All Customers ({allSales.length})</option>
-              <option value="walk-in">🚶 Walk-in Cash</option>
-              <optgroup label="Registered Customers">
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.phone ? `(${c.phone})` : ''}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </div>
+          {/* Single-Row Horizontal Filter Pills (Scrollable horizontally, never stacking) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto flex-nowrap pb-0.5 md:pb-0 select-none">
+            {/* Customer Pill */}
+            <div className="relative flex-shrink-0">
+              <select
+                value={selectedCustomerId}
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+                className={cn(
+                  "appearance-none border text-xs font-bold rounded-lg pl-2 pr-5 py-1.5 cursor-pointer focus:outline-none transition shadow-2xs max-w-[130px] truncate",
+                  selectedCustomerId !== 'all' 
+                    ? "bg-amber-50 border-amber-300 text-amber-900" 
+                    : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700"
+                )}
+              >
+                <option value="all">👥 Cust ({allSales.length})</option>
+                <option value="walk-in">🚶 Walk-in</option>
+                <optgroup label="Registered">
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.phone ? `(${c.phone})` : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[9px]">▼</div>
+            </div>
 
-          {/* 3. Payment Mode Selector (2 cols) */}
-          <div className="lg:col-span-2">
-            <select
-              value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)}
-              className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2.5 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px] shadow-2xs cursor-pointer"
-            >
-              <option value="all">💳 All Payment Modes</option>
-              <option value="cash">💵 Cash Only</option>
-              <option value="upi">📱 UPI / QR Only</option>
-              <option value="credit">📒 Customer Credit</option>
-            </select>
-          </div>
+            {/* Payment Mode Pill */}
+            <div className="relative flex-shrink-0">
+              <select
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)}
+                className={cn(
+                  "appearance-none border text-xs font-bold rounded-lg pl-2 pr-5 py-1.5 cursor-pointer focus:outline-none transition shadow-2xs",
+                  paymentFilter !== 'all' 
+                    ? "bg-amber-50 border-amber-300 text-amber-900" 
+                    : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700"
+                )}
+              >
+                <option value="all">💳 Mode: All</option>
+                <option value="cash">💵 Cash</option>
+                <option value="upi">📱 UPI/QR</option>
+                <option value="credit">📒 Credit</option>
+              </select>
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[9px]">▼</div>
+            </div>
 
-          {/* 4. Date Range Dropdown Selector (2 cols) */}
-          <div className="lg:col-span-2">
-            <select
-              value={datePreset}
-              onChange={(e) => setDatePreset(e.target.value as DatePreset)}
-              className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2.5 py-2 text-xs font-bold focus:border-slate-900 focus:outline-none min-h-[38px] shadow-2xs cursor-pointer"
-            >
-              <option value="all">📅 All Time</option>
-              <option value="today">⚡ Today</option>
-              <option value="yesterday">⏪ Yesterday</option>
-              <option value="week">🗓️ Last 7 Days</option>
-              <option value="month">📊 This Month</option>
-              <option value="custom">🔍 Custom Range...</option>
-            </select>
-          </div>
+            {/* Date Range Pill */}
+            <div className="relative flex-shrink-0">
+              <select
+                value={datePreset}
+                onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+                className={cn(
+                  "appearance-none border text-xs font-bold rounded-lg pl-2 pr-5 py-1.5 cursor-pointer focus:outline-none transition shadow-2xs",
+                  datePreset !== 'all' 
+                    ? "bg-amber-50 border-amber-300 text-amber-900" 
+                    : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700"
+                )}
+              >
+                <option value="all">📅 Date: All</option>
+                <option value="today">⚡ Today</option>
+                <option value="yesterday">⏪ Yesterday</option>
+                <option value="week">🗓️ 7 Days</option>
+                <option value="month">📊 Month</option>
+                <option value="custom">🔍 Custom...</option>
+              </select>
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[9px]">▼</div>
+            </div>
 
-          {/* 5. Sort By Dropdown (2 cols) */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 min-h-[38px] shadow-2xs">
-              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+            {/* Sort Pill */}
+            <div className="relative flex-shrink-0">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="w-full bg-transparent text-slate-900 text-xs font-semibold focus:outline-none cursor-pointer"
+                className="appearance-none bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg pl-2 pr-5 py-1.5 cursor-pointer focus:outline-none transition shadow-2xs"
               >
-                <option value="date-desc">Newest First</option>
-                <option value="date-asc">Oldest First</option>
-                <option value="amount-desc">Highest Amount</option>
-                <option value="amount-asc">Lowest Amount</option>
+                <option value="date-desc">⇅ Newest</option>
+                <option value="date-asc">⇅ Oldest</option>
+                <option value="amount-desc">⇅ ₹ High</option>
+                <option value="amount-asc">⇅ ₹ Low</option>
               </select>
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[9px]">▼</div>
             </div>
+
+            {/* Reset Button */}
+            {(selectedCustomerId !== 'all' || paymentFilter !== 'all' || datePreset !== 'all' || searchQuery.trim() || sortBy !== 'date-desc') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCustomerId('all');
+                  setPaymentFilter('all');
+                  setDatePreset('all');
+                  setSearchQuery('');
+                  setSortBy('date-desc');
+                }}
+                className="text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-1 rounded-lg whitespace-nowrap cursor-pointer transition flex-shrink-0"
+              >
+                Reset
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Row 3: Custom Date Pickers when 'custom' preset is selected */}
+        {/* Inline Custom Date Range (Only when custom selected) */}
         {datePreset === 'custom' && (
-          <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-lg flex flex-wrap items-center gap-3 text-xs animate-in fade-in">
-            <span className="font-bold text-slate-700 flex items-center gap-1">
+          <div className="p-2 bg-amber-50/70 border border-amber-200 rounded-lg flex flex-wrap items-center gap-2 text-xs animate-in fade-in">
+            <span className="font-bold text-amber-900 text-[11px] flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-amber-700" />
-              <span>Select Date Range:</span>
+              <span>Range:</span>
             </span>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 font-medium">From:</span>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-mono font-semibold focus:outline-none focus:border-slate-900"
-              />
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 font-medium">To:</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-mono font-semibold focus:outline-none focus:border-slate-900"
-              />
-            </div>
-
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs text-slate-900 font-mono focus:outline-none"
+            />
+            <span className="text-slate-400 text-xs">to</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs text-slate-900 font-mono focus:outline-none"
+            />
             {(startDate || endDate) && (
               <button
+                type="button"
                 onClick={() => { setStartDate(''); setEndDate(''); }}
-                className="text-[11px] font-bold text-rose-600 hover:text-rose-800 ml-auto"
+                className="text-[11px] font-bold text-rose-600 hover:text-rose-800 ml-auto cursor-pointer"
               >
                 Clear Dates
               </button>
