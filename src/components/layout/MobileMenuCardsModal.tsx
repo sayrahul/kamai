@@ -90,9 +90,9 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
       <div className="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[88vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-amber-400" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-white/10 p-1 flex items-center justify-center flex-shrink-0 border border-white/10 shadow-xs">
+              <img src="/logo.png" alt="Kamai+" className="w-full h-full object-contain" />
             </div>
             <div>
               <h2 className="text-sm font-black tracking-tight">KamaiPlus App Navigation</h2>
