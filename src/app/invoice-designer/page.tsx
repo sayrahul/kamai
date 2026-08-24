@@ -468,67 +468,66 @@ export default function InvoiceDesignerPage() {
             </div>
           </Card>
 
-          {/* STEP 3: PLATFORM BRANDING & PROMO BANNER (FREE PLAN) */}
-          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">3</span>
-                <span className="flex items-center gap-1.5">
-                  <Megaphone className="w-4 h-4 text-amber-600" />
-                  <span>Platform Branding &amp; Promo Banner</span>
-                </span>
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                {business?.subscription_tier === 'pro' || business?.subscription_tier === 'enterprise' ? 'Pro (White-Label)' : 'Free Tier Active'}
+          {/* STEP 3: PLATFORM BRANDING (Minimal Text) */}
+          <Card className="p-3 sm:p-3.5 bg-white border border-slate-200 shadow-2xs">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="w-4 h-4 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center shrink-0">3</span>
+                <Megaphone className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span className="text-xs font-bold text-slate-900 truncate">Platform Branding</span>
+              </div>
+              <span className="text-[9.5px] font-extrabold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200 shrink-0 font-mono">
+                {business?.subscription_tier === 'pro' || business?.subscription_tier === 'enterprise' ? 'Pro (White-Label)' : 'Free Tier'}
               </span>
             </div>
 
-            <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs space-y-1.5">
-              <div className="font-bold text-amber-950 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-                <span>Free Plan Footer Promotion</span>
+            <div className="p-2 bg-amber-50/60 border border-amber-200/70 rounded-lg text-xs mt-2 flex items-center justify-between gap-2">
+              <div className="text-[11px] text-amber-950 font-medium truncate flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
+                <span>
+                  {business?.subscription_tier === 'pro' || business?.subscription_tier === 'enterprise' 
+                    ? 'White-Label Active (Ads hidden on customer invoices)' 
+                    : 'Free Tier includes footer promotion strip'}
+                </span>
               </div>
-              <p className="text-[11px] text-amber-900 leading-relaxed">
-                Invoices on the <strong>Free Tier</strong> include the KamaiPlus platform footer promotion strip.
-                {business?.subscription_tier === 'pro' || business?.subscription_tier === 'enterprise' ? (
-                  <span className="text-emerald-700 font-bold block mt-1">
-                    ✅ Your account is Pro/Enterprise — White-label enabled (platform ads are hidden on your customer invoices).
-                  </span>
-                ) : (
-                  <span className="text-slate-600 block mt-1">
-                    Upgrade to <strong>Pro</strong> or <strong>Enterprise</strong> to remove platform branding and get 100% custom white-label invoices.
-                  </span>
-                )}
-              </p>
+              {!isPro && (
+                <button
+                  type="button"
+                  onClick={() => setIsUpgradeModalOpen(true)}
+                  className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-400 text-slate-950 hover:bg-amber-500 cursor-pointer shrink-0"
+                >
+                  Remove Ads
+                </button>
+              )}
             </div>
           </Card>
 
-          {/* STEP 4: FOOTER TERMS & CONDITIONS */}
-          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">4</span>
+          {/* STEP 4: FOOTER TERMS & CONDITIONS (Minimal Text) */}
+          <Card className="p-3 sm:p-3.5 bg-white border border-slate-200 space-y-2.5 shadow-2xs">
+            <h2 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <span className="w-4 h-4 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center">4</span>
               <span>Terms &amp; Footer Note</span>
             </h2>
 
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 block">Terms &amp; Conditions</label>
-                <textarea
-                  rows={2}
+            <div className="space-y-2">
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-0.5">Terms &amp; Conditions</label>
+                <input
+                  type="text"
                   value={config.custom_terms || ''}
                   onChange={(e) => setConfig((prev) => ({ ...prev, custom_terms: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-slate-900"
-                  placeholder="e.g. 1. Goods once sold will be replaced within 7 days. 2. Subject to local jurisdiction."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-slate-900 font-medium"
+                  placeholder="e.g. 1. Goods replaced within 7 days. 2. Subject to local jurisdiction."
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 block">Footer Thank You Note</label>
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-0.5">Footer Thank You Note</label>
                 <input
                   type="text"
                   value={config.custom_footer || ''}
                   onChange={(e) => setConfig((prev) => ({ ...prev, custom_footer: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-slate-900"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-slate-900 font-medium"
                   placeholder="e.g. Thank you for your business! Please visit again."
                 />
               </div>
