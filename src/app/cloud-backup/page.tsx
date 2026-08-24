@@ -211,47 +211,46 @@ export default function CloudBackupPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5 pb-16">
-      {/* ---------------- TOP HEADER ---------------- */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1.5">
-              <HardDrive className="w-3.5 h-3.5 text-amber-700" />
-              <span>Store Data Protection &amp; Tax Exports</span>
-            </span>
+    <div className="max-w-4xl mx-auto space-y-3.5 pb-16">
+      {/* ---------------- TOP HEADER (Single Row Compact) ---------------- */}
+      <div className="bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 truncate">
+            <HardDrive className="w-4 h-4 text-amber-700 shrink-0" />
+            <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">
+              Data Backup &amp; Tax Reports
+            </h1>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Data Backup &amp; Tax Reports
-          </h1>
-          <p className="text-xs text-slate-500">
-            Download offline JSON database snapshots, official Tally Prime XML, and CA Master Sales Registers.
+          <p className="text-[10px] sm:text-xs text-slate-500 truncate">
+            Offline JSON database snapshots, Tally Prime XML, and CA Master Sales Registers
           </p>
         </div>
 
         <Button
+          size="sm"
           onClick={handleDownloadBackup}
           disabled={isBackingUp}
-          className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-xs border-amber-400 gap-1.5 cursor-pointer"
+          className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-3 py-1.5 rounded-lg shadow-2xs border-none gap-1 cursor-pointer flex-shrink-0"
         >
-          <FileDown className="w-4 h-4 text-slate-950" />
-          <span>{isBackingUp ? 'Generating Backup...' : 'Download Backup (.JSON)'}</span>
+          <FileDown className="w-3.5 h-3.5 text-slate-950" />
+          <span className="hidden sm:inline">{isBackingUp ? 'Backing up...' : 'Download Backup (.JSON)'}</span>
+          <span className="sm:hidden">{isBackingUp ? 'Saving...' : 'Backup'}</span>
         </Button>
       </div>
 
       {/* ---------------- COMPACT STATUS BADGE ---------------- */}
-      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-semibold text-slate-700">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0 animate-pulse" />
-          <span className="font-bold text-slate-900">Offline Active (Local Storage)</span>
+      <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-1.5 truncate">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+          <span className="font-bold text-slate-900 truncate">Offline Active</span>
           <span className="text-slate-400">•</span>
-          <span className="text-slate-600">
-            {totalRecords} protected entries ({productCount} products, {customerCount} customers, {saleCount} bills)
+          <span className="text-slate-600 truncate text-[11px]">
+            {totalRecords} entries ({productCount} items, {saleCount} bills)
           </span>
         </div>
 
-        <div className="text-[11px] text-slate-500 font-mono">
-          Last Backup: {lastBackupTime ? new Date(lastBackupTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Not taken yet'}
+        <div className="text-[10.5px] text-slate-500 font-mono shrink-0">
+          Last: {lastBackupTime ? new Date(lastBackupTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'Never'}
         </div>
       </div>
 
