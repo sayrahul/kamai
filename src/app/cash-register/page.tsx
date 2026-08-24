@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CashRegister, CashExpense, Sale } from '@/types';
-import { formatINR } from '@/lib/utils';
+import { formatINR, cn } from '@/lib/utils';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { EscPosEncoder } from '@/lib/hardware/escpos';
 import { 
