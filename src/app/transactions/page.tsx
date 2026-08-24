@@ -476,37 +476,22 @@ export default function TransactionsPage() {
             })}
           </div>
 
-          {/* Date Range Presets */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-bold text-slate-600 mr-1 flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5" />
-              <span>Date:</span>
-            </span>
-
-            {[
-              { id: 'all', label: 'All Time' },
-              { id: 'today', label: 'Today' },
-              { id: 'yesterday', label: 'Yesterday' },
-              { id: 'week', label: 'Last 7 Days' },
-              { id: 'month', label: 'This Month' },
-              { id: 'custom', label: 'Custom Range' },
-            ].map((d) => {
-              const isSelected = datePreset === d.id;
-              return (
-                <button
-                  key={d.id}
-                  onClick={() => setDatePreset(d.id as DatePreset)}
-                  className={cn(
-                    'px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap transition-all',
-                    isSelected
-                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  )}
-                >
-                  {d.label}
-                </button>
-              );
-            })}
+          {/* Date Range Dropdown Selector */}
+          <div className="flex items-center gap-2 bg-white border border-slate-300 rounded-lg px-3 py-1.5 min-h-[36px] shadow-2xs">
+            <Calendar className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <span className="text-xs font-bold text-slate-700 whitespace-nowrap">Date:</span>
+            <select
+              value={datePreset}
+              onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+              className="bg-transparent text-slate-900 text-xs font-bold focus:outline-none cursor-pointer pr-1"
+            >
+              <option value="all">📅 All Time</option>
+              <option value="today">⚡ Today</option>
+              <option value="yesterday">⏪ Yesterday</option>
+              <option value="week">🗓️ Last 7 Days</option>
+              <option value="month">📊 This Month</option>
+              <option value="custom">🔍 Custom Range...</option>
+            </select>
           </div>
         </div>
 
