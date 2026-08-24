@@ -231,77 +231,115 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Users className="w-6 h-6 text-sky-500" />
-            <span>Customer Directory & Profiles</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            {customers.length} registered customers • Manage contact details, loyalty &amp; direct Khata access
+      {/* ---------------- TOP HEADER (Single Row Compact) ---------------- */}
+      <div className="bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 truncate">
+            <Users className="w-4 h-4 text-sky-600 shrink-0" />
+            <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">
+              Customer Directory &amp; Profiles
+            </h1>
+          </div>
+          <p className="text-[10px] sm:text-xs text-slate-500 truncate">
+            {customers.length} registered customers • {totalVIPCount} VIP members • {formatINR(totalCreditDue)} dues
           </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <Link href="/khata">
-            <Button variant="outline" className="font-bold border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100">
-              <BookOpen className="w-4 h-4 mr-1.5 text-amber-700" />
-              <span>Open Khata Ledger</span>
+            <Button 
+              size="sm"
+              variant="outline" 
+              className="font-bold border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100 text-xs px-2.5 py-1.5 shadow-2xs cursor-pointer"
+            >
+              <BookOpen className="w-3.5 h-3.5 sm:mr-1 text-amber-700" />
+              <span className="hidden sm:inline">Khata Ledger</span>
             </Button>
           </Link>
-          <Button onClick={handleOpenAddModal} className="font-bold bg-slate-900 text-white hover:bg-slate-800">
-            <Plus className="w-4 h-4 mr-1.5" />
-            <span>Add New Customer</span>
+          <Button 
+            size="sm"
+            onClick={handleOpenAddModal} 
+            className="font-bold bg-slate-900 text-white hover:bg-slate-950 text-xs px-2.5 py-1.5 shadow-2xs cursor-pointer gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Add Customer</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
 
-      {/* KPI Metrics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Total Customers</span>
-            <Users className="w-4 h-4 text-sky-500" />
+      {/* ---------------- LIVE CUSTOMER METRICS RIBBON (Space-Saving & Unified) ---------------- */}
+      <Card className="p-2 sm:p-2.5 bg-white border border-slate-200 shadow-2xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+          {/* 1. Total Customers */}
+          <div className="px-2 py-1 sm:py-0 sm:first:pl-1">
+            <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+              <span className="flex items-center gap-1 text-sky-700">
+                <Users className="w-3.5 h-3.5 text-sky-600" />
+                <span>Customers</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">Total</span>
+            </div>
+            <div className="text-base sm:text-lg font-black font-mono text-slate-900 mt-0.5 leading-tight">
+              {customers.length}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              Directory accounts
+            </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">
-            {customers.length}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Directory accounts</div>
-        </Card>
 
-        <Card className="p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">VIP Members</span>
-            <Star className="w-4 h-4 text-amber-500" />
+          {/* 2. VIP Members */}
+          <div className="px-2 pt-2 sm:pt-0 sm:px-3">
+            <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+              <span className="flex items-center gap-1 text-amber-700">
+                <Star className="w-3.5 h-3.5 text-amber-600" />
+                <span>VIP Members</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">High-Value</span>
+            </div>
+            <div className="text-base sm:text-lg font-black font-mono text-amber-600 mt-0.5 leading-tight">
+              {totalVIPCount}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              Frequent buyers
+            </div>
           </div>
-          <div className="text-2xl font-black text-amber-600 mt-1">
-            {totalVIPCount}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">High-value frequent buyers</div>
-        </Card>
 
-        <Card className="p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Total Udhar Due</span>
-            <BookOpen className="w-4 h-4 text-rose-500" />
+          {/* 3. Total Udhar Due */}
+          <div className="px-2 pt-2 sm:pt-0 sm:px-3">
+            <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+              <span className="flex items-center gap-1 text-rose-700">
+                <BookOpen className="w-3.5 h-3.5 text-rose-600" />
+                <span>Udhar Due</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">Pending</span>
+            </div>
+            <div className="text-base sm:text-lg font-black font-mono text-rose-600 mt-0.5 leading-tight">
+              {formatINR(totalCreditDue)}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              Pending collection
+            </div>
           </div>
-          <div className="text-2xl font-black text-rose-600 mt-1">
-            {formatINR(totalCreditDue)}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Pending collection from customers</div>
-        </Card>
 
-        <Card className="p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Credit Accounts</span>
-            <Award className="w-4 h-4 text-purple-500" />
+          {/* 4. Credit Accounts */}
+          <div className="px-2 pt-2 sm:pt-0 sm:pl-3">
+            <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+              <span className="flex items-center gap-1 text-purple-700">
+                <Award className="w-3.5 h-3.5 text-purple-600" />
+                <span>Credit Active</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">Ledgers</span>
+            </div>
+            <div className="text-base sm:text-lg font-black font-mono text-purple-600 mt-0.5 leading-tight">
+              {customers.filter(c => c.current_balance > 0).length}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              Active Udhar ledgers
+            </div>
           </div>
-          <div className="text-2xl font-black text-purple-600 mt-1">
-            {customers.filter(c => c.current_balance > 0).length}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Active Udhar ledgers</div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* Filter & Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
