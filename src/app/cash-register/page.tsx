@@ -403,30 +403,48 @@ export default function CashRegisterPage() {
         {/* LEFT COLUMN: CURRENCY DENOMINATION CALCULATOR (7 Cols) */}
         {/* ========================================================================= */}
         <div className="lg:col-span-7 space-y-4">
-          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <Card className="p-3 sm:p-4 bg-white border border-slate-200 space-y-3 shadow-2xs">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div>
-                <h2 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                  <Calculator className="w-4 h-4 text-slate-700" />
+                <h2 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
+                  <Calculator className="w-3.5 h-3.5 text-slate-700" />
                   <span>Physical Cash Denomination Counter</span>
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Count notes & coins in the cash drawer to verify against expected till balance.
+                <p className="text-[11px] text-slate-500 hidden sm:block">
+                  Count notes & coins in drawer to verify against expected till balance.
                 </p>
               </div>
+              {actualCountedCashPaise > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setDenominations({ 500: 0, 200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0, 1: 0 })}
+                  className="text-[10.5px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded cursor-pointer transition"
+                >
+                  Reset
+                </button>
+              )}
             </div>
 
-            {/* Denomination Rows */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {/* High-Density Space-Saving Denomination Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-1.5 sm:gap-2">
               {[500, 200, 100, 50, 20, 10, 5, 1].map((denom) => {
                 const count = denominations[denom] || 0;
                 const total = denom * count;
                 return (
-                  <div key={denom} className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1">
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-800">
-                      <span>₹{denom} note</span>
-                      <span className="font-mono text-slate-500 text-[10px]">₹{total}</span>
+                  <div
+                    key={denom}
+                    className={cn(
+                      "flex items-center justify-between gap-1.5 border rounded-lg px-2 py-1 transition-colors shadow-2xs",
+                      count > 0 ? "bg-amber-50/70 border-amber-300" : "bg-slate-50/60 hover:bg-slate-100/60 border-slate-200"
+                    )}
+                  >
+                    {/* Denom Label */}
+                    <div className="flex items-center gap-1 min-w-[50px] sm:min-w-[56px]">
+                      <span className="font-extrabold text-xs text-slate-900 font-mono">₹{denom}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">×</span>
                     </div>
+
+                    {/* Count Input Box */}
                     <input
                       type="number"
                       min="0"
@@ -437,25 +455,30 @@ export default function CashRegisterPage() {
                         const val = parseInt(e.target.value) || 0;
                         setDenominations((prev) => ({ ...prev, [denom]: val }));
                       }}
-                      className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-black text-xs rounded p-1.5 text-right focus:outline-none focus:border-slate-900"
+                      className="w-12 sm:w-14 bg-white border border-slate-300 focus:border-slate-900 text-slate-950 font-mono font-black text-xs rounded text-center py-0.5 px-1 focus:outline-none shadow-2xs"
                     />
+
+                    {/* Calculated Total */}
+                    <div className="min-w-[48px] sm:min-w-[52px] text-right font-mono font-bold text-[11px] text-slate-700 truncate">
+                      ₹{total.toLocaleString('en-IN')}
+                    </div>
                   </div>
                 );
               })}
             </div>
 
             {/* Total Counted vs Expected Bar */}
-            <div className="p-4 rounded-xl bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+            <div className="p-2.5 sm:p-3.5 rounded-xl bg-slate-900 text-white flex items-center justify-between gap-3 shadow-inner">
               <div>
-                <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Total Physical Counted Cash</span>
-                <div className="text-2xl font-black font-mono text-emerald-400 mt-0.5">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Physical Counted</span>
+                <div className="text-lg sm:text-xl font-black font-mono text-emerald-400 mt-0.5 leading-tight">
                   {formatINR(actualCountedCashPaise)}
                 </div>
               </div>
 
-              <div className="text-left sm:text-right">
-                <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Cash Difference (Variance)</span>
-                <div className={`text-lg font-black font-mono ${
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Variance</span>
+                <div className={`text-xs sm:text-sm font-black font-mono mt-0.5 leading-tight ${
                   cashVariancePaise === 0
                     ? 'text-emerald-400'
                     : cashVariancePaise > 0
@@ -463,8 +486,8 @@ export default function CashRegisterPage() {
                     : 'text-rose-400'
                 }`}>
                   {formatINR(cashVariancePaise)}
-                  <span className="text-xs font-sans font-bold ml-1.5">
-                    ({cashVariancePaise === 0 ? '✓ Exact Match' : cashVariancePaise > 0 ? '+ Excess / Surplus' : '- Short / Missing'})
+                  <span className="text-[10px] font-sans font-bold ml-1 hidden xs:inline">
+                    ({cashVariancePaise === 0 ? '✓ Match' : cashVariancePaise > 0 ? '+ Excess' : '- Short'})
                   </span>
                 </div>
               </div>
