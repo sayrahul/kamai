@@ -25,6 +25,7 @@ import QRCode from 'qrcode';
 import { 
   Palette,
   CheckCircle2, 
+  Check,
   Save, 
   Download, 
   Sparkles, 
@@ -247,40 +248,43 @@ export default function InvoiceDesignerPage() {
         {/* ========================================================================= */}
         <div className="lg:col-span-6 space-y-5">
           {/* STEP 1: SELECT INVOICE THEME & COLOR */}
-          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-3 shadow-xs">
+          <Card className="p-3 sm:p-4 bg-white border border-slate-200 space-y-2.5 shadow-2xs">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">1</span>
+              <h2 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center">1</span>
                 <span>Select Invoice Theme &amp; Color</span>
                 {!isPro && <ProFeatureBadge />}
               </h2>
-              <span className="text-[11px] text-slate-500 font-semibold">{INVOICE_THEME_PRESETS.length} Options</span>
+              <span className="text-[11px] font-bold text-slate-700 font-mono">
+                {INVOICE_THEME_PRESETS.find(p => p.id === config.theme_id)?.name || 'Custom Theme'}
+              </span>
             </div>
 
             {!isPro && (
-              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-bold flex items-center justify-between gap-2 shadow-2xs">
+              <div className="p-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-bold flex items-center justify-between gap-2 shadow-2xs">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Lock className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
-                  <span className="truncate">Default <strong>{business?.business_type?.toUpperCase() || 'STORE'}</strong> theme active. Upgrade to Pro for custom themes &amp; colors.</span>
+                  <span className="truncate text-[11px]">Default <strong>{business?.business_type?.toUpperCase() || 'STORE'}</strong> theme active.</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsUpgradeModalOpen(true)}
-                  className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black text-[10px] hover:bg-amber-500 cursor-pointer flex-shrink-0 shadow-2xs"
+                  className="px-2 py-0.5 rounded-lg bg-amber-400 text-slate-950 font-black text-[10px] hover:bg-amber-500 cursor-pointer flex-shrink-0 shadow-2xs"
                 >
                   Unlock Pro
                 </button>
               </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+            {/* Circular Color Swatches (No Text Bloat) */}
+            <div className="flex items-center gap-2 pt-0.5 flex-wrap">
               {INVOICE_THEME_PRESETS.map((preset) => {
                 const isSelected = config.theme_id === preset.id || config.primary_color.toLowerCase() === preset.primaryColor.toLowerCase();
-                const isProTheme = !isPro;
                 return (
                   <button
                     key={preset.id}
                     type="button"
+                    title={`${preset.name} (${preset.primaryColor})`}
                     onClick={() => {
                       if (!isPro) {
                         setIsUpgradeModalOpen(true);
@@ -288,26 +292,25 @@ export default function InvoiceDesignerPage() {
                         handleSelectPreset(preset.id);
                       }
                     }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    className={`relative w-8 h-8 sm:w-9 sm:h-9 rounded-full transition-all flex items-center justify-center cursor-pointer shadow-2xs border-2 ${
                       isSelected
-                        ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
-                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                        ? 'ring-2 ring-offset-2 ring-slate-900 scale-110 border-white'
+                        : 'border-white hover:scale-105 opacity-90 hover:opacity-100'
                     }`}
+                    style={{ backgroundColor: preset.primaryColor }}
                   >
-                    <span
-                      className="w-3.5 h-3.5 rounded-full border border-black/20 flex-shrink-0"
-                      style={{ backgroundColor: preset.primaryColor }}
-                    />
-                    <span>{preset.name}</span>
-                    {!isPro && !isSelected && <Lock className="w-3 h-3 text-slate-400 flex-shrink-0" />}
-                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white flex-shrink-0" />}
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-white drop-shadow-xs stroke-[3]" />
+                    )}
+                    {!isPro && !isSelected && (
+                      <Lock className="w-3 h-3 text-white/70" />
+                    )}
                   </button>
                 );
               })}
 
               {/* Custom Hex Color Picker */}
-              <div className="flex items-center gap-1.5 pl-1">
-                <span className="text-xs text-slate-400 font-mono">Custom:</span>
+              <div className="flex items-center gap-1 ml-1 pl-2 border-l border-slate-200">
                 <input
                   type="color"
                   value={config.primary_color}
@@ -322,8 +325,10 @@ export default function InvoiceDesignerPage() {
                       setConfig((prev) => ({ ...prev, primary_color: e.target.value }));
                     }
                   }}
-                  className={`w-8 h-8 rounded-lg border border-slate-300 p-0.5 bg-white ${!isPro ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-                  title={!isPro ? 'Pro Feature: Pick custom color' : 'Pick custom color'}
+                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-white shadow-2xs p-0.5 bg-white cursor-pointer ${
+                    !isPro ? 'cursor-not-allowed opacity-60' : ''
+                  }`}
+                  title="Pick custom color"
                 />
               </div>
             </div>
