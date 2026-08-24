@@ -385,38 +385,33 @@ export default function InventoryPage() {
       {/* ---------------- TOP HEADER & ACTIONS (Single Row Compact) ---------------- */}
       <div className="flex items-center justify-between gap-2 bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 truncate">
-            <span className="text-sm sm:text-base">{storeProfile.emoji}</span>
-            <h1 className="text-base sm:text-lg font-black text-slate-900 truncate">
-              Inventory & Expiry
-            </h1>
-          </div>
-          <p className="text-[11px] sm:text-xs text-slate-500 truncate">
-            {storeProfile.name} • {products.length} items in stock • {lowStockProducts.length} low stock
+          <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 whitespace-nowrap">
+            Inventory & Expiry
+          </h1>
+          <p className="text-[10px] sm:text-xs text-slate-500 truncate">
+            {products.length} in stock • {lowStockProducts.length} low stock
           </p>
         </div>
 
-        {/* Action Toolbar — Single Row */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        {/* Action Toolbar — Space-Saving Single Row */}
+        <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
           <CashierPrivacyToggleButton />
 
           <Button
             size="sm"
             variant="outline"
             onClick={() => setIsExcelImporterOpen(true)}
-            className="text-xs font-bold gap-1 bg-white border-slate-300 hover:bg-slate-50 px-2 sm:px-2.5 py-1.5 cursor-pointer shadow-2xs"
+            className="text-xs font-bold gap-1 bg-white border-slate-300 hover:bg-slate-50 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs"
             title="Import Excel / CSV"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span className="hidden sm:inline">Import Excel/CSV</span>
-            <span className="sm:hidden">Import</span>
+            <span className="hidden md:inline">Import Excel</span>
           </Button>
 
           <Link href="/purchases">
-            <Button size="sm" variant="outline" className="text-xs font-bold gap-1 bg-slate-50 hover:bg-slate-100 border-slate-300 px-2 sm:px-2.5 py-1.5 shadow-2xs">
+            <Button size="sm" variant="outline" className="text-xs font-bold gap-1 bg-slate-50 hover:bg-slate-100 border-slate-300 p-1.5 sm:px-2.5 sm:py-1.5 shadow-2xs" title="Purchases Log">
               <ShoppingBag className="w-3.5 h-3.5 text-slate-700 shrink-0" />
-              <span className="hidden sm:inline">Purchases Log</span>
-              <span className="sm:hidden">Purchases</span>
+              <span className="hidden md:inline">Purchases</span>
             </Button>
           </Link>
 
@@ -429,12 +424,11 @@ export default function InventoryPage() {
                 window.location.href = '/barcode-generator';
               }
             }}
-            className="bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs gap-1 px-2 sm:px-2.5 py-1.5 cursor-pointer shadow-2xs"
+            className="bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs gap-1 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs"
             title="Print Barcode Labels & Price Tags"
           >
             <Barcode className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">Price Tags</span>
-            <span className="sm:hidden">Tags</span>
+            <span className="hidden md:inline">Price Tags</span>
             {!isPro && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}
           </Button>
         </div>
