@@ -53,6 +53,7 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
       items: [
         { href: '/products', title: 'Products', desc: 'Item Catalog & Prices', icon: Package, bg: 'bg-blue-100 text-blue-900', border: 'border-blue-300' },
         { href: '/inventory', title: 'Inventory & Expiry', desc: 'Batches & Low Stock', icon: Boxes, bg: 'bg-cyan-100 text-cyan-900', border: 'border-cyan-300' },
+        { href: '/purchases', title: 'Purchases', desc: 'Supplier Invoices', icon: ShoppingBag, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
         { href: '/barcode-generator', title: 'Barcode Studio', desc: 'Price Stickers & Tags', icon: Barcode, bg: 'bg-purple-100 text-purple-900', border: 'border-purple-300' },
       ],
     },
