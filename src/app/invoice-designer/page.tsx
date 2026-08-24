@@ -182,45 +182,39 @@ export default function InvoiceDesignerPage() {
   const activeUpi = upiList[selectedUpiIndex] || upiList[0];
 
   return (
-    <div className="space-y-5 pb-10">
-      {/* ---------------- HEADER BAR ---------------- */}
-      <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold border border-amber-300 flex items-center gap-1">
-              <Palette className="w-3.5 h-3.5 text-amber-700" />
-              <span>Vyapar Style Designer</span>
-            </span>
-            <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-              Custom PDF, Multi-UPI &amp; Promo Banner Templates
-            </span>
+    <div className="space-y-3.5 pb-10">
+      {/* ---------------- HEADER BAR (Single Row Compact) ---------------- */}
+      <div className="bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 truncate">
+            <Palette className="w-4 h-4 text-amber-700 shrink-0" />
+            <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">
+              Invoice Themes &amp; Design
+            </h1>
           </div>
-
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Invoice Themes &amp; Design
-          </h1>
-          <p className="text-xs text-slate-500">
-            Choose your brand colors, layout, tax headers, multiple UPI QR codes, and bottom advertisement banner.
+          <p className="text-[10px] sm:text-xs text-slate-500 truncate">
+            Custom PDF styling, A4 &amp; 80mm thermal themes, and store brand colors
           </p>
         </div>
 
         {/* Top Actions */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <Button
             variant="outline"
             size="sm"
             onClick={handleDownloadSamplePdf}
             disabled={isExporting}
-            className="text-xs font-bold gap-1.5"
+            className="text-xs font-bold gap-1 px-2.5 py-1.5 shadow-2xs cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>{isExporting ? 'Generating PDF...' : 'Sample PDF'}</span>
+            <span className="hidden sm:inline">{isExporting ? 'Generating...' : 'Sample PDF'}</span>
+            <span className="sm:hidden">PDF</span>
           </Button>
 
           <Button
             size="sm"
             onClick={handleSave}
-            className={`font-black text-xs gap-1.5 shadow-sm transition-all ${
+            className={`font-black text-xs gap-1 px-3 py-1.5 shadow-2xs transition-all cursor-pointer ${
               isSaved
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                 : 'bg-slate-900 hover:bg-slate-800 text-white'
@@ -229,12 +223,12 @@ export default function InvoiceDesignerPage() {
             {isSaved ? (
               <>
                 <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                <span>Saved Live!</span>
+                <span>Saved!</span>
               </>
             ) : (
               <>
                 <Save className="w-3.5 h-3.5" />
-                <span>Save Template</span>
+                <span>Save</span>
               </>
             )}
           </Button>
@@ -242,11 +236,11 @@ export default function InvoiceDesignerPage() {
       </div>
 
       {/* ---------------- MAIN DESIGNER LAYOUT (2 COLUMNS) ---------------- */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* ========================================================================= */}
         {/* LEFT COLUMN: CUSTOMIZATION CONTROLS (6 Cols on Desktop) */}
         {/* ========================================================================= */}
-        <div className="lg:col-span-6 space-y-5">
+        <div className="lg:col-span-6 space-y-3.5">
           {/* STEP 1: SELECT INVOICE THEME & COLOR */}
           <Card className="p-3 sm:p-4 bg-white border border-slate-200 space-y-2.5 shadow-2xs">
             <div className="flex items-center justify-between">
@@ -334,26 +328,26 @@ export default function InvoiceDesignerPage() {
             </div>
           </Card>
 
-          {/* STEP 2: HEADER & INVOICE DISPLAY OPTIONS */}
-          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-4 shadow-xs">
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center">2</span>
+          {/* STEP 2: HEADER & INVOICE DISPLAY OPTIONS (Space-Saving & High-Density) */}
+          <Card className="p-3 sm:p-4 bg-white border border-slate-200 space-y-2.5 shadow-2xs">
+            <h2 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <span className="w-4 h-4 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center">2</span>
               <span>Header &amp; Invoice Display Options</span>
             </h2>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {/* Custom Title Selector */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 block">Invoice Document Heading</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <label className="text-[11px] font-bold text-slate-700 block">Invoice Document Heading</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {['TAX INVOICE', 'RETAIL INVOICE', 'CASH MEMO', 'ESTIMATE / BILL'].map((t) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setConfig((prev) => ({ ...prev, custom_title: t }))}
-                      className={`px-2 py-1.5 rounded-lg border text-[11px] font-bold text-center transition-all cursor-pointer ${
+                      className={`px-2 py-1.5 rounded-lg border text-[10.5px] font-black text-center transition-all cursor-pointer truncate ${
                         config.custom_title === t
-                          ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
+                          ? 'border-slate-900 bg-slate-900 text-white shadow-2xs'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                       }`}
                     >
@@ -363,19 +357,19 @@ export default function InvoiceDesignerPage() {
                 </div>
               </div>
 
-              {/* Toggle Switches */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              {/* High-Density Toggle Switches */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-0.5">
                 {[
-                  { id: 'show_logo', label: 'Show Store Logo', desc: 'Display logo at top left', isProOnly: false },
-                  { id: 'show_tagline', label: 'Show Tagline', desc: 'Display store motto or category', isProOnly: false },
-                  { id: 'show_owner', label: 'Show Owner & Phone', desc: 'Display contact details in header', isProOnly: false },
-                  { id: 'show_upi_qr', label: 'Show Dynamic UPI QR', desc: 'Auto payment QR code for customers', isProOnly: false },
-                  { id: 'show_signature', label: 'Authorised Signatory', desc: 'Seal / Signatory signature box', isProOnly: false },
-                  { id: 'show_gst_breakup', label: 'Show GST Tax Breakup', desc: 'Itemized CGST/SGST breakdown', isProOnly: true },
-                  { id: 'show_hsn_code', label: 'Show HSN/SAC Code', desc: 'Print product HSN numbers', isProOnly: true },
-                  { id: 'show_mrp_savings', label: 'Show MRP Savings Badge', desc: 'Highlight customer discount saved', isProOnly: true },
-                  { id: 'show_terms', label: 'Show Terms & Conditions', desc: 'Print standard dispute & exchange terms', isProOnly: true },
-                  { id: 'show_pharmacy_rx', label: '💊 Pharmacy Rx & D.L. Bill', desc: 'Print Doctor, Patient Rx, Drug License & Schedule H Drug warning', isProOnly: true },
+                  { id: 'show_logo', label: 'Show Store Logo', isProOnly: false },
+                  { id: 'show_tagline', label: 'Show Tagline', isProOnly: false },
+                  { id: 'show_owner', label: 'Show Owner & Phone', isProOnly: false },
+                  { id: 'show_upi_qr', label: 'Show Dynamic UPI QR', isProOnly: false },
+                  { id: 'show_signature', label: 'Authorised Signatory', isProOnly: false },
+                  { id: 'show_gst_breakup', label: 'Show GST Tax Breakup', isProOnly: true },
+                  { id: 'show_hsn_code', label: 'Show HSN/SAC Code', isProOnly: true },
+                  { id: 'show_mrp_savings', label: 'Show MRP Savings Badge', isProOnly: true },
+                  { id: 'show_terms', label: 'Show Terms & Conditions', isProOnly: true },
+                  { id: 'show_pharmacy_rx', label: '💊 Pharmacy Rx & D.L.', isProOnly: true },
                 ].map((toggle) => {
                   const isChecked = Boolean(config[toggle.id as keyof InvoiceThemeConfig]);
                   const isLocked = toggle.isProOnly && !isPro;
@@ -393,31 +387,26 @@ export default function InvoiceDesignerPage() {
                           [toggle.id]: !isChecked,
                         }));
                       }}
-                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-2.5 ${
+                      className={`px-2.5 py-1.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-2 text-xs ${
                         isLocked
                           ? 'border-slate-200 bg-slate-50/70 opacity-80 hover:border-amber-300'
                           : isChecked
-                          ? 'border-emerald-300 bg-emerald-50/50'
+                          ? 'border-emerald-400 bg-emerald-50/60'
                           : 'border-slate-200 bg-white opacity-70 hover:opacity-100'
                       }`}
                     >
-                      <div className="flex items-start gap-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
                         <input
                           type="checkbox"
                           checked={isChecked}
                           readOnly
-                          className="mt-0.5 rounded text-emerald-600 focus:ring-0 cursor-pointer"
+                          className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-0 cursor-pointer shrink-0"
                         />
-                        <div>
-                          <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                            <span>{toggle.label}</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 leading-tight mt-0.5">{toggle.desc}</div>
-                        </div>
+                        <span className="font-bold text-slate-800 truncate text-[11px]">{toggle.label}</span>
                       </div>
 
                       {toggle.isProOnly && !isPro && (
-                        <span className="px-1.5 py-0.5 rounded text-[8.5px] font-black bg-amber-400 text-slate-950 shadow-2xs flex-shrink-0 flex items-center gap-0.5">
+                        <span className="px-1 py-0.2 rounded text-[8px] font-black bg-amber-400 text-slate-950 shadow-2xs flex-shrink-0 flex items-center gap-0.5">
                           <Lock className="w-2.5 h-2.5" />
                           <span>PRO</span>
                         </span>
@@ -429,8 +418,8 @@ export default function InvoiceDesignerPage() {
 
               {/* Pharmacy Specific Inputs if show_pharmacy_rx enabled (Pro Users) */}
               {config.show_pharmacy_rx && isPro && (
-                <div className="p-3 bg-sky-50/70 rounded-xl border border-sky-200 space-y-2.5 mt-2 animate-in fade-in">
-                  <div className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                <div className="p-2.5 bg-sky-50/70 rounded-xl border border-sky-200 space-y-2 mt-1 animate-in fade-in">
+                  <div className="text-xs font-bold text-sky-950 flex items-center gap-1">
                     <span>💊</span>
                     <span>Pharmacy Drug License &amp; Chemist Information</span>
                   </div>
@@ -442,7 +431,7 @@ export default function InvoiceDesignerPage() {
                         placeholder="e.g. DL-20B/21B-44910"
                         value={config.drug_license_no || ''}
                         onChange={(e) => setConfig((prev) => ({ ...prev, drug_license_no: e.target.value }))}
-                        className="w-full p-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 font-mono focus:outline-none focus:border-sky-500"
+                        className="w-full p-1 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 font-mono focus:outline-none focus:border-sky-500"
                       />
                     </div>
                     <div>
@@ -452,7 +441,7 @@ export default function InvoiceDesignerPage() {
                         placeholder="e.g. PH-109281"
                         value={config.pharmacist_reg_no || ''}
                         onChange={(e) => setConfig((prev) => ({ ...prev, pharmacist_reg_no: e.target.value }))}
-                        className="w-full p-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 font-mono focus:outline-none focus:border-sky-500"
+                        className="w-full p-1 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 font-mono focus:outline-none focus:border-sky-500"
                       />
                     </div>
                   </div>
@@ -461,16 +450,16 @@ export default function InvoiceDesignerPage() {
 
               {/* Pharmacy Drug License Pro Lock for Free Users */}
               {!isPro && (
-                <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80 flex items-center justify-between gap-3 mt-2 shadow-2xs">
-                  <div className="flex items-center gap-2 text-xs text-slate-700">
+                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2 mt-1 shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-700">
                     <span>💊</span>
-                    <span className="font-bold">Pharmacy Drug License &amp; Chemist Information</span>
+                    <span className="font-bold text-[11px]">Pharmacy Drug License</span>
                     <ProFeatureBadge />
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsUpgradeModalOpen(true)}
-                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-400 text-slate-950 hover:bg-amber-500 cursor-pointer shadow-2xs"
+                    className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-amber-400 text-slate-950 hover:bg-amber-500 cursor-pointer shadow-2xs"
                   >
                     Unlock Pro
                   </button>
