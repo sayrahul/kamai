@@ -897,9 +897,89 @@ export default function InventoryPage() {
                 </div>
               </div>
 
-              {/* Scrollable Stock Master Table Container */}
-              <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs bg-white">
-                <table className="w-full min-w-[720px] text-left text-xs border-collapse">
+              {/* MOBILE VIEW: High-Density List (Zero Horizontal Scroll) */}
+              <div className="sm:hidden divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                {products
+                  .filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map((p) => {
+                    const isLow = !p.is_unlimited_stock && p.current_stock <= p.min_stock_level;
+                    const isOut = !p.is_unlimited_stock && p.current_stock <= 0;
+
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => handleOpenBatchModal(p)}
+                        className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50 active:bg-slate-100 cursor-pointer transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          {/* Line 1: Product Name & Price */}
+                          <div className="flex items-baseline justify-between gap-1.5">
+                            <h4 className="font-extrabold text-xs text-slate-900 truncate">
+                              {p.name}
+                            </h4>
+                            <span className="font-mono font-black text-xs text-slate-950 flex-shrink-0">
+                              {formatINR(p.selling_price)}
+                            </span>
+                          </div>
+
+                          {/* Line 2: Category, Batch, Expiry, Stock */}
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mt-1 flex-wrap">
+                            <span className="font-semibold text-slate-700 bg-slate-100 px-1 py-0.2 rounded border border-slate-200 truncate max-w-[80px]">
+                              {p.category_name || 'General'}
+                            </span>
+
+                            {p.batch_number && (
+                              <span className="font-mono text-slate-600 bg-slate-50 px-1 py-0.2 rounded border border-slate-200">
+                                B:{p.batch_number}
+                              </span>
+                            )}
+
+                            {p.expiry_date && (
+                              <span className="font-mono text-amber-800 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                                Exp:{p.expiry_date.slice(2)}
+                              </span>
+                            )}
+
+                            {/* Stock Badge */}
+                            {p.is_unlimited_stock ? (
+                              <span className="text-slate-400 font-medium">Unlimited</span>
+                            ) : (
+                              <span className={cn(
+                                "px-1.5 py-0.2 rounded font-bold font-mono text-[9.5px]",
+                                isOut 
+                                  ? "bg-rose-100 text-rose-800" 
+                                  : isLow 
+                                  ? "bg-amber-100 text-amber-900" 
+                                  : "bg-emerald-100 text-emerald-800"
+                              )}>
+                                {p.current_stock} {p.unit}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Quick Edit Icon Button */}
+                        <div className="flex-shrink-0 pl-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenBatchModal(p);
+                            }}
+                            className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200 transition cursor-pointer"
+                            title="Edit Batch & Stock"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {/* DESKTOP VIEW: Full Multi-Column Table (hidden on mobile, visible on sm and up) */}
+              <div className="hidden sm:block border border-slate-200 rounded-xl overflow-x-auto shadow-2xs bg-white">
+                <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-100/90 text-slate-700 font-extrabold border-b border-slate-200 text-[10.5px] uppercase tracking-wider">
                     <tr>
                       <th className="py-2.5 px-3 min-w-[180px]">Product / Item Name</th>
