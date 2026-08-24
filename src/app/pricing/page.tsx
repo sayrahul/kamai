@@ -181,37 +181,37 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* 2-PLAN COMPARISON CARDS (FREE vs PAID) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+      {/* 2-PLAN COMPARISON CARDS (FREE vs PAID) — Space-Saving & High-Density */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
         {/* ========================================================= */}
         {/* CARD 1: FREE PLAN */}
         {/* ========================================================= */}
-        <div className={`bg-white border rounded-2xl p-6 flex flex-col justify-between space-y-6 shadow-xs ${
+        <div className={`bg-white border rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between space-y-3.5 shadow-2xs ${
           isCurrentlyPro ? 'border-slate-200 opacity-80' : 'border-slate-300'
         }`}>
-          <div className="space-y-4">
+          <div className="space-y-2.5">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div>
-                <h3 className="text-xl font-black text-slate-900">Free Forever</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Essential counter billing for small shops</p>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">Free Forever</h3>
+                <p className="text-[11px] text-slate-500">Essential counter billing for shops</p>
               </div>
-              <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-slate-100 text-slate-700">
+              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-700">
                 ₹0 Free
               </span>
             </div>
 
-            {/* Price Block */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-slate-900 font-mono">
+            {/* Compact Price Block */}
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-slate-900 font-mono">
                   ₹0
                 </span>
-                <span className="text-xs text-slate-500 font-semibold">
+                <span className="text-[11px] text-slate-500 font-semibold">
                   / lifetime free
                 </span>
               </div>
-              <div className="text-[11px] text-slate-500 font-semibold mt-1">
+              <div className="text-[10px] text-slate-500 font-medium">
                 No credit card or payment required
               </div>
             </div>
@@ -220,48 +220,48 @@ export default function PricingPage() {
             <Button
               variant="outline"
               disabled={true}
-              className="w-full py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs justify-center cursor-default opacity-80"
+              className="w-full py-1.5 rounded-lg border border-slate-200 text-slate-600 font-bold text-xs justify-center cursor-default opacity-80 shadow-2xs"
             >
               {isCurrentlyPro ? 'Base Plan Included' : '✓ Your Current Plan'}
             </Button>
 
             {/* Features Checklist */}
-            <div className="space-y-2.5 text-xs pt-2">
-              <div className="flex items-center gap-2.5 font-semibold text-slate-800">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>POS Counter Billing & Item Search</span>
+            <div className="space-y-1.5 text-[11px] pt-1">
+              <div className="flex items-center gap-2 font-semibold text-slate-800">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>POS Counter Billing &amp; Item Search</span>
               </div>
-              <div className="flex items-center gap-2.5 font-semibold text-slate-800">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <div className="flex items-center gap-2 font-semibold text-slate-800">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                 <span>Customer Credit Khata Ledger</span>
               </div>
-              <div className="flex items-center gap-2.5 font-semibold text-slate-800">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Cash Register Note Counter & Till Tally</span>
+              <div className="flex items-center gap-2 font-semibold text-slate-800">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>Cash Register Note Counter &amp; Till Tally</span>
               </div>
-              <div className="flex items-center gap-2.5 font-semibold text-slate-800">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Standard Thermal Print & WhatsApp Link</span>
+              <div className="flex items-center gap-2 font-semibold text-slate-800">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>Standard Thermal Print &amp; WhatsApp Link</span>
               </div>
-              <div className="flex items-center gap-2.5 font-semibold text-slate-800">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <div className="flex items-center gap-2 font-semibold text-slate-800">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                 <span>100% Offline Local Database</span>
               </div>
-              <div className="flex items-center gap-2.5 text-slate-400">
-                <X className="w-4 h-4 text-slate-300 flex-shrink-0" />
-                <span>Automatic Cloud Backup & Sync</span>
+              <div className="flex items-center gap-2 text-slate-400">
+                <X className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                <span>Automatic Cloud Backup &amp; Sync</span>
               </div>
-              <div className="flex items-center gap-2.5 text-slate-400">
-                <X className="w-4 h-4 text-slate-300 flex-shrink-0" />
-                <span>Expiry Date Radar & Batch Numbers</span>
+              <div className="flex items-center gap-2 text-slate-400">
+                <X className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                <span>Expiry Date Radar &amp; Batches</span>
               </div>
-              <div className="flex items-center gap-2.5 text-slate-400">
-                <X className="w-4 h-4 text-slate-300 flex-shrink-0" />
-                <span>GSTR-1 Tax Reports & HSN Filing</span>
+              <div className="flex items-center gap-2 text-slate-400">
+                <X className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                <span>GSTR-1 Tax Reports &amp; HSN</span>
               </div>
-              <div className="flex items-center gap-2.5 text-slate-400">
-                <X className="w-4 h-4 text-slate-300 flex-shrink-0" />
-                <span>Custom Barcode Sticker Label Printing</span>
+              <div className="flex items-center gap-2 text-slate-400">
+                <X className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                <span>Custom Barcode Sticker Studio</span>
               </div>
             </div>
           </div>
@@ -270,11 +270,11 @@ export default function PricingPage() {
         {/* ========================================================= */}
         {/* CARD 2: PAID PLAN (KAMAI+ PRO) */}
         {/* ========================================================= */}
-        <div className={`bg-white border-2 rounded-2xl p-6 flex flex-col justify-between space-y-6 shadow-md relative ${
+        <div className={`bg-white border-2 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between space-y-3.5 shadow-2xs relative ${
           isCurrentlyPro ? 'border-emerald-400 ring-2 ring-emerald-400/20' : 'border-amber-400'
         }`}>
           {/* Top Pill */}
-          <div className={`absolute -top-3.5 right-6 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1 ${
+          <div className={`absolute -top-3 right-4 px-2.5 py-0.5 rounded-full text-[9.5px] font-black uppercase tracking-wider shadow-2xs flex items-center gap-1 ${
             isCurrentlyPro ? 'bg-emerald-600 text-white' : 'bg-amber-400 text-slate-950'
           }`}>
             {isCurrentlyPro ? (
@@ -290,92 +290,92 @@ export default function PricingPage() {
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-2.5">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div>
-                <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-1.5 leading-tight">
                   <span>Kamai+ Pro</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-extrabold ${
+                  <span className={`text-[9.5px] px-1.5 py-0.2 rounded font-extrabold ${
                     isCurrentlyPro ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'
                   }`}>
-                    {isCurrentlyPro ? 'ACTIVE' : 'PAID'}
+                    {isCurrentlyPro ? 'ACTIVE' : 'PRO'}
                   </span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">Complete digital supermarket & retail suite</p>
+                <p className="text-[11px] text-slate-500">Complete digital supermarket &amp; retail suite</p>
               </div>
-              <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
                 {currentProPrice.savings}
               </span>
             </div>
 
-            {/* Price Block */}
-            <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50/70 to-orange-50/50 border border-amber-200">
-              <div className="flex items-baseline gap-2">
+            {/* Compact Price Block */}
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-50/80 to-orange-50/60 border border-amber-200/90">
+              <div className="flex items-baseline gap-1.5">
                 <span className="text-xs text-slate-400 line-through font-mono font-bold">
                   {formatINR(currentProPrice.original)}
                 </span>
-                <span className="text-3xl font-black text-slate-900 font-mono">
+                <span className="text-2xl font-black text-slate-900 font-mono">
                   {formatINR(currentProPrice.discounted)}
                 </span>
-                <span className="text-xs text-slate-600 font-semibold">
+                <span className="text-[11px] text-slate-600 font-semibold">
                   / {duration === '1month' ? 'month' : 'year'}
                 </span>
-              </div>
-              <div className="text-[11px] text-amber-900 font-extrabold mt-1">
-                {currentProPrice.monthlyEquivalent}
+                <span className="text-[10.5px] text-amber-900 font-bold ml-auto font-mono">
+                  {currentProPrice.monthlyEquivalent}
+                </span>
               </div>
             </div>
 
             {/* CTA Button */}
             <Button
               onClick={() => setIsPaymentModalOpen(true)}
-              className={`w-full py-3 rounded-xl font-black text-xs justify-center shadow-md border-none cursor-pointer ${
+              className={`w-full py-2 rounded-lg font-black text-xs justify-center shadow-2xs border-none cursor-pointer ${
                 isCurrentlyPro 
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20' 
-                  : 'bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-amber-400/20'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
+                  : 'bg-amber-400 hover:bg-amber-500 text-slate-950'
               }`}
             >
               {isCurrentlyPro ? '✓ Active Plan (Manage / Extend) 🚀' : 'Upgrade to Kamai+ Pro 🚀'}
             </Button>
 
             {/* Features Checklist */}
-            <div className="space-y-2.5 text-xs pt-2">
-              <div className="flex items-center gap-2.5 font-bold text-slate-900">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <div className="space-y-1.5 text-[11px] pt-1">
+              <div className="flex items-center gap-2 font-bold text-slate-900">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                 <span>Everything in Free Forever</span>
               </div>
-              <div className="flex items-center gap-2.5 font-bold text-slate-900">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Automatic Cloud Backup & Multi-Device Sync</span>
+              <div className="flex items-center gap-2 font-bold text-slate-900">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>Automatic Cloud Backup &amp; Multi-Device Sync</span>
               </div>
-              <div className="flex items-center gap-2.5 font-bold text-slate-900">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Batch Numbers & Expiry Date Radar (15/30 Days Alert)</span>
+              <div className="flex items-center gap-2 font-bold text-slate-900">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>Batch Numbers &amp; Expiry Date Radar (15/30 Days Alert)</span>
               </div>
-              <div className="flex items-center gap-2.5 font-bold text-slate-900">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Government GSTR-1 & HSN Tax Filing Reports</span>
+              <div className="flex items-center gap-2 font-bold text-slate-900">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>Government GSTR-1 &amp; HSN Tax Filing Reports</span>
               </div>
-              <div className="flex items-center gap-2.5 font-bold text-slate-900">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <div className="flex items-center gap-2 font-bold text-slate-900">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                 <span>Custom Barcode Sticker Label Printing Studio</span>
               </div>
-              <div className="flex items-center gap-2.5 font-bold text-slate-900">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <div className="flex items-center gap-2 font-bold text-slate-900">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                 <span>1-Click Low-Stock WhatsApp Purchase Orders</span>
               </div>
-              <div className="flex items-center gap-2.5 font-bold text-slate-900">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Staff Roles & Cashier Lock PINs</span>
+              <div className="flex items-center gap-2 font-bold text-slate-900">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>Staff Roles &amp; Cashier Lock PINs</span>
               </div>
-              <div className="flex items-center gap-2.5 font-bold text-slate-900">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <div className="flex items-center gap-2 font-bold text-slate-900">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                 <span>All Professional Invoice Designer Themes</span>
               </div>
-              <div className="flex items-center gap-2.5 font-bold text-slate-900">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>24/7 Dedicated Priority Phone & WhatsApp Support</span>
+              <div className="flex items-center gap-2 font-bold text-slate-900">
+                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>24/7 Dedicated Priority Phone &amp; WhatsApp Support</span>
               </div>
             </div>
           </div>
