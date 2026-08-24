@@ -382,52 +382,44 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-5 pb-16">
-      {/* ---------------- TOP HEADER & KPI BANNER ---------------- */}
-      <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1.5">
-              <span>{storeProfile.emoji}</span>
-              <span>{storeProfile.name} Inventory Studio</span>
-            </span>
-            <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-              Smart Stock & Reorder Control
-            </span>
+      {/* ---------------- TOP HEADER & ACTIONS (Single Row Compact) ---------------- */}
+      <div className="flex items-center justify-between gap-2 bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 truncate">
+            <span className="text-sm sm:text-base">{storeProfile.emoji}</span>
+            <h1 className="text-base sm:text-lg font-black text-slate-900 truncate">
+              {storeProfile.name} Inventory
+            </h1>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            {storeProfile.featureToggles.showBatchExpiry
-              ? 'Batch Tracking, Expiry Radar & WhatsApp PO'
-              : storeProfile.featureToggles.showSizeVariants
-              ? 'Apparel Size Variants & Stock Matrix'
-              : storeProfile.featureToggles.showImeiWarranty
-              ? 'Device Serials, IMEI & Warranty Stock Control'
-              : 'Smart Stock Control & WhatsApp Purchase Orders'}
-          </h1>
-          <p className="text-xs text-slate-500">
-            {storeProfile.description}
+          <p className="text-[11px] sm:text-xs text-slate-500 truncate">
+            {products.length} items in stock • {lowStockProducts.length} low stock
           </p>
         </div>
 
-        {/* Quick Summary Pill & Actions */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Action Toolbar — Single Row */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <CashierPrivacyToggleButton />
 
           <Button
             size="sm"
             variant="outline"
             onClick={() => setIsExcelImporterOpen(true)}
-            className="text-xs font-bold gap-1.5 bg-white border-slate-300 hover:bg-slate-50 cursor-pointer"
+            className="text-xs font-bold gap-1 bg-white border-slate-300 hover:bg-slate-50 px-2 sm:px-2.5 py-1.5 cursor-pointer shadow-2xs"
+            title="Import Excel / CSV"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Import Excel/CSV</span>
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="hidden sm:inline">Import Excel/CSV</span>
+            <span className="sm:hidden">Import</span>
           </Button>
 
           <Link href="/purchases">
-            <Button size="sm" variant="outline" className="text-xs font-bold gap-1.5 bg-slate-50 border-slate-300">
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span>Purchases Log</span>
+            <Button size="sm" variant="outline" className="text-xs font-bold gap-1 bg-slate-50 hover:bg-slate-100 border-slate-300 px-2 sm:px-2.5 py-1.5 shadow-2xs">
+              <ShoppingBag className="w-3.5 h-3.5 text-slate-700 shrink-0" />
+              <span className="hidden sm:inline">Purchases Log</span>
+              <span className="sm:hidden">Purchases</span>
             </Button>
           </Link>
+
           <Button
             size="sm"
             onClick={() => {
@@ -437,83 +429,90 @@ export default function InventoryPage() {
                 window.location.href = '/barcode-generator';
               }
             }}
-            className="bg-slate-900 text-white font-bold text-xs gap-1.5 cursor-pointer"
+            className="bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs gap-1 px-2 sm:px-2.5 py-1.5 cursor-pointer shadow-2xs"
+            title="Print Barcode Labels & Price Tags"
           >
-            <Barcode className="w-3.5 h-3.5" />
-            <span>Print Price Tags</span>
-            {!isPro && <Lock className="w-3 h-3 text-amber-400" />}
+            <Barcode className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">Price Tags</span>
+            <span className="sm:hidden">Tags</span>
+            {!isPro && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}
           </Button>
         </div>
       </div>
 
       {saveSuccessNotice && (
-        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold flex items-center gap-2 animate-in fade-in shadow-2xs">
           <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0" />
           <span>{saveSuccessNotice}</span>
         </div>
       )}
 
-      {/* ---------------- 4 KPI CARDS ---------------- */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Card 1: Stock Valuation */}
-        <Card className="p-3.5 bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-xl shadow-xs">
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Stock Valuation</div>
-          <div className="text-lg sm:text-xl font-black text-slate-900 font-mono mt-1">
-            <ProfitMask value={formatINR(totalStockValuation)} />
+      {/* ---------------- LIVE INVENTORY METRICS RIBBON (Space-Saving & Unified) ---------------- */}
+      <Card className="p-2 sm:p-2.5 bg-white border border-slate-200 shadow-2xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+          {/* 1. Total Stock Valuation */}
+          <div className="px-2 py-1 sm:py-0 sm:first:pl-1">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span>Stock Valuation</span>
+              <span className="text-[10px] text-slate-400 font-medium font-mono">({products.length} SKUs)</span>
+            </div>
+            <div className="text-base sm:text-lg font-black text-slate-900 font-mono mt-0.5 leading-tight">
+              <ProfitMask value={formatINR(totalStockValuation)} isPurchasePrice />
+            </div>
           </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{products.length} Products in catalog</div>
-        </Card>
 
-        {/* Card 2: Low Stock Alerts */}
-        <Card className="p-3.5 bg-gradient-to-br from-white to-rose-50/50 border border-rose-200 rounded-xl shadow-xs">
-          <div className="text-[11px] font-bold text-rose-900 uppercase tracking-wider">Low Stock Reorders</div>
-          <div className="text-lg sm:text-xl font-black text-rose-600 font-mono mt-1 flex items-center gap-1.5">
-            <span>{lowStockProducts.length} Items</span>
-            {lowStockProducts.length > 0 && <span className="text-[10px] bg-rose-200 px-1.5 py-0.5 rounded font-sans">Action Needed</span>}
+          {/* 2. Low Stock Alerts */}
+          <div className="px-2 py-1 sm:py-0">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-rose-700 uppercase tracking-wider">
+              <span className="flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-rose-600" />
+                <span>Low Stock</span>
+              </span>
+              {lowStockProducts.length > 0 && (
+                <span className="text-[9px] bg-rose-100 text-rose-800 px-1 rounded font-bold">REORDER</span>
+              )}
+            </div>
+            <div className="text-base sm:text-lg font-black text-rose-800 font-mono mt-0.5 leading-tight">
+              {lowStockProducts.length} <span className="text-[11px] font-sans font-medium text-rose-600">Items</span>
+            </div>
           </div>
-          <div className="text-[10px] text-rose-700 mt-0.5">Below reorder threshold</div>
-        </Card>
 
-        {/* Card 3: Expiring Soon / Size Variants */}
-        <Card className="p-3.5 bg-gradient-to-br from-white to-amber-50/50 border border-amber-200 rounded-xl shadow-xs">
-          <div className="text-[11px] font-bold text-amber-900 uppercase tracking-wider">
-            {storeProfile.featureToggles.showSizeVariants
-              ? 'Apparel Variants'
-              : storeProfile.featureToggles.showImeiWarranty
-              ? 'Serial Tracked Items'
-              : 'Expiring in ≤ 30 Days'}
+          {/* 3. Expiring Soon / Size Variants */}
+          <div className="px-2 py-1 sm:py-0 pt-1.5 sm:pt-0">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+              <span>
+                {storeProfile.featureToggles.showSizeVariants
+                  ? 'Variants'
+                  : storeProfile.featureToggles.showImeiWarranty
+                  ? 'IMEI Tracked'
+                  : 'Expiring ≤30d'}
+              </span>
+            </div>
+            <div className="text-base sm:text-lg font-black text-amber-900 font-mono mt-0.5 leading-tight">
+              {storeProfile.featureToggles.showSizeVariants
+                ? `${products.filter(p => p.size || p.color).length} SKUs`
+                : storeProfile.featureToggles.showImeiWarranty
+                ? `${products.filter(p => p.imei_serial || p.warranty_period_months).length} Units`
+                : `${expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length} Batches`}
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-black text-amber-700 font-mono mt-1">
-            {storeProfile.featureToggles.showSizeVariants
-              ? `${products.filter(p => p.size || p.color).length} Skus`
-              : storeProfile.featureToggles.showImeiWarranty
-              ? `${products.filter(p => p.imei_serial || p.warranty_period_months).length} Devices`
-              : `${expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length} Batches`}
-          </div>
-          <div className="text-[10px] text-amber-800 font-medium mt-0.5">
-            {storeProfile.featureToggles.showSizeVariants
-              ? 'Color & Size variants'
-              : storeProfile.featureToggles.showImeiWarranty
-              ? 'Warranty tracked units'
-              : `${expiryAnalysis.expiring15Days.length} critical in ≤ 15d`}
-          </div>
-        </Card>
 
-        {/* Card 4: Expired Items / Fast Moving */}
-        <Card className="p-3.5 bg-gradient-to-br from-slate-900 to-slate-950 text-white border border-slate-800 rounded-xl shadow-md">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-            {storeProfile.featureToggles.showBatchExpiry ? 'Expired Batches' : 'Active Catalog'}
+          {/* 4. Expired Items / Fast Moving */}
+          <div className="px-2 py-1 sm:py-0 pt-1.5 sm:pt-0">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span>{storeProfile.featureToggles.showBatchExpiry ? 'Expired' : 'Active'}</span>
+            </div>
+            <div className={cn(
+              "text-base sm:text-lg font-black font-mono mt-0.5 leading-tight",
+              storeProfile.featureToggles.showBatchExpiry && expiryAnalysis.expiredList.length > 0 ? "text-rose-600" : "text-slate-900"
+            )}>
+              {storeProfile.featureToggles.showBatchExpiry
+                ? `${expiryAnalysis.expiredList.length} Items`
+                : `${products.length} In Stock`}
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-black text-rose-400 font-mono mt-1">
-            {storeProfile.featureToggles.showBatchExpiry
-              ? `${expiryAnalysis.expiredList.length} Items`
-              : `${products.length} Products`}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">
-            {storeProfile.featureToggles.showBatchExpiry ? 'Ready for supplier return' : '100% In Stock sync'}
-          </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* ---------------- MAIN TABS CONTAINER ---------------- */}
       <Card className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
