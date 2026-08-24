@@ -338,7 +338,7 @@ export default function InventoryPage() {
     if (storeProfile.featureToggles.showBatchExpiry || (expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length + expiryAnalysis.expiredList.length > 0)) {
       tabs.push({
         id: 'expiry',
-        label: `🚨 Near-Expiry Alert Radar (${expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length + expiryAnalysis.expiredList.length})`,
+        label: `Expiry Radar (${expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length + expiryAnalysis.expiredList.length})`,
         icon: AlertTriangle,
       });
     }
@@ -346,7 +346,7 @@ export default function InventoryPage() {
     if (storeProfile.featureToggles.showSizeVariants) {
       tabs.push({
         id: 'variants',
-        label: `👕 Size & Color Variant Matrix (${products.filter(p => p.size || p.color).length})`,
+        label: `Variants (${products.filter(p => p.size || p.color).length})`,
         icon: Shirt,
       });
     }
@@ -354,26 +354,26 @@ export default function InventoryPage() {
     if (storeProfile.featureToggles.showImeiWarranty) {
       tabs.push({
         id: 'serials',
-        label: `📱 Serial & IMEI Warranty Audit (${products.filter(p => p.imei_serial || p.warranty_period_months).length})`,
+        label: `IMEI & Warranty (${products.filter(p => p.imei_serial || p.warranty_period_months).length})`,
         icon: Smartphone,
       });
     }
 
     tabs.push({
       id: 'reorder',
-      label: `📉 1-Click WhatsApp Purchase Orders (${lowStockProducts.length})`,
+      label: `Reorder List (${lowStockProducts.length})`,
       icon: Send,
     });
 
     tabs.push({
       id: 'batches',
-      label: `📦 Product & Stock Master (${products.length})`,
+      label: `Stock Master (${products.length})`,
       icon: Boxes,
     });
 
     tabs.push({
       id: 'movements',
-      label: '📜 Stock Movements Audit Log',
+      label: 'Audit Log',
       icon: History,
     });
 
@@ -510,21 +510,23 @@ export default function InventoryPage() {
 
       {/* ---------------- MAIN TABS CONTAINER ---------------- */}
       <Card className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-        {/* TAB HEADERS */}
-        <div className="flex border-b border-slate-200 bg-slate-50/70 overflow-x-auto text-xs font-bold">
+        {/* TAB HEADERS — Compact Segmented Control */}
+        <div className="flex border-b border-slate-200 bg-slate-50/80 overflow-x-auto text-xs font-bold no-scrollbar p-1 gap-1">
           {inventoryTabs.map((tab) => {
             const isSelected = activeTab === tab.id;
+            const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-3 px-4 flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
+                className={`py-1.5 px-3 sm:px-3.5 flex items-center gap-1.5 rounded-lg whitespace-nowrap transition-all text-xs font-bold cursor-pointer ${
                   isSelected
-                    ? 'border-slate-900 text-slate-900 bg-white shadow-xs'
-                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+                    ? 'text-slate-950 bg-white shadow-2xs border border-slate-200/90'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                 }`}
               >
+                <Icon className="w-3.5 h-3.5 shrink-0" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -750,21 +752,26 @@ export default function InventoryPage() {
           {/* TAB 2: LOW STOCK & 1-CLICK WHATSAPP PURCHASE ORDERS */}
           {/* =================================================================== */}
           {activeTab === 'reorder' && (
-            <div className="space-y-5">
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Low Stock Replenishment & 1-Click WhatsApp Purchase Orders
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  Products below minimum threshold are automatically grouped by supplier. Adjust quantities and dispatch official WhatsApp purchase orders with 1 tap.
-                </p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Low Stock Replenishment
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Grouped by supplier • 1-tap WhatsApp purchase orders
+                  </p>
+                </div>
+                <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                  {lowStockProducts.length} to reorder
+                </span>
               </div>
 
               {lowStockBySupplier.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                  <div className="text-sm font-bold text-slate-900">All Stock Levels are Healthy!</div>
-                  <div className="text-xs text-slate-500">No items are currently below their minimum threshold level.</div>
+                <div className="p-5 sm:p-6 text-center bg-slate-50/60 border border-slate-200/80 rounded-xl space-y-1">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto" />
+                  <div className="text-xs sm:text-sm font-black text-slate-900">All Stock Levels are Healthy!</div>
+                  <div className="text-[11px] text-slate-500">No items are currently below their minimum threshold level.</div>
                 </div>
               ) : (
                 lowStockBySupplier.map((group, groupIdx) => {
