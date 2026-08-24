@@ -472,30 +472,26 @@ export default function GrowthPage() {
 
   if (!isPro) {
     return (
-      <div className="space-y-6 pb-12">
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-700" />
-                <span>WhatsApp Marketing &amp; Growth Studio</span>
-              </span>
-              <ProFeatureBadge />
+      <div className="space-y-4 pb-12">
+        <div className="bg-white rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 border border-slate-200 shadow-2xs flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 truncate">
+              <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
+              <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">
+                WhatsApp Marketing &amp; Growth
+              </h1>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Customer Re-engagement &amp; Festival Campaigns
-            </h1>
-            <p className="text-xs text-slate-500">
-              Drive 30%+ repeat store walk-ins with personalized WhatsApp greetings, birthday offers, festival discounts, and inactive customer win-back messages.
+            <p className="text-[10px] sm:text-xs text-slate-500 truncate">
+              Personalized greetings, festive vouchers &amp; win-back campaigns
             </p>
           </div>
 
           <Button
             onClick={() => setIsUpgradeModalOpen(true)}
-            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs gap-1.5 shadow-sm cursor-pointer self-start sm:self-auto"
+            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs gap-1.5 shadow-2xs cursor-pointer px-3 py-1.5 flex-shrink-0"
           >
-            <Crown className="w-4 h-4" />
-            <span>Unlock WhatsApp &amp; Growth</span>
+            <Crown className="w-3.5 h-3.5" />
+            <span>Unlock Pro</span>
           </Button>
         </div>
 
@@ -522,68 +518,52 @@ export default function GrowthPage() {
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* ---------------- TOP HEADER ---------------- */}
-      <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-              <span>WhatsApp Growth &amp; Festive Vouchers</span>
-            </span>
-            <ProFeatureBadge />
+    <div className="space-y-4 pb-12">
+      {/* ---------------- TOP HEADER (Single Row Compact) ---------------- */}
+      <div className="bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 truncate">
+            <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+            <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">
+              WhatsApp Marketing &amp; Growth
+            </h1>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Automated WhatsApp Greetings & Festival Engine
-          </h1>
-          <p className="text-xs text-slate-500">
-            Trigger personalized WhatsApp greetings with discount coupon vouchers for Diwali, Eid, New Year, Birthdays & VIP customers.
+          <p className="text-[10px] sm:text-xs text-slate-500 truncate">
+            Personalized greetings &amp; vouchers • {birthdayCustomers.length} birthday today • {inactiveCustomers.length} inactive
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <ProFeatureBadge />
           <Button
             variant="outline"
             size="sm"
             onClick={handleCopyMessage}
-            className="text-xs font-bold gap-1.5"
+            className="text-xs font-bold gap-1 px-2.5 py-1.5 shadow-2xs cursor-pointer whitespace-nowrap"
           >
             {copiedId ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedId ? 'Copied to Clipboard!' : 'Copy Template'}</span>
+            <span className="hidden sm:inline">{copiedId ? 'Copied!' : 'Copy Template'}</span>
+            <span className="sm:hidden">{copiedId ? 'Copied' : 'Copy'}</span>
           </Button>
         </div>
       </div>
 
-      {/* PRO LOCK CARD FOR FREE USERS */}
-      {!isPro && (
-        <ProFeatureLockedCard
-          title="Automated WhatsApp Growth &amp; Festive Engine"
-          description="Send automated festive discount vouchers (Diwali, Eid, New Year), birthday gifts, and refill reminders directly to your customers' WhatsApp."
-          features={[
-            'Festival Greetings & Coupon Codes',
-            'Today\'s Birthday Celebration Radar',
-            'Category-Smart Sourcing & Refill Alerts',
-            'Direct WhatsApp 1-Click Dispatch'
-          ]}
-        />
-      )}
-
-      {/* ---------------- 1. BIRTHDAYS & SPECIAL OCCASIONS RADAR ---------------- */}
-      <div className="bg-gradient-to-r from-amber-500 via-rose-500 to-pink-600 rounded-2xl p-4 sm:p-5 text-white shadow-md space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-md">
-              <Cake className="w-6 h-6 text-white animate-bounce" />
+      {/* ---------------- 1. BIRTHDAYS & SPECIAL OCCASIONS RADAR (Space-Saving) ---------------- */}
+      <div className="bg-gradient-to-r from-amber-500 via-rose-500 to-pink-600 rounded-xl p-3 sm:p-3.5 text-white shadow-2xs space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 rounded-lg bg-white/20 backdrop-blur-md shrink-0">
+              <Cake className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <div className="text-sm font-black flex items-center gap-2">
-                <span>Today's Birthday & Anniversary Celebrations Radar</span>
-                <Badge className="bg-white/30 text-white font-bold border-none text-[10px]">
+            <div className="min-w-0">
+              <div className="text-xs sm:text-sm font-black flex items-center gap-1.5 truncate">
+                <span className="truncate">Birthday &amp; Anniversary Radar</span>
+                <span className="bg-white/30 text-white font-bold px-1.5 py-0.2 rounded text-[10px] shrink-0">
                   {birthdayCustomers.length} Today
-                </Badge>
+                </span>
               </div>
-              <p className="text-xs text-rose-100 mt-0.5">
-                Send a 1-click personalized celebratory gift voucher to delighted customers on their special day!
+              <p className="text-[10.5px] text-rose-100 truncate">
+                Send 1-tap celebratory gift vouchers to delighted customers on their special day
               </p>
             </div>
           </div>
@@ -592,41 +572,42 @@ export default function GrowthPage() {
             <Button
               size="sm"
               onClick={() => handleSelectCampaign(CAMPAIGN_PRESETS.find(c => c.id === 'birthday')!)}
-              className="bg-white text-slate-900 font-extrabold text-xs hover:bg-amber-50 shadow-sm"
+              className="bg-white text-slate-900 font-extrabold text-xs hover:bg-amber-50 shadow-2xs cursor-pointer px-2.5 py-1 shrink-0"
             >
               <Gift className="w-3.5 h-3.5 mr-1 text-rose-600" />
-              <span>Send Birthday Vouchers</span>
+              <span>Send Vouchers</span>
             </Button>
           )}
         </div>
 
         {birthdayCustomers.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1">
             {birthdayCustomers.map((cust) => (
-              <div key={cust.id} className="p-3 bg-white/15 backdrop-blur-md rounded-xl flex items-center justify-between text-xs border border-white/20">
-                <div>
-                  <div className="font-extrabold text-white">{cust.name}</div>
-                  <div className="text-[10px] text-rose-100 font-mono mt-0.5">
+              <div key={cust.id} className="p-2 bg-white/15 backdrop-blur-md rounded-lg flex items-center justify-between text-xs border border-white/20">
+                <div className="min-w-0">
+                  <div className="font-extrabold text-white truncate">{cust.name}</div>
+                  <div className="text-[10px] text-rose-100 font-mono">
                     {cust.phone} • {formatINR(cust.total_spent)} spent
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     const bdayCamp = CAMPAIGN_PRESETS.find(c => c.id === 'birthday')!;
                     handleSelectCampaign(bdayCamp);
                     handleSendToCustomer(cust);
                   }}
-                  className="px-2.5 py-1.5 rounded-lg bg-white text-rose-700 hover:bg-rose-50 font-bold text-[11px] flex items-center gap-1 shadow-xs"
+                  className="px-2 py-1 rounded bg-white text-rose-700 hover:bg-rose-50 font-black text-[10.5px] flex items-center gap-1 shadow-2xs cursor-pointer shrink-0 ml-2"
                 >
                   <Send className="w-3 h-3" />
-                  <span>Send WhatsApp</span>
+                  <span>Send</span>
                 </button>
               </div>
             ))}
           </div>
         ) : (
-          <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl text-center text-xs text-rose-100 font-medium">
-            🎂 No birthdays detected today. Make sure to record customer birthdays when creating or editing customer profiles.
+          <div className="p-2 bg-white/10 backdrop-blur-xs rounded-lg text-center text-[11px] text-rose-50 font-medium border border-white/10">
+            🎂 No birthdays detected today. Add birth dates in Customer Profiles to automate greetings!
           </div>
         )}
       </div>
