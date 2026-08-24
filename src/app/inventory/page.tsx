@@ -873,77 +873,97 @@ export default function InventoryPage() {
           {/* TAB 3: BATCH MASTER & STOCK AUDIT */}
           {/* =================================================================== */}
           {activeTab === 'batches' && (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="space-y-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-2">
                 <div>
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Product Master Stock & Batch Roster
+                  <h3 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Boxes className="w-4 h-4 text-slate-800" />
+                    <span>Product Master Stock &amp; Batches</span>
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Assign batch numbers, manufacturing dates, and update current shelf stock.
+                    Scroll horizontally to inspect batch numbers, shelf stock, manufacturing &amp; expiry dates.
                   </p>
                 </div>
 
                 <div className="relative w-full sm:w-64">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     placeholder="Search product or batch..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-2 py-1.5 text-xs focus:bg-white focus:outline-none focus:border-slate-900 font-medium"
+                    className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-slate-800 rounded-lg pl-8 pr-2 py-1.5 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none transition shadow-2xs"
                   />
                 </div>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200 text-[10px] uppercase">
+              {/* Scrollable Stock Master Table Container */}
+              <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs bg-white">
+                <table className="w-full min-w-[720px] text-left text-xs border-collapse">
+                  <thead className="bg-slate-100/90 text-slate-700 font-extrabold border-b border-slate-200 text-[10.5px] uppercase tracking-wider">
                     <tr>
-                      <th className="py-2.5 px-3">Product Name</th>
-                      <th className="py-2.5 px-2">Batch No</th>
-                      <th className="py-2.5 px-2 text-right">Selling Price</th>
-                      <th className="py-2.5 px-2 text-right">Current Stock</th>
-                      <th className="py-2.5 px-2">Mfg Date</th>
-                      <th className="py-2.5 px-2">Expiry Date</th>
-                      <th className="py-2.5 px-3 text-right">Quick Edit</th>
+                      <th className="py-2.5 px-3 min-w-[180px]">Product / Item Name</th>
+                      <th className="py-2.5 px-2 min-w-[100px]">Batch No</th>
+                      <th className="py-2.5 px-2 text-right min-w-[95px]">Selling Price</th>
+                      <th className="py-2.5 px-2 text-right min-w-[105px]">Current Stock</th>
+                      <th className="py-2.5 px-2 min-w-[95px]">Mfg Date</th>
+                      <th className="py-2.5 px-2 min-w-[95px]">Expiry Date</th>
+                      <th className="py-2.5 px-3 text-right min-w-[95px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
                     {products
                       .filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((p) => (
-                        <tr key={p.id} className="hover:bg-slate-50/70">
-                          <td className="py-2.5 px-3">
-                            <div className="font-bold text-slate-900">{p.name}</div>
-                            <div className="text-[10px] text-slate-400">{p.category_name || 'General'}</div>
-                          </td>
-                          <td className="py-2.5 px-2 font-mono font-bold text-slate-700">
-                            {p.batch_number || <span className="text-slate-400 italic">Not set</span>}
-                          </td>
-                          <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900">
-                            {formatINR(p.selling_price)}
-                          </td>
-                          <td className="py-2.5 px-2 text-right font-mono font-bold">
-                            <span className={p.current_stock <= p.min_stock_level ? 'text-rose-600' : 'text-slate-900'}>
-                              {p.current_stock} {p.unit}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-2 text-slate-500 font-mono text-[11px]">{p.mfg_date || '-'}</td>
-                          <td className="py-2.5 px-2 text-slate-500 font-mono text-[11px]">{p.expiry_date || '-'}</td>
-                          <td className="py-2.5 px-3 text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenBatchModal(p)}
-                              className="text-[11px] font-bold py-1 px-2.5"
-                            >
-                              <Edit3 className="w-3 h-3 mr-1" />
-                              Edit Batch
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
+                      .map((p) => {
+                        const isLow = !p.is_unlimited_stock && p.current_stock <= p.min_stock_level;
+                        const isOut = !p.is_unlimited_stock && p.current_stock <= 0;
+
+                        return (
+                          <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-2.5 px-3">
+                              <div className="font-bold text-slate-900 leading-snug">{p.name}</div>
+                              <div className="text-[10px] text-slate-400 font-medium">{p.category_name || 'General'}</div>
+                            </td>
+                            <td className="py-2.5 px-2 font-mono font-bold text-slate-700">
+                              {p.batch_number || <span className="text-slate-400 italic font-sans font-normal text-[11px]">Not set</span>}
+                            </td>
+                            <td className="py-2.5 px-2 text-right font-mono font-black text-slate-900">
+                              {formatINR(p.selling_price)}
+                            </td>
+                            <td className="py-2.5 px-2 text-right font-mono font-bold">
+                              {p.is_unlimited_stock ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 font-medium">
+                                  Unlimited
+                                </span>
+                              ) : (
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded text-[11px] inline-block font-mono",
+                                  isOut 
+                                    ? "bg-rose-100 text-rose-800 font-black" 
+                                    : isLow 
+                                    ? "bg-amber-100 text-amber-900 font-bold" 
+                                    : "bg-emerald-50 text-emerald-800 font-bold"
+                                )}>
+                                  {p.current_stock} {p.unit}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-2 text-slate-500 font-mono text-[11px]">{p.mfg_date || '-'}</td>
+                            <td className="py-2.5 px-2 text-slate-500 font-mono text-[11px]">{p.expiry_date || '-'}</td>
+                            <td className="py-2.5 px-3 text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenBatchModal(p)}
+                                className="text-[11px] font-bold py-1 px-2.5 shadow-2xs hover:bg-slate-100 cursor-pointer"
+                              >
+                                <Edit3 className="w-3 h-3 mr-1 text-slate-600" />
+                                Edit
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
