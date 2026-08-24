@@ -426,8 +426,8 @@ export default function CashRegisterPage() {
               )}
             </div>
 
-            {/* Balanced Ergonomic Denomination Grid (4 cols on laptop/desktop, 2 cols on mobile) */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+            {/* Compact Single-Row Denomination Grid: Denom [ - ] [ field ] [ + ] = Total */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
               {[500, 200, 100, 50, 20, 10, 5, 1].map((denom) => {
                 const count = denominations[denom] || 0;
                 const total = denom * count;
@@ -435,28 +435,20 @@ export default function CashRegisterPage() {
                   <div
                     key={denom}
                     className={cn(
-                      "rounded-xl border p-2 sm:p-2.5 flex flex-col justify-between gap-1.5 transition-all shadow-2xs",
+                      "flex items-center justify-between gap-1.5 border rounded-lg px-2.5 py-1.5 transition-all shadow-2xs",
                       count > 0 
                         ? "bg-amber-50/90 border-amber-300 ring-1 ring-amber-200" 
                         : "bg-slate-50/70 hover:bg-slate-100/70 border-slate-200"
                     )}
                   >
-                    {/* Top: Denomination Name & Calculated Total */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <span className="font-extrabold text-xs sm:text-sm text-slate-900 font-mono">₹{denom}</span>
-                        <span className="text-[10px] text-slate-400 font-medium">{denom >= 10 ? 'note' : 'coin'}</span>
-                      </div>
-                      <div className={cn(
-                        "font-mono font-black text-xs transition-colors",
-                        count > 0 ? "text-amber-950 font-bold" : "text-slate-400"
-                      )}>
-                        ₹{total.toLocaleString('en-IN')}
-                      </div>
+                    {/* 1. Minimized Width Note Label */}
+                    <div className="min-w-[42px] sm:min-w-[48px] font-extrabold text-xs sm:text-sm text-slate-900 font-mono">
+                      ₹{denom}
                     </div>
 
-                    {/* Bottom: Ergonomic Full-Width Tactile Stepper */}
-                    <div className="flex items-center bg-white border border-slate-300 rounded-lg overflow-hidden shadow-2xs w-full">
+                    {/* 2. [-] [ field ] [+] Stepper */}
+                    <div className="flex items-center bg-white border border-slate-300 rounded-md overflow-hidden shadow-2xs">
+                      {/* Minus Button */}
                       <button
                         type="button"
                         onClick={() => {
@@ -466,13 +458,14 @@ export default function CashRegisterPage() {
                           }));
                         }}
                         disabled={count <= 0}
-                        className="flex-1 py-1 text-slate-600 hover:text-slate-950 hover:bg-slate-100 active:bg-slate-200 disabled:opacity-25 disabled:hover:bg-white cursor-pointer select-none transition flex items-center justify-center border-r border-slate-200"
+                        className="w-6 h-7 text-slate-600 hover:text-slate-950 hover:bg-slate-100 active:bg-slate-200 disabled:opacity-25 disabled:hover:bg-white cursor-pointer select-none transition flex items-center justify-center border-r border-slate-200"
                         title="Minus 1"
                         aria-label={`Minus 1 ₹${denom}`}
                       >
                         <Minus className="w-3 h-3" />
                       </button>
 
+                      {/* Number Field */}
                       <input
                         type="number"
                         min="0"
@@ -483,9 +476,10 @@ export default function CashRegisterPage() {
                           const val = Math.max(0, parseInt(e.target.value) || 0);
                           setDenominations((prev) => ({ ...prev, [denom]: val }));
                         }}
-                        className="w-10 sm:w-12 bg-transparent text-slate-950 font-mono font-black text-xs text-center py-1 px-1 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-10 sm:w-12 bg-transparent text-slate-950 font-mono font-black text-xs text-center py-1 px-0.5 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
 
+                      {/* Plus Button */}
                       <button
                         type="button"
                         onClick={() => {
@@ -494,12 +488,23 @@ export default function CashRegisterPage() {
                             [denom]: (prev[denom] || 0) + 1,
                           }));
                         }}
-                        className="flex-1 py-1 text-slate-700 hover:text-slate-950 hover:bg-amber-100 active:bg-amber-200 cursor-pointer select-none transition flex items-center justify-center border-l border-slate-200"
+                        className="w-6 h-7 text-slate-700 hover:text-slate-950 hover:bg-amber-100 active:bg-amber-200 cursor-pointer select-none transition flex items-center justify-center border-l border-slate-200"
                         title="Add 1"
                         aria-label={`Add 1 ₹${denom}`}
                       >
                         <Plus className="w-3 h-3 text-slate-800" />
                       </button>
+                    </div>
+
+                    {/* 3. Equals Sign */}
+                    <span className="text-slate-400 font-bold text-xs">=</span>
+
+                    {/* 4. Total Count Amount */}
+                    <div className={cn(
+                      "min-w-[55px] sm:min-w-[65px] text-right font-mono font-black text-xs sm:text-sm truncate transition-colors",
+                      count > 0 ? "text-amber-950" : "text-slate-400"
+                    )}>
+                      ₹{total.toLocaleString('en-IN')}
                     </div>
                   </div>
                 );
