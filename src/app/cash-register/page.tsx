@@ -17,6 +17,7 @@ import {
   Printer, 
   Share2, 
   Plus, 
+  Minus,
   Receipt, 
   Lock, 
   Unlock, 
@@ -425,7 +426,7 @@ export default function CashRegisterPage() {
               )}
             </div>
 
-            {/* High-Density Space-Saving Denomination Grid */}
+            {/* High-Density Space-Saving Denomination Grid with + / - Steppers */}
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-1.5 sm:gap-2">
               {[500, 200, 100, 50, 20, 10, 5, 1].map((denom) => {
                 const count = denominations[denom] || 0;
@@ -434,32 +435,67 @@ export default function CashRegisterPage() {
                   <div
                     key={denom}
                     className={cn(
-                      "flex items-center justify-between gap-1.5 border rounded-lg px-2 py-1 transition-colors shadow-2xs",
+                      "flex items-center justify-between gap-1 border rounded-lg p-1.5 transition-colors shadow-2xs",
                       count > 0 ? "bg-amber-50/70 border-amber-300" : "bg-slate-50/60 hover:bg-slate-100/60 border-slate-200"
                     )}
                   >
                     {/* Denom Label */}
-                    <div className="flex items-center gap-1 min-w-[50px] sm:min-w-[56px]">
+                    <div className="min-w-[42px] sm:min-w-[46px]">
                       <span className="font-extrabold text-xs text-slate-900 font-mono">₹{denom}</span>
-                      <span className="text-[10px] text-slate-400 font-medium">×</span>
                     </div>
 
-                    {/* Count Input Box */}
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="0"
-                      value={count || ''}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || 0;
-                        setDenominations((prev) => ({ ...prev, [denom]: val }));
-                      }}
-                      className="w-12 sm:w-14 bg-white border border-slate-300 focus:border-slate-900 text-slate-950 font-mono font-black text-xs rounded text-center py-0.5 px-1 focus:outline-none shadow-2xs"
-                    />
+                    {/* Stepper with - and + Buttons */}
+                    <div className="flex items-center bg-white border border-slate-300 rounded-md overflow-hidden shadow-2xs">
+                      {/* Minus Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDenominations((prev) => ({
+                            ...prev,
+                            [denom]: Math.max(0, (prev[denom] || 0) - 1),
+                          }));
+                        }}
+                        disabled={count <= 0}
+                        className="w-5 h-6 text-slate-600 hover:text-slate-950 hover:bg-slate-100 disabled:opacity-25 disabled:hover:bg-white cursor-pointer select-none transition flex items-center justify-center border-r border-slate-200"
+                        title="Minus 1"
+                        aria-label={`Minus 1 ₹${denom}`}
+                      >
+                        <Minus className="w-2.5 h-2.5" />
+                      </button>
+
+                      {/* Number Input (No native browser spinners) */}
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                        value={count || ''}
+                        onChange={(e) => {
+                          const val = Math.max(0, parseInt(e.target.value) || 0);
+                          setDenominations((prev) => ({ ...prev, [denom]: val }));
+                        }}
+                        className="w-8 sm:w-9 bg-transparent text-slate-950 font-mono font-black text-xs text-center py-0.5 px-0.5 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+
+                      {/* Plus Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDenominations((prev) => ({
+                            ...prev,
+                            [denom]: (prev[denom] || 0) + 1,
+                          }));
+                        }}
+                        className="w-5 h-6 text-slate-700 hover:text-slate-950 hover:bg-slate-100 active:bg-amber-100 cursor-pointer select-none transition flex items-center justify-center border-l border-slate-200"
+                        title="Add 1"
+                        aria-label={`Add 1 ₹${denom}`}
+                      >
+                        <Plus className="w-2.5 h-2.5 text-slate-800" />
+                      </button>
+                    </div>
 
                     {/* Calculated Total */}
-                    <div className="min-w-[48px] sm:min-w-[52px] text-right font-mono font-bold text-[11px] text-slate-700 truncate">
+                    <div className="min-w-[42px] sm:min-w-[48px] text-right font-mono font-bold text-[11px] text-slate-700 truncate">
                       ₹{total.toLocaleString('en-IN')}
                     </div>
                   </div>
