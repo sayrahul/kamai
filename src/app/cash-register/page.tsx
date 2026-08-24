@@ -347,56 +347,60 @@ export default function CashRegisterPage() {
         </div>
       </div>
 
-      {/* ---------------- LIVE REGISTRY SUMMARY CARDS ---------------- */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Card 1: Opening Float */}
-        <Card className="p-3.5 bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-xl shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
-            <span>Opening Float</span>
-            <Lock className="w-3.5 h-3.5 text-slate-400" />
+      {/* ---------------- LIVE REGISTRY SUMMARY RIBBON (Space-Saving & Unified) ---------------- */}
+      <Card className="p-2 sm:p-2.5 bg-white border border-slate-200 shadow-2xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+          {/* 1. Opening Float */}
+          <div className="px-2 py-1 sm:py-0 sm:first:pl-1">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span>Opening Float</span>
+              <Lock className="w-3 h-3 text-slate-400" />
+            </div>
+            <div className="text-base sm:text-lg font-black text-slate-900 font-mono mt-0.5 leading-tight">
+              {formatINR(openingFloatPaise)}
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-black text-slate-900 font-mono mt-1">
-            {formatINR(openingFloatPaise)}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-1">Morning starting cash</div>
-        </Card>
 
-        {/* Card 2: Cash Sales Today */}
-        <Card className="p-3.5 bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-200 rounded-xl shadow-xs">
-          <div className="flex items-center justify-between text-emerald-900 text-xs font-bold">
-            <span>Cash Sales In (+)</span>
-            <Banknote className="w-3.5 h-3.5 text-emerald-700" />
+          {/* 2. Cash Sales In */}
+          <div className="px-2 py-1 sm:py-0">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
+              <span className="flex items-center gap-1">
+                <Banknote className="w-3 h-3 text-emerald-600" />
+                <span>Cash In (+)</span>
+              </span>
+            </div>
+            <div className="text-base sm:text-lg font-black text-emerald-800 font-mono mt-0.5 leading-tight">
+              {formatINR(cashSalesTotalPaise)}
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-black text-emerald-950 font-mono mt-1">
-            {formatINR(cashSalesTotalPaise)}
-          </div>
-          <div className="text-[10px] text-emerald-700 font-semibold mt-1">Received from bills</div>
-        </Card>
 
-        {/* Card 3: Cash Expenses Out */}
-        <Card className="p-3.5 bg-gradient-to-br from-white to-rose-50/40 border border-rose-200 rounded-xl shadow-xs">
-          <div className="flex items-center justify-between text-rose-900 text-xs font-bold">
-            <span>Cash Expenses (-)</span>
-            <ArrowDownLeft className="w-3.5 h-3.5 text-rose-700" />
+          {/* 3. Cash Expenses Out */}
+          <div className="px-2 py-1 sm:py-0 pt-1.5 sm:pt-0">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-rose-700 uppercase tracking-wider">
+              <span className="flex items-center gap-1">
+                <ArrowDownLeft className="w-3 h-3 text-rose-600" />
+                <span>Cash Out (-)</span>
+              </span>
+            </div>
+            <div className="text-base sm:text-lg font-black text-rose-800 font-mono mt-0.5 leading-tight">
+              {formatINR(cashExpensesPaise)}
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-black text-rose-950 font-mono mt-1">
-            {formatINR(cashExpensesPaise)}
-          </div>
-          <div className="text-[10px] text-rose-700 font-semibold mt-1">{todayExpenses.length} payouts today</div>
-        </Card>
 
-        {/* Card 4: Expected Cash in Till */}
-        <Card className="p-3.5 bg-gradient-to-br from-slate-900 to-slate-950 text-white border border-slate-800 rounded-xl shadow-md">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
-            <span>Expected in Till</span>
-            <DollarSign className="w-3.5 h-3.5 text-amber-400" />
+          {/* 4. Expected in Till */}
+          <div className="px-2 py-1 sm:py-0 pt-1.5 sm:pt-0">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+              <span className="flex items-center gap-1">
+                <DollarSign className="w-3 h-3 text-amber-600" />
+                <span>Expected Till</span>
+              </span>
+            </div>
+            <div className="text-base sm:text-lg font-black text-amber-900 font-mono mt-0.5 leading-tight">
+              {formatINR(expectedCashInTillPaise)}
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-black text-amber-400 font-mono mt-1">
-            {formatINR(expectedCashInTillPaise)}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-1">Cash that should be in box</div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* ---------------- 2 COLUMNS: CASH RECONCILIATION & EXPENSES ---------------- */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -589,33 +593,37 @@ export default function CashRegisterPage() {
         {/* RIGHT COLUMN: TODAY'S PETTY EXPENSES & DIGITAL SALES (5 Cols) */}
         {/* ========================================================================= */}
         <div className="lg:col-span-5 space-y-4">
-          {/* DIGITAL COLLECTIONS SUMMARY */}
-          <Card className="p-4 bg-white border border-slate-200 space-y-3 shadow-xs">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-slate-700" />
-              <span>Digital & Credit Breakdown Today</span>
-            </h3>
+          {/* DIGITAL & CREDIT COLLECTIONS SUMMARY (Space-Saving) */}
+          <Card className="p-3 bg-white border border-slate-200 space-y-2.5 shadow-2xs">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-slate-700" />
+                <span>Digital & Credit Sales</span>
+              </h3>
+              <span className="text-[11px] text-slate-500 font-bold font-mono">
+                {todaySales.length} {todaySales.length === 1 ? 'bill' : 'bills'}
+              </span>
+            </div>
 
-            <div className="space-y-2 text-xs">
-              <div className="p-2.5 rounded-lg bg-sky-50/60 border border-sky-200 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sky-950 font-bold">
-                  <QrCode className="w-4 h-4 text-sky-700" />
-                  <span>UPI / QR Collections</span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2 rounded-lg bg-sky-50/70 border border-sky-200 flex flex-col justify-between">
+                <div className="flex items-center gap-1 text-sky-800 text-[10.5px] font-bold">
+                  <QrCode className="w-3 h-3 text-sky-600 flex-shrink-0" />
+                  <span className="truncate">UPI / QR</span>
                 </div>
-                <span className="font-mono font-black text-sky-950">{formatINR(upiSalesTotalPaise)}</span>
+                <div className="font-mono font-black text-xs sm:text-sm text-sky-950 mt-0.5">
+                  {formatINR(upiSalesTotalPaise)}
+                </div>
               </div>
 
-              <div className="p-2.5 rounded-lg bg-amber-50/60 border border-amber-200 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-amber-950 font-bold">
-                  <BookOpen className="w-4 h-4 text-amber-700" />
-                  <span>Customer Credit Extended</span>
+              <div className="p-2 rounded-lg bg-amber-50/70 border border-amber-200 flex flex-col justify-between">
+                <div className="flex items-center gap-1 text-amber-800 text-[10.5px] font-bold">
+                  <BookOpen className="w-3 h-3 text-amber-600 flex-shrink-0" />
+                  <span className="truncate">Khata Udhar</span>
                 </div>
-                <span className="font-mono font-black text-amber-950">{formatINR(creditSalesTotalPaise)}</span>
-              </div>
-
-              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-slate-700 font-semibold">
-                <span>Total Bills Created</span>
-                <span className="font-bold text-slate-900">{todaySales.length} invoices</span>
+                <div className="font-mono font-black text-xs sm:text-sm text-amber-950 mt-0.5">
+                  {formatINR(creditSalesTotalPaise)}
+                </div>
               </div>
             </div>
           </Card>
