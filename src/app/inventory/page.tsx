@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Product, Supplier } from '@/types';
-import { formatINR } from '@/lib/utils';
+import { formatINR, cn } from '@/lib/utils';
 import { 
   Boxes, 
   Package, 
