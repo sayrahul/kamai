@@ -19,6 +19,13 @@
 ## 2. 📜 WHAT HAPPENED (Session History & Log)
 
 ### Recent Major Updates & Milestones
+- **v3.6.0 (High-Density & Space-Saving Design System Standard — 24 Aug 2026):**
+  - **Single-Row Compact Headers**: Universal space-saving toolbar across Settings, Invoice Designer, Cloud Backup, GSTR Reports, Pricing, and Growth Studio.
+  - **Divided Metrics Ribbons**: Standardized high-density KPI ribbons (`divide-y sm:divide-y-0 sm:divide-x`) replacing bulky floating cards across all pages.
+  - **Zero-Horizontal-Scroll Mobile Standard**: Mobile-adaptive `<select>` dropdown switchers (Settings tabs, GSTR-1 tables, Tax return periods) and vertical card lists eliminating horizontal clipping.
+  - **2x2 Symmetrical Grids**: Standardized 2x2 grids across Invoice Headings, App Navigation Drawer (4 sections x 4 tiles = 16 symmetrical items), Bank Account inputs, and Display Options.
+  - **Minimal Text Philosophy**: Replaced verbose marketing paragraphs with sleek micro-copy and text-free circular color swatches.
+  - **Full Details**: See [`CHANGELOG_SESSION_2026_08_24.md`](file:///c:/Users/Rushikesh%20Pardeshi/Downloads/KamaiPlus/CHANGELOG_SESSION_2026_08_24.md).
 - **v3.5.1 (Professional Pro User Workflow):**
   - **Clean PRO UI Experience:** When a user registers with rewards, activates a Pro plan, or is upgraded by SuperAdmin, all nagging "Upgrade" prompts, lock icons, and banner ads are automatically hidden.
   - **Active Membership Dashboard:** Dedicated `UpgradeModal` dashboard displaying plan validity date, billing cycle (Annual/Monthly), unlocked enterprise features, and a renewal/extension drawer.
