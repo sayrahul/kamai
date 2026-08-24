@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Crown, Lock, ArrowRight } from 'lucide-react';
+import { Sparkles, Crown, Lock, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { subscriptionService, SubscriptionState } from '@/lib/subscription/subscriptionService';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
@@ -38,10 +38,25 @@ export function useProSubscription() {
   };
 }
 
-export const ProFeatureBadge: React.FC<{ className?: string }> = ({ className = '' }) => {
+export const ProFeatureBadge: React.FC<{ className?: string; showWhenPro?: boolean }> = ({ 
+  className = '',
+  showWhenPro = false 
+}) => {
+  const { isPro } = useProSubscription();
+
+  if (isPro && !showWhenPro) return null;
+
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-2xs ${className}`}>
-      <Crown className="w-2.5 h-2.5" />
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase tracking-wider ${
+      isPro 
+        ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' 
+        : 'bg-amber-400 text-slate-950 shadow-2xs'
+    } ${className}`}>
+      {isPro ? (
+        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-700" />
+      ) : (
+        <Crown className="w-2.5 h-2.5" />
+      )}
       <span>PRO</span>
     </span>
   );
@@ -53,6 +68,7 @@ interface ProFeatureLockedCardProps {
   features?: string[];
   onUnlock?: () => void;
   className?: string;
+  children?: React.ReactNode;
 }
 
 export const ProFeatureLockedCard: React.FC<ProFeatureLockedCardProps> = ({
@@ -61,8 +77,13 @@ export const ProFeatureLockedCard: React.FC<ProFeatureLockedCardProps> = ({
   features = [],
   onUnlock,
   className = '',
+  children,
 }) => {
-  const { isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
+  const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
+
+  if (isPro) {
+    return <>{children || null}</>;
+  }
 
   const handleUnlockClick = () => {
     if (onUnlock) {
@@ -104,7 +125,7 @@ export const ProFeatureLockedCard: React.FC<ProFeatureLockedCardProps> = ({
             onClick={handleUnlockClick}
             className="px-6 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs inline-flex items-center gap-2 shadow-md shadow-amber-400/20 border-none cursor-pointer transition-all hover:scale-102"
           >
-            <span>Upgrade to Pro (₹249/mo)</span>
+            <span>Upgrade to Pro (₹1,499/yr)</span>
             <ArrowRight className="w-4 h-4" />
           </button>
           <p className="text-[10px] text-slate-500 mt-1.5">1-Click Instant Activation via UPI / Cards</p>

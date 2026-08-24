@@ -630,7 +630,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 </div>
 
                 {/* Bottom Platform Advertisement Banner (Free Tier Only) */}
-                {(!business.subscription_tier || business.subscription_tier === 'free') && platformPromo.enabled && (
+                {!isPro && (!business.subscription_tier || business.subscription_tier === 'free') && platformPromo.enabled && (
                   <div 
                     className="p-2.5 rounded-lg text-white flex items-center justify-between gap-2 shadow-xs"
                     style={{ backgroundColor: (business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).primary_color }}
@@ -793,7 +793,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   {business.footer_message || 'Thank you! Visit again.'}
                 </div>
 
-                {(!business.subscription_tier || business.subscription_tier === 'free') && (
+                {!isPro && (!business.subscription_tier || business.subscription_tier === 'free') && (
                   <div className="text-center text-[8.5px] text-slate-400 pt-1 border-t border-dashed border-slate-200">
                     Billed via KamaiPlus POS • kamaiplus.proventure.in
                   </div>

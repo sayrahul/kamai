@@ -22,7 +22,8 @@ import {
   Cloud,
   HardDrive,
   Sparkles,
-  Lock
+  Lock,
+  Crown
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { cn } from '@/lib/utils';
@@ -54,10 +55,11 @@ export const Sidebar: React.FC = () => {
       ],
     },
     {
-      title: 'Ledger & Growth',
+      title: 'Ledger & Customers',
       dotColor: 'bg-amber-500',
       items: [
         { href: '/khata', label: 'Khata Ledger', icon: BookOpen, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
+        { href: '/customers', label: 'Customers', icon: Users, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300' },
         { href: '/growth', label: 'Growth & WhatsApp', icon: TrendingUp, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300', isPro: true },
       ],
     },
@@ -68,7 +70,13 @@ export const Sidebar: React.FC = () => {
         { href: '/gst-reports', label: 'GST & Accounting', icon: FileSpreadsheet, iconBg: 'bg-indigo-100 text-indigo-800', activeIcon: 'text-indigo-300', isPro: true },
         { href: '/invoice-designer', label: 'Invoice Themes', icon: Palette, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
         { href: '/cloud-backup', label: 'Backup & Restore', icon: HardDrive, iconBg: 'bg-sky-100 text-sky-800', activeIcon: 'text-sky-300', isPro: true },
-        { href: '/pricing', label: 'Upgrade & Plans', icon: Sparkles, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
+        { 
+          href: '/pricing', 
+          label: isPro ? 'Pro Subscription' : 'Upgrade & Plans', 
+          icon: isPro ? Crown : Sparkles, 
+          iconBg: isPro ? 'bg-amber-400 text-slate-950' : 'bg-amber-100 text-amber-900', 
+          activeIcon: 'text-amber-300' 
+        },
         { href: '/settings', label: t('nav.settings'), icon: Settings, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-slate-300' },
       ],
     },

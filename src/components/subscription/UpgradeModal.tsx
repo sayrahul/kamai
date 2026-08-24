@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   X,
   Check,
@@ -9,9 +9,14 @@ import {
   RefreshCw,
   ShieldCheck,
   AlertCircle,
-  Crown
+  Crown,
+  Calendar,
+  CreditCard,
+  CheckCircle2,
+  ArrowRight,
+  Receipt
 } from 'lucide-react';
-import { subscriptionService } from '@/lib/subscription/subscriptionService';
+import { subscriptionService, SubscriptionState } from '@/lib/subscription/subscriptionService';
 import { db } from '@/lib/db';
 
 interface UpgradeModalProps {
@@ -39,14 +44,22 @@ function loadRazorpayScript(): Promise<boolean> {
   });
 }
 
-export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessName = 'Your Store', onUpgradeSuccess }: UpgradeModalProps) {
+export function UpgradeModal({ isOpen, onClose, currentTier, businessName = 'Your Store', onUpgradeSuccess }: UpgradeModalProps) {
+  const [subscription, setSubscription] = useState<SubscriptionState>(() => subscriptionService.getSubscription());
   const [billingCycle, setBillingCycle] = useState<'annual' | 'monthly'>('annual');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [liveAnnualPrice, setLiveAnnualPrice] = useState<number>(1499);
   const [liveMonthlyPrice, setLiveMonthlyPrice] = useState<number>(199);
+  const [showExtendForm, setShowExtendForm] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    setSubscription(subscriptionService.getSubscription());
+    const handleSubChange = () => {
+      setSubscription(subscriptionService.getSubscription());
+    };
+    window.addEventListener('subscription_changed', handleSubChange);
+
     fetch('/api/admin/config')
       .then((res) => res.json())
       .then((data) => {
@@ -54,7 +67,11 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
         if (data?.config?.proMonthlyPrice) setLiveMonthlyPrice(data.config.proMonthlyPrice);
       })
       .catch(() => {});
-  }, []);
+
+    return () => window.removeEventListener('subscription_changed', handleSubChange);
+  }, [isOpen]);
+
+  const isPro = subscription.tier === 'pro' || subscription.tier === 'enterprise' || currentTier === 'pro' || currentTier === 'enterprise';
 
   const priceAmount = billingCycle === 'annual' ? liveAnnualPrice : liveMonthlyPrice;
   const originalPrice = billingCycle === 'annual' ? liveAnnualPrice * 2 : liveMonthlyPrice * 2;
@@ -138,6 +155,7 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
             if (verifyRes.ok && verifyData.success) {
               subscriptionService.activateSubscription('pro', billingCycle, response.razorpay_payment_id);
               onUpgradeSuccess?.('pro');
+              setShowExtendForm(false);
               onClose();
             } else {
               setError('Payment signature verification failed. Please contact support.');
@@ -166,6 +184,140 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
 
   if (!isOpen) return null;
 
+  // =========================================================================
+  // VIEW 1: ACTIVE PRO SUBSCRIBER DASHBOARD (For Pro / Enterprise Users)
+  // =========================================================================
+  if (isPro && !showExtendForm) {
+    const formattedExpiry = subscription.activeUntil
+      ? new Date(subscription.activeUntil).toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        })
+      : 'Active';
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="relative w-full max-w-md bg-white border border-emerald-200 rounded-3xl shadow-2xl overflow-hidden text-slate-900">
+          {/* Top Header */}
+          <div className="p-6 pb-5 bg-gradient-to-br from-emerald-500/15 via-amber-400/10 to-transparent border-b border-slate-100 flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-400 flex items-center justify-center shadow-md shadow-amber-400/20 text-slate-950 flex-shrink-0">
+                <Crown className="w-6 h-6 fill-slate-950" />
+              </div>
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-black uppercase tracking-wider mb-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                  <span>Kamai+ PRO Active</span>
+                </div>
+                <h2 className="text-lg font-black text-slate-900 leading-tight">You Are a PRO Member</h2>
+                <p className="text-xs text-slate-500">{businessName}</p>
+              </div>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Body Content */}
+          <div className="p-6 space-y-4">
+            {/* Status Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between text-xs border-b border-slate-200/70 pb-2.5">
+                <span className="text-slate-500 font-semibold flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  Current Tier:
+                </span>
+                <span className="font-black text-slate-900 px-2 py-0.5 rounded bg-amber-100 text-amber-900">
+                  Kamai+ Pro ({subscription.billingCycle === 'monthly' ? 'Monthly' : 'Annual'})
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs border-b border-slate-200/70 pb-2.5">
+                <span className="text-slate-500 font-semibold flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  Valid Until:
+                </span>
+                <span className="font-bold text-emerald-700">{formattedExpiry}</span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-semibold flex items-center gap-1.5">
+                  <Receipt className="w-3.5 h-3.5 text-slate-400" />
+                  Status:
+                </span>
+                <span className="inline-flex items-center gap-1 text-emerald-700 font-black text-[11px]">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  All Features Unlocked
+                </span>
+              </div>
+            </div>
+
+            {/* Active Benefits Checklist */}
+            <div className="space-y-2 text-xs py-1">
+              <div className="text-[10px] font-black uppercase tracking-wider text-slate-600">
+                ✨ Active PRO Benefits:
+              </div>
+              <div className="grid grid-cols-1 gap-1.5 text-xs text-slate-700">
+                <div className="flex items-center gap-2 font-bold">
+                  <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>Unlimited Real-Time Cloud Backup &amp; Sync</span>
+                </div>
+                <div className="flex items-center gap-2 font-bold">
+                  <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>Batch Expiry Date Radar (15/30 Days Alerts)</span>
+                </div>
+                <div className="flex items-center gap-2 font-bold">
+                  <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>Government GSTR-1 &amp; HSN Filing Reports</span>
+                </div>
+                <div className="flex items-center gap-2 font-bold">
+                  <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>Barcode Studio &amp; Custom Label Printing</span>
+                </div>
+                <div className="flex items-center gap-2 font-bold">
+                  <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>WhatsApp Festival Greetings &amp; Customer Win-Back</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-2 space-y-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Continue Using Pro</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowExtendForm(true)}
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition border border-slate-200 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                <span>Extend / Renew Subscription</span>
+              </button>
+            </div>
+
+            <p className="text-center text-[10px] text-slate-400">
+              Need assistance? WhatsApp Support: +91 91723 39886
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW 2: UPGRADE / RENEWAL CHECKOUT (For Free Users or Extending Pro)
+  // =========================================================================
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden text-slate-900">
@@ -174,14 +326,19 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider mb-2">
               <Sparkles className="w-3 h-3 text-slate-950" />
-              <span>Unlock Full POS Power</span>
+              <span>{isPro ? 'Extend Pro Membership' : 'Unlock Full POS Power'}</span>
             </div>
-            <h2 className="text-xl font-black text-slate-900">Upgrade to Kamai+ Pro</h2>
+            <h2 className="text-xl font-black text-slate-900">
+              {isPro ? 'Renew Kamai+ Pro' : 'Upgrade to Kamai+ Pro'}
+            </h2>
             <p className="text-xs text-slate-500 mt-0.5">{businessName}</p>
           </div>
 
           <button
-            onClick={onClose}
+            onClick={() => {
+              setShowExtendForm(false);
+              onClose();
+            }}
             className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -294,12 +451,12 @@ export function UpgradeModal({ isOpen, onClose, currentTier = 'free', businessNa
                 <span>Connecting to Gateway...</span>
               </span>
             ) : (
-              <span>Upgrade to Kamai+ Pro (₹{priceAmount}) 🚀</span>
+              <span>{isPro ? `Renew Kamai+ Pro (₹${priceAmount}) 🚀` : `Upgrade to Kamai+ Pro (₹${priceAmount}) 🚀`}</span>
             )}
           </button>
 
           <p className="text-center text-[10px] text-slate-400">
-            🔒 256-bit Secure Payment via Razorpay UPI & Cards • Instant Invoice with 18% GST ITC
+            🔒 256-bit Secure Payment via Razorpay UPI &amp; Cards • Instant Invoice with 18% GST ITC
           </p>
         </div>
       </div>

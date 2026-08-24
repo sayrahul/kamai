@@ -22,9 +22,11 @@ import {
   Settings,
   Sparkles,
   Lock,
-  Zap
+  Zap,
+  Crown
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
+import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 
 interface MobileMenuCardsModalProps {
   isOpen: boolean;
@@ -33,6 +35,7 @@ interface MobileMenuCardsModalProps {
 
 export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
+  const { isPro } = useProSubscription();
 
   // Exactly 4 sections
   const menuSections = [
@@ -56,9 +59,17 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
     {
       title: 'Customer & Credit Ledger',
       items: [
-        { href: '/khata', title: 'Khata Ledger', desc: 'Customer Credit & Profiles', icon: BookOpen, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
+        { href: '/khata', title: 'Khata Ledger', desc: 'Customer Credit & Udhar', icon: BookOpen, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
+        { href: '/customers', title: 'Customers', desc: 'Profiles & Loyalty', icon: Users, bg: 'bg-sky-100 text-sky-900', border: 'border-sky-300' },
         { href: '/growth', title: 'WhatsApp Growth', desc: 'Festival Greetings', icon: TrendingUp, bg: 'bg-emerald-100 text-emerald-900', border: 'border-emerald-300' },
-        { href: '/pricing', title: 'Upgrade & Plans', desc: 'Kamai+ Pro', icon: Sparkles, bg: 'bg-purple-100 text-purple-900', border: 'border-purple-300' },
+        { 
+          href: '/pricing', 
+          title: isPro ? 'My Subscription' : 'Upgrade & Plans', 
+          desc: isPro ? 'Kamai+ Pro Active' : 'Kamai+ Pro', 
+          icon: isPro ? Crown : Sparkles, 
+          bg: isPro ? 'bg-amber-100 text-amber-900' : 'bg-purple-100 text-purple-900', 
+          border: isPro ? 'border-amber-300' : 'border-purple-300' 
+        },
       ],
     },
     {

@@ -19,7 +19,10 @@ import {
   MessageCircle,
   HelpCircle,
   ArrowRight,
-  Info
+  Info,
+  Crown,
+  CheckCircle2,
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -73,6 +76,14 @@ export default function PricingPage() {
   const currentProPrice = proPrices[duration];
   const isCurrentlyPro = subscription.tier === 'pro' || subscription.tier === 'enterprise';
 
+  const formattedExpiry = subscription.activeUntil
+    ? new Date(subscription.activeUntil).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })
+    : 'Active';
+
   const faqs = [
     {
       q: 'Can I use the Free plan forever without paying?',
@@ -98,17 +109,51 @@ export default function PricingPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
+      {/* Active Pro Member Banner */}
+      {isCurrentlyPro ? (
+        <div className="p-6 rounded-3xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 shadow-xl border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-slate-950 text-amber-400 flex items-center justify-center shadow-md flex-shrink-0">
+              <Crown className="w-7 h-7 fill-amber-400" />
+            </div>
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-950 text-white text-[10px] font-black uppercase tracking-wider">
+                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                <span>Kamai+ PRO Active</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight">
+                You Are a Kamai+ PRO Member
+              </h2>
+              <p className="text-xs text-slate-900/80 font-bold flex items-center gap-2">
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Next Renewal / Valid Until: {formattedExpiry}</span>
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => setIsPaymentModalOpen(true)}
+            className="bg-slate-950 hover:bg-slate-900 text-white font-black text-xs py-2.5 px-4 rounded-xl shadow-md border-none cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+          >
+            <span>Extend / Renew Plan</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      ) : null}
+
       {/* Header */}
       <div className="text-center space-y-2 pt-2">
         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-black border border-amber-300">
           <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-          <span>Simple & Transparent Plans</span>
+          <span>{isCurrentlyPro ? 'Subscription Plans & Details' : 'Simple & Transparent Plans'}</span>
         </span>
         <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-          Choose the Perfect Plan for Your Store
+          {isCurrentlyPro ? 'Your Store Plan & Benefits' : 'Choose the Perfect Plan for Your Store'}
         </h1>
         <p className="text-sm text-slate-500 max-w-lg mx-auto">
-          Start for free forever, or upgrade to Pro to unlock automated WhatsApp bills, GST filing and expiry tracking.
+          {isCurrentlyPro 
+            ? 'Your store has active access to all premium multi-counter, cloud, and tax features.' 
+            : 'Start for free forever, or upgrade to Pro to unlock automated WhatsApp bills, GST filing and expiry tracking.'}
         </p>
 
         {/* Billing Duration Switcher */}
@@ -143,7 +188,9 @@ export default function PricingPage() {
         {/* ========================================================= */}
         {/* CARD 1: FREE PLAN */}
         {/* ========================================================= */}
-        <div className="bg-white border border-slate-300 rounded-2xl p-6 flex flex-col justify-between space-y-6 shadow-xs">
+        <div className={`bg-white border rounded-2xl p-6 flex flex-col justify-between space-y-6 shadow-xs ${
+          isCurrentlyPro ? 'border-slate-200 opacity-80' : 'border-slate-300'
+        }`}>
           <div className="space-y-4">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -174,10 +221,10 @@ export default function PricingPage() {
             {/* CTA Button */}
             <Button
               variant="outline"
-              disabled={!isCurrentlyPro}
-              className="w-full py-2.5 rounded-xl border border-slate-300 text-slate-800 font-bold text-xs justify-center"
+              disabled={true}
+              className="w-full py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs justify-center cursor-default opacity-80"
             >
-              {isCurrentlyPro ? 'Downgrade to Free' : '✓ Your Current Plan'}
+              {isCurrentlyPro ? 'Base Plan Included' : '✓ Your Current Plan'}
             </Button>
 
             {/* Features Checklist */}
@@ -225,11 +272,24 @@ export default function PricingPage() {
         {/* ========================================================= */}
         {/* CARD 2: PAID PLAN (KAMAI+ PRO) */}
         {/* ========================================================= */}
-        <div className="bg-white border-2 border-amber-400 rounded-2xl p-6 flex flex-col justify-between space-y-6 shadow-md relative">
+        <div className={`bg-white border-2 rounded-2xl p-6 flex flex-col justify-between space-y-6 shadow-md relative ${
+          isCurrentlyPro ? 'border-emerald-400 ring-2 ring-emerald-400/20' : 'border-amber-400'
+        }`}>
           {/* Top Pill */}
-          <div className="absolute -top-3.5 right-6 px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-slate-950" />
-            <span>All Features Included</span>
+          <div className={`absolute -top-3.5 right-6 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1 ${
+            isCurrentlyPro ? 'bg-emerald-600 text-white' : 'bg-amber-400 text-slate-950'
+          }`}>
+            {isCurrentlyPro ? (
+              <>
+                <CheckCircle2 className="w-3 h-3 text-white" />
+                <span>Your Active Plan</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3 h-3 text-slate-950" />
+                <span>All Features Included</span>
+              </>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -238,7 +298,11 @@ export default function PricingPage() {
               <div>
                 <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
                   <span>Kamai+ Pro</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-extrabold">PAID</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-extrabold ${
+                    isCurrentlyPro ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'
+                  }`}>
+                    {isCurrentlyPro ? 'ACTIVE' : 'PAID'}
+                  </span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">Complete digital supermarket & retail suite</p>
               </div>
@@ -268,9 +332,13 @@ export default function PricingPage() {
             {/* CTA Button */}
             <Button
               onClick={() => setIsPaymentModalOpen(true)}
-              className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs justify-center shadow-md shadow-amber-400/20 border-none cursor-pointer"
+              className={`w-full py-3 rounded-xl font-black text-xs justify-center shadow-md border-none cursor-pointer ${
+                isCurrentlyPro 
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20' 
+                  : 'bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-amber-400/20'
+              }`}
             >
-              {isCurrentlyPro ? 'Manage / Renew Subscription' : 'Upgrade to Kamai+ Pro 🚀'}
+              {isCurrentlyPro ? '✓ Active Plan (Manage / Extend) 🚀' : 'Upgrade to Kamai+ Pro 🚀'}
             </Button>
 
             {/* Features Checklist */}

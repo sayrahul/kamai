@@ -1,16 +1,23 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, Firestore, setLogLevel } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getRemoteConfig, RemoteConfig } from 'firebase/remote-config';
 
+// Suppress non-critical internal connection retry logs in browser console
+if (typeof window !== 'undefined') {
+  try {
+    setLogLevel('error');
+  } catch {}
+}
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyCXq5B7MdPcaa48HpRATpMZbCW-K2vCtb0',
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'kamaiplus.firebaseapp.com',
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'kamaiplus',
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'kamaiplus.firebasestorage.app',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '1241090505753953',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:1241090505753953:web:kamaiplus',
 };
 
 let app: FirebaseApp | null = null;
@@ -18,6 +25,13 @@ let auth: Auth | null = null;
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 let remoteConfig: RemoteConfig | null = null;
+
+export function isValidFirebaseAppId(appId?: string): boolean {
+  if (!appId) return false;
+  // Firebase Web App ID format: 1:<project-number>:web:<alphanumeric-hash>
+  // Must have a valid alphanumeric hash from Firebase console, not a placeholder word
+  return /^1:\d+:web:[a-f0-9]{12,}$/i.test(appId);
+}
 
 export function getFirebaseApp(): FirebaseApp | null {
   if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
@@ -42,7 +56,13 @@ export function getFirestoreDb(): Firestore | null {
   const firebaseApp = getFirebaseApp();
   if (!firebaseApp) return null;
   if (!db) {
-    db = getFirestore(firebaseApp);
+    try {
+      db = initializeFirestore(firebaseApp, {
+        experimentalAutoDetectLongPolling: true,
+      });
+    } catch {
+      db = getFirestore(firebaseApp);
+    }
   }
   return db;
 }
@@ -59,11 +79,13 @@ export function getFirebaseStorage(): FirebaseStorage | null {
 export function getFirebaseRemoteConfig(): RemoteConfig | null {
   if (typeof window === 'undefined') return null;
   const firebaseApp = getFirebaseApp();
-  if (!firebaseApp) return null;
+  // Remote Config and Firebase Installations require a genuine Firebase Web App ID
+  if (!firebaseApp || !isValidFirebaseAppId(firebaseConfig.appId)) return null;
+  
   if (!remoteConfig) {
     try {
       remoteConfig = getRemoteConfig(firebaseApp);
-      remoteConfig.settings.minimumFetchIntervalMillis = 60000; // 1 minute cache in dev/production
+      remoteConfig.settings.minimumFetchIntervalMillis = 60000; // 1 minute cache
       remoteConfig.defaultConfig = {
         platform_ad_title: '⚡ Billed with KamaiPlus POS',
         platform_ad_subtitle: 'Free Retail Invoicing & Khata',

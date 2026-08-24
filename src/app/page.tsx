@@ -38,16 +38,16 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
+import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingReportModal';
 import { Sale } from '@/types';
 import { MessageCircle } from 'lucide-react';
 
 export default function HomePage() {
   const { t, language } = useTranslation();
+  const { isPro, isUpgradeModalOpen: isUpgradeOpen, setIsUpgradeModalOpen: setIsUpgradeOpen } = useProSubscription();
   const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
-  const [isUpgradeOpen, setIsUpgradeOpen] = useState<boolean>(false);
   const [isClosingReportOpen, setIsClosingReportOpen] = useState<boolean>(false);
-  const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
 
   // Recent Transactions Filter & Collapse States
   const [isRecentCollapsed, setIsRecentCollapsed] = useState<boolean>(false);
@@ -71,7 +71,7 @@ export default function HomePage() {
   const todaysSales = allSales.filter((s) => s.created_at.startsWith(todayDatePrefix));
   const todaysSalesTotal = todaysSales.reduce((acc, s) => acc + s.grand_total, 0);
 
-  const isFree = subscriptionTier === 'free';
+  const isFree = !isPro;
 
   // Filtered recent sales for home widget — sorted newest-first
   const filteredRecentSales = [...allSales]
@@ -123,7 +123,7 @@ export default function HomePage() {
       .then((r) => r.json())
       .then((data) => {
         if (data?.business?.subscription_tier) {
-          setSubscriptionTier(data.business.subscription_tier);
+          subscriptionService.setTierFromCloud(data.business.subscription_tier);
         }
       })
       .catch(() => {});
@@ -131,13 +131,12 @@ export default function HomePage() {
 
   return (
     <div className="space-y-4">
-      {/* Upgrade Modal */}
+      {/* Upgrade / Pro Active Modal */}
       <UpgradeModal
         isOpen={isUpgradeOpen}
         onClose={() => setIsUpgradeOpen(false)}
-        currentTier={subscriptionTier}
+        currentTier={isPro ? 'pro' : 'free'}
         businessName={business?.name}
-        onUpgradeSuccess={(tier) => setSubscriptionTier(tier)}
       />
 
       {/* ---------------- TOP-LEVEL METRIC SUMMARY CARDS (COMPACT PREVIOUS STYLE) ---------------- */}

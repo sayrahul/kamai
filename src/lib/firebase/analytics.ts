@@ -1,4 +1,4 @@
-import { getFirebaseApp } from './config';
+import { getFirebaseApp, isValidFirebaseAppId } from './config';
 import { getAnalytics, logEvent, isSupported, Analytics } from 'firebase/analytics';
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
@@ -8,7 +8,7 @@ let analytics: Analytics | null = null;
 export async function initFirebaseAnalytics(): Promise<Analytics | null> {
   if (typeof window === 'undefined') return null;
   const firebaseApp = getFirebaseApp();
-  if (!firebaseApp) return null;
+  if (!firebaseApp || !isValidFirebaseAppId(firebaseApp.options.appId)) return null;
 
   try {
     const supported = await isSupported();
@@ -16,7 +16,7 @@ export async function initFirebaseAnalytics(): Promise<Analytics | null> {
       analytics = getAnalytics(firebaseApp);
     }
   } catch (err) {
-    console.warn('Firebase Analytics initialization skipped:', err);
+    // Analytics is non-critical for offline-first POS operations
   }
   return analytics;
 }

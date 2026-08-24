@@ -1,4 +1,4 @@
-import { getFirebaseApp, getFirestoreDb } from './config';
+import { getFirebaseApp, getFirestoreDb, isValidFirebaseAppId } from './config';
 import { getMessaging, getToken, onMessage, Messaging, isSupported } from 'firebase/messaging';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -7,7 +7,7 @@ let messagingInstance: Messaging | null = null;
 export async function initFirebaseMessaging(): Promise<Messaging | null> {
   if (typeof window === 'undefined') return null;
   const firebaseApp = getFirebaseApp();
-  if (!firebaseApp) return null;
+  if (!firebaseApp || !isValidFirebaseAppId(firebaseApp.options.appId)) return null;
 
   try {
     const supported = await isSupported();

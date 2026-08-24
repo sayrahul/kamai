@@ -58,9 +58,12 @@ export async function triggerBackgroundSync(businessId?: string): Promise<boolea
       emitSyncState('error');
       return false;
     }
-  } catch (err) {
-    console.warn('Background Firestore sync error:', err);
-    emitSyncState('error');
+  } catch (err: any) {
+    if (err?.code === 'unavailable' || err?.message?.includes('offline') || err?.message?.includes('network')) {
+      emitSyncState('offline');
+    } else {
+      emitSyncState('idle');
+    }
     return false;
   }
 }

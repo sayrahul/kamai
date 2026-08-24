@@ -119,16 +119,28 @@ export const Navbar: React.FC = () => {
         {/* Left Side: Actions (Upgrade Pro, Store QR, Network Status) */}
         <div className="flex items-center gap-2">
           
-          {/* Upgrade / Pricing Button - Opens UpgradeModal */}
-          <button 
-            onClick={() => setIsUpgradeModalOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black shadow-xs active:scale-95 transition-all cursor-pointer"
-            title="Unlock all Pro Features"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-slate-950 fill-slate-950" />
-            <span className="hidden sm:inline">Upgrade / Pro</span>
-            <span className="sm:hidden">Pro</span>
-          </button>
+          {/* Upgrade / Pro Status Button - Opens UpgradeModal */}
+          {subscriptionTier === 'pro' || subscriptionTier === 'enterprise' ? (
+            <button 
+              onClick={() => setIsUpgradeModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-black shadow-2xs active:scale-95 transition-all cursor-pointer"
+              title="Kamai+ Pro Active - Click to View Plan Details"
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+              <span className="hidden sm:inline">PRO Member</span>
+              <span className="sm:hidden">PRO</span>
+            </button>
+          ) : (
+            <button 
+              onClick={() => setIsUpgradeModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black shadow-xs active:scale-95 transition-all cursor-pointer"
+              title="Unlock all Pro Features"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-slate-950 fill-slate-950" />
+              <span className="hidden sm:inline">Upgrade / Pro</span>
+              <span className="sm:hidden">Pro</span>
+            </button>
+          )}
 
           {/* Quick Merchant QR Code Button */}
           <button
@@ -305,16 +317,29 @@ export const Navbar: React.FC = () => {
                   <span>Store Profile &amp; Print Settings</span>
                 </button>
 
-                <button
-                  onClick={() => {
-                    setShowStoreMenu(false);
-                    router.push('/pricing');
-                  }}
-                  className="w-full text-left px-3 py-2 text-xs text-amber-700 hover:bg-amber-50 rounded-lg flex items-center gap-2.5 font-bold cursor-pointer"
-                >
-                  <Crown className="w-4 h-4 text-amber-600" />
-                  <span>Upgrade to Kamai+ Pro</span>
-                </button>
+                {subscriptionTier === 'pro' || subscriptionTier === 'enterprise' ? (
+                  <button
+                    onClick={() => {
+                      setShowStoreMenu(false);
+                      setIsUpgradeModalOpen(true);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-2.5 font-bold cursor-pointer"
+                  >
+                    <Crown className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    <span>Pro Subscription (Active)</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setShowStoreMenu(false);
+                      router.push('/pricing');
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-amber-700 hover:bg-amber-50 rounded-lg flex items-center gap-2.5 font-bold cursor-pointer"
+                  >
+                    <Crown className="w-4 h-4 text-amber-600" />
+                    <span>Upgrade to Kamai+ Pro</span>
+                  </button>
+                )}
 
                 <button
                   onClick={handleLogout}

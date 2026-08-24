@@ -1,4 +1,5 @@
 import { getStoredUser } from '@/lib/auth';
+import { db } from '@/lib/db';
 
 export type SubscriptionTier = 'free' | 'pro' | 'enterprise';
 
@@ -57,6 +58,17 @@ export const subscriptionService = {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       window.dispatchEvent(new Event('subscription_changed'));
 
+      // Update local Dexie business record
+      db.businesses.toCollection().first().then((biz) => {
+        if (biz) {
+          db.businesses.update(biz.id, {
+            subscription_tier: tier,
+            subscription_valid_until: expiryDate.toISOString(),
+            updated_at: now.toISOString(),
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+
       // Sync with Supabase Cloud Backend in background
       try {
         const userObj = getStoredUser();
@@ -95,6 +107,17 @@ export const subscriptionService = {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       window.dispatchEvent(new Event('subscription_changed'));
+
+      // Update local Dexie business record
+      db.businesses.toCollection().first().then((biz) => {
+        if (biz && biz.subscription_tier !== normalizedTier) {
+          db.businesses.update(biz.id, {
+            subscription_tier: normalizedTier,
+            subscription_valid_until: activeUntil || biz.subscription_valid_until,
+            updated_at: new Date().toISOString(),
+          }).catch(() => {});
+        }
+      }).catch(() => {});
     }
 
     return state;
@@ -104,6 +127,15 @@ export const subscriptionService = {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_STATE));
       window.dispatchEvent(new Event('subscription_changed'));
+
+      db.businesses.toCollection().first().then((biz) => {
+        if (biz) {
+          db.businesses.update(biz.id, {
+            subscription_tier: 'free',
+            updated_at: new Date().toISOString(),
+          }).catch(() => {});
+        }
+      }).catch(() => {});
     }
     return DEFAULT_STATE;
   },
