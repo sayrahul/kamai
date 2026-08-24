@@ -590,132 +590,153 @@ export default function ProductsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-2.5">
             {visibleProducts.map((p) => {
-              const isLowStock = p.current_stock <= p.min_stock_level;
-              const isOutOfStock = p.current_stock <= 0;
+              const isLowStock = !p.is_unlimited_stock && p.current_stock <= p.min_stock_level;
+              const isOutOfStock = !p.is_unlimited_stock && p.current_stock <= 0;
 
               return (
                 <div
                   key={p.id}
                   onClick={() => handleOpenEditModal(p)}
-                  className="bg-white border border-slate-200/90 hover:border-indigo-500 hover:shadow-md hover:ring-1 hover:ring-indigo-400/30 rounded-2xl p-2.5 sm:p-3 cursor-pointer flex flex-col justify-between transition-all group relative text-left"
+                  className="bg-white border border-slate-200 hover:border-slate-400 hover:shadow-xs rounded-xl p-2 sm:p-2.5 cursor-pointer flex flex-col justify-between transition-all group relative text-left shadow-2xs"
                 >
                   <div>
                     {/* Top Tag & Favorite */}
-                    <div className="flex items-start justify-between gap-1.5 mb-1.5">
-                      <div className="flex items-center gap-1 flex-wrap min-w-0">
-                        <span className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tight truncate max-w-[90px]">
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                        <span className="text-[8.5px] sm:text-[9px] font-extrabold text-slate-700 bg-slate-100/90 px-1.5 py-0.5 rounded border border-slate-200 uppercase tracking-tight truncate max-w-[80px] sm:max-w-[100px]">
                           {p.category_name || 'General'}
                         </span>
                         {p.barcode && (
-                          <span className="text-[8.5px] bg-slate-100 text-slate-600 font-mono px-1 py-0.5 rounded flex items-center gap-0.5 border border-slate-200 truncate max-w-[75px]">
-                            <Barcode className="w-2.5 h-2.5 shrink-0" />
+                          <span className="text-[8px] bg-slate-50 text-slate-500 font-mono px-1 py-0.5 rounded flex items-center gap-0.5 border border-slate-200 truncate max-w-[55px] sm:max-w-[70px]">
+                            <Barcode className="w-2.5 h-2.5 shrink-0 text-slate-400" />
                             <span className="truncate">{p.barcode}</span>
                           </span>
                         )}
                       </div>
 
                       <button
+                        type="button"
                         onClick={(e) => handleToggleFavorite(p, e)}
-                        className={`p-1 rounded shrink-0 ${
+                        className={`p-0.5 rounded shrink-0 transition-colors ${
                           p.is_favorite
-                            ? 'text-amber-500'
+                            ? 'text-amber-500 hover:text-amber-600'
                             : 'text-slate-300 hover:text-slate-400'
                         }`}
+                        title={p.is_favorite ? "Remove Favorite" : "Mark as Favorite"}
                       >
                         <Star className={`w-3.5 h-3.5 ${p.is_favorite ? 'fill-current' : ''}`} />
                       </button>
                     </div>
 
                     {/* Product Name */}
-                    <h3 className="text-xs sm:text-[13px] font-bold text-slate-900 group-hover:text-indigo-950 line-clamp-2 leading-snug transition-colors">
+                    <h3 className="text-xs sm:text-[13px] font-extrabold text-slate-900 group-hover:text-indigo-950 truncate leading-snug transition-colors">
                       {p.name}
                     </h3>
 
-                    {/* Category Attributes (Batch / Exp / Size / IMEI) */}
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {(p.batch_number || p.expiry_date) && (
-                        <span className={cn(
-                          "text-[8.5px] px-1 py-0.5 rounded font-mono font-medium border flex items-center gap-0.5",
-                          p.expiry_date && new Date(p.expiry_date).getTime() < Date.now()
-                            ? "bg-rose-50 text-rose-800 border-rose-200 font-bold"
-                            : "bg-amber-50 text-amber-900 border-amber-200"
-                        )}>
-                          {p.batch_number && <span>B:{p.batch_number}</span>}
-                          {p.expiry_date && (
-                            <span>
-                              {p.batch_number ? '•' : ''}Exp:{p.expiry_date.slice(2)}
-                            </span>
-                          )}
-                        </span>
-                      )}
+                    {/* Dynamic Category Attributes (Batch / Exp / Size / IMEI) */}
+                    {(p.batch_number || p.expiry_date || p.size || p.color || p.imei_serial) && (
+                      <div className="flex flex-wrap gap-1 mt-0.5">
+                        {(p.batch_number || p.expiry_date) && (
+                          <span className={cn(
+                            "text-[8px] px-1 py-0.2 rounded font-mono font-medium border flex items-center gap-0.5",
+                            p.expiry_date && new Date(p.expiry_date).getTime() < Date.now()
+                              ? "bg-rose-50 text-rose-800 border-rose-200 font-bold"
+                              : "bg-amber-50 text-amber-900 border-amber-200"
+                          )}>
+                            {p.batch_number && <span>B:{p.batch_number}</span>}
+                            {p.expiry_date && (
+                              <span>{p.batch_number ? '•' : ''}Exp:{p.expiry_date.slice(2)}</span>
+                            )}
+                          </span>
+                        )}
 
-                      {(p.size || p.color) && (
-                        <span className="text-[8.5px] bg-indigo-50 text-indigo-900 border border-indigo-200 px-1 py-0.5 rounded font-medium">
-                          {p.size && <span>Sz:{p.size} </span>}
-                          {p.color && <span>• {p.color}</span>}
-                        </span>
-                      )}
+                        {(p.size || p.color) && (
+                          <span className="text-[8px] bg-slate-50 text-slate-700 border border-slate-200 px-1 py-0.2 rounded font-medium">
+                            {p.size && <span>{p.size} </span>}
+                            {p.color && <span>• {p.color}</span>}
+                          </span>
+                        )}
 
-                      {(p.imei_serial || p.warranty_period_months) && (
-                        <span className="text-[8.5px] bg-cyan-50 text-cyan-900 border border-cyan-200 px-1 py-0.5 rounded font-mono">
-                          {p.imei_serial && <span>SN:{p.imei_serial} </span>}
-                          {p.warranty_period_months && <span>• {p.warranty_period_months}M</span>}
-                        </span>
-                      )}
-                    </div>
+                        {p.imei_serial && (
+                          <span className="text-[8px] bg-cyan-50 text-cyan-900 border border-cyan-200 px-1 py-0.2 rounded font-mono">
+                            SN:{p.imei_serial}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
-                    {/* Pricing Matrix */}
-                    <div className="flex flex-wrap items-baseline gap-1.5 mt-2">
-                      <span className="text-sm sm:text-base font-black text-indigo-950 font-mono">
-                        {formatINR(p.selling_price)}
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-medium">/{p.unit}</span>
+                    {/* Price & Unit Line */}
+                    <div className="flex items-baseline justify-between gap-1 mt-1.5 pt-1 border-t border-slate-100">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xs sm:text-sm font-black text-slate-950 font-mono">
+                          {formatINR(p.selling_price)}
+                        </span>
+                        <span className="text-[9.5px] text-slate-400 font-medium">/{p.unit}</span>
+                      </div>
                       {p.mrp > p.selling_price && (
-                        <span className="text-[10px] text-slate-400 line-through font-mono">
+                        <span className="text-[9px] text-slate-400 line-through font-mono">
                           {formatINR(p.mrp)}
                         </span>
                       )}
                     </div>
 
                     {p.wholesale_price && (
-                      <div className="text-[8.5px] text-indigo-800 font-bold bg-indigo-50/90 px-1.5 py-0.5 rounded border border-indigo-200 mt-1 inline-block truncate max-w-full">
+                      <div className="text-[8px] text-indigo-700 font-bold bg-indigo-50/70 px-1 py-0.2 rounded border border-indigo-100 mt-0.5 truncate max-w-full">
                         Thok: {formatINR(p.wholesale_price)} (Min {p.wholesale_min_qty || 5})
                       </div>
                     )}
                   </div>
 
-                  {/* Stock Footer */}
-                  <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1">
-                      {isOutOfStock ? (
-                        <span className="px-1.5 py-0.2 rounded bg-rose-100 text-rose-800 text-[9px] font-bold">
+                  {/* Stock Status & Quick Actions Footer */}
+                  <div className="pt-1.5 mt-1.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1 min-w-0">
+                      {p.is_unlimited_stock ? (
+                        <span className="font-bold text-slate-500 text-[9.5px] flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                          <span>Unlimited</span>
+                        </span>
+                      ) : isOutOfStock ? (
+                        <span className="px-1.5 py-0.2 rounded bg-rose-100 text-rose-800 text-[8.5px] font-bold">
                           {t('products.outOfStock')}
                         </span>
                       ) : isLowStock ? (
-                        <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 text-[9px] font-bold flex items-center gap-1 border border-amber-300">
-                          <AlertTriangle className="w-2.5 h-2.5 text-amber-700" />
+                        <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 text-[8.5px] font-bold flex items-center gap-0.5 border border-amber-300">
+                          <AlertTriangle className="w-2.5 h-2.5 text-amber-700 shrink-0" />
                           <span>{p.current_stock} left</span>
                         </span>
                       ) : (
-                        <span className="font-bold text-slate-700 text-[10px] flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                          <span>{p.current_stock} {p.unit}</span>
+                        <span className="font-bold text-slate-700 text-[9.5px] flex items-center gap-1 truncate">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
+                          <span className="truncate">{p.current_stock} {p.unit}</span>
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-0.5">
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
                       <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditModal(p);
+                        }}
+                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                        title="Edit Item"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDeleteProduct(p.id, p.name);
                         }}
-                        className="p-1 rounded text-slate-400 hover:text-rose-600 cursor-pointer"
-                        title="Delete Product"
+                        className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        title="Delete Item"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
                   </div>
