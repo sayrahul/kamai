@@ -273,71 +273,73 @@ export default function SettingsPage() {
   const activePreviewUpi = upiList[selectedPreviewUpiIndex] || upiList[0];
 
   return (
-    <div className="space-y-4 pb-12 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Settings className="w-5 h-5 text-slate-800" />
-            <span>Store Profile &amp; Settings</span>
-          </h1>
-          <p className="text-xs text-slate-500">
-            Manage store info, multiple dynamic UPI QR codes, bank accounts, and invoice sequence.
+    <div className="space-y-3.5 pb-12 max-w-5xl mx-auto">
+      {/* ---------------- HEADER BAR (Single Row Compact) ---------------- */}
+      <div className="bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 truncate">
+            <Settings className="w-4 h-4 text-slate-800 shrink-0" />
+            <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">
+              Store Profile &amp; Settings
+            </h1>
+          </div>
+          <p className="text-[10px] sm:text-xs text-slate-500 truncate">
+            Store info, multiple dynamic UPI QR codes, bank accounts &amp; invoice sequence
           </p>
         </div>
 
-        {isSaved && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold animate-in fade-in">
-            <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-            <span>Saved Successfully!</span>
+        {isSaved ? (
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold shrink-0 animate-in fade-in">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Saved!</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Link
+              href="/invoice-designer"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-2xs transition-all"
+            >
+              <Palette className="w-3.5 h-3.5 text-slate-950" />
+              <span className="hidden sm:inline">Invoice Themes</span>
+              <span className="sm:hidden">Themes</span>
+            </Link>
+
+            <Link
+              href="/cloud-backup"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 shadow-2xs transition-all"
+            >
+              <HardDrive className="w-3.5 h-3.5 text-slate-700" />
+              <span className="hidden sm:inline">Backup &amp; Sync</span>
+              <span className="sm:hidden">Backup</span>
+            </Link>
           </div>
         )}
       </div>
 
-      {/* Navigation Tabs & Quick Links */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
-        <div className="flex items-center gap-2 overflow-x-auto">
-          {[
-            { id: 'profile', label: 'Shop Profile & Logo', icon: Store },
-            { id: 'upi', label: 'Multiple UPI QRs & Banking', icon: QrCode },
-            { id: 'invoicing', label: 'Invoice Prefix & Sequence', icon: Receipt },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/invoice-designer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-400 hover:bg-amber-500 text-slate-950 border border-amber-400 shadow-xs transition-all"
-          >
-            <Palette className="w-3.5 h-3.5 text-slate-950" />
-            <span>Invoice Themes</span>
-          </Link>
-
-          <Link
-            href="/cloud-backup"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-all"
-          >
-            <HardDrive className="w-3.5 h-3.5 text-slate-700" />
-            <span>Backup &amp; Restore</span>
-          </Link>
-        </div>
+      {/* ---------------- NAVIGATION TABS (Segmented Control) ---------------- */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+        {[
+          { id: 'profile', label: 'Shop Profile & Logo', icon: Store },
+          { id: 'upi', label: 'Multiple UPI QRs & Banking', icon: QrCode },
+          { id: 'invoicing', label: 'Invoice Prefix & Sequence', icon: Receipt },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer shadow-2xs ${
+                isActive
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab 1: Store Profile & Logo */}
@@ -601,56 +603,53 @@ export default function SettingsPage() {
             </div>
 
             {/* Multiple UPI Manager & Bank Details Card */}
-            <div className="lg:col-span-7 space-y-4">
-              <Card className="p-4 bg-white border border-slate-200 space-y-4 shadow-xs">
+            <div className="lg:col-span-7 space-y-3.5">
+              <Card className="p-3.5 sm:p-4 bg-white border border-slate-200 space-y-3.5 shadow-2xs">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                      <Layers className="w-4 h-4 text-emerald-600" />
-                      <span>Configured Store UPI Addresses ({upiList.length})</span>
+                      <Layers className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Configured Store UPIs ({upiList.length})</span>
                     </span>
-                    <span className="text-[10px] text-slate-500 font-medium">Add multiple shop / owner QRs</span>
+                    <span className="text-[10px] text-slate-500 font-medium">Multiple shop / owner VPAs</span>
                   </div>
-                  <p className="text-xs text-slate-500 mb-3">
-                    Add multiple UPI VPAs for counter staff, owner account, or different UPI apps. Select which one is Primary.
-                  </p>
 
                   {/* List of Configured UPIs */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     {upiList.map((item, idx) => (
                       <div
                         key={item.id}
-                        className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                        className={`p-2 sm:p-2.5 rounded-lg border flex items-center justify-between gap-2.5 transition-all ${
                           item.is_default
-                            ? 'border-emerald-400 bg-emerald-50/60 shadow-xs'
+                            ? 'border-emerald-400 bg-emerald-50/60 shadow-2xs'
                             : 'border-slate-200 bg-white hover:bg-slate-50/70'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
                             item.is_default ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'
                           }`}>
                             {idx + 1}
                           </div>
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-xs font-black text-slate-900 truncate">{item.label}</span>
                               {item.is_default && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-emerald-200 text-emerald-950 border border-emerald-300">
-                                  ★ Primary Default
+                                <span className="px-1.5 py-0.2 rounded text-[8.5px] font-black uppercase bg-emerald-200 text-emerald-950 border border-emerald-300 font-mono">
+                                  ★ Primary
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs text-slate-600 font-mono font-bold mt-0.5 truncate">{item.upi_id}</div>
+                            <div className="text-[11px] text-slate-600 font-mono font-bold truncate">{item.upi_id}</div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <div className="flex items-center gap-1 shrink-0">
                           {!item.is_default && (
                             <button
                               type="button"
                               onClick={() => handleSetDefaultUpi(item.id)}
-                              className="px-2 py-1 rounded-md text-[10px] font-bold border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer"
+                              className="px-2 py-1 rounded text-[10px] font-bold border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer shadow-2xs"
                             >
                               Make Default
                             </button>
@@ -660,8 +659,8 @@ export default function SettingsPage() {
                             <button
                               type="button"
                               onClick={() => handleDeleteUpi(item.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md cursor-pointer hover:bg-rose-50"
-                              title="Delete UPI Account"
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer hover:bg-rose-50"
+                              title="Delete UPI"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -672,15 +671,15 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Add New UPI Address Inputs */}
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 mt-3">
+                  <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 mt-2.5 shadow-2xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800 block">Add Another Store UPI QR</span>
+                      <span className="text-[11px] font-bold text-slate-800 block">Add Another Store UPI QR</span>
                       {!isPro && <ProFeatureBadge />}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
                       <div className="sm:col-span-5">
                         <Input
-                          placeholder="Label (e.g. Counter 2, PhonePe)"
+                          placeholder="Label (e.g. Counter 2)"
                           value={newUpiLabel}
                           onChange={(e) => setNewUpiLabel(e.target.value)}
                         />
@@ -697,7 +696,7 @@ export default function SettingsPage() {
                           type="button"
                           onClick={handleAddUpiAccount}
                           size="md"
-                          className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1 h-[38px] cursor-pointer"
+                          className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1 h-[38px] cursor-pointer shadow-2xs"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>Add</span>
@@ -708,13 +707,13 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Bank Account Details */}
-                <div className="pt-3 border-t border-slate-200 space-y-3">
+                {/* Bank Account Details (2x2 Grid) */}
+                <div className="pt-2.5 border-t border-slate-200 space-y-2.5">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-900 block">
-                    Bank Account Details (Optional for B2B Invoicing)
+                    Bank Account Details (B2B Invoices)
                   </span>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <Input
                       label="Bank Name"
                       placeholder="e.g. State Bank of India / HDFC Bank"
@@ -724,13 +723,10 @@ export default function SettingsPage() {
                     />
                     <Input
                       label="Account Holder Name"
-                      placeholder="e.g. Ramesh Chandra (Proprietor)"
+                      placeholder="e.g. Ramesh Chandra"
                       value={bankAccountName}
                       onChange={(e) => setBankAccountName(e.target.value)}
                     />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Input
                       label="Bank Account Number"
                       placeholder="e.g. 5010023456789"
@@ -746,8 +742,8 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-200 flex justify-end">
-                  <Button type="submit" size="sm" className="font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white">
+                <div className="pt-2.5 border-t border-slate-200 flex justify-end">
+                  <Button type="submit" size="sm" className="font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-2xs">
                     Save UPI &amp; Banking Settings
                   </Button>
                 </div>
