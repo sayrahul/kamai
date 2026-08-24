@@ -20,7 +20,8 @@ import {
   HardDrive,
   Plus,
   Star,
-  Layers
+  Layers,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -316,8 +317,23 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* ---------------- NAVIGATION TABS (Segmented Control) ---------------- */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+      {/* ---------------- NAVIGATION TABS (Mobile Dropdown + Desktop Segmented) ---------------- */}
+      {/* Mobile Tab Switcher Dropdown (Zero Horizontal Overflow) */}
+      <div className="sm:hidden relative">
+        <select
+          value={activeTab}
+          onChange={(e) => setActiveTab(e.target.value as any)}
+          className="w-full appearance-none bg-white hover:bg-slate-50 border border-slate-300 text-slate-900 text-xs font-black rounded-xl pl-3 pr-8 py-2 cursor-pointer outline-none focus:ring-2 focus:ring-slate-900 shadow-2xs"
+        >
+          <option value="profile">🏪 Shop Profile &amp; Logo</option>
+          <option value="upi">🔲 Multiple UPI QRs &amp; Banking</option>
+          <option value="invoicing">🧾 Invoice Prefix &amp; Sequence</option>
+        </select>
+        <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+      </div>
+
+      {/* Desktop Navigation Tabs */}
+      <div className="hidden sm:flex items-center gap-1.5 pb-0.5">
         {[
           { id: 'profile', label: 'Shop Profile & Logo', icon: Store },
           { id: 'upi', label: 'Multiple UPI QRs & Banking', icon: QrCode },
