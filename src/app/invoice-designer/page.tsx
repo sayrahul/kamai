@@ -336,10 +336,10 @@ export default function InvoiceDesignerPage() {
             </h2>
 
             <div className="space-y-2.5">
-              {/* Custom Title Selector */}
+              {/* Custom Title Selector (2x2 Grid) */}
               <div className="space-y-1">
                 <label className="text-[11px] font-bold text-slate-700 block">Invoice Document Heading</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
                   {['TAX INVOICE', 'RETAIL INVOICE', 'CASH MEMO', 'ESTIMATE / BILL'].map((t) => (
                     <button
                       key={t}
@@ -357,8 +357,8 @@ export default function InvoiceDesignerPage() {
                 </div>
               </div>
 
-              {/* High-Density Toggle Switches */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-0.5">
+              {/* High-Density Toggle Switches (2x2 Grid) */}
+              <div className="grid grid-cols-2 gap-1.5 pt-0.5">
                 {[
                   { id: 'show_logo', label: 'Show Store Logo', isProOnly: false },
                   { id: 'show_tagline', label: 'Show Tagline', isProOnly: false },
