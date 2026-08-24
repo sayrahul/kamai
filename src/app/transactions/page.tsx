@@ -645,34 +645,36 @@ export default function TransactionsPage() {
                 <div
                   key={sale.id}
                   onClick={() => handleOpenInvoice(sale)}
-                  className="p-3.5 hover:bg-slate-50/80 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-colors"
+                  className="p-2.5 sm:p-3 hover:bg-slate-50/90 active:bg-slate-100/80 cursor-pointer transition-colors border-b border-slate-100 last:border-b-0"
                 >
-                  {/* Left: Invoice & Customer Info */}
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      'w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 font-bold',
-                      isCredit
-                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                        : isUPI
-                        ? 'bg-sky-100 text-sky-900 border border-sky-200'
-                        : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                    )}>
-                      {isCredit ? (
-                        <BookOpen className="w-4 h-4" />
-                      ) : isUPI ? (
-                        <QrCode className="w-4 h-4" />
-                      ) : (
-                        <Banknote className="w-4 h-4" />
-                      )}
-                    </div>
+                  {/* Line 1: [Icon] + Invoice # + Payment Badge • Customer Name ... ₹Grand Total */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {/* Compact Payment Icon */}
+                      <div className={cn(
+                        'w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center flex-shrink-0 font-bold',
+                        isCredit
+                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                          : isUPI
+                          ? 'bg-sky-100 text-sky-900 border border-sky-200'
+                          : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                      )}>
+                        {isCredit ? (
+                          <BookOpen className="w-3.5 h-3.5" />
+                        ) : isUPI ? (
+                          <QrCode className="w-3.5 h-3.5" />
+                        ) : (
+                          <Banknote className="w-3.5 h-3.5" />
+                        )}
+                      </div>
 
-                    <div>
-                      <div className="flex items-center gap-2">
+                      {/* Invoice & Mode Badge & Customer Name */}
+                      <div className="flex items-center gap-1.5 min-w-0 truncate">
                         <span className="font-extrabold text-slate-900 font-mono text-xs">
                           {sale.invoice_number}
                         </span>
                         <span className={cn(
-                          'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase',
+                          'px-1.5 py-0.2 rounded text-[9px] font-black uppercase flex-shrink-0',
                           sale.payment_method === 'cash' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
                           sale.payment_method === 'upi' ? 'bg-sky-50 text-sky-800 border border-sky-200' :
                           'bg-amber-100 text-amber-900 border border-amber-300'
@@ -680,73 +682,67 @@ export default function TransactionsPage() {
                           {sale.payment_method}
                         </span>
                         {sale.status === 'returned' && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 border border-rose-300">
-                            ↩️ Returned
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase bg-rose-100 text-rose-800 border border-rose-300 flex-shrink-0">
+                            ↩ Returned
                           </span>
                         )}
-                        {sale.status === 'partial_return' && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-amber-100 text-amber-900 border border-amber-300">
-                            ↩️ Partial Return (-{formatINR(sale.returned_amount || 0)})
-                          </span>
-                        )}
+                        <span className="text-slate-700 font-semibold text-xs truncate">
+                          • {sale.customer_name || 'Cash Customer'}
+                        </span>
                       </div>
+                    </div>
 
-                      <div className="text-slate-800 font-semibold mt-0.5">
-                        {sale.customer_name || 'Walk-in Cash Customer'}
-                        {sale.customer_phone && (
-                          <span className="text-slate-400 font-mono text-[11px] ml-1.5">
-                            ({sale.customer_phone})
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2">
-                        <span>{new Date(sale.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                        <span>•</span>
-                        <span>{sale.items?.length || 0} {sale.items?.length === 1 ? 'item' : 'items'} ({sale.items?.map(i => i.product_name).slice(0, 2).join(', ')}{sale.items?.length > 2 ? '...' : ''})</span>
-                      </div>
+                    {/* Right: Grand Total Amount */}
+                    <div className={cn(
+                      "font-black text-xs sm:text-sm font-mono flex-shrink-0 text-right",
+                      sale.status === 'returned' ? "line-through text-slate-400" : "text-slate-950"
+                    )}>
+                      {formatINR(sale.grand_total)}
                     </div>
                   </div>
 
-                  {/* Right: Amounts & Quick Actions */}
-                  <div className="flex items-center justify-between sm:justify-end gap-4 text-right">
-                    <div>
-                      <div className={cn(
-                        "font-extrabold text-sm font-mono",
-                        sale.status === 'returned' ? "line-through text-slate-400" : "text-slate-900"
-                      )}>
-                        {formatINR(sale.grand_total)}
-                      </div>
-                      {sale.status === 'returned' ? (
-                        <div className="text-[10px] font-bold text-rose-600">
-                          Refunded in Full
-                        </div>
-                      ) : sale.balance_due > 0 ? (
-                        <div className="text-[10px] font-bold text-amber-700 font-mono">
-                          Due: {formatINR(sale.balance_due)}
-                        </div>
-                      ) : (
-                        <div className="text-[10px] font-semibold text-emerald-700 flex items-center justify-end gap-0.5">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          <span>Paid in Full</span>
-                        </div>
-                      )}
+                  {/* Line 2: Date & Items Summary (Left) ... Status & Mini Action Buttons (Right) */}
+                  <div className="flex items-center justify-between gap-2 mt-1 pl-9 sm:pl-10 text-[11px]">
+                    <div className="text-slate-400 flex items-center gap-1.5 truncate min-w-0 flex-1">
+                      <span className="whitespace-nowrap font-medium text-slate-500">
+                        {new Date(sale.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, {new Date(sale.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span>•</span>
+                      <span className="truncate">
+                        {sale.items?.length || 0} {sale.items?.length === 1 ? 'item' : 'items'} ({sale.items?.map(i => i.product_name).slice(0, 2).join(', ')}{sale.items && sale.items.length > 2 ? '...' : ''})
+                      </span>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    {/* Right: Status & Compact Action Buttons */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {sale.status === 'returned' ? (
+                        <span className="text-[10px] font-bold text-rose-600 mr-1">Refunded</span>
+                      ) : sale.balance_due > 0 ? (
+                        <span className="text-[10px] font-bold text-amber-700 font-mono mr-1">Due: {formatINR(sale.balance_due)}</span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-emerald-700 hidden sm:inline-flex items-center gap-0.5 mr-1">
+                          <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                          <span>Paid in Full</span>
+                        </span>
+                      )}
+
+                      {/* Edit */}
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditSale(sale);
                           setIsEditModalOpen(true);
                         }}
-                        title="Edit Past Invoice & Items"
-                        className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-950 text-slate-600"
+                        title="Edit Invoice"
+                        className="p-1 rounded-md border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 cursor-pointer shadow-2xs transition"
                       >
-                        <Edit3 className="w-3.5 h-3.5 text-slate-700" />
+                        <Edit3 className="w-3 h-3 text-slate-700" />
                       </button>
 
+                      {/* Sales Return */}
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (!isPro) {
@@ -756,26 +752,30 @@ export default function TransactionsPage() {
                             setIsReturnModalOpen(true);
                           }
                         }}
-                        title={!isPro ? "Sales Return (Pro Feature)" : "Process Sales Return / Credit Note"}
-                        className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-amber-50 hover:text-amber-700 text-slate-600 cursor-pointer"
+                        title={!isPro ? "Sales Return (Pro)" : "Sales Return"}
+                        className="p-1 rounded-md border border-slate-200 bg-white hover:bg-amber-50 text-slate-600 cursor-pointer shadow-2xs transition"
                       >
-                        <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                        <RotateCcw className="w-3 h-3 text-amber-700" />
                       </button>
 
+                      {/* WhatsApp */}
                       <button
+                        type="button"
                         onClick={(e) => handleSendWhatsApp(sale, e)}
-                        title="Send invoice via WhatsApp"
-                        className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-emerald-50 hover:text-emerald-700 text-slate-600"
+                        title="Send WhatsApp Invoice"
+                        className="p-1 rounded-md border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-700 cursor-pointer shadow-2xs transition"
                       >
-                        <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                        <MessageCircle className="w-3 h-3 text-emerald-600" />
                       </button>
 
+                      {/* Print */}
                       <button
+                        type="button"
                         onClick={() => handleOpenInvoice(sale)}
-                        title="Print / View Tax Invoice"
-                        className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
+                        title="Print / View Invoice"
+                        className="p-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer shadow-2xs transition"
                       >
-                        <Printer className="w-3.5 h-3.5" />
+                        <Printer className="w-3 h-3 text-slate-700" />
                       </button>
                     </div>
                   </div>
