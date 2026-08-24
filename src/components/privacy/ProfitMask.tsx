@@ -4,14 +4,23 @@ import React, { useState, useEffect } from 'react';
 import { Lock, Unlock, Eye, EyeOff } from 'lucide-react';
 import { isProfitHidden, setProfitHidden } from '@/lib/auth/cashierPrivacy';
 import { CashierPinModal } from './CashierPinModal';
+import { formatINR } from '@/lib/utils';
 
 interface ProfitMaskProps {
-  value: React.ReactNode;
+  value?: React.ReactNode;
+  valuePaise?: number;
   placeholder?: string;
   className?: string;
+  isPurchasePrice?: boolean;
 }
 
-export function ProfitMask({ value, placeholder = '••••••', className = '' }: ProfitMaskProps) {
+export function ProfitMask({ 
+  value, 
+  valuePaise, 
+  placeholder = '••••••', 
+  className = '',
+  isPurchasePrice 
+}: ProfitMaskProps) {
   const [hidden, setHidden] = useState<boolean>(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
 
@@ -23,6 +32,12 @@ export function ProfitMask({ value, placeholder = '••••••', classNam
     window.addEventListener('privacy_mode_changed', handlePrivacyChange);
     return () => window.removeEventListener('privacy_mode_changed', handlePrivacyChange);
   }, []);
+
+  const displayContent = value !== undefined 
+    ? value 
+    : valuePaise !== undefined 
+    ? formatINR(valuePaise) 
+    : null;
 
   if (hidden) {
     return (
@@ -45,7 +60,7 @@ export function ProfitMask({ value, placeholder = '••••••', classNam
     );
   }
 
-  return <span className={className}>{value}</span>;
+  return <span className={className}>{displayContent}</span>;
 }
 
 /**

@@ -40,6 +40,7 @@ import { InvoiceModal } from '@/components/invoices/InvoiceModal';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingReportModal';
+import { subscriptionService } from '@/lib/subscription/subscriptionService';
 import { Sale } from '@/types';
 import { MessageCircle } from 'lucide-react';
 
