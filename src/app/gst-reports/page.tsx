@@ -450,9 +450,27 @@ export default function GSTReportsPage() {
       </Card>
 
       {/* ---------------- GSTR-1 SECTION TABS & TABLES ---------------- */}
-      <Card className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-        {/* TAB SWITCHER */}
-        <div className="flex border-b border-slate-200 bg-slate-50/70 overflow-x-auto text-xs font-bold">
+      <Card className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+        {/* MOBILE DROPDOWN TAB SELECTOR (sm:hidden) */}
+        <div className="p-2.5 sm:hidden border-b border-slate-200 bg-slate-50/80 flex items-center justify-between gap-2">
+          <span className="text-[11px] font-bold text-slate-600 truncate">Select GSTR Table:</span>
+          <div className="relative flex items-center flex-1 max-w-[230px]">
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value as any)}
+              className="w-full appearance-none bg-white border border-slate-300 text-slate-900 text-xs font-black rounded-lg pl-2.5 pr-7 py-1.5 cursor-pointer outline-none focus:ring-2 focus:ring-slate-900 shadow-2xs"
+            >
+              <option value="hsn">📦 Table 12: HSN Summary ({gstr1Data.hsn_summary.length})</option>
+              <option value="b2cs">🛍️ Table 7: B2CS Retail ({gstr1Data.b2cs_summary.length})</option>
+              <option value="b2b">🏢 Table 4: B2B Invoices ({gstr1Data.b2b_invoices.length})</option>
+              <option value="doc_issue">📄 Table 13: Documents Summary</option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2 pointer-events-none" />
+          </div>
+        </div>
+
+        {/* DESKTOP TABS (hidden sm:flex) */}
+        <div className="hidden sm:flex border-b border-slate-200 bg-slate-50/70 overflow-x-auto text-xs font-bold">
           {[
             { id: 'hsn', label: `Table 12: HSN Summary (${gstr1Data.hsn_summary.length})`, icon: Layers },
             { id: 'b2cs', label: `Table 7: B2CS Retail (${gstr1Data.b2cs_summary.length})`, icon: ShoppingBag },
@@ -466,13 +484,13 @@ export default function GSTReportsPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-3 px-4 flex items-center gap-2 border-b-2 whitespace-nowrap transition-all ${
+                className={`py-2.5 px-3.5 flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-slate-900 text-slate-900 bg-white shadow-xs'
+                    ? 'border-slate-900 text-slate-900 bg-white shadow-2xs'
                     : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-3.5 h-3.5" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -480,7 +498,7 @@ export default function GSTReportsPage() {
         </div>
 
         {/* ---------------- TAB CONTENT ---------------- */}
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           {/* =================================================================== */}
           {/* TAB 1: TABLE 12 HSN SUMMARY */}
           {/* =================================================================== */}
@@ -492,7 +510,7 @@ export default function GSTReportsPage() {
                     HSN-Wise Summary of Outward Supplies (Table 12)
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Mandatory HSN disclosure reporting quantity, taxable value, and central/state tax splits.
+                    Mandatory HSN disclosure reporting quantity, taxable value, and tax splits.
                   </p>
                 </div>
 
@@ -508,7 +526,51 @@ export default function GSTReportsPage() {
                 </div>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-x-auto">
+              {/* Mobile View: High-Density Cards (Zero Horizontal Scroll) */}
+              <div className="sm:hidden space-y-2">
+                {filteredHSN.length === 0 ? (
+                  <div className="py-6 text-center text-slate-400 text-xs bg-slate-50 rounded-xl">
+                    No HSN transactions recorded for this period.
+                  </div>
+                ) : (
+                  filteredHSN.map((h, i) => (
+                    <div key={`${h.hsn_code}_${h.tax_rate}_${i}`} className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1.5 shadow-2xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="font-mono font-black text-xs text-slate-900 bg-slate-200/80 px-1.5 py-0.5 rounded">
+                            {h.hsn_code}
+                          </span>
+                          <span className="text-xs font-bold text-slate-900 truncate">
+                            {h.description}
+                          </span>
+                        </div>
+                        <Badge variant="outline" size="sm" className="font-mono font-bold text-[10px] shrink-0">
+                          {h.tax_rate}% GST
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60">
+                        <div className="text-slate-500">
+                          Qty: <strong className="text-slate-800 font-mono">{h.total_qty} {h.uqc}</strong>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-slate-500">Taxable: </span>
+                          <strong className="font-mono text-slate-950 font-black">{formatINR(h.taxable_value)}</strong>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10.5px] text-slate-500 pt-0.5">
+                        <span>CGST: <strong className="font-mono text-indigo-700">{formatINR(h.cgst_amount)}</strong></span>
+                        <span>SGST: <strong className="font-mono text-sky-700">{formatINR(h.sgst_amount)}</strong></span>
+                        <span>Total: <strong className="font-mono text-slate-900">{formatINR(h.total_value)}</strong></span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Desktop View: Full 9-Column Table */}
+              <div className="hidden sm:block border border-slate-200 rounded-xl overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200 text-[10px] uppercase">
                     <tr>
@@ -569,7 +631,46 @@ export default function GSTReportsPage() {
                 </p>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-x-auto">
+              {/* Mobile View: High-Density Cards */}
+              <div className="sm:hidden space-y-2">
+                {gstr1Data.b2cs_summary.length === 0 ? (
+                  <div className="py-6 text-center text-slate-400 text-xs bg-slate-50 rounded-xl">
+                    No retail sales recorded for this period.
+                  </div>
+                ) : (
+                  gstr1Data.b2cs_summary.map((b, i) => (
+                    <div key={i} className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1.5 shadow-2xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-[10px] text-slate-500 bg-slate-200/70 px-1 py-0.2 rounded">
+                            OE (Other)
+                          </span>
+                          <span className="text-xs font-bold text-slate-900">
+                            {b.place_of_supply}
+                          </span>
+                        </div>
+                        <Badge variant="outline" size="sm" className="font-mono font-bold text-[10px]">
+                          {b.tax_rate}% GST
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60">
+                        <span className="text-slate-500">Taxable Value:</span>
+                        <strong className="font-mono text-slate-950 font-black">{formatINR(b.taxable_value)}</strong>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10.5px] text-slate-500">
+                        <span>CGST: <strong className="font-mono text-indigo-700">{formatINR(b.cgst_amount)}</strong></span>
+                        <span>SGST: <strong className="font-mono text-sky-700">{formatINR(b.sgst_amount)}</strong></span>
+                        <span>Total: <strong className="font-mono text-slate-900">{formatINR(b.total_value)}</strong></span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Desktop View: Full 7-Column Table */}
+              <div className="hidden sm:block border border-slate-200 rounded-xl overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200 text-[10px] uppercase">
                     <tr>
@@ -634,7 +735,39 @@ export default function GSTReportsPage() {
                 </p>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-x-auto">
+              {/* Mobile View: High-Density Cards */}
+              <div className="sm:hidden space-y-2">
+                {gstr1Data.b2b_invoices.length === 0 ? (
+                  <div className="py-6 text-center text-slate-400 text-xs bg-slate-50 rounded-xl">
+                    No B2B registered invoices found for this period.
+                  </div>
+                ) : (
+                  gstr1Data.b2b_invoices.map((b, i) => (
+                    <div key={i} className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1.5 shadow-2xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-slate-900 truncate">
+                          {b.customer_name}
+                        </span>
+                        <span className="font-mono text-xs font-bold text-slate-700">
+                          {b.invoice_number}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] font-mono text-indigo-700">
+                        <span>GSTIN: {b.customer_gstin}</span>
+                        <span className="text-slate-500">{b.invoice_date}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60">
+                        <span className="text-slate-500">Taxable: <strong className="font-mono text-slate-900">{formatINR(b.taxable_value)}</strong></span>
+                        <span className="text-slate-500">Rate: <strong className="font-mono text-slate-900">{b.tax_rate}%</strong></span>
+                        <span>Total: <strong className="font-mono text-slate-950 font-black">{formatINR(b.invoice_value)}</strong></span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Desktop View: Full 9-Column Table */}
+              <div className="hidden sm:block border border-slate-200 rounded-xl overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200 text-[10px] uppercase">
                     <tr>
@@ -691,7 +824,19 @@ export default function GSTReportsPage() {
                 </p>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
+              {/* Mobile View: High-Density Card */}
+              <div className="sm:hidden p-3 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2 text-xs">
+                <div className="font-bold text-slate-900">Invoices for outward supply</div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-200/60">
+                  <div>Serial Range: <strong className="font-mono text-slate-800">{gstr1Data.doc_from_num} - {gstr1Data.doc_to_num}</strong></div>
+                  <div>Total Issued: <strong className="font-mono text-slate-900 font-black">{gstr1Data.total_invoices_count}</strong></div>
+                  <div>Cancelled: <strong className="font-mono text-rose-600">{gstr1Data.doc_cancelled_count}</strong></div>
+                  <div>Net Issued: <strong className="font-mono text-emerald-700 font-black">{gstr1Data.total_invoices_count - gstr1Data.doc_cancelled_count}</strong></div>
+                </div>
+              </div>
+
+              {/* Desktop View: Table */}
+              <div className="hidden sm:block border border-slate-200 rounded-xl overflow-hidden">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200 text-[10px] uppercase">
                     <tr>
