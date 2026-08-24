@@ -108,62 +108,60 @@ export default function PricingPage() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
-      {/* Active Pro Member Banner */}
+    <div className="max-w-4xl mx-auto space-y-4 pb-12">
+      {/* Active Pro Member Banner — Compact High-Density Ribbon */}
       {isCurrentlyPro ? (
-        <div className="p-6 rounded-3xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 shadow-xl border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-slate-950 text-amber-400 flex items-center justify-center shadow-md flex-shrink-0">
-              <Crown className="w-7 h-7 fill-amber-400" />
+        <div className="p-3 sm:p-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 shadow-2xs border border-amber-300 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-slate-950 text-amber-400 flex items-center justify-center shadow-2xs flex-shrink-0">
+              <Crown className="w-4 h-4 fill-amber-400" />
             </div>
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-950 text-white text-[10px] font-black uppercase tracking-wider">
-                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                <span>Kamai+ PRO Active</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="text-xs sm:text-sm font-black text-slate-950 truncate">
+                  Kamai+ PRO Active
+                </span>
+                <span className="bg-slate-950 text-white font-bold px-1.5 py-0.2 rounded text-[9.5px] shrink-0">
+                  Active
+                </span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight">
-                You Are a Kamai+ PRO Member
-              </h2>
-              <p className="text-xs text-slate-900/80 font-bold flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5" />
-                <span>Next Renewal / Valid Until: {formattedExpiry}</span>
+              <p className="text-[10.5px] text-slate-900/90 font-bold flex items-center gap-1 truncate">
+                <Calendar className="w-3 h-3 shrink-0" />
+                <span>Valid Until: {formattedExpiry}</span>
               </p>
             </div>
           </div>
 
           <Button
+            size="sm"
             onClick={() => setIsPaymentModalOpen(true)}
-            className="bg-slate-950 hover:bg-slate-900 text-white font-black text-xs py-2.5 px-4 rounded-xl shadow-md border-none cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+            className="bg-slate-950 hover:bg-slate-900 text-white font-black text-xs py-1.5 px-3 rounded-lg shadow-2xs border-none cursor-pointer flex items-center gap-1 flex-shrink-0"
           >
-            <span>Extend / Renew Plan</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>Renew Plan</span>
+            <ArrowRight className="w-3 h-3" />
           </Button>
         </div>
       ) : null}
 
-      {/* Header */}
-      <div className="text-center space-y-2 pt-2">
-        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-black border border-amber-300">
-          <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-          <span>{isCurrentlyPro ? 'Subscription Plans & Details' : 'Simple & Transparent Plans'}</span>
-        </span>
-        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+      {/* Header & Duration Switcher — Compact Single Block */}
+      <div className="text-center space-y-1 pt-1">
+        <h1 className="text-base sm:text-xl font-black text-slate-900 tracking-tight">
           {isCurrentlyPro ? 'Your Store Plan & Benefits' : 'Choose the Perfect Plan for Your Store'}
         </h1>
-        <p className="text-sm text-slate-500 max-w-lg mx-auto">
+        <p className="text-[11px] sm:text-xs text-slate-500 max-w-lg mx-auto">
           {isCurrentlyPro 
-            ? 'Your store has active access to all premium multi-counter, cloud, and tax features.' 
-            : 'Start for free forever, or upgrade to Pro to unlock automated WhatsApp bills, GST filing and expiry tracking.'}
+            ? 'Active access to all premium multi-counter, cloud backup, and GST tax features.' 
+            : 'Start for free forever, or upgrade to Pro to unlock automated WhatsApp bills & GST filing.'}
         </p>
 
         {/* Billing Duration Switcher */}
-        <div className="flex items-center justify-center gap-2 pt-3">
-          <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 inline-flex items-center">
+        <div className="flex items-center justify-center gap-2 pt-1.5">
+          <div className="bg-slate-100 p-0.5 rounded-xl border border-slate-200 inline-flex items-center shadow-2xs">
             <button
               onClick={() => setDuration('1year')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${
+              className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 duration === '1year'
-                  ? 'bg-white text-slate-950 shadow-xs border border-slate-300'
+                  ? 'bg-white text-slate-950 shadow-2xs border border-slate-300'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -171,9 +169,9 @@ export default function PricingPage() {
             </button>
             <button
               onClick={() => setDuration('1month')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${
+              className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 duration === '1month'
-                  ? 'bg-white text-slate-950 shadow-xs border border-slate-300'
+                  ? 'bg-white text-slate-950 shadow-2xs border border-slate-300'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
