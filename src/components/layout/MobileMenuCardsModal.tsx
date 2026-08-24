@@ -87,36 +87,36 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in">
-      <div className="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[88vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+      <div className="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
         {/* Header */}
-        <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-white/10 p-1 flex items-center justify-center flex-shrink-0 border border-white/10 shadow-xs">
+        <div className="px-3.5 py-2.5 bg-slate-900 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-white/10 p-0.5 flex items-center justify-center flex-shrink-0 border border-white/10 shadow-xs">
               <img src="/logo.png" alt="Kamai+" className="w-full h-full object-contain" />
             </div>
             <div>
-              <h2 className="text-sm font-black tracking-tight">KamaiPlus App Navigation</h2>
-              <p className="text-[11px] text-slate-300">All Store Management Tools</p>
+              <h2 className="text-xs sm:text-sm font-black tracking-tight leading-tight">KamaiPlus App Navigation</h2>
+              <p className="text-[10px] text-slate-300 leading-tight">All Store Management Tools</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Scrollable Card Menu - 2x2 Grid per Section */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Scrollable Card Menu - High Density 2x2 Grid per Section */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
           {menuSections.map((sec, secIdx) => (
-            <div key={secIdx} className="space-y-2">
-              <div className="text-[11px] font-black uppercase tracking-wider text-slate-500 px-1">
+            <div key={secIdx} className="space-y-1">
+              <div className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 px-1">
                 {sec.title}
               </div>
 
-              {/* 2x2 grid layout */}
-              <div className="grid grid-cols-2 gap-2.5">
+              {/* 2-column compact grid layout */}
+              <div className="grid grid-cols-2 gap-1.5">
                 {sec.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
@@ -126,24 +126,24 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
                       key={`${secIdx}-${item.href}-${item.title}`}
                       href={item.href}
                       onClick={onClose}
-                      className={`p-3 rounded-xl border flex items-center gap-2.5 transition-all active:scale-95 ${
+                      className={`px-2.5 py-1.5 rounded-lg border flex items-center gap-2 transition-all active:scale-95 shadow-2xs ${
                         isActive
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                          : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 shadow-xs'
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800'
                       }`}
                     >
                       <div
-                        className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 font-bold ${
+                        className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 font-bold ${
                           isActive ? 'bg-white/20 text-white' : `${item.bg} border ${item.border}`
                         }`}
                       >
-                        <Icon className="w-4 h-4" />
+                        <Icon className="w-3.5 h-3.5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold truncate leading-tight">
+                        <div className="text-[11.5px] font-bold truncate leading-tight">
                           {item.title}
                         </div>
-                        <div className={`text-[10px] truncate ${isActive ? 'text-slate-300' : 'text-slate-500'}`}>
+                        <div className={`text-[9.5px] truncate leading-tight ${isActive ? 'text-slate-300' : 'text-slate-500'}`}>
                           {item.desc}
                         </div>
                       </div>
@@ -156,9 +156,9 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
         </div>
 
         {/* Bottom Bar */}
-        <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <span className="font-semibold">KamaiPlus Business Suite</span>
-          <span className="font-mono text-[10px] bg-white border border-slate-300 px-2 py-0.5 rounded font-bold">
+        <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+          <span className="font-semibold text-[10.5px]">KamaiPlus Business Suite</span>
+          <span className="font-mono text-[9.5px] bg-white border border-slate-300 px-1.5 py-0.2 rounded font-bold">
             {APP_VERSION}
           </span>
         </div>
