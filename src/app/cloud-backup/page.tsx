@@ -321,123 +321,110 @@ export default function CloudBackupPage() {
           </div>
         </div>
 
-        {/* CARD 3: CLOUD BACKUP & MULTI-COUNTER SYNC */}
-        <div className="p-4 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-white border border-amber-300/80 rounded-xl shadow-2xs space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-xs flex-shrink-0">
-                <Cloud className="w-5 h-5" />
+        {/* CARD 3: CLOUD BACKUP & MULTI-COUNTER SYNC (Compact Single-Row) */}
+        <div className="p-3 sm:p-3.5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-300/80 rounded-xl shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold shadow-2xs shrink-0">
+              <Cloud className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="text-xs font-black text-slate-900 truncate">Cloud Backup &amp; Multi-Counter Sync</h3>
+                <ProFeatureBadge />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-black text-slate-900">Cloud Backup &amp; Multi-Counter Sync</h3>
-                  <ProFeatureBadge />
-                  <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                    Multi-Device Ready
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Sync sales, products, and Khata ledger across multiple billing counters and shop owner mobile dashboard.
-                </p>
-              </div>
+              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                Real-time cloud sync across counters &amp; mobile
+              </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-200/60 justify-end">
+          <div className="flex items-center gap-1.5 shrink-0">
             <Button
               size="sm"
               variant="outline"
               onClick={handleRestoreFromFirestore}
               disabled={isFirestoreRestoring || isFirestoreSyncing}
-              className="text-xs font-bold gap-1.5 rounded-lg h-8 border-slate-300 hover:bg-white cursor-pointer"
+              className="text-xs font-bold gap-1 px-2.5 py-1.5 rounded-lg h-8 border-slate-300 hover:bg-white cursor-pointer shadow-2xs"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isFirestoreRestoring ? 'animate-spin' : ''}`} />
-              <span>{isFirestoreRestoring ? 'Restoring...' : 'Restore from Cloud'}</span>
+              <RefreshCw className={`w-3 h-3 ${isFirestoreRestoring ? 'animate-spin' : ''}`} />
+              <span>{isFirestoreRestoring ? 'Restoring...' : 'Restore'}</span>
             </Button>
 
             <Button
               size="sm"
               onClick={handleSyncToFirestore}
               disabled={isFirestoreSyncing || isFirestoreRestoring}
-              className="text-xs font-bold gap-1.5 rounded-lg h-8 bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
+              className="text-xs font-bold gap-1 px-2.5 py-1.5 rounded-lg h-8 bg-slate-900 hover:bg-slate-800 text-white cursor-pointer shadow-2xs"
             >
-              <Cloud className={`w-3.5 h-3.5 text-amber-400 ${isFirestoreSyncing ? 'animate-pulse' : ''}`} />
-              <span>{isFirestoreSyncing ? 'Syncing to Cloud...' : 'Backup to Cloud'}</span>
+              <Cloud className={`w-3 h-3 text-amber-400 ${isFirestoreSyncing ? 'animate-pulse' : ''}`} />
+              <span>{isFirestoreSyncing ? 'Syncing...' : 'Backup to Cloud'}</span>
             </Button>
           </div>
         </div>
       </div>
 
-      {/* ---------------- SECTION 2: TALLY PRIME & CA MASTER EXCEL BRIDGE ---------------- */}
-      <div className="space-y-3 pt-2">
+      {/* ---------------- SECTION 2: TALLY PRIME & CA MASTER EXCEL BRIDGE (Compact) ---------------- */}
+      <div className="space-y-2.5 pt-1">
         <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
           Accounting Software &amp; Tax Exports
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {/* TALLY PRIME XML */}
-          <div className="p-4 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-white border border-amber-300/80 rounded-xl space-y-3 shadow-2xs">
+          <div className="p-3 sm:p-3.5 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-white border border-amber-300/80 rounded-xl space-y-2.5 shadow-2xs flex flex-col justify-between">
             <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xs shadow-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xs shadow-2xs shrink-0">
                   T
                 </div>
-                <div>
-                  <h3 className="text-xs font-black text-slate-900">Tally Prime XML Export</h3>
-                  <p className="text-[11px] text-slate-500">1-Click Vouchers &amp; Sundry Debtors</p>
+                <div className="min-w-0">
+                  <h3 className="text-xs font-black text-slate-900 truncate">Tally Prime XML</h3>
+                  <p className="text-[10.5px] text-slate-500 truncate">Vouchers &amp; Sundry Debtors</p>
                 </div>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-200 text-amber-950">
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-amber-200 text-amber-950 shrink-0 font-mono">
                 Tally ERP 9
               </span>
             </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Generates official standard Tally Prime XML vouchers with output CGST/SGST/IGST tax ledgers.
-            </p>
 
             <Button
               size="sm"
               onClick={handleExportTallyXML}
               disabled={sales.length === 0}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 h-8.5 cursor-pointer"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs gap-1.5 h-8 cursor-pointer shadow-2xs"
             >
               <Download className="w-3.5 h-3.5 text-amber-400" />
-              <span>Export Tally XML ({sales.length} Invoices)</span>
+              <span>Export Tally XML ({sales.length})</span>
               {!isPro && <Lock className="w-3 h-3 text-amber-400" />}
             </Button>
           </div>
 
           {/* CA MASTER EXCEL / GSTR-1 */}
-          <div className="p-4 bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white border border-indigo-200 rounded-xl space-y-3 shadow-2xs">
+          <div className="p-3 sm:p-3.5 bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white border border-indigo-200 rounded-xl space-y-2.5 shadow-2xs flex flex-col justify-between">
             <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
-                  <FileSpreadsheet className="w-4 h-4" />
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-2xs shrink-0">
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
                 </div>
-                <div>
-                  <h3 className="text-xs font-black text-slate-900">CA Master Sales Register</h3>
-                  <p className="text-[11px] text-slate-500">GSTR-1 Ready Excel / CSV Table</p>
+                <div className="min-w-0">
+                  <h3 className="text-xs font-black text-slate-900 truncate">CA Master Sales Register</h3>
+                  <p className="text-[10.5px] text-slate-500 truncate">GSTR-1 Excel / CSV Table</p>
                 </div>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-indigo-100 text-indigo-900">
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-indigo-100 text-indigo-900 shrink-0 font-mono">
                 CA Format
               </span>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Complete invoice breakdown with GSTIN, taxable subtotal, rate-wise tax, and discount for GSTR-1.
-            </p>
-
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Button
                 size="sm"
                 onClick={handleExportCAMasterCSV}
                 disabled={sales.length === 0}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1.5 h-8.5 cursor-pointer"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1 h-8 cursor-pointer shadow-2xs truncate"
               >
                 <Download className="w-3.5 h-3.5 text-white" />
-                <span>Export CA CSV</span>
+                <span>Export CSV</span>
                 {!isPro && <Lock className="w-3 h-3 text-white" />}
               </Button>
 
@@ -445,10 +432,10 @@ export default function CloudBackupPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full text-xs font-bold gap-1 border-indigo-200 text-indigo-900 hover:bg-indigo-50 h-8.5"
+                  className="w-full text-xs font-bold gap-1 border-indigo-200 text-indigo-900 hover:bg-indigo-50 h-8 shadow-2xs cursor-pointer truncate"
                 >
                   <span>GSTR-1 Hub</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <ArrowRight className="w-3 h-3" />
                 </Button>
               </Link>
             </div>
