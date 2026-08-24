@@ -374,81 +374,115 @@ function KhataContent() {
         </div>
       )}
 
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-amber-500" />
-            <span>Digital Khata &amp; Udhar Ledger</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Real-time customer credit statements, automated WhatsApp reminders &amp; double-entry settlement
+      {/* ---------------- TOP HEADER (Single Row Compact) ---------------- */}
+      <div className="bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 truncate">
+            <BookOpen className="w-4 h-4 text-amber-500 shrink-0" />
+            <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 truncate">
+              Digital Khata &amp; Udhar Ledger
+            </h1>
+          </div>
+          <p className="text-[10px] sm:text-xs text-slate-500 truncate">
+            {allCustomers.length} registered accounts • {totalUdharAccounts} pending udhar
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <Link href="/customers">
-            <Button variant="outline" className="font-bold border-sky-300 text-sky-900 bg-sky-50 hover:bg-sky-100">
-              <Users className="w-4 h-4 mr-1.5 text-sky-700" />
-              <span>Customer Directory</span>
+            <Button 
+              size="sm"
+              variant="outline" 
+              className="font-bold border-sky-300 text-sky-900 bg-sky-50 hover:bg-sky-100 text-xs px-2.5 py-1.5 shadow-2xs cursor-pointer"
+            >
+              <Users className="w-3.5 h-3.5 sm:mr-1 text-sky-700" />
+              <span className="hidden sm:inline">Directory</span>
             </Button>
           </Link>
           <Button 
+            size="sm"
             onClick={() => setIsAddCustomerOpen(true)}
-            className="font-bold bg-amber-500 text-slate-950 hover:bg-amber-400"
+            className="font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 text-xs px-2.5 py-1.5 shadow-2xs cursor-pointer gap-1"
           >
-            <UserPlus className="w-4 h-4 mr-1.5" />
-            <span>Add Customer to Khata</span>
+            <UserPlus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Add Customer</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
 
-      {/* KPI Overview Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
-            <span>You Will Get (Lene Baaki)</span>
-            <ArrowDownLeft className="w-4 h-4 text-rose-500" />
+      {/* ---------------- LIVE KHATA METRICS RIBBON (Space-Saving & Unified) ---------------- */}
+      <Card className="p-2 sm:p-2.5 bg-white border border-slate-200 shadow-2xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+          {/* 1. You Will Get (Lene Baaki) */}
+          <div className="px-2 py-1 sm:py-0 sm:first:pl-1">
+            <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+              <span className="flex items-center gap-1 text-rose-700">
+                <ArrowDownLeft className="w-3.5 h-3.5 text-rose-600" />
+                <span>You'll Get</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">Lene Baaki</span>
+            </div>
+            <div className="text-base sm:text-lg font-black font-mono text-rose-600 mt-0.5 leading-tight">
+              {formatINR(totalUdharReceivable)}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              {totalUdharAccounts} customers with dues
+            </div>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-rose-600 mt-1">
-            {formatINR(totalUdharReceivable)}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Across {totalUdharAccounts} active customers</div>
-        </Card>
 
-        <Card className="p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
-            <span>Advance (Dene Baaki)</span>
-            <ArrowUpRight className="w-4 h-4 text-emerald-500" />
+          {/* 2. Advance (Dene Baaki) */}
+          <div className="px-2 pt-2 sm:pt-0 sm:px-3">
+            <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+              <span className="flex items-center gap-1 text-emerald-700">
+                <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Advance</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">Dene Baaki</span>
+            </div>
+            <div className="text-base sm:text-lg font-black font-mono text-emerald-600 mt-0.5 leading-tight">
+              {formatINR(totalAdvancePayable)}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              Advance deposits received
+            </div>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-emerald-600 mt-1">
-            {formatINR(totalAdvancePayable)}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Advance deposits received</div>
-        </Card>
 
-        <Card className="p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
-            <span>Net Balance</span>
-            <Wallet className="w-4 h-4 text-amber-500" />
+          {/* 3. Net Balance */}
+          <div className="px-2 pt-2 sm:pt-0 sm:px-3">
+            <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+              <span className="flex items-center gap-1 text-slate-700">
+                <Wallet className="w-3.5 h-3.5 text-amber-500" />
+                <span>Net Balance</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">Receivables</span>
+            </div>
+            <div className="text-base sm:text-lg font-black font-mono text-slate-900 mt-0.5 leading-tight">
+              {formatINR(totalUdharReceivable - totalAdvancePayable)}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              Net balance outstanding
+            </div>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">
-            {formatINR(totalUdharReceivable - totalAdvancePayable)}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Net receivables</div>
-        </Card>
 
-        <Card className="p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
-            <span>Khata Customers</span>
-            <BookOpen className="w-4 h-4 text-indigo-500" />
+          {/* 4. Khata Accounts */}
+          <div className="px-2 pt-2 sm:pt-0 sm:pl-3">
+            <div className="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+              <span className="flex items-center gap-1 text-indigo-700">
+                <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Khata Accounts</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">Total</span>
+            </div>
+            <div className="text-base sm:text-lg font-black font-mono text-indigo-600 mt-0.5 leading-tight">
+              {allCustomers.length}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate mt-0.5">
+              Registered customers
+            </div>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-indigo-600 mt-1">
-            {allCustomers.length}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Registered accounts</div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* Main 2-Column Khata Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
