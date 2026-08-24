@@ -388,11 +388,11 @@ export default function InventoryPage() {
           <div className="flex items-center gap-1.5 truncate">
             <span className="text-sm sm:text-base">{storeProfile.emoji}</span>
             <h1 className="text-base sm:text-lg font-black text-slate-900 truncate">
-              {storeProfile.name} Inventory
+              Inventory & Expiry
             </h1>
           </div>
           <p className="text-[11px] sm:text-xs text-slate-500 truncate">
-            {products.length} items in stock • {lowStockProducts.length} low stock
+            {storeProfile.name} • {products.length} items in stock • {lowStockProducts.length} low stock
           </p>
         </div>
 
