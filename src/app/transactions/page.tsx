@@ -348,57 +348,60 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* KPI Overview Summary Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="p-3.5 bg-white border border-slate-200">
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Filtered Revenue</div>
-          <div className="text-lg sm:text-xl font-extrabold text-slate-900 font-mono mt-0.5">
-            {formatINR(totalRevenuePaise)}
+      {/* KPI Overview Summary Ribbon — Space-Saving & Unified */}
+      <Card className="p-2 sm:p-2.5 bg-white border border-slate-200 shadow-2xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+          {/* Metric 1: Total Revenue */}
+          <div className="px-2 py-1 sm:py-0 sm:first:pl-1">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span>Revenue</span>
+              <span className="text-[10px] text-slate-400 font-medium lowercase">({filteredSales.length} {filteredSales.length === 1 ? 'sale' : 'sales'})</span>
+            </div>
+            <div className="text-base sm:text-lg font-black text-slate-900 font-mono mt-0.5 leading-tight">
+              {formatINR(totalRevenuePaise)}
+            </div>
           </div>
-          <div className="text-[10px] text-slate-400 mt-0.5 font-semibold">
-            {filteredSales.length} {filteredSales.length === 1 ? 'sale' : 'sales'}
-          </div>
-        </Card>
 
-        <Card className="p-3.5 bg-white border border-slate-200">
-          <div className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-            <Banknote className="w-3 h-3 text-emerald-600" />
-            <span>Cash Inflow</span>
+          {/* Metric 2: Cash Inflow */}
+          <div className="px-2 py-1 sm:py-0">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
+              <span className="flex items-center gap-1">
+                <Banknote className="w-3 h-3 text-emerald-600" />
+                <span>Cash In</span>
+              </span>
+            </div>
+            <div className="text-base sm:text-lg font-black text-emerald-800 font-mono mt-0.5 leading-tight">
+              {formatINR(totalCashPaise)}
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-extrabold text-emerald-800 font-mono mt-0.5">
-            {formatINR(totalCashPaise)}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-0.5 font-semibold">
-            Paid in Cash
-          </div>
-        </Card>
 
-        <Card className="p-3.5 bg-white border border-slate-200">
-          <div className="text-[11px] font-bold text-sky-700 uppercase tracking-wider flex items-center gap-1">
-            <QrCode className="w-3 h-3 text-sky-600" />
-            <span>UPI / Online</span>
+          {/* Metric 3: UPI / QR */}
+          <div className="px-2 py-1 sm:py-0 pt-1.5 sm:pt-0">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-sky-700 uppercase tracking-wider">
+              <span className="flex items-center gap-1">
+                <QrCode className="w-3 h-3 text-sky-600" />
+                <span>UPI / QR</span>
+              </span>
+            </div>
+            <div className="text-base sm:text-lg font-black text-sky-800 font-mono mt-0.5 leading-tight">
+              {formatINR(totalUpiPaise)}
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-extrabold text-sky-800 font-mono mt-0.5">
-            {formatINR(totalUpiPaise)}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-0.5 font-semibold">
-            Digital QR Transfers
-          </div>
-        </Card>
 
-        <Card className="p-3.5 bg-white border border-slate-200">
-          <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
-            <BookOpen className="w-3 h-3 text-amber-600" />
-            <span>Customer Credit</span>
+          {/* Metric 4: Customer Credit */}
+          <div className="px-2 py-1 sm:py-0 pt-1.5 sm:pt-0">
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+              <span className="flex items-center gap-1">
+                <BookOpen className="w-3 h-3 text-amber-600" />
+                <span>Credit</span>
+              </span>
+            </div>
+            <div className="text-base sm:text-lg font-black text-amber-900 font-mono mt-0.5 leading-tight">
+              {formatINR(totalCreditPaise)}
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-extrabold text-amber-900 font-mono mt-0.5">
-            {formatINR(totalCreditPaise)}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-0.5 font-semibold">
-            Added to Ledger
-          </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* Ultra Space-Saving Systematic Filter Toolbar */}
       <Card className="p-2 sm:p-2.5 bg-white border border-slate-200 shadow-2xs space-y-2">
