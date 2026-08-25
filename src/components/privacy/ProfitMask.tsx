@@ -7,6 +7,7 @@ import { CashierPinModal } from './CashierPinModal';
 import { formatINR } from '@/lib/utils';
 
 interface ProfitMaskProps {
+  children?: React.ReactNode;
   value?: React.ReactNode;
   valuePaise?: number;
   placeholder?: string;
@@ -15,6 +16,7 @@ interface ProfitMaskProps {
 }
 
 export function ProfitMask({ 
+  children,
   value, 
   valuePaise, 
   placeholder = '••••••', 
@@ -33,7 +35,9 @@ export function ProfitMask({
     return () => window.removeEventListener('privacy_mode_changed', handlePrivacyChange);
   }, []);
 
-  const displayContent = value !== undefined 
+  const displayContent = children !== undefined
+    ? children
+    : value !== undefined 
     ? value 
     : valuePaise !== undefined 
     ? formatINR(valuePaise) 

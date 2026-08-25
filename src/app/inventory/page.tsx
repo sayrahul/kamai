@@ -415,6 +415,13 @@ export default function InventoryPage() {
             </Button>
           </Link>
 
+          <Link href="/products?action=new">
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs" title="Add New Product">
+              <Plus className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Add Item</span>
+            </Button>
+          </Link>
+
           <Button
             size="sm"
             onClick={() => {

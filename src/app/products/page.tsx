@@ -121,6 +121,16 @@ export default function ProductsPage() {
     return counts;
   }, [allProducts]);
 
+  // Auto-open master add product modal if arriving with ?action=new
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('action') === 'new') {
+        setIsModalOpen(true);
+      }
+    }
+  }, []);
+
   // Memoized filtered product list
   const filteredProducts = useMemo(() => {
     let prods = allProducts;

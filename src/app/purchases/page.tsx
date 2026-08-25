@@ -27,6 +27,7 @@ import { useProSubscription, ProFeatureBadge } from '@/components/subscription/P
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
 import { ScanBillButton } from '@/components/purchases/ScanBillButton';
+import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
 
 export default function PurchasesPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
@@ -121,6 +122,8 @@ export default function PurchasesPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <CashierPrivacyToggleButton />
+
           {/* AI Bill Scanner (conditionally visible per vertical) */}
           {canScanBill && (
             <ScanBillButton
@@ -133,7 +136,7 @@ export default function PurchasesPage() {
             />
           )}
 
-          <Button onClick={() => setIsModalOpen(true)} size="md" className="text-xs font-bold gap-1.5">
+          <Button onClick={() => setIsModalOpen(true)} size="md" className="text-xs font-bold gap-1.5 cursor-pointer">
             <Plus className="w-4 h-4" />
             <span>Manual Inward</span>
           </Button>
@@ -213,7 +216,7 @@ export default function PurchasesPage() {
 
                   <div className="text-right shrink-0">
                     <div className="font-black font-mono text-emerald-600 dark:text-emerald-400">
-                      {formatINR(bill.total_amount || 0)}
+                      <ProfitMask>{formatINR(bill.total_amount || 0)}</ProfitMask>
                     </div>
                     <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                       Confirmed
