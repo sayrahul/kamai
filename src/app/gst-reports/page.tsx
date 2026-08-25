@@ -47,53 +47,65 @@ export default function GSTReportsPage() {
   const { isPro, requirePro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
-  const allSales = useLiveQuery(async () => db.sales.toArray()) || [];
-
   // Filter States
   const [periodPreset, setPeriodPreset] = useState<GSTPeriodPreset>('this_month');
   const [activeTab, setActiveTab] = useState<'hsn' | 'b2b' | 'b2cs' | 'doc_issue'>('hsn');
   const [hsnSearch, setHsnSearch] = useState('');
   const [isTallyGuideOpen, setIsTallyGuideOpen] = useState(false);
 
-  // Date filtering logic
-  const filteredSales = useMemo(() => {
+  // Calculate exact ISO date boundaries for the selected GST period preset
+  const dateRange = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth(); // 0-indexed
 
-    return allSales.filter((s) => {
-      if (s.status === 'cancelled') return false;
-      const sDate = new Date(s.created_at);
-      const sYear = sDate.getFullYear();
-      const sMonth = sDate.getMonth();
+    let start: Date;
+    let end: Date;
 
-      if (periodPreset === 'this_month') {
-        return sYear === currentYear && sMonth === currentMonth;
-      }
-      if (periodPreset === 'last_month') {
-        const lastM = currentMonth === 0 ? 11 : currentMonth - 1;
-        const lastY = currentMonth === 0 ? currentYear - 1 : currentYear;
-        return sYear === lastY && sMonth === lastM;
-      }
-      if (periodPreset === 'q1') {
-        // Apr - Jun
-        return sYear === currentYear && sMonth >= 3 && sMonth <= 5;
-      }
-      if (periodPreset === 'q2') {
-        // Jul - Sep
-        return sYear === currentYear && sMonth >= 6 && sMonth <= 8;
-      }
-      if (periodPreset === 'q3') {
-        // Oct - Dec
-        return sYear === currentYear && sMonth >= 9 && sMonth <= 11;
-      }
-      if (periodPreset === 'q4') {
-        // Jan - Mar
-        return sYear === currentYear && sMonth >= 0 && sMonth <= 2;
-      }
-      return true; // all_year
-    });
-  }, [allSales, periodPreset]);
+    if (periodPreset === 'this_month') {
+      start = new Date(currentYear, currentMonth, 1, 0, 0, 0);
+      end = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+    } else if (periodPreset === 'last_month') {
+      const lastM = currentMonth === 0 ? 11 : currentMonth - 1;
+      const lastY = currentMonth === 0 ? currentYear - 1 : currentYear;
+      start = new Date(lastY, lastM, 1, 0, 0, 0);
+      end = new Date(lastY, lastM + 1, 0, 23, 59, 59, 999);
+    } else if (periodPreset === 'q1') {
+      // Apr - Jun
+      start = new Date(currentYear, 3, 1, 0, 0, 0);
+      end = new Date(currentYear, 6, 0, 23, 59, 59, 999);
+    } else if (periodPreset === 'q2') {
+      // Jul - Sep
+      start = new Date(currentYear, 6, 1, 0, 0, 0);
+      end = new Date(currentYear, 9, 0, 23, 59, 59, 999);
+    } else if (periodPreset === 'q3') {
+      // Oct - Dec
+      start = new Date(currentYear, 9, 1, 0, 0, 0);
+      end = new Date(currentYear, 12, 0, 23, 59, 59, 999);
+    } else if (periodPreset === 'q4') {
+      // Jan - Mar
+      start = new Date(currentYear, 0, 1, 0, 0, 0);
+      end = new Date(currentYear, 3, 0, 23, 59, 59, 999);
+    } else {
+      // all_year
+      start = new Date(currentYear, 0, 1, 0, 0, 0);
+      end = new Date(currentYear, 12, 0, 23, 59, 59, 999);
+    }
+
+    return {
+      startStr: start.toISOString(),
+      endStr: end.toISOString(),
+    };
+  }, [periodPreset]);
+
+  // Query only relevant sales within the date range via IndexedDB range index
+  const filteredSales = useLiveQuery(async () => {
+    const sales = await db.sales
+      .where('created_at')
+      .between(dateRange.startStr, dateRange.endStr, true, true)
+      .toArray();
+    return sales.filter((s) => s.status !== 'cancelled');
+  }, [dateRange.startStr, dateRange.endStr]) || [];
 
   // Period display label
   const periodLabel = useMemo(() => {

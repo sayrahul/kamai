@@ -54,17 +54,20 @@ export default function CashRegisterPage() {
     return await db.cash_registers.orderBy('opened_at').reverse().toArray();
   }) || [];
 
-  // All sales for today
+  // All sales for today using high-performance IndexedDB range query on 'created_at' index
   const todayDatePrefix = new Date().toISOString().split('T')[0];
   const todaySales = useLiveQuery(async () => {
-    const sales = await db.sales.toArray();
-    return sales.filter((s) => s.created_at.startsWith(todayDatePrefix) && s.status !== 'cancelled');
+    const todayStart = `${todayDatePrefix}T00:00:00.000Z`;
+    const todayEnd = `${todayDatePrefix}T23:59:59.999Z`;
+    const sales = await db.sales.where('created_at').between(todayStart, todayEnd, true, true).toArray();
+    return sales.filter((s) => s.status !== 'cancelled');
   }, [todayDatePrefix]) || [];
 
-  // All expenses for today
+  // All expenses for today using high-performance IndexedDB range query on 'created_at' index
   const todayExpenses = useLiveQuery(async () => {
-    const expenses = await db.cash_expenses.toArray();
-    return expenses.filter((e) => e.created_at.startsWith(todayDatePrefix));
+    const todayStart = `${todayDatePrefix}T00:00:00.000Z`;
+    const todayEnd = `${todayDatePrefix}T23:59:59.999Z`;
+    return await db.cash_expenses.where('created_at').between(todayStart, todayEnd, true, true).toArray();
   }, [todayDatePrefix]) || [];
 
   // State

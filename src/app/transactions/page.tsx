@@ -73,7 +73,7 @@ export default function TransactionsPage() {
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
 
   const allSales = useLiveQuery(async () => {
-    return await db.sales.reverse().toArray();
+    return await db.sales.orderBy('created_at').reverse().limit(500).toArray();
   }) || [];
 
   // Filter logic
