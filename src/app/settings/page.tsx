@@ -35,6 +35,7 @@ import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { Lock, Volume2, Sparkles } from 'lucide-react';
 import { soundboxEngine, SoundboxLanguage } from '@/lib/payments/soundboxEngine';
 import { paymentBridge } from '@/lib/payments/paymentBridge';
+import { APP_VERSION, APP_RELEASE_DATE } from '@/lib/constants/version';
 
 export default function SettingsPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
@@ -1060,6 +1061,16 @@ export default function SettingsPage() {
         onClose={() => setIsUpgradeModalOpen(false)}
         businessName={business?.name || 'Your Store'}
       />
+
+      {/* App Build & Version Footer */}
+      <div className="pt-4 pb-8 text-center space-y-1 text-slate-400">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-mono font-bold">
+          <span>KamaiPlus Release</span>
+          <span className="text-emerald-700 font-extrabold">v{APP_VERSION}</span>
+          <span className="text-slate-400 font-normal">({APP_RELEASE_DATE})</span>
+        </div>
+        <p className="text-[11px] text-slate-400">Offline-First Enterprise POS &amp; Business Management Platform</p>
+      </div>
     </div>
   );
 }

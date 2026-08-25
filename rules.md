@@ -110,3 +110,9 @@ Follow conventional commit standards with version tags:
 - `fix(khata): resolve dual top tabs active state toggle on mobile`
 - `perf(images): auto-compress uploaded store logos to WebP 30KB`
 - `docs: update PRD and architecture specification files`
+
+### 6.5 Automatic Versioning Protocol (Mandatory)
+Every time code is committed and pushed to Git:
+- Increment the application version by **+0.1** (e.g. `3.7.0` -> `3.8.0` -> `3.9.0` -> `3.10.0`).
+- Run `npm run version:bump` or update `package.json` and `src/lib/constants/version.ts`.
+- Include the version in the commit message: `git commit -m "<type>(v<NEW_VERSION>): <description>"`.
