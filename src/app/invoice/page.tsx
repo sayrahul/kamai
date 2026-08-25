@@ -33,6 +33,27 @@ function InvoiceContent() {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'fit' | 'full'>('fit');
+  const previewContainerRef = React.useRef<HTMLDivElement>(null);
+  const [scaleFactor, setScaleFactor] = useState<number>(1);
+
+  useEffect(() => {
+    const calculateScale = () => {
+      if (previewContainerRef.current) {
+        const containerWidth = previewContainerRef.current.clientWidth - 16;
+        const targetWidth = 720;
+        if (containerWidth < targetWidth && viewMode === 'fit') {
+          setScaleFactor(Math.max(0.42, containerWidth / targetWidth));
+        } else {
+          setScaleFactor(1);
+        }
+      }
+    };
+
+    calculateScale();
+    window.addEventListener('resize', calculateScale);
+    return () => window.removeEventListener('resize', calculateScale);
+  }, [viewMode, data]);
 
   useEffect(() => {
     const encoded = searchParams.get('d');
@@ -182,6 +203,30 @@ function InvoiceContent() {
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Responsive Zoom View Mode Pill */}
+          <div className="flex items-center p-0.5 bg-slate-200/80 rounded-lg text-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('fit')}
+              className={`px-2 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
+                viewMode === 'fit' ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Fit to mobile screen width"
+            >
+              📱 Fit
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('full')}
+              className={`px-2 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
+                viewMode === 'full' ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Actual 100% resolution"
+            >
+              🔍 100%
+            </button>
+          </div>
+
           <Button variant="outline" size="sm" onClick={handleShare} className="text-xs font-bold">
             <Share2 className="w-3.5 h-3.5 mr-1" />
             <span className="hidden sm:inline">Share</span>
@@ -197,11 +242,31 @@ function InvoiceContent() {
         </div>
       </div>
 
-      {/* Printable / Interactive Clean Corporate Invoice Sheet */}
+      {/* Printable / Interactive Clean Corporate Invoice Sheet with Smooth Responsive Scaling */}
       <div 
-        id="printable-invoice-container"
-        className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl p-6 sm:p-10 space-y-6 shadow-sm text-slate-900 border-t-8 border-t-slate-900 font-sans"
+        ref={previewContainerRef}
+        className="w-full max-w-3xl flex flex-col items-center overflow-x-auto"
       >
+        <div
+          style={
+            scaleFactor < 1 && viewMode === 'fit'
+              ? {
+                  transform: `scale(${scaleFactor})`,
+                  transformOrigin: 'top center',
+                  width: '740px',
+                  marginBottom: `-${Math.round((1 - scaleFactor) * 850)}px`,
+                }
+              : {
+                  width: '100%',
+                }
+          }
+          className="transition-all duration-150 flex justify-center w-full"
+        >
+          <div 
+            id="printable-invoice-container"
+            data-format="a4"
+            className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl p-6 sm:p-10 space-y-6 shadow-sm text-slate-900 border-t-8 border-t-slate-900 font-sans"
+          >
         {/* Invoice Header */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between pb-6 border-b border-slate-200 gap-6">
           <div className="flex items-start gap-4">
@@ -397,6 +462,8 @@ function InvoiceContent() {
             <span>Generated via <strong>KamaiPlus POS</strong> • Offline-First Digital Invoicing</span>
           </div>
           <div>Thank you for your visit!</div>
+        </div>
+      </div>
         </div>
       </div>
     </div>

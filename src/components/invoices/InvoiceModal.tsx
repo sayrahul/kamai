@@ -70,7 +70,30 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   // Pharmacy Prescription Bill Mode Toggle (Pro Feature)
   const [isPharmacyRxEnabled, setIsPharmacyRxEnabled] = useState<boolean>(false);
 
+  // Responsive Mobile & Desktop Preview View Mode ('fit' vs 'full')
+  const [viewMode, setViewMode] = useState<'fit' | 'full'>('fit');
+  const previewContainerRef = React.useRef<HTMLDivElement>(null);
+  const [scaleFactor, setScaleFactor] = useState<number>(1);
+
   const platformPromo = usePlatformPromoConfig();
+
+  useEffect(() => {
+    const calculateScale = () => {
+      if (previewContainerRef.current) {
+        const containerWidth = previewContainerRef.current.clientWidth - 20;
+        const targetWidth = format === 'a4' ? 660 : format === 'thermal-80' ? 320 : 260;
+        if (containerWidth < targetWidth && viewMode === 'fit') {
+          setScaleFactor(Math.max(0.42, containerWidth / targetWidth));
+        } else {
+          setScaleFactor(1);
+        }
+      }
+    };
+
+    calculateScale();
+    window.addEventListener('resize', calculateScale);
+    return () => window.removeEventListener('resize', calculateScale);
+  }, [format, viewMode, isOpen]);
 
   useEffect(() => {
     setSale(initialSale);
@@ -200,38 +223,68 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
           {/* Top Format Selector & Quick Action Bar */}
           {/* Top Bar: Segmented Format Switch + Clean Action Cluster */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-2 border-b border-slate-200">
-            {/* Format Tabs (Sleek Segmented Pill) */}
-            <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80 self-start sm:self-auto">
-              <button
-                onClick={() => setFormat('a4')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  format === 'a4'
-                    ? 'bg-white text-slate-950 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                A4 Bill
-              </button>
-              <button
-                onClick={() => setFormat('thermal-80')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  format === 'thermal-80'
-                    ? 'bg-white text-slate-950 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                80mm Thermal
-              </button>
-              <button
-                onClick={() => setFormat('thermal-58')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  format === 'thermal-58'
-                    ? 'bg-white text-slate-950 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                58mm
-              </button>
+            {/* Format Tabs & Zoom View Modes */}
+            <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto">
+              <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+                <button
+                  onClick={() => setFormat('a4')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    format === 'a4'
+                      ? 'bg-white text-slate-950 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  A4 Bill
+                </button>
+                <button
+                  onClick={() => setFormat('thermal-80')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    format === 'thermal-80'
+                      ? 'bg-white text-slate-950 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  80mm Thermal
+                </button>
+                <button
+                  onClick={() => setFormat('thermal-58')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    format === 'thermal-58'
+                      ? 'bg-white text-slate-950 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  58mm
+                </button>
+              </div>
+
+              {/* Responsive Zoom View Mode Pill */}
+              <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('fit')}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    viewMode === 'fit'
+                      ? 'bg-white text-slate-950 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Auto-fit complete invoice onto screen (Zero horizontal scroll)"
+                >
+                  <span>📱 Fit</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('full')}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    viewMode === 'full'
+                      ? 'bg-white text-slate-950 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="100% full-resolution actual size view"
+                >
+                  <span>🔍 100%</span>
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 justify-end">
@@ -362,14 +415,33 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
             </div>
           )}
 
-          {/* Printable Invoice Container (Clean Slate Canvas with Smooth Scroll) */}
-          <div className="bg-slate-100/70 p-2 sm:p-5 rounded-2xl border border-slate-200/80 max-h-[62vh] overflow-auto shadow-inner">
-            {format === 'a4' ? (
-              /* A4 Format with Dynamic Theme Config (Solid Full Paper Canvas) */
-              <div
-                id="modal-printable-invoice"
-                className="w-full min-w-[620px] max-w-[680px] mx-auto bg-white p-5 sm:p-6 pb-6 rounded-xl text-slate-900 text-xs space-y-4 border border-slate-200 shadow-md box-border"
-              >
+          {/* Printable Invoice Container (Clean Slate Canvas with Smooth Responsive Scaling) */}
+          <div 
+            ref={previewContainerRef}
+            className="bg-slate-100/70 p-2 sm:p-5 rounded-2xl border border-slate-200/80 max-h-[62vh] overflow-auto shadow-inner flex flex-col items-center"
+          >
+            <div 
+              style={
+                scaleFactor < 1 && viewMode === 'fit'
+                  ? {
+                      transform: `scale(${scaleFactor})`,
+                      transformOrigin: 'top center',
+                      width: format === 'a4' ? '680px' : format === 'thermal-80' ? '320px' : '260px',
+                      marginBottom: `-${Math.round((1 - scaleFactor) * (format === 'a4' ? 950 : 600))}px`,
+                    }
+                  : {
+                      width: format === 'a4' ? '100%' : 'auto',
+                    }
+              }
+              className="transition-all duration-150 flex justify-center"
+            >
+              {format === 'a4' ? (
+                /* A4 Format with Dynamic Theme Config (Solid Full Paper Canvas) */
+                <div
+                  id="modal-printable-invoice"
+                  data-format="a4"
+                  className="w-full min-w-[620px] max-w-[680px] mx-auto bg-white p-5 sm:p-6 pb-6 rounded-xl text-slate-900 text-xs space-y-4 border border-slate-200 shadow-md box-border"
+                >
                 {/* Header Banner Styled with Theme Color */}
                 <div 
                   className="p-4 rounded-xl text-white flex justify-between items-start gap-4"
@@ -803,6 +875,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 )}
               </div>
             )}
+            </div>
           </div>
         </div>
       </Modal>

@@ -13,8 +13,9 @@ export async function generateInvoicePdfBlobFromElement(
   filename = 'invoice.pdf'
 ): Promise<{ blob: Blob; file: File }> {
   // 1. Detect if this is a thermal receipt or standard A4 invoice
-  const isThermal58 = element.classList.contains('w-[260px]') || element.classList.contains('max-w-[270px]');
-  const isThermal80 = element.classList.contains('w-[320px]') || element.classList.contains('max-w-[350px]');
+  const dataFormat = element.getAttribute('data-format');
+  const isThermal58 = dataFormat === 'thermal-58' || element.classList.contains('w-[260px]') || element.classList.contains('max-w-[270px]');
+  const isThermal80 = dataFormat === 'thermal-80' || element.classList.contains('w-[320px]') || element.classList.contains('max-w-[350px]');
   const isThermal = isThermal58 || isThermal80;
 
   // Master rendering width to normalize output across Mobile and Desktop
