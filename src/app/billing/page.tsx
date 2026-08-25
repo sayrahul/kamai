@@ -56,6 +56,10 @@ import { getStoreProfile } from '@/lib/constants/storeProfiles';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 import { Sale } from '@/types';
 
+import { paymentBridge } from '@/lib/payments/paymentBridge';
+import { soundboxEngine } from '@/lib/payments/soundboxEngine';
+import { ParsedPaymentEvent } from '@/lib/payments/notificationParser';
+
 // Lazy-load non-critical heavy modals
 const BarcodeScannerModal = dynamic(
   () => import('@/components/barcode/BarcodeScannerModal').then((m) => m.BarcodeScannerModal),
@@ -71,6 +75,10 @@ const InvoiceModal = dynamic(
 );
 const UpgradeModal = dynamic(
   () => import('@/components/subscription/UpgradeModal').then((m) => m.UpgradeModal),
+  { ssr: false }
+);
+const PaymentCelebrationModal = dynamic(
+  () => import('@/components/payments/PaymentCelebrationModal').then((m) => m.PaymentCelebrationModal),
   { ssr: false }
 );
 
@@ -517,6 +525,10 @@ export default function BillingPage() {
   const [isEnlargeQrModalOpen, setIsEnlargeQrModalOpen] = useState<boolean>(false);
   const [selectedUpiIndex, setSelectedUpiIndex] = useState<number>(0);
 
+  // Real-Time Payment Bridge & Celebration States
+  const [celebrationPayment, setCelebrationPayment] = useState<ParsedPaymentEvent | null>(null);
+  const [isCelebrationOpen, setIsCelebrationOpen] = useState<boolean>(false);
+
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const storeProfile = getStoreProfile(business?.business_type);
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
@@ -923,7 +935,38 @@ export default function BillingPage() {
     }
   }, [business, grandTotalPaise, paymentMethod, splitUpi, selectedUpiIndex]);
 
-  const handleCompleteSale = async () => {
+  // Live Payment Bridge: Automatically matches incoming UPI payments with active cart amount
+  useEffect(() => {
+    if (cart.length === 0) return;
+
+    const unsubscribe = paymentBridge.subscribe((incomingPayment) => {
+      // Calculate target payable amount for UPI
+      let targetPaise = grandTotalPaise;
+      if (paymentMethod === 'split') {
+        const splitUpiPaise = splitUpi ? Math.round(parseFloat(splitUpi) * 100) : 0;
+        if (splitUpiPaise > 0) targetPaise = splitUpiPaise;
+      }
+
+      // Check if incoming payment matches active cart amount
+      if (incomingPayment.amountPaise === targetPaise) {
+        // 1. Voice soundbox announcement in Hindi/Marathi/English
+        soundboxEngine.announcePayment(incomingPayment.amountRupees, business?.name || 'कमाई प्लस');
+
+        // 2. Open Top-Tier Celebration Modal
+        setCelebrationPayment(incomingPayment);
+        setIsCelebrationOpen(true);
+
+        // 3. Complete sale automatically
+        handleCompleteSale(incomingPayment);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [cart, grandTotalPaise, paymentMethod, splitUpi, business, selectedCustomer, products]);
+
+  const handleCompleteSale = async (explicitPayment?: ParsedPaymentEvent) => {
     if (cart.length === 0) return;
 
     const invalidStockItems = cart.filter((item) => {
@@ -943,12 +986,17 @@ export default function BillingPage() {
     const invoiceNumber = `${invPrefix}${String(nextNum).padStart(3, '0')}`;
     const now = new Date().toISOString();
 
+    let finalMethod: PaymentMethod = explicitPayment ? 'upi' : paymentMethod;
     let receivedPaise = 0;
     let balanceDuePaise = 0;
     let changeReturnedPaise = 0;
     let paymentSplitData: any = undefined;
 
-    if (paymentMethod === 'split') {
+    if (explicitPayment) {
+      receivedPaise = grandTotalPaise;
+      balanceDuePaise = 0;
+      changeReturnedPaise = 0;
+    } else if (paymentMethod === 'split') {
       const cashP = splitCash ? Math.round(parseFloat(splitCash) * 100) : 0;
       const upiP = splitUpi ? Math.round(parseFloat(splitUpi) * 100) : 0;
       const cardP = splitCard ? Math.round(parseFloat(splitCard) * 100) : 0;
@@ -988,7 +1036,7 @@ export default function BillingPage() {
       discount_total: discountTotalPaise,
       tax_total: taxTotalPaise,
       grand_total: grandTotalPaise,
-      payment_method: paymentMethod,
+      payment_method: finalMethod,
       payment_split: paymentSplitData,
       amount_received: receivedPaise,
       balance_due: balanceDuePaise,
@@ -999,7 +1047,7 @@ export default function BillingPage() {
       order_type: orderType || undefined,
       token_number: Math.floor(100 + (nextNum % 900)),
       doctor_name: doctorName || undefined,
-      patient_name: patientName || undefined,
+      notes: explicitPayment?.referenceNumber ? `UPI Ref / UTR: ${explicitPayment.referenceNumber} (${explicitPayment.sourceApp})` : undefined,
       created_by: 'owner',
       created_at: now,
       updated_at: now,
@@ -1608,14 +1656,28 @@ export default function BillingPage() {
                 <div className="text-[10px] text-slate-500 font-medium leading-tight">
                   Customer scans with Google Pay, PhonePe, Paytm or BHIM — <b>amount auto-fills instantly</b>.
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsEnlargeQrModalOpen(true)}
-                  className="mt-1 px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[10.5px] inline-flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                >
-                  <QrCode className="w-3 h-3 text-slate-700" />
-                  <span>Show Customer Fullscreen QR</span>
-                </button>
+                <div className="flex items-center gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsEnlargeQrModalOpen(true)}
+                    className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[10.5px] inline-flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                  >
+                    <QrCode className="w-3 h-3 text-slate-700" />
+                    <span>Fullscreen 📺</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const simAmt = (paymentMethod === 'split' ? Math.round(parseFloat(splitUpi || '0') * 100) : grandTotalPaise) / 100;
+                      paymentBridge.simulatePayment(simAmt, 'Rahul Sharma', 'PhonePe');
+                    }}
+                    className="px-2 py-1 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-bold text-[10.5px] inline-flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                    title="Simulate incoming PhonePe / Bank SMS payment"
+                  >
+                    <Sparkles className="w-3 h-3 text-emerald-700" />
+                    <span>⚡ Test Pay Received</span>
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -1626,6 +1688,20 @@ export default function BillingPage() {
               </p>
             </div>
           )}
+
+          {/* Live Radar Listening Indicator */}
+          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-950/70 border border-emerald-500/30 text-[10.5px] text-emerald-300">
+            <div className="flex items-center gap-2 font-bold">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>Soundbox Radar: Listening for PhonePe / GPay / Bank SMS...</span>
+            </div>
+            <span className="text-[9px] font-mono bg-emerald-900/60 px-1.5 py-0.5 rounded text-emerald-400 font-black">
+              AUTO-MATCH
+            </span>
+          </div>
         </div>
       )}
 
@@ -1641,7 +1717,7 @@ export default function BillingPage() {
         <Button
           size="lg"
           disabled={cart.length === 0}
-          onClick={handleCompleteSale}
+          onClick={() => handleCompleteSale()}
           className="w-full text-xs font-bold py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400 shadow-sm cursor-pointer"
         >
           <Receipt className="w-4 h-4 mr-1.5 text-slate-950" />
@@ -2337,6 +2413,32 @@ export default function BillingPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Top-Tier Payment Celebration Modal */}
+      {celebrationPayment && (
+        <PaymentCelebrationModal
+          isOpen={isCelebrationOpen}
+          onClose={() => {
+            setIsCelebrationOpen(false);
+            setCelebrationPayment(null);
+          }}
+          payment={celebrationPayment}
+          storeName={business?.name || 'Your Store'}
+          invoiceNumber={activeSaleForInvoice?.invoice_number}
+          onPrintReceipt={() => {
+            if (activeSaleForInvoice) {
+              setIsInvoiceModalOpen(true);
+            }
+          }}
+          onShareWhatsApp={() => {
+            if (activeSaleForInvoice && activeSaleForInvoice.customer_phone) {
+              const msg = `Namaste! Receipt for your purchase at ${business?.name}: Bill #${activeSaleForInvoice.invoice_number}, Total: ${formatINR(activeSaleForInvoice.grand_total)}. Thank you!`;
+              const waUrl = generateWhatsAppReceiptLink(activeSaleForInvoice.customer_phone, msg);
+              window.open(waUrl, '_blank');
+            }
+          }}
+        />
+      )}
 
       {/* Razorpay Pro Upgrade Modal */}
       <UpgradeModal

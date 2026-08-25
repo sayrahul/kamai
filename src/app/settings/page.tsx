@@ -32,7 +32,9 @@ import { BusinessType } from '@/types';
 import { getStoreProfile, getAllStoreProfiles } from '@/lib/constants/storeProfiles';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
-import { Lock } from 'lucide-react';
+import { Lock, Volume2, Sparkles } from 'lucide-react';
+import { soundboxEngine, SoundboxLanguage } from '@/lib/payments/soundboxEngine';
+import { paymentBridge } from '@/lib/payments/paymentBridge';
 
 export default function SettingsPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
@@ -70,6 +72,14 @@ export default function SettingsPage() {
   const [nextInvoiceNumber, setNextInvoiceNumber] = useState('1');
   const [terms, setTerms] = useState('');
   const [footerMessage, setFooterMessage] = useState('');
+
+  // Soundbox & Notification Bridge State
+  const [soundboxLang, setSoundboxLang] = useState<SoundboxLanguage>(soundboxEngine.getLanguage());
+  const [soundboxVol, setSoundboxVol] = useState<number>(soundboxEngine.getVolume());
+  const [sampleSmsText, setSampleSmsText] = useState<string>(
+    'Your a/c no. XX1234 is credited with INR 848.00 on 25-AUG-26 by a/c linked to UPI/423589123456/Rahul Sharma'
+  );
+  const [parsedSmsResult, setParsedSmsResult] = useState<any>(null);
 
   // UI state
   const [isSaved, setIsSaved] = useState(false);
@@ -821,6 +831,152 @@ export default function SettingsPage() {
                   <Button type="submit" size="sm" className="font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-2xs">
                     Save UPI &amp; Banking Settings
                   </Button>
+                </div>
+              </Card>
+            </div>
+
+            {/* Smart Soundbox & Android Notification Bridge Section */}
+            <div className="lg:col-span-12">
+              <Card className="p-4 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 text-white border border-slate-800 rounded-2xl space-y-4 shadow-md">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                      <Volume2 className="w-4 h-4 text-amber-400" />
+                      <span>Smart Soundbox &amp; Android Notification Bridge</span>
+                    </span>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      Instant audio announcements (PhonePe/Paytm style) on receiving customer UPI payments &amp; Bank SMS.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10.5px] font-black border border-emerald-500/30 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Bridge Engine Active</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Left: Soundbox Voice Configuration */}
+                  <div className="space-y-3 bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60">
+                    <span className="text-xs font-bold text-slate-200 block">
+                      1. Soundbox Voice &amp; Regional Language
+                    </span>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'hi-IN', label: 'Hindi (हिंदी)', sub: 'आठ सौ अड़तालीस रुपये प्राप्त हुए' },
+                        { id: 'mr-IN', label: 'Marathi (मराठी)', sub: 'आठशे अठ्ठेचाळीस रुपये मिळाले' },
+                        { id: 'en-IN', label: 'English (India)', sub: 'Payment of 848 Received' },
+                        { id: 'gu-IN', label: 'Gujarati (ગુજરાતી)', sub: 'આઠસો અડતાલીસ રૂપિયા મળ્યા' },
+                      ].map((lang) => (
+                        <button
+                          key={lang.id}
+                          type="button"
+                          onClick={() => {
+                            setSoundboxLang(lang.id as SoundboxLanguage);
+                            soundboxEngine.setLanguage(lang.id as SoundboxLanguage);
+                          }}
+                          className={`p-2 rounded-lg border text-left transition cursor-pointer ${
+                            soundboxLang === lang.id
+                              ? 'bg-amber-400 text-slate-950 border-amber-300 font-bold shadow-xs'
+                              : 'bg-slate-900/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+                          }`}
+                        >
+                          <div className="text-xs font-bold">{lang.label}</div>
+                          <div className="text-[9.5px] opacity-80 truncate">{lang.sub}</div>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="space-y-1 pt-1">
+                      <div className="flex items-center justify-between text-xs text-slate-300 font-bold">
+                        <span>Voice Volume</span>
+                        <span>{Math.round(soundboxVol * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={soundboxVol}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          setSoundboxVol(v);
+                          soundboxEngine.setVolume(v);
+                        }}
+                        className="w-full accent-amber-400 cursor-pointer"
+                      />
+                    </div>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => soundboxEngine.announcePayment(848, name || 'KamaiPlus')}
+                      className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                      <span>🔊 Test Soundbox Voice (₹848)</span>
+                    </Button>
+                  </div>
+
+                  {/* Right: Live Bank SMS & Notification Simulator */}
+                  <div className="space-y-3 bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60">
+                    <span className="text-xs font-bold text-slate-200 block">
+                      2. Bank SMS &amp; App Notification Simulator
+                    </span>
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-slate-400 font-bold">Preset:</span>
+                      {[
+                        { label: 'HDFC Bank', text: 'Your a/c no. XX1234 is credited with INR 848.00 on 25-AUG-26 by a/c linked to UPI/423589123456/Rahul Sharma' },
+                        { label: 'SBI', text: 'Dear UPI user, A/C XXXX credited by Rs 848.00 on 25Aug26 transfer from Rahul Sharma Ref No 423589123456' },
+                        { label: 'PhonePe', text: 'Received ₹848.00 from Rahul Sharma via PhonePe on Kamai QR' },
+                        { label: 'Paytm', text: 'Received ₹848 from 9876543210 on Paytm QR (Ref 423589123456)' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => setSampleSmsText(preset.text)}
+                          className="px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] font-bold text-slate-200 cursor-pointer transition"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <textarea
+                      rows={3}
+                      value={sampleSmsText}
+                      onChange={(e) => setSampleSmsText(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs font-mono focus:border-amber-400 focus:outline-none"
+                      placeholder="Paste incoming SMS text here to test..."
+                    />
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        const parsed = paymentBridge.handleRawNotification(sampleSmsText);
+                        setParsedSmsResult(parsed);
+                        if (parsed) {
+                          soundboxEngine.announcePayment(parsed.amountRupees, name || 'KamaiPlus');
+                        }
+                      }}
+                      className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>⚡ Test Parse &amp; Trigger Bridge</span>
+                    </Button>
+
+                    {parsedSmsResult && (
+                      <div className="p-2 bg-emerald-950/80 border border-emerald-500/40 rounded-lg text-[10.5px] text-emerald-300 font-mono space-y-0.5">
+                        <div>✓ Extracted: <b>₹{parsedSmsResult.amountRupees}</b> ({parsedSmsResult.sourceApp})</div>
+                        {parsedSmsResult.payerName && <div>✓ Payer: <b>{parsedSmsResult.payerName}</b></div>}
+                        {parsedSmsResult.referenceNumber && <div>✓ UTR: <b>{parsedSmsResult.referenceNumber}</b></div>}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </Card>
             </div>

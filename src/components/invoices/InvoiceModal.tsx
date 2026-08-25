@@ -5,7 +5,7 @@ import QRCode from 'qrcode';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Business, Sale, CartItem } from '@/types';
+import { Business, Sale, CartItem, UpiAccount } from '@/types';
 import { formatINR, generateUPILink } from '@/lib/utils';
 import { calculateGstSummary, numberToWordsINR } from '@/lib/invoices/gstCalculator';
 import { sendInvoiceViaWhatsApp, generateWhatsAppInvoiceMessage } from '@/lib/invoices/whatsappInvoice';

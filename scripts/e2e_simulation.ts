@@ -12,6 +12,9 @@ import { signAdminToken, verifyAdminToken } from '../src/lib/admin/adminAuth';
 import { signSessionToken, verifySessionToken } from '../src/lib/auth/session';
 import { calculateGstSummary } from '../src/lib/invoices/gstCalculator';
 import { formatINR } from '../src/lib/utils';
+import { parsePaymentNotification } from '../src/lib/payments/notificationParser';
+import { numberToHindiWords, numberToEnglishWords, soundboxEngine } from '../src/lib/payments/soundboxEngine';
+import { paymentBridge } from '../src/lib/payments/paymentBridge';
 import crypto from 'crypto';
 
 let totalTests = 0;
@@ -242,6 +245,76 @@ assert(bytes80.length > 50, `80mm bytecode stream generated (${bytes80.length} b
 // Verify Cash Drawer Pulse Command (ESC p 0 25 250 = 0x1b 0x70 0x00 0x19 0xfa)
 const drawerOpCodeIdx = Array.from(bytes80).findIndex((b, idx) => b === 0x1b && bytes80[idx + 1] === 0x70);
 assert(drawerOpCodeIdx !== -1, 'Bytecode contains ESC p (Cash Drawer Kick Pulse)');
+
+// -----------------------------------------------------------------------------
+// TEST SUITE 5: NOTIFICATION PARSER & SMART SOUNDBOX AUDIO ENGINE
+// -----------------------------------------------------------------------------
+console.log('🔊 SUITE 5: Bank SMS, Notification Parser & Smart Soundbox Verification');
+
+// 1. HDFC Bank SMS Parsing
+const hdfcMsg = 'Your a/c no. XX1234 is credited with INR 848.00 on 25-AUG-26 by a/c linked to UPI/423589123456/Rahul Sharma';
+const hdfcParsed = parsePaymentNotification(hdfcMsg, 'HDFCBK');
+assert(hdfcParsed !== null, 'HDFC Bank credit SMS parsed successfully');
+assert(hdfcParsed?.amountPaise === 84800, 'HDFC SMS extracted exact amount in paise (84800)');
+assert(hdfcParsed?.referenceNumber === '423589123456', 'HDFC SMS extracted exact 12-digit UTR (423589123456)');
+assert(hdfcParsed?.bankName === 'HDFC Bank', 'HDFC Bank correctly recognized');
+
+// 2. SBI SMS Parsing
+const sbiMsg = 'Dear UPI user, A/C XXXX credited by Rs 848.00 on 25Aug26 transfer from Rahul Sharma Ref No 423589123456';
+const sbiParsed = parsePaymentNotification(sbiMsg, 'SBI-UPI');
+assert(sbiParsed !== null && sbiParsed.amountPaise === 84800, 'SBI credit SMS extracted exact amount (84800 paise)');
+assert(sbiParsed?.bankName === 'State Bank of India', 'State Bank of India correctly recognized');
+
+// 3. PhonePe Business Notification Parsing
+const phonePeMsg = 'Received ₹848.00 from Rahul Sharma via PhonePe on Kamai QR';
+const phonePeParsed = parsePaymentNotification(phonePeMsg);
+assert(phonePeParsed !== null && phonePeParsed.sourceApp === 'PhonePe', 'PhonePe notification recognized with sourceApp');
+assert(phonePeParsed?.amountPaise === 84800, 'PhonePe notification extracted exact amount (₹848.00)');
+
+// 4. Paytm Business Notification Parsing
+const paytmMsg = 'Received ₹848 from 9876543210 on Paytm QR (Ref 423589123456)';
+const paytmParsed = parsePaymentNotification(paytmMsg);
+assert(paytmParsed !== null && paytmParsed.sourceApp === 'Paytm', 'Paytm notification recognized with sourceApp');
+
+// 5. Debit SMS Rejection (Ignore Debits)
+const debitMsg = 'Your a/c no. XX1234 is debited by INR 500.00 on 25-AUG-26';
+const debitParsed = parsePaymentNotification(debitMsg);
+assert(debitParsed === null, 'Debit transaction SMS is strictly ignored (returns null)');
+
+// 6. Soundbox Spoken Number Phonetics
+const hindi848 = numberToHindiWords(848);
+assert(hindi848.includes('आठ सौ') && hindi848.includes('अड़तालीस'), `Hindi number phonetics for 848 matches ('${hindi848}')`);
+
+const eng848 = numberToEnglishWords(848);
+assert(eng848 === 'Eight Hundred Forty-Eight', `English number words for 848 matches ('${eng848}')`);
+
+// 7. Payment Bridge Matching & Deduplication
+paymentBridge.clearHistory();
+paymentBridge.handleIncomingParsedPayment({
+  id: 'test_1',
+  amountPaise: 84800,
+  amountRupees: 848,
+  referenceNumber: '423589123456',
+  sourceApp: 'PhonePe',
+  timestamp: Date.now(),
+  rawText: phonePeMsg,
+  isCredit: true,
+});
+
+const matched = paymentBridge.matchActiveBill(84800, 60000);
+assert(matched !== null && matched.amountPaise === 84800, 'Payment bridge matches active POS bill of ₹848.00 within 60s window');
+
+const duplicateAttempt = paymentBridge.handleIncomingParsedPayment({
+  id: 'test_2',
+  amountPaise: 84800,
+  amountRupees: 848,
+  referenceNumber: '423589123456', // Same UTR
+  sourceApp: 'PhonePe',
+  timestamp: Date.now(),
+  rawText: phonePeMsg,
+  isCredit: true,
+});
+assert(duplicateAttempt === false, 'Duplicate payment notification with same UTR is rejected');
 
 console.log('');
 console.log('================================================================');
