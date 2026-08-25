@@ -64,14 +64,12 @@ export default function OnboardingPage() {
     }
   }, []);
 
-  const businessTypes: Array<{ type: BusinessType; title: string; desc: string; icon: any }> = [
-    { type: 'pharmacy', title: 'Medical Store & Pharmacy', desc: 'Dolo 650, Strips/Tablets, Batch/Expiry, Doctor Rx & DL No.', icon: Pill },
-    { type: 'grocery', title: 'Kirana & Grocery Retail', desc: 'Atta, Rice, Dal, Loose Weights, Laser Barcode & FSSAI', icon: Store },
-    { type: 'clothing', title: 'Clothing & Footwear', desc: 'T-Shirts, Jeans, Kurtis, Sizes S/M/L/XL & Apparel Barcode Tags', icon: ShoppingBag },
-    { type: 'hardware', title: 'Hardware & Sanitary', desc: 'Paints, Pipes, Tools, Meter/Sqft Units & Contractor Khata', icon: Wrench },
-    { type: 'restaurant', title: 'Cafe & Restaurant', desc: 'Table Billing (T1-T10), KOT Tokens, Touch Menu & Parcels', icon: Utensils },
-    { type: 'electronics', title: 'Electronics & Mobile', desc: 'Smartphones, Earbuds, IMEI/Serial & Warranty Tracking', icon: Smartphone },
-    { type: 'other', title: 'General Business / Other', desc: 'Universal retail counter, custom catalog & wholesale trading', icon: Building2 },
+  const businessTypes: Array<{ type: BusinessType; title: string; desc: string; icon: any; badge: string }> = [
+    { type: 'grocery', title: 'Kirana & Grocery Store', desc: 'Atta, Rice, Dal, Loose Weights, FMCG Barcodes & Khata', icon: Store, badge: '🌾 Loose Weights & Barcode' },
+    { type: 'pharmacy', title: 'Medical Store & Pharmacy', desc: 'Dolo, Strips, Batch Numbers, Expiry Alerts & Doctor Rx', icon: Pill, badge: '💊 Batch & Rx Prescription' },
+    { type: 'clothing', title: 'Clothing, Apparel & Shoes', desc: 'Shirts, Jeans, Kurtis, Sizes S/M/L/XL/32 & Colors', icon: ShoppingBag, badge: '👕 Size & Color Variants' },
+    { type: 'hardware', title: 'Hardware, Electrical & Sanitary', desc: 'Paints, Pipes, Tools, Wires, LED Bulbs & Meters', icon: Wrench, badge: '🔩 Meter / Box & Warranty' },
+    { type: 'restaurant', title: 'Restaurant, Cafe & Food Stall', desc: 'Table Orders (T1-T10), Kitchen KOT Tokens & Touch Billing', icon: Utensils, badge: '🍽️ Dine-In Tables & KOT' },
   ];
 
   // Validate 10-Digit Indian Mobile Number

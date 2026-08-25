@@ -37,38 +37,40 @@ console.log('🚀 RUNNING KAMAIPLUS COMPREHENSIVE END-TO-END QA SIMULATION');
 console.log('================================================================\n');
 
 // -----------------------------------------------------------------------------
-// TEST SUITE 1: DYNAMIC CATEGORY ENGINE & PROFILE MATRIX (14 NICHES)
+// TEST SUITE 1: 5 CORE INDIAN RETAIL PILLARS & ADAPTIVE CAPABILITY MATRIX
 // -----------------------------------------------------------------------------
-console.log('📦 SUITE 1: Dynamic Category Engine & Module Capabilities');
+console.log('📦 SUITE 1: 5 Core Retail Pillars & Dynamic Capabilities');
 const profiles = getAllStoreProfiles();
-assert(profiles.length === 7, `Primary flagship store profiles registered (found ${profiles.length})`);
+assert(profiles.length === 5, `Flagship core store profiles registered (found ${profiles.length})`);
 
-const expectedNiches = [
-  'grocery', 'pharmacy', 'restaurant', 'clothing', 'electronics', 
-  'hardware', 'electrical', 'fmcg', 'bakery', 'stationery', 
-  'salon', 'mobile', 'services', 'other'
-];
+const coreNiches = ['pharmacy', 'grocery', 'clothing', 'hardware', 'restaurant'];
 
-expectedNiches.forEach((niche) => {
+coreNiches.forEach((niche) => {
   const profile = getStoreProfile(niche as any);
-  assert(profile.id === niche, `Profile lookup for '${niche}' returns valid profile`, `Expected ${niche}, got ${profile.id}`);
+  assert(profile.id === niche, `Profile lookup for core niche '${niche}' returns valid profile`, `Expected ${niche}, got ${profile.id}`);
   assert(profile.modules.length > 0, `Profile '${niche}' has active capabilities (${profile.modules.length} modules)`);
   assert(profile.placeholders.newProductName.length > 0, `Profile '${niche}' has custom product name placeholder`);
 });
+
+// Legacy Aliases Resolution Verification
+assert(getStoreProfile('fmcg').id === 'grocery', 'Legacy alias fmcg safely maps to grocery profile');
+assert(getStoreProfile('bakery').id === 'restaurant', 'Legacy alias bakery safely maps to restaurant profile');
+assert(getStoreProfile('electrical').id === 'hardware', 'Legacy alias electrical safely maps to hardware profile');
+assert(getStoreProfile('mobile').id === 'hardware', 'Legacy alias mobile safely maps to hardware profile');
 
 // Specific Module Capability Invariants
 assert(hasModule('pharmacy', 'BATCH_EXPIRY'), 'Pharmacy has BATCH_EXPIRY capability');
 assert(hasModule('pharmacy', 'PHARMACY'), 'Pharmacy has PHARMACY capability');
 assert(hasModule('clothing', 'VARIANTS'), 'Clothing has VARIANTS capability');
-assert(hasModule('electronics', 'IMEI_SERIAL'), 'Electronics has IMEI_SERIAL capability');
+assert(hasModule('hardware', 'WARRANTY'), 'Hardware has WARRANTY capability');
 assert(hasModule('restaurant', 'RESTAURANT_ORDERS'), 'Restaurant has RESTAURANT_ORDERS capability');
 assert(hasModule('restaurant', 'KOT'), 'Restaurant has KOT capability');
 assert(!hasModule('restaurant', 'BARCODE'), 'Restaurant hides BARCODE scanner by default for touch fast billing');
 assert(hasModule('grocery', 'WEIGHT'), 'Grocery has WEIGHT (loose items) capability');
 assert(hasModule('grocery', 'BARCODE'), 'Grocery has BARCODE scanning capability');
 
-// Seed Catalog Invariants
-expectedNiches.forEach((niche) => {
+// Seed Catalog Invariants for 5 Core Niches
+coreNiches.forEach((niche) => {
   const seeds = getDefaultProductsForCategory(niche);
   assert(seeds && seeds.length > 0, `Category '${niche}' returns default seed items (${seeds.length} items)`);
   seeds.forEach((item, idx) => {

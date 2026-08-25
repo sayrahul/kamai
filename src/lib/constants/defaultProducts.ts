@@ -949,19 +949,32 @@ export const DEFAULT_CATEGORY_PRODUCTS: Record<string, SeedProductDefinition[]> 
   ],
 };
 
-// Aliases for matching business types
-DEFAULT_CATEGORY_PRODUCTS['bakery'] = DEFAULT_CATEGORY_PRODUCTS['grocery'];
-DEFAULT_CATEGORY_PRODUCTS['mobile'] = DEFAULT_CATEGORY_PRODUCTS['electronics'];
-DEFAULT_CATEGORY_PRODUCTS['stationery'] = DEFAULT_CATEGORY_PRODUCTS['other'];
-DEFAULT_CATEGORY_PRODUCTS['salon'] = DEFAULT_CATEGORY_PRODUCTS['clothing'];
-DEFAULT_CATEGORY_PRODUCTS['services'] = DEFAULT_CATEGORY_PRODUCTS['other'];
+// Legacy Niche Aliases Mapper
+const LEGACY_PRODUCT_MAP: Record<string, string> = {
+  fmcg: 'grocery',
+  bakery: 'restaurant',
+  electrical: 'hardware',
+  electronics: 'hardware',
+  mobile: 'hardware',
+  salon: 'clothing',
+  stationery: 'grocery',
+  services: 'hardware',
+  other: 'grocery',
+};
 
 /**
  * Returns default seed products for a given business category
  */
 export function getDefaultProductsForCategory(businessType?: BusinessType | string): SeedProductDefinition[] {
   const typeKey = (businessType || 'grocery').toLowerCase();
-  return DEFAULT_CATEGORY_PRODUCTS[typeKey] || DEFAULT_CATEGORY_PRODUCTS['grocery'] || DEFAULT_CATEGORY_PRODUCTS['other'];
+  if (DEFAULT_CATEGORY_PRODUCTS[typeKey]) {
+    return DEFAULT_CATEGORY_PRODUCTS[typeKey];
+  }
+  const mapped = LEGACY_PRODUCT_MAP[typeKey];
+  if (mapped && DEFAULT_CATEGORY_PRODUCTS[mapped]) {
+    return DEFAULT_CATEGORY_PRODUCTS[mapped];
+  }
+  return DEFAULT_CATEGORY_PRODUCTS['grocery'];
 }
 
 /**
