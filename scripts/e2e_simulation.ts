@@ -1,0 +1,255 @@
+/**
+ * KamaiPlus Comprehensive End-to-End Simulation & QA Suite
+ * Tests financial invariants, category engine profiles, security mechanisms,
+ * and ESC/POS thermal hardware bytecode generation.
+ */
+
+import { STORE_PROFILES, getAllStoreProfiles, getStoreProfile, hasModule } from '../src/lib/constants/storeProfiles';
+import { getDefaultProductsForCategory, DEFAULT_CATEGORY_PRODUCTS } from '../src/lib/constants/defaultProducts';
+import { checkRateLimit } from '../src/lib/security/rateLimiter';
+import { EscPosEncoder } from '../src/lib/hardware/escpos';
+import { signAdminToken, verifyAdminToken } from '../src/lib/admin/adminAuth';
+import { signSessionToken, verifySessionToken } from '../src/lib/auth/session';
+import { calculateGstSummary } from '../src/lib/invoices/gstCalculator';
+import { formatINR } from '../src/lib/utils';
+import crypto from 'crypto';
+
+let totalTests = 0;
+let passedTests = 0;
+let failedTests = 0;
+
+function assert(condition: boolean, testName: string, detail?: string) {
+  totalTests++;
+  if (condition) {
+    passedTests++;
+    console.log(`  ✅ [PASS] ${testName}`);
+  } else {
+    failedTests++;
+    console.error(`  ❌ [FAIL] ${testName} ${detail ? `-> ${detail}` : ''}`);
+  }
+}
+
+console.log('================================================================');
+console.log('🚀 RUNNING KAMAIPLUS COMPREHENSIVE END-TO-END QA SIMULATION');
+console.log('================================================================\n');
+
+// -----------------------------------------------------------------------------
+// TEST SUITE 1: DYNAMIC CATEGORY ENGINE & PROFILE MATRIX (14 NICHES)
+// -----------------------------------------------------------------------------
+console.log('📦 SUITE 1: Dynamic Category Engine & Module Capabilities');
+const profiles = getAllStoreProfiles();
+assert(profiles.length === 7, `Primary flagship store profiles registered (found ${profiles.length})`);
+
+const expectedNiches = [
+  'grocery', 'pharmacy', 'restaurant', 'clothing', 'electronics', 
+  'hardware', 'electrical', 'fmcg', 'bakery', 'stationery', 
+  'salon', 'mobile', 'services', 'other'
+];
+
+expectedNiches.forEach((niche) => {
+  const profile = getStoreProfile(niche as any);
+  assert(profile.id === niche, `Profile lookup for '${niche}' returns valid profile`, `Expected ${niche}, got ${profile.id}`);
+  assert(profile.modules.length > 0, `Profile '${niche}' has active capabilities (${profile.modules.length} modules)`);
+  assert(profile.placeholders.newProductName.length > 0, `Profile '${niche}' has custom product name placeholder`);
+});
+
+// Specific Module Capability Invariants
+assert(hasModule('pharmacy', 'BATCH_EXPIRY'), 'Pharmacy has BATCH_EXPIRY capability');
+assert(hasModule('pharmacy', 'PHARMACY'), 'Pharmacy has PHARMACY capability');
+assert(hasModule('clothing', 'VARIANTS'), 'Clothing has VARIANTS capability');
+assert(hasModule('electronics', 'IMEI_SERIAL'), 'Electronics has IMEI_SERIAL capability');
+assert(hasModule('restaurant', 'RESTAURANT_ORDERS'), 'Restaurant has RESTAURANT_ORDERS capability');
+assert(hasModule('restaurant', 'KOT'), 'Restaurant has KOT capability');
+assert(!hasModule('restaurant', 'BARCODE'), 'Restaurant hides BARCODE scanner by default for touch fast billing');
+assert(hasModule('grocery', 'WEIGHT'), 'Grocery has WEIGHT (loose items) capability');
+assert(hasModule('grocery', 'BARCODE'), 'Grocery has BARCODE scanning capability');
+
+// Seed Catalog Invariants
+expectedNiches.forEach((niche) => {
+  const seeds = getDefaultProductsForCategory(niche);
+  assert(seeds && seeds.length > 0, `Category '${niche}' returns default seed items (${seeds.length} items)`);
+  seeds.forEach((item, idx) => {
+    assert(item.selling_price > 0, `Seed item [${idx}] ${item.name} has non-zero selling price (${item.selling_price} paise)`);
+    assert(item.mrp >= item.selling_price, `Seed item [${idx}] ${item.name} MRP (${item.mrp}) >= Selling Price (${item.selling_price})`);
+  });
+});
+
+console.log('');
+
+// -----------------------------------------------------------------------------
+// TEST SUITE 2: FINANCIAL & GST INVARIANTS (PAISE ARITHMETIC)
+// -----------------------------------------------------------------------------
+console.log('💰 SUITE 2: Financial Invariants & Zero-Drift Paise Math');
+
+// Sample Line Items
+const sampleItems: any[] = [
+  {
+    product_id: 'p1',
+    product_name: 'Tata Tea Gold 250g',
+    quantity: 2,
+    unit: 'packet',
+    unit_price: 15000, // ₹150.00
+    total_amount: 30000, // ₹300.00
+    tax_rate: 5,
+    hsn_code: '0902',
+  },
+  {
+    product_id: 'p2',
+    product_name: 'Fortune Sunflower Oil 1L',
+    quantity: 1,
+    unit: 'pouch',
+    unit_price: 14000, // ₹140.00
+    total_amount: 14000, // ₹140.00
+    tax_rate: 12,
+    hsn_code: '1512',
+  },
+  {
+    product_id: 'p3',
+    product_name: 'Cadbury Silk Chocolate',
+    quantity: 3,
+    unit: 'piece',
+    unit_price: 8000, // ₹80.00
+    total_amount: 24000, // ₹240.00
+    tax_rate: 18,
+    hsn_code: '1806',
+  }
+];
+
+const subtotal = sampleItems.reduce((sum, item) => sum + item.total_amount, 0); // 68000 paise (₹680.00)
+assert(subtotal === 68000, `Subtotal calculation exact: ${formatINR(subtotal)}`);
+
+const gstBreakups = calculateGstSummary(sampleItems, true); // Tax inclusive
+const totalTaxable = gstBreakups.reduce((sum, b) => sum + b.taxableAmountPaise, 0);
+const totalTax = gstBreakups.reduce((sum, b) => sum + b.totalTaxPaise, 0);
+
+assert(totalTaxable > 0, `Taxable amount extracted (${formatINR(totalTaxable)})`);
+assert(totalTax > 0, `Total GST tax calculated (${formatINR(totalTax)})`);
+assert(
+  totalTaxable + totalTax === subtotal,
+  `Taxable amount + Total Tax matches Subtotal exactly (${totalTaxable} + ${totalTax} === ${subtotal})`
+);
+
+// Discount & Grand Total Verification
+const discountTotal = 3000; // ₹30.00 discount
+const grandTotal = subtotal - discountTotal; // 65000 paise (₹650.00)
+const amountReceived = 50000; // ₹500.00 cash paid
+const balanceDue = grandTotal - amountReceived; // 15000 paise (₹150.00) Udhar
+
+assert(grandTotal === 65000, `Grand Total (${formatINR(grandTotal)}) = Subtotal - Discount`);
+assert(amountReceived + balanceDue === grandTotal, `Cash Received (${formatINR(amountReceived)}) + Balance Due (${formatINR(balanceDue)}) = Grand Total`);
+
+console.log('');
+
+// -----------------------------------------------------------------------------
+// TEST SUITE 3: SECURITY, RATE LIMITING & CONSTANT-TIME VERIFICATION
+// -----------------------------------------------------------------------------
+console.log('🛡️ SUITE 3: Security, Rate Limiting & Token Signatures');
+
+// 1. In-Memory Sliding Window Rate Limiter
+const testIp = '192.168.1.100';
+const limitKey = `admin_login_qa:${testIp}`;
+
+// 5 requests allowed
+for (let i = 1; i <= 5; i++) {
+  const result = checkRateLimit(limitKey, 5, 10000);
+  assert(result.isAllowed, `Rate limit attempt ${i}/5 allowed (remaining: ${result.remaining})`);
+}
+
+// 6th request must be blocked
+const blockedResult = checkRateLimit(limitKey, 5, 10000);
+assert(!blockedResult.isAllowed, 'Rate limit attempt 6/5 successfully blocked (429 Too Many Requests)');
+assert(blockedResult.remaining === 0, 'Rate limit remaining requests is 0 when blocked');
+
+// 2. Constant-Time Hash Comparison
+const secretPw = 'Vivaan@52523384';
+const enteredCorrect = 'Vivaan@52523384';
+const enteredWrong = 'WrongPassword123';
+
+const hashExpected = crypto.createHash('sha256').update(secretPw).digest();
+const hashCorrect = crypto.createHash('sha256').update(enteredCorrect).digest();
+const hashWrong = crypto.createHash('sha256').update(enteredWrong).digest();
+
+assert(crypto.timingSafeEqual(hashExpected, hashCorrect), 'Constant-time verification accepts matching password hash');
+assert(!crypto.timingSafeEqual(hashExpected, hashWrong), 'Constant-time verification rejects invalid password hash');
+
+// 3. Admin JWT Session Token Lifecycle
+const adminToken = signAdminToken();
+assert(typeof adminToken === 'string' && adminToken.length > 20, 'SuperAdmin JWT token signed successfully');
+
+const adminSession = verifyAdminToken(adminToken);
+assert(adminSession !== null && adminSession.isAdmin === true && adminSession.role === 'superadmin', 'SuperAdmin JWT token verified and decoded claims match');
+
+const tamperedAdminToken = adminToken.slice(0, -5) + 'AAAAA';
+assert(verifyAdminToken(tamperedAdminToken) === null, 'Tampered SuperAdmin JWT token is strictly rejected');
+
+// 4. Staff / Merchant Session Token Lifecycle
+const staffPayload = {
+  staff_id: 'staff_123',
+  business_id: 'biz_456',
+  phone: '9876543210',
+  role: 'owner' as const,
+};
+
+const userToken = signSessionToken(staffPayload);
+assert(typeof userToken === 'string' && userToken.length > 20, 'Merchant staff JWT token signed successfully');
+
+const userSession = verifySessionToken(userToken);
+assert(
+  userSession !== null && userSession.staff_id === 'staff_123' && userSession.business_id === 'biz_456',
+  'Merchant staff JWT token verified with exact business_id & staff_id claims'
+);
+
+console.log('');
+
+// -----------------------------------------------------------------------------
+// TEST SUITE 4: ESC/POS THERMAL HARDWARE BYTECODE GENERATION
+// -----------------------------------------------------------------------------
+console.log('🖨️ SUITE 4: ESC/POS Thermal Hardware Bytecode Verification');
+
+// Test 58mm (32 Chars) Encoder
+const enc58 = new EscPosEncoder(58);
+enc58.alignCenter().bold(true).textLine('MAHADEV SUPER MART').bold(false);
+enc58.hr();
+enc58.itemRow('Tata Tea Gold 250g', '2 x 150.00', '300.00');
+enc58.hr('-');
+enc58.row('GRAND TOTAL:', 'Rs. 300.00');
+
+const upiTestUri = 'upi://pay?pa=merchant@upi&pn=Mahadev%20Mart&am=300.00&cu=INR&tn=INV-001';
+enc58.qrcode(upiTestUri, 5);
+enc58.cut();
+
+const bytes58 = enc58.getBytes();
+assert(bytes58 instanceof Uint8Array, '58mm ESC/POS encoder returns Uint8Array buffer');
+assert(bytes58.length > 50, `58mm bytecode stream generated (${bytes58.length} bytes)`);
+
+// Verify Initialize Command (ESC @ = 0x1b 0x40)
+assert(bytes58[0] === 0x1b && bytes58[1] === 0x40, 'Bytecode begins with ESC @ (Initialize printer)');
+
+// Verify Paper Cut Command (GS V 0 = 0x1d 0x56 0x00)
+const lastBytes = Array.from(bytes58.slice(-3));
+assert(lastBytes[0] === 0x1d && lastBytes[1] === 0x56, 'Bytecode concludes with GS V (Auto Paper Cut)');
+
+// Test 80mm (48 Chars) Encoder with Cash Drawer Kick
+const enc80 = new EscPosEncoder(80);
+enc80.openCashDrawer();
+enc80.alignCenter().doubleHeight(true).textLine('KIRANA HYPERMARKET').doubleHeight(false);
+enc80.itemRow('Fortune Oil 1L', '1 x 140.00', '140.00');
+enc80.cut();
+
+const bytes80 = enc80.getBytes();
+assert(bytes80.length > 50, `80mm bytecode stream generated (${bytes80.length} bytes)`);
+
+// Verify Cash Drawer Pulse Command (ESC p 0 25 250 = 0x1b 0x70 0x00 0x19 0xfa)
+const drawerOpCodeIdx = Array.from(bytes80).findIndex((b, idx) => b === 0x1b && bytes80[idx + 1] === 0x70);
+assert(drawerOpCodeIdx !== -1, 'Bytecode contains ESC p (Cash Drawer Kick Pulse)');
+
+console.log('');
+console.log('================================================================');
+console.log(`📊 SIMULATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED (${failedTests} failures)`);
+console.log('================================================================');
+
+if (failedTests > 0) {
+  process.exit(1);
+} else {
+  process.exit(0);
+}

@@ -397,6 +397,9 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                       {business.gstin && (
                         <p className="text-[11px] font-bold text-amber-300">GSTIN: {business.gstin}</p>
                       )}
+                      {business.fssai_license_no && (
+                        <p className="text-[10.5px] font-mono text-emerald-200">FSSAI Lic: {business.fssai_license_no}</p>
+                      )}
                       {/* Pharmacy Drug License Details (Pro only & only when valid DL exists) */}
                       {isPharmacyRxEnabled && isPro && (business.drug_license_no || business.invoice_theme_config?.drug_license_no) && (
                         <div className="mt-1 pt-1 border-t border-white/20 text-[10px] font-mono text-cyan-200">

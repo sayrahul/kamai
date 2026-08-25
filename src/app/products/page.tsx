@@ -24,7 +24,11 @@ import {
   Camera, 
   Zap, 
   FileSpreadsheet,
-  Lock
+  Lock,
+  ChevronDown,
+  ChevronUp,
+  SlidersHorizontal,
+  Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -32,7 +36,7 @@ import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
 import { lookupCategoryBarcode } from '@/lib/barcode/categoryBarcodeLoader';
-import { getStoreProfile, MASTER_UNITS } from '@/lib/constants/storeProfiles';
+import { getStoreProfile, hasModule, MASTER_UNITS } from '@/lib/constants/storeProfiles';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 
 // Lazy-load heavy modals & external libraries (xlsx, zxing, qr scanner)
@@ -75,6 +79,7 @@ export default function ProductsPage() {
   const [newCatName, setNewCatName] = useState('');
 
   // Form State
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [formName, setFormName] = useState('');
   const [formCategory, setFormCategory] = useState('');
   const [formUnit, setFormUnit] = useState<ProductUnit>('packet');
@@ -173,6 +178,7 @@ export default function ProductsPage() {
 
   const handleOpenAddModal = () => {
     setEditingProduct(null);
+    setShowAdvancedSettings(false);
     setFormName('');
     setFormCategory(categories[0]?.id || '');
     setFormUnit((storeProfile.defaultUnit as ProductUnit) || 'packet');
@@ -181,10 +187,10 @@ export default function ProductsPage() {
     setFormWholesalePrice('');
     setFormWholesaleMinQty('5');
     setFormIsLooseItem(false);
-    setFormIsUnlimitedStock(false);
+    setFormIsUnlimitedStock(business?.business_type === 'restaurant');
     setFormMrp('');
     setFormTaxRate(0);
-    setFormStock('10');
+    setFormStock(business?.business_type === 'restaurant' ? '999' : '10');
     setFormMinStock('5');
     setFormBarcode('');
     setFormIsFavorite(false);
@@ -199,6 +205,7 @@ export default function ProductsPage() {
 
   const handleOpenEditModal = (p: Product) => {
     setEditingProduct(p);
+    setShowAdvancedSettings(Boolean(p.wholesale_price || p.purchase_price || p.is_unlimited_stock || p.is_favorite));
     setFormName(p.name);
     setFormCategory(p.category_id);
     setFormUnit(p.unit);
@@ -775,21 +782,33 @@ export default function ProductsPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingProduct ? t('products.editProduct') : t('products.addProduct')}
-        description="Enter product details, pricing, GST rate and initial inventory stock."
+        title={
+          editingProduct
+            ? t('products.editProduct')
+            : business?.business_type === 'restaurant'
+            ? 'Add Menu Dish / Beverage'
+            : business?.business_type === 'pharmacy'
+            ? 'Add Medicine / Healthcare Item'
+            : business?.business_type === 'clothing'
+            ? 'Add Garment / Footwear SKU'
+            : t('products.addProduct')
+        }
+        description={`Enter ${storeProfile.shortName} details, pricing, GST rate, and inventory parameters.`}
         size="lg"
       >
-        <form onSubmit={handleSaveProduct} className="space-y-4">
+        <form onSubmit={handleSaveProduct} className="space-y-3.5">
+          {/* 1. Core Primary Name Input */}
           <Input
-            label={t('products.name')}
-            placeholder="e.g. Parle-G Gold Biscuits 100g"
+            label={business?.business_type === 'restaurant' ? 'Item / Dish Name' : t('products.name')}
+            placeholder={storeProfile.placeholders.newProductName || 'e.g. Parle-G Gold Biscuits 100g'}
             value={formName}
             onChange={(e) => setFormName(e.target.value)}
             required
             autoFocus
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* 2. Category & Unit Selection Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-bold text-slate-900 block">
@@ -849,19 +868,21 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {/* Dynamic Niche Attribute 1: Batch & Expiry (Pharmacy / FMCG) */}
-          {storeProfile.featureToggles.showBatchExpiry && (
-            <div className="p-3.5 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2.5">
+          {/* 3. Dynamic Category-Specific Attributes (Zero Clutter — Rendered strictly if module enabled) */}
+          
+          {/* A. Batch & Expiry (Pharmacy / Medical / FMCG) */}
+          {(hasModule(business?.business_type, 'BATCH_EXPIRY') || hasModule(business?.business_type, 'PHARMACY')) && (
+            <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
                   <span>💊</span>
-                  <span>Batch Number &amp; Expiry Date (Pharmacy / Medical)</span>
+                  <span>Batch Number &amp; Expiry Date ({storeProfile.shortName})</span>
                 </span>
-                <span className="text-[10px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded font-semibold">
-                  Required for Compliance
+                <span className="text-[9.5px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded font-semibold">
+                  Compliance Tracking
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <Input
                   label="Batch Number"
                   placeholder="e.g. BATCH-9942"
@@ -878,25 +899,25 @@ export default function ProductsPage() {
             </div>
           )}
 
-          {/* Dynamic Niche Attribute 2: Size & Color Variants (Clothing / Footwear) */}
-          {storeProfile.featureToggles.showSizeVariants && (
-            <div className="p-3.5 bg-indigo-50/70 rounded-xl border border-indigo-200/80 space-y-2.5">
+          {/* B. Size & Color Variants (Clothing / Footwear / Apparel) */}
+          {hasModule(business?.business_type, 'VARIANTS') && (
+            <div className="p-3 bg-purple-50/70 rounded-xl border border-purple-200/80 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-purple-950 uppercase tracking-wider flex items-center gap-1.5">
                   <span>👕</span>
                   <span>Size &amp; Color Variants (Apparel / Footwear)</span>
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <Input
-                  label="Size / Fit (e.g. S, M, L, XL, 32, 34, 8 UK)"
+                  label="Size / Fit (e.g. S, M, L, XL, 32, 34, UK 9)"
                   placeholder="e.g. XL or 32"
                   value={formSize}
                   onChange={(e) => setFormSize(e.target.value)}
                 />
                 <Input
                   label="Color / Shade"
-                  placeholder="e.g. Navy Blue / Olive"
+                  placeholder="e.g. Navy Blue / Maroon"
                   value={formColor}
                   onChange={(e) => setFormColor(e.target.value)}
                 />
@@ -904,47 +925,40 @@ export default function ProductsPage() {
             </div>
           )}
 
-          {/* Dynamic Niche Attribute 3: Serial / IMEI & Warranty (Electronics / Mobile) */}
-          {storeProfile.featureToggles.showImeiWarranty && (
-            <div className="p-3.5 bg-cyan-50/70 rounded-xl border border-cyan-200/80 space-y-2.5">
+          {/* C. IMEI / Serial & Warranty (Electronics / Mobile / Electrical) */}
+          {(hasModule(business?.business_type, 'IMEI_SERIAL') || hasModule(business?.business_type, 'WARRANTY')) && (
+            <div className="p-3 bg-cyan-50/70 rounded-xl border border-cyan-200/80 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-cyan-950 uppercase tracking-wider flex items-center gap-1.5">
                   <span>📱</span>
-                  <span>IMEI / Serial No &amp; Warranty (Electronics / Mobile)</span>
+                  <span>IMEI / Serial No &amp; Warranty ({storeProfile.shortName})</span>
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input
-                  label="IMEI / Serial Number"
-                  placeholder="e.g. 864209048123456"
-                  value={formImeiSerial}
-                  onChange={(e) => setFormImeiSerial(e.target.value)}
-                />
-                <Input
-                  label="Warranty Period (Months)"
-                  placeholder="e.g. 12"
-                  type="number"
-                  value={formWarrantyMonths}
-                  onChange={(e) => setFormWarrantyMonths(e.target.value)}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {hasModule(business?.business_type, 'IMEI_SERIAL') && (
+                  <Input
+                    label="IMEI / Device Serial Number"
+                    placeholder="e.g. 864209048123456"
+                    value={formImeiSerial}
+                    onChange={(e) => setFormImeiSerial(e.target.value)}
+                  />
+                )}
+                {hasModule(business?.business_type, 'WARRANTY') && (
+                  <Input
+                    label="Brand Warranty (Months)"
+                    placeholder="e.g. 12"
+                    type="number"
+                    value={formWarrantyMonths}
+                    onChange={(e) => setFormWarrantyMonths(e.target.value)}
+                  />
+                )}
               </div>
             </div>
           )}
 
-          {/* Pricing Row */}
-          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Price & Margin Settings
-              </span>
-              {estMargin() && (
-                <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
-                  Margin: ~{estMargin()}%
-                </span>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* 4. Core Pricing & Stock Grid */}
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <Input
                 label={t('products.sellingPrice')}
                 placeholder="0.00"
@@ -957,16 +971,6 @@ export default function ProductsPage() {
               />
 
               <Input
-                label={t('products.purchasePrice')}
-                placeholder="0.00"
-                type="number"
-                step="0.01"
-                value={formPurchasePrice}
-                onChange={(e) => setFormPurchasePrice(e.target.value)}
-                leftIcon={<span className="text-xs font-bold text-slate-500">₹</span>}
-              />
-
-              <Input
                 label={t('products.mrp')}
                 placeholder="0.00"
                 type="number"
@@ -975,43 +979,30 @@ export default function ProductsPage() {
                 onChange={(e) => setFormMrp(e.target.value)}
                 leftIcon={<span className="text-xs font-bold text-slate-500">₹</span>}
               />
-            </div>
-
-            {/* Wholesale Pricing Tier (Thok Bhav) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
-              <Input
-                label="Wholesale Price (Thok Rate ₹)"
-                placeholder="Optional bulk rate (e.g. 45.00)"
-                type="number"
-                step="0.01"
-                value={formWholesalePrice}
-                onChange={(e) => setFormWholesalePrice(e.target.value)}
-                leftIcon={<span className="text-xs font-bold text-amber-600">₹</span>}
-              />
 
               <Input
-                label="Min Wholesale Qty (Auto-discount threshold)"
-                placeholder="e.g. 5 or 10"
+                label={business?.business_type === 'restaurant' ? 'Available Servings' : t('products.currentStock')}
+                placeholder={business?.business_type === 'restaurant' ? '999' : '10'}
                 type="number"
-                value={formWholesaleMinQty}
-                onChange={(e) => setFormWholesaleMinQty(e.target.value)}
+                value={formStock}
+                onChange={(e) => setFormStock(e.target.value)}
               />
             </div>
 
-            {/* GST Rate Options */}
+            {/* GST Tax Slabs */}
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                {t('products.taxRate')}
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                {t('products.taxRate')} (GST)
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 {[0, 5, 12, 18, 28].map((rate) => (
                   <button
                     key={rate}
                     type="button"
                     onClick={() => setFormTaxRate(rate)}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-bold ${
+                    className={`flex-1 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer ${
                       formTaxRate === rate
-                        ? 'bg-slate-900 border-slate-900 text-white'
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-2xs'
                         : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
@@ -1020,102 +1011,154 @@ export default function ProductsPage() {
                 ))}
               </div>
             </div>
+
+            {/* Barcode & Loose Weight Row (if module enabled) */}
+            {(hasModule(business?.business_type, 'BARCODE') || hasModule(business?.business_type, 'WEIGHT')) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-200">
+                {hasModule(business?.business_type, 'BARCODE') && (
+                  <Input
+                    label={t('products.barcode')}
+                    placeholder="Scan or enter barcode"
+                    value={formBarcode}
+                    onChange={(e) => setFormBarcode(e.target.value)}
+                    leftIcon={<Barcode className="w-4 h-4 text-slate-400" />}
+                    rightIcon={
+                      <button
+                        type="button"
+                        onClick={() => setIsScannerOpen(true)}
+                        className="text-slate-700 hover:text-slate-900 p-1 cursor-pointer"
+                        title="Scan Barcode via Camera"
+                      >
+                        <Camera className="w-4 h-4" />
+                      </button>
+                    }
+                  />
+                )}
+
+                {hasModule(business?.business_type, 'WEIGHT') && (
+                  <label className="flex items-start gap-2 p-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={formIsLooseItem}
+                      onChange={(e) => setFormIsLooseItem(e.target.checked)}
+                      className="mt-0.5 rounded text-slate-900 focus:ring-0 cursor-pointer"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-900 text-xs block">⚖️ Loose / Sold by Weight</span>
+                      <span className="text-[10px] text-slate-500 block leading-tight">
+                        Allows custom fractional weights (50g, 250g, 0.5 kg) in billing.
+                      </span>
+                    </div>
+                  </label>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Stock & Barcode Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Input
-              label={t('products.currentStock')}
-              placeholder="10"
-              type="number"
-              value={formStock}
-              onChange={(e) => setFormStock(e.target.value)}
-            />
+          {/* 5. Collapsible Advanced & Wholesale Settings Drawer */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+              className="w-full px-3 py-2 bg-slate-100/70 hover:bg-slate-100 flex items-center justify-between text-xs font-bold text-slate-800 cursor-pointer"
+            >
+              <span className="flex items-center gap-1.5">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
+                <span>Advanced Settings (Wholesale Rates, Purchase Cost &amp; Reorder Level)</span>
+              </span>
+              {showAdvancedSettings ? (
+                <ChevronUp className="w-4 h-4 text-slate-500" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-500" />
+              )}
+            </button>
 
-            <Input
-              label={t('products.minStock')}
-              placeholder="5"
-              type="number"
-              value={formMinStock}
-              onChange={(e) => setFormMinStock(e.target.value)}
-              helperText="Alerts when stock is at or below this"
-            />
+            {showAdvancedSettings && (
+              <div className="p-3 bg-white space-y-3 border-t border-slate-200">
+                {/* Cost Price & Margin */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <Input
+                    label={t('products.purchasePrice')}
+                    placeholder="0.00"
+                    type="number"
+                    step="0.01"
+                    value={formPurchasePrice}
+                    onChange={(e) => setFormPurchasePrice(e.target.value)}
+                    leftIcon={<span className="text-xs font-bold text-slate-500">₹</span>}
+                    helperText={estMargin() ? `Estimated Margin: ~${estMargin()}%` : undefined}
+                  />
 
-            <div>
-              <Input
-                label={t('products.barcode')}
-                placeholder="Scan or type barcode"
-                value={formBarcode}
-                onChange={(e) => setFormBarcode(e.target.value)}
-                leftIcon={<Barcode className="w-4 h-4 text-slate-400" />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setIsScannerOpen(true)}
-                    className="text-slate-700 hover:text-slate-900 p-1"
-                    title="Scan Barcode via Camera"
+                  <Input
+                    label={t('products.minStock')}
+                    placeholder="5"
+                    type="number"
+                    value={formMinStock}
+                    onChange={(e) => setFormMinStock(e.target.value)}
+                    helperText="Alerts when stock falls to or below this"
+                  />
+                </div>
+
+                {/* Wholesale / Thok Bhav */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-100">
+                  <Input
+                    label="Wholesale Price (Thok Rate ₹)"
+                    placeholder="Optional bulk rate (e.g. 45.00)"
+                    type="number"
+                    step="0.01"
+                    value={formWholesalePrice}
+                    onChange={(e) => setFormWholesalePrice(e.target.value)}
+                    leftIcon={<span className="text-xs font-bold text-amber-600">₹</span>}
+                  />
+
+                  <Input
+                    label="Min Wholesale Qty (Threshold)"
+                    placeholder="e.g. 5 or 10"
+                    type="number"
+                    value={formWholesaleMinQty}
+                    onChange={(e) => setFormWholesaleMinQty(e.target.value)}
+                  />
+                </div>
+
+                {/* Unlimited Stock & Favorite Toggles */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-100 text-xs">
+                  <label className="flex items-start gap-2 cursor-pointer p-2 rounded-lg border border-slate-200 bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={formIsUnlimitedStock}
+                      onChange={(e) => setFormIsUnlimitedStock(e.target.checked)}
+                      className="mt-0.5 rounded text-slate-900 focus:ring-0 cursor-pointer"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-900 block">♾️ Unlimited Stock</span>
+                      <span className="text-[10px] text-slate-500 block leading-tight">
+                        Bypasses out-of-stock check during checkout.
+                      </span>
+                    </div>
+                  </label>
+
+                  <label 
+                    onClick={() => setFormIsFavorite(!formIsFavorite)}
+                    className="flex items-start gap-2 cursor-pointer p-2 rounded-lg border border-slate-200 bg-slate-50"
                   >
-                    <Camera className="w-4 h-4" />
-                  </button>
-                }
-              />
-            </div>
+                    <Star className={`w-4 h-4 mt-0.5 shrink-0 ${formIsFavorite ? 'fill-amber-400 text-amber-500' : 'text-slate-400'}`} />
+                    <div>
+                      <span className="font-bold text-slate-900 block">{t('products.isFavorite')}</span>
+                      <span className="text-[10px] text-slate-500 block leading-tight">
+                        Pinned to top quick billing POS counter.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Kirana Loose & Unlimited Stock Options */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-            <label className="flex items-start gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formIsLooseItem}
-                onChange={(e) => setFormIsLooseItem(e.target.checked)}
-                className="mt-0.5 rounded text-slate-900 focus:ring-0 cursor-pointer"
-              />
-              <div>
-                <span className="font-bold text-slate-900 block">⚖️ Loose Item / Sold by Weight</span>
-                <span className="text-[10px] text-slate-500 block">
-                  Allows custom fractional weights (e.g. 50g, 250g, 0.5 kg) in billing.
-                </span>
-              </div>
-            </label>
-
-            <label className="flex items-start gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formIsUnlimitedStock}
-                onChange={(e) => setFormIsUnlimitedStock(e.target.checked)}
-                className="mt-0.5 rounded text-slate-900 focus:ring-0 cursor-pointer"
-              />
-              <div>
-                <span className="font-bold text-slate-900 block">♾️ Unlimited / Untracked Stock</span>
-                <span className="text-[10px] text-slate-500 block">
-                  Bypasses stock limits for items where counting is difficult or open.
-                </span>
-              </div>
-            </label>
-          </div>
-
-          {/* Pin to favorites */}
-          <div
-            onClick={() => setFormIsFavorite(!formIsFavorite)}
-            className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 bg-white cursor-pointer hover:bg-slate-50"
-          >
-            <Star className={`w-4 h-4 ${formIsFavorite ? 'fill-amber-400 text-amber-500' : 'text-slate-400'}`} />
-            <div>
-              <div className="text-xs font-bold text-slate-900">
-                {t('products.isFavorite')}
-              </div>
-              <div className="text-[10px] text-slate-500">
-                Quickly accessible on the main billing POS screen
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-200">
+          {/* Modal Action Buttons */}
+          <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-200">
             <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" size="sm">
+            <Button type="submit" size="sm" className="shadow-xs">
               <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
               <span>{t('products.saveProduct')}</span>
             </Button>

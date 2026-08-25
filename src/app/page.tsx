@@ -31,8 +31,18 @@ import {
   Zap,
   SlidersHorizontal,
   Plus,
-  Lock
+  Lock,
+  Pill,
+  UtensilsCrossed,
+  Shirt,
+  Wrench,
+  Stethoscope,
+  Tag,
+  Scale,
+  Clock,
+  Sparkle
 } from 'lucide-react';
+import { getStoreProfile, hasModule } from '@/lib/constants/storeProfiles';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -62,6 +72,22 @@ export default function HomePage() {
   // Metrics Queries
   const products = useLiveQuery(async () => db.products.toArray()) || [];
   const lowStockProducts = products.filter((p) => p.current_stock <= p.min_stock_level);
+
+  // Niche Metric Computations
+  const businessType = business?.business_type || 'grocery';
+  const nowMs = new Date().getTime();
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  
+  // Pharmacy: Expiry alerts
+  const expiredMedicines = products.filter((p) => p.expiry_date && new Date(p.expiry_date).getTime() <= nowMs);
+  const expiringSoonMedicines = products.filter((p) => {
+    if (!p.expiry_date) return false;
+    const diff = new Date(p.expiry_date).getTime() - nowMs;
+    return diff > 0 && diff <= thirtyDaysMs;
+  });
+
+  // Loose Items (Kirana)
+  const looseItemsCount = products.filter((p) => p.is_loose_item || ['kg', 'gram', 'litre'].includes(p.unit)).length;
 
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
   const customersWithCredit = customers.filter((c) => c.current_balance > 0);
@@ -284,6 +310,215 @@ export default function HomePage() {
           <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
         </button>
       </div>
+
+      {/* ---------------- SPECIALIZED NICHE RADAR & ADAPTIVE HUB ---------------- */}
+      {businessType === 'pharmacy' && (
+        <div className="bg-gradient-to-br from-teal-900 to-emerald-950 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-teal-700/40">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center font-bold flex-shrink-0">
+                <Pill className="w-4 h-4 text-teal-300" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+                  <span>Pharmacy Expiry Watchdog &amp; Rx Desk</span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-teal-500/30 text-teal-200 text-[9px] font-black uppercase">
+                    Live Radar
+                  </span>
+                </h3>
+                <p className="text-[10.5px] text-teal-200/80">Batch-wise compliance &amp; supplier return tracking</p>
+              </div>
+            </div>
+            <Link
+              href="/inventory"
+              className="px-2.5 py-1 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-200 font-bold text-[11px] flex items-center gap-1 transition flex-shrink-0"
+            >
+              <span>Expiry Radar</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className={`p-2.5 rounded-xl border ${expiredMedicines.length > 0 ? 'bg-rose-950/60 border-rose-500/40 text-rose-200' : 'bg-white/5 border-white/10 text-slate-300'}`}>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Expired Batches</div>
+              <div className="text-lg font-black font-mono mt-0.5">{expiredMedicines.length}</div>
+              <div className="text-[9.5px] text-rose-300/70">Remove from shelf</div>
+            </div>
+
+            <div className={`p-2.5 rounded-xl border ${expiringSoonMedicines.length > 0 ? 'bg-amber-950/60 border-amber-500/40 text-amber-200' : 'bg-white/5 border-white/10 text-slate-300'}`}>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Expiring in 30 Days</div>
+              <div className="text-lg font-black font-mono mt-0.5">{expiringSoonMedicines.length}</div>
+              <div className="text-[9.5px] text-amber-300/70">Return to supplier</div>
+            </div>
+
+            <Link href="/billing" className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white flex flex-col justify-between transition group">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-teal-300 flex items-center justify-between">
+                <span>Doctor Rx Billing</span>
+                <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <div className="text-[11px] font-bold text-teal-100 mt-1">Patient &amp; Batch on Slip</div>
+            </Link>
+
+            <Link href="/products" className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white flex flex-col justify-between transition group">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-teal-300 flex items-center justify-between">
+                <span>Strip / Tab Master</span>
+                <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <div className="text-[11px] font-bold text-teal-100 mt-1">{products.length} Formulations</div>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {businessType === 'restaurant' && (
+        <div className="bg-gradient-to-br from-amber-900 via-orange-950 to-amber-950 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-amber-700/40">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold flex-shrink-0">
+                <UtensilsCrossed className="w-4 h-4 text-amber-300" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+                  <span>Dine-In Tables &amp; Quick KOT Counter</span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-amber-500/30 text-amber-200 text-[9px] font-black uppercase">
+                    Food &amp; Beverage
+                  </span>
+                </h3>
+                <p className="text-[10.5px] text-amber-200/80">1-Tap Table Order, Parcel &amp; Kitchen Tokens</p>
+              </div>
+            </div>
+            <Link
+              href="/billing"
+              className="px-2.5 py-1 rounded-lg bg-amber-500/30 hover:bg-amber-500/40 text-amber-100 font-bold text-[11px] flex items-center gap-1 transition flex-shrink-0"
+            >
+              <span>Touch Menu</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {['T-1', 'T-2', 'T-3', 'T-4', 'T-5', 'T-6', 'T-7', 'T-8', 'Takeaway Parcel'].map((tbl) => (
+              <Link
+                key={tbl}
+                href={`/billing?orderType=${tbl.includes('Parcel') ? 'takeaway' : 'dine_in'}&table=${tbl.replace('T-', '')}`}
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-amber-500/40 border border-white/15 text-white text-xs font-black whitespace-nowrap active:scale-95 transition"
+              >
+                {tbl}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {businessType === 'clothing' && (
+        <div className="bg-gradient-to-br from-indigo-900 to-purple-950 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-indigo-700/40">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold flex-shrink-0">
+                <Shirt className="w-4 h-4 text-indigo-300" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+                  <span>Apparel Variants &amp; Price Tag Studio</span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 text-[9px] font-black uppercase">
+                    Garments &amp; Footwear
+                  </span>
+                </h3>
+                <p className="text-[10.5px] text-indigo-200/80">Sizes S/M/L/XL &amp; Hang-tag barcode printing</p>
+              </div>
+            </div>
+            <Link
+              href="/barcode-generator"
+              className="px-2.5 py-1 rounded-lg bg-indigo-500/30 hover:bg-indigo-500/40 text-indigo-100 font-bold text-[11px] flex items-center gap-1 transition flex-shrink-0"
+            >
+              <span>Print Tags</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+            <Link href="/barcode-generator" className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white flex items-center justify-between transition group">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Barcode Labels</div>
+                <div className="text-xs font-bold text-indigo-100">Thermal &amp; A4 Stickers</div>
+              </div>
+              <Tag className="w-4 h-4 text-indigo-300 group-hover:scale-110 transition-transform" />
+            </Link>
+
+            <Link href="/products" className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white flex items-center justify-between transition group">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Size Matrix</div>
+                <div className="text-xs font-bold text-indigo-100">XS, S, M, L, XL, 32, 34</div>
+              </div>
+              <Shirt className="w-4 h-4 text-indigo-300 group-hover:scale-110 transition-transform" />
+            </Link>
+
+            <Link href="/billing" className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white flex items-center justify-between transition group col-span-2 sm:col-span-1">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Fast Billing</div>
+                <div className="text-xs font-bold text-indigo-100">Color/Size Picker Modal</div>
+              </div>
+              <Receipt className="w-4 h-4 text-indigo-300 group-hover:scale-110 transition-transform" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {businessType === 'grocery' && (
+        <div className="bg-gradient-to-br from-emerald-900 to-slate-950 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-emerald-700/40">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold flex-shrink-0">
+                <Scale className="w-4 h-4 text-emerald-300" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+                  <span>Kirana Fast Counter &amp; Loose Staples</span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 text-[9px] font-black uppercase">
+                    Grocery Desk
+                  </span>
+                </h3>
+                <p className="text-[10.5px] text-emerald-200/80">{looseItemsCount} loose weight items • Laser scanner auto-focus</p>
+              </div>
+            </div>
+            <Link
+              href="/billing"
+              className="px-2.5 py-1 rounded-lg bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-100 font-bold text-[11px] flex items-center gap-1 transition flex-shrink-0"
+            >
+              <span>Quick Counter</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {businessType === 'hardware' && (
+        <div className="bg-gradient-to-br from-slate-900 via-zinc-900 to-slate-950 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-slate-700/40">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold flex-shrink-0">
+                <Wrench className="w-4 h-4 text-amber-300" />
+              </div>
+              <div>
+                <h3 className="text-xs sm:text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+                  <span>Hardware Contractor &amp; Bulk Reorder Hub</span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-amber-500/30 text-amber-200 text-[9px] font-black uppercase">
+                    Sanitary &amp; Tools
+                  </span>
+                </h3>
+                <p className="text-[10.5px] text-slate-300">Meter, sq.ft, pipe &amp; wire length units • Wholesale contractor rates</p>
+              </div>
+            </div>
+            <Link
+              href="/khata"
+              className="px-2.5 py-1 rounded-lg bg-amber-500/30 hover:bg-amber-500/40 text-amber-100 font-bold text-[11px] flex items-center gap-1 transition flex-shrink-0"
+            >
+              <span>Contractor Udhar</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* ---------------- PRIMARY DAILY OPERATIONS (COMPACT, HIGH CONTRAST LIGHT CARDS) ---------------- */}
       <div>

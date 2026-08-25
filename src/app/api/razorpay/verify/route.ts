@@ -7,15 +7,10 @@ export const dynamic = 'force-dynamic';
 
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
 
-const PLAN_TIERS: Record<string, { tier: 'pro' | 'enterprise'; durationDays: number }> = {
-  pro: { tier: 'pro', durationDays: 30 },
-  enterprise: { tier: 'enterprise', durationDays: 30 },
-};
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan, billingCycle } = body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan = 'pro', billingCycle = 'annual' } = body;
 
     // 1. Identify user / business (cookie session or body fallback)
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -24,49 +19,69 @@ export async function POST(req: NextRequest) {
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json(
-        { success: false, error: 'Missing required payment fields.' },
+        { success: false, error: 'Missing required payment fields (order_id, payment_id, signature).' },
         { status: 400 }
       );
     }
 
     if (!RAZORPAY_KEY_SECRET) {
+      console.error('[SECURITY ERROR] RAZORPAY_KEY_SECRET is not configured on server.');
       return NextResponse.json(
-        { success: false, error: 'Payment gateway not configured.' },
+        { success: false, error: 'Payment gateway configuration error on server.' },
         { status: 503 }
       );
     }
 
-    // 2. Verify HMAC signature
+    // 2. Cryptographic HMAC-SHA256 signature verification with constant-time comparison
     const expectedSignature = crypto
       .createHmac('sha256', RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
-    if (expectedSignature !== razorpay_signature) {
-      console.error('Razorpay signature mismatch — possible tamper attempt');
+    const expectedBuf = Buffer.from(expectedSignature, 'utf8');
+    const signatureBuf = Buffer.from(razorpay_signature, 'utf8');
+
+    if (expectedBuf.length !== signatureBuf.length || !crypto.timingSafeEqual(expectedBuf, signatureBuf)) {
+      console.error('Razorpay signature verification mismatch — possible tampering detected');
       return NextResponse.json(
-        { success: false, error: 'Payment verification failed. Signature mismatch.' },
+        { success: false, error: 'Payment verification failed. Invalid cryptographic signature.' },
         { status: 400 }
       );
     }
 
-    // 3. Upgrade subscription in Supabase
-    const planDetails = PLAN_TIERS[plan];
-    const planTier = (plan as string) || 'pro';
+    // 3. Compute subscription duration
     const isAnnual = billingCycle === 'annual' || plan === 'pro_annual';
     const durationDays = isAnnual ? 365 : 30;
 
-    const validUntil = new Date();
+    const now = new Date();
+    const validUntil = new Date(now);
     validUntil.setDate(validUntil.getDate() + durationDays);
 
+    const nowISO = now.toISOString();
+    const validUntilISO = validUntil.toISOString();
+
+    // 4. Update Supabase backend if configured
     const supabase = getSupabaseServerClient();
     if (supabase && businessId && businessId !== 'biz_local') {
+      // Record subscription payment
+      await supabase.from('subscriptions').insert({
+        business_id: businessId,
+        tier: 'pro',
+        billing_cycle: isAnnual ? 'annual' : 'monthly',
+        razorpay_order_id,
+        razorpay_payment_id,
+        status: 'paid',
+        activated_at: nowISO,
+        valid_until: validUntilISO,
+      });
+
+      // Update business tier
       const { error: updateError } = await supabase
         .from('businesses')
         .update({
           subscription_tier: 'pro',
-          subscription_valid_until: validUntil.toISOString(),
-          updated_at: new Date().toISOString(),
+          subscription_valid_until: validUntilISO,
+          updated_at: nowISO,
         })
         .eq('id', businessId);
 
@@ -75,16 +90,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log(`✅ Subscription upgraded: business=${businessId} plan=pro until=${validUntil.toISOString()}`);
+    console.log(`✅ Subscription verified & upgraded: business=${businessId} plan=pro validUntil=${validUntilISO}`);
 
     return NextResponse.json({
       success: true,
       tier: 'pro',
-      validUntil: validUntil.toISOString(),
-      message: `🎉 Pro plan activated!`,
+      billingCycle: isAnnual ? 'annual' : 'monthly',
+      activatedAt: nowISO,
+      validUntil: validUntilISO,
+      message: '🎉 Pro plan payment verified and activated successfully!',
     });
   } catch (err: any) {
-    console.error('Verify payment error:', err);
-    return NextResponse.json({ success: false, error: err.message || 'Internal server error.' }, { status: 500 });
+    console.error('Verify payment exception:', err);
+    return NextResponse.json(
+      { success: false, error: err.message || 'Internal server error during verification.' },
+      { status: 500 }
+    );
   }
 }

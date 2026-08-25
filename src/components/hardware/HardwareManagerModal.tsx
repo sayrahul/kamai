@@ -10,11 +10,14 @@ import {
   Play, 
   Volume2, 
   Sliders,
-  Sparkles
+  Sparkles,
+  QrCode,
+  Layers
 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
+import { ThermalPaperWidth } from '@/lib/hardware/escpos';
 import { playSupermarketBeep } from '@/lib/hardware/barcodeScannerListener';
 import { useProSubscription, ProFeatureBadge, ProFeatureLockedCard } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
@@ -38,13 +41,38 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
   const [isConnectingPrinter, setIsConnectingPrinter] = useState<boolean>(false);
   const [printSuccessMsg, setPrintSuccessMsg] = useState<string>('');
 
+  // Hardware Preferences
+  const [paperWidth, setPaperWidth] = useState<ThermalPaperWidth>(58);
+  const [isCashDrawerEnabled, setIsCashDrawerEnabled] = useState<boolean>(true);
+  const [isUpiQrEnabled, setIsUpiQrEnabled] = useState<boolean>(true);
+
   // Scanner Test State
   const [lastScannedBarcode, setLastScannedBarcode] = useState<string>('');
 
   useEffect(() => {
-    setPrinterConnected(bluetoothPrinter.isConnected());
-    setPrinterName(bluetoothPrinter.getDeviceName());
+    if (isOpen) {
+      setPrinterConnected(bluetoothPrinter.isConnected());
+      setPrinterName(bluetoothPrinter.getDeviceName());
+      setPaperWidth(bluetoothPrinter.getSavedPaperWidth());
+      setIsCashDrawerEnabled(bluetoothPrinter.isCashDrawerEnabled());
+      setIsUpiQrEnabled(bluetoothPrinter.isUpiQrEnabled());
+    }
   }, [isOpen]);
+
+  const handlePaperWidthChange = (width: ThermalPaperWidth) => {
+    setPaperWidth(width);
+    bluetoothPrinter.setSavedPaperWidth(width);
+  };
+
+  const handleCashDrawerToggle = (enabled: boolean) => {
+    setIsCashDrawerEnabled(enabled);
+    bluetoothPrinter.setCashDrawerEnabled(enabled);
+  };
+
+  const handleUpiQrToggle = (enabled: boolean) => {
+    setIsUpiQrEnabled(enabled);
+    bluetoothPrinter.setUpiQrEnabled(enabled);
+  };
 
   // Connect Bluetooth Printer
   const handleConnectPrinter = async () => {
@@ -88,19 +116,20 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
         amount_received: 14700,
         balance_due: 0,
         items: [
-          { product_name: 'Test Item 1', quantity: 2, unit: 'piece', unit_price: 5000, total_amount: 10000 },
-          { product_name: 'Test Item 2', quantity: 1, unit: 'kg', unit_price: 5000, total_amount: 5000 },
+          { product_name: 'Tata Tea Gold 250g', quantity: 2, unit: 'packet', unit_price: 5000, total_amount: 10000, batch_number: 'TT-2026', expiry_date: '2027-12' },
+          { product_name: 'Fortune Sunlite Oil 1L', quantity: 1, unit: 'pouch', unit_price: 4700, total_amount: 4700 },
         ],
       };
       const sampleBiz: any = {
-        name: 'KamaiPlus POS Test',
+        name: 'KamaiPlus Demo Store',
         phone: '9876543210',
+        upi_id: 'merchant@upi',
         tagline: 'Bluetooth ESC/POS Thermal Ready',
         terms_conditions: 'Thank you for testing hardware integration!',
-        footer_message: 'Powered by KamaiPlus',
+        footer_message: 'Powered by KamaiPlus Retail POS',
       };
-      await bluetoothPrinter.printSaleReceipt(sampleSale, sampleBiz, 58);
-      setPrintSuccessMsg('Test receipt sent to printer!');
+      await bluetoothPrinter.printSaleReceipt(sampleSale, sampleBiz, paperWidth);
+      setPrintSuccessMsg(`Test receipt sent to printer (${paperWidth}mm)!`);
       setTimeout(() => setPrintSuccessMsg(''), 4000);
     } catch (err: any) {
       alert(err.message || 'Printing failed. Make sure printer is turned on and paired.');
@@ -114,10 +143,10 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
       title={
         <div className="flex items-center gap-2">
           <Sliders className="w-4 h-4 text-slate-800" />
-          <span>POS Hardware & Peripherals Manager</span>
+          <span>POS Hardware &amp; Peripherals Manager</span>
         </div>
       }
-      description="Connect Bluetooth thermal receipt printers and laser barcode guns."
+      description="Connect Bluetooth thermal receipt printers, configure roll width, and test barcode guns."
       size="lg"
     >
       <div className="space-y-4">
@@ -165,6 +194,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
               </div>
             )}
 
+            {/* Connection Status Card */}
             <div className="p-4 rounded-2xl border bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -177,7 +207,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
                     {printerConnected ? printerName : 'No Bluetooth Printer Connected'}
                   </div>
                   <div className="text-[11px] text-slate-500 mt-0.5">
-                    {printerConnected ? 'Ready for 1-click ESC/POS direct printing' : 'Supports Sunmi, TVS, Epson, Everycom, NGX'}
+                    {printerConnected ? 'Ready for 1-click ESC/POS direct printing' : 'Supports Sunmi, TVS, Epson, Everycom, NGX, Rongta'}
                   </div>
                 </div>
               </div>
@@ -196,12 +226,78 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
               </div>
             </div>
 
+            {/* Thermal Roll Configuration */}
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-3">
+              <span className="text-xs font-bold text-slate-900 block">Printer Hardware Preferences</span>
+              
+              {/* Paper Roll Width Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-700 block">Thermal Paper Roll Width:</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePaperWidthChange(58)}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      paperWidth === 58
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>58mm (2-Inch Standard)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePaperWidthChange(80)}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      paperWidth === 80
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>80mm (3-Inch Wide)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Hardware Toggles */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={isCashDrawerEnabled}
+                    onChange={(e) => handleCashDrawerToggle(e.target.checked)}
+                    className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900"
+                  />
+                  <div>
+                    <span className="font-bold text-slate-900 block">Cash Drawer Kick</span>
+                    <span className="text-[10px] text-slate-500">Pulse open drawer on cash checkout</span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={isUpiQrEnabled}
+                    onChange={(e) => handleUpiQrToggle(e.target.checked)}
+                    className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900"
+                  />
+                  <div>
+                    <span className="font-bold text-slate-900 block">Dynamic UPI QR Code</span>
+                    <span className="text-[10px] text-slate-500">Print scannable payment QR on receipt</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
             {/* Test Printing Action */}
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-2">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-slate-900 block">ESC/POS Fast Printing Test</span>
-                  <span className="text-[11px] text-slate-500">Prints a 58mm / 80mm sample receipt directly without dialog</span>
+                  <span className="text-[11px] text-slate-500">Prints a formatted sample receipt directly to your paired printer</span>
                 </div>
                 <Button size="sm" variant="outline" onClick={handleTestPrint} className="text-xs font-bold gap-1">
                   <Play className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
@@ -220,7 +316,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
             <div className="text-[11px] text-slate-500 bg-amber-50 border border-amber-200 p-2.5 rounded-lg flex items-start gap-2">
               <Sparkles className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
               <span>
-                <strong>Tip:</strong> Once paired, the app remembers your printer for instant 1-click receipts on the checkout counter.
+                <strong>Tip:</strong> Once paired, KamaiPlus remembers your printer and roll width for instant 1-click receipts on the counter.
               </span>
             </div>
           </div>

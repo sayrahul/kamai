@@ -29,7 +29,7 @@ import { Card } from '@/components/ui/Card';
 import { compressImageFile } from '@/lib/utils/imageCompressor';
 import { uploadStoreLogoToStorage } from '@/lib/firebase/storage';
 import { BusinessType } from '@/types';
-import { getStoreProfile } from '@/lib/constants/storeProfiles';
+import { getStoreProfile, getAllStoreProfiles } from '@/lib/constants/storeProfiles';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
 import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { Lock } from 'lucide-react';
@@ -49,6 +49,9 @@ export default function SettingsPage() {
   const [address, setAddress] = useState('');
   const [pincode, setPincode] = useState('');
   const [gstin, setGstin] = useState('');
+  const [drugLicenseNo, setDrugLicenseNo] = useState('');
+  const [pharmacistRegNo, setPharmacistRegNo] = useState('');
+  const [fssaiLicenseNo, setFssaiLicenseNo] = useState('');
   
   // Multiple UPI Management State
   const [upiList, setUpiList] = useState<UpiAccount[]>([]);
@@ -86,6 +89,9 @@ export default function SettingsPage() {
       setAddress(business.address || '');
       setPincode(business.pincode || '');
       setGstin(business.gstin || '');
+      setDrugLicenseNo(business.drug_license_no || '');
+      setPharmacistRegNo(business.pharmacist_reg_no || '');
+      setFssaiLicenseNo(business.fssai_license_no || '');
       
       const initialUpiList: UpiAccount[] = business.upi_ids && business.upi_ids.length > 0
         ? business.upi_ids
@@ -221,6 +227,9 @@ export default function SettingsPage() {
       address: address.trim(),
       pincode: pincode.trim() || undefined,
       gstin: gstin.trim() || undefined,
+      drug_license_no: drugLicenseNo.trim() || undefined,
+      pharmacist_reg_no: pharmacistRegNo.trim() || undefined,
+      fssai_license_no: fssaiLicenseNo.trim() || undefined,
       upi_id: primaryUpi,
       upi_ids: upiList,
       bank_name: bankName.trim() || undefined,
@@ -421,6 +430,29 @@ export default function SettingsPage() {
                   </span>
                 </div>
 
+                {/* Interactive Store Category Profile Switcher */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-900 block">
+                      Business Type / Store Category
+                    </label>
+                    <span className="text-[10px] font-bold text-slate-500">
+                      Auto-configures units, POS layout &amp; inventory fields
+                    </span>
+                  </div>
+                  <select
+                    value={businessType}
+                    onChange={(e) => setBusinessType(e.target.value as BusinessType)}
+                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-xs font-bold focus:border-slate-900 focus:outline-none min-h-[38px] shadow-2xs"
+                  >
+                    {getAllStoreProfiles().map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.emoji} {p.name} ({p.tagline})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <Input
                     label="Store / Business Name"
@@ -467,6 +499,33 @@ export default function SettingsPage() {
                     value={gstin}
                     onChange={(e) => setGstin(e.target.value.toUpperCase())}
                   />
+
+                  {/* Niche Regulatory License Fields */}
+                  {businessType === 'pharmacy' && (
+                    <>
+                      <Input
+                        label="Drug License No. (DL 20B / 21B)"
+                        placeholder="e.g. MH-MZ2-123456 / 20B, 21B"
+                        value={drugLicenseNo}
+                        onChange={(e) => setDrugLicenseNo(e.target.value.toUpperCase())}
+                      />
+                      <Input
+                        label="Registered Pharmacist Reg. No."
+                        placeholder="e.g. PH-109283 / Reg. Pharmacist"
+                        value={pharmacistRegNo}
+                        onChange={(e) => setPharmacistRegNo(e.target.value)}
+                      />
+                    </>
+                  )}
+
+                  {(businessType === 'restaurant' || businessType === 'grocery') && (
+                    <Input
+                      label="FSSAI Food Safety License No."
+                      placeholder="e.g. 11521000001234 (14 digits)"
+                      value={fssaiLicenseNo}
+                      onChange={(e) => setFssaiLicenseNo(e.target.value)}
+                    />
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

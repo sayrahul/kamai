@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth/session';
+import { verifyAdminRequest } from '@/lib/admin/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
     let businessId: string | undefined;
+    const isAdmin = verifyAdminRequest(req);
 
     // Verify session token from cookie
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -17,7 +19,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const {
       tier, // 'free' | 'pro' | 'enterprise'
       billingCycle = 'annual', // 'monthly' | 'annual'
@@ -47,6 +49,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Security Gate: Non-admin users activating paid tiers online must provide payment/transaction references
+    if (!isAdmin && tier !== 'free' && !razorpayPaymentId && !body.referralCode && !body.couponCode) {
+      return NextResponse.json(
+        { success: false, error: 'Payment or valid authorization reference is required for paid plan activation.' },
+        { status: 403 }
+      );
+    }
+
     const now = new Date();
     const expiryDate = new Date(now);
     if (billingCycle === 'monthly') {
@@ -68,7 +78,7 @@ export async function POST(req: NextRequest) {
           tier,
           billing_cycle: billingCycle,
           razorpay_order_id: razorpayOrderId || null,
-          razorpay_payment_id: razorpayPaymentId || `REF_${Date.now()}`,
+          razorpay_payment_id: razorpayPaymentId || (isAdmin ? 'ADMIN_MANUAL_GRANT' : `REF_${Date.now()}`),
           status: 'paid',
           activated_at: nowISO,
           valid_until: validUntilISO,

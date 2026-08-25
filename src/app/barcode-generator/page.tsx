@@ -68,7 +68,10 @@ export default function BarcodeGeneratorPage() {
   const { isPro, requirePro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { language } = useTranslation();
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
-  const allProducts = useLiveQuery(async () => db.products.where('is_active').equals(1).toArray()) || [];
+  const allProducts = useLiveQuery(async () => {
+    const prods = await db.products.toArray();
+    return prods.filter((p) => p.is_active !== false);
+  }) || [];
 
   // Print Layout State
   const [layout, setLayout] = useState<LabelLayout>('a4_24');

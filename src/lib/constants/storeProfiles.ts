@@ -1,7 +1,7 @@
 // Store Category Profiles Configuration for KamaiPlus (Kamai+)
-// Defines dynamic UI fields, placeholders, feature toggles, quick category chips, and starter products per business niche.
+// Defines dynamic UI fields, modules, placeholders, feature toggles, quick category chips, and starter products per business niche.
 
-import { BusinessType, ProductUnit } from '@/types';
+import { BusinessType, ProductUnit, ModuleId, ProductAttributeDefinition } from '@/types';
 
 export interface StoreProfileProduct {
   name: string;
@@ -60,7 +60,10 @@ export interface StoreProfile {
   accentColor: string;
   badgeBg: string;
   
-  // Dynamic UI Feature Toggles
+  // Enabled Modules
+  modules: ModuleId[];
+
+  // Dynamic UI Feature Toggles (Maintained for backwards compatibility)
   featureToggles: {
     showBarcode: boolean; // False for restaurants/cafes, True for kirana/retail
     showWeightUnits: boolean; // kg, gram, litre for kirana/hardware
@@ -99,6 +102,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
     description: 'Optimized for Indian Kirana stores with loose kg/gram weighing, FMCG barcodes, and customer credit ledger.',
     accentColor: '#16a34a',
     badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'SUPPLIERS', 'GST', 'BARCODE', 'WEIGHT', 'PURCHASES', 'EXPENSES', 'REPORTS'],
     featureToggles: {
       showBarcode: true,
       showWeightUnits: true,
@@ -130,7 +134,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
   },
 
   pharmacy: {
-    id: 'pharmacy' as any,
+    id: 'pharmacy',
     name: 'Medical Store & Pharmacy',
     shortName: 'Medical',
     iconName: 'Pill',
@@ -139,6 +143,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
     description: 'Compliant with Indian pharmaceutical standards with auto expiry tracking, batch coding, and prescription tags.',
     accentColor: '#0284c7',
     badgeBg: 'bg-sky-50 text-sky-800 border-sky-200',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'SUPPLIERS', 'GST', 'BARCODE', 'BATCH_EXPIRY', 'PHARMACY', 'PURCHASES', 'EXPENSES', 'REPORTS'],
     featureToggles: {
       showBarcode: true,
       showWeightUnits: false,
@@ -179,8 +184,9 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
     description: 'Fast-paced food billing with Dine-In table selector, Parcel/Takeaway modes, KOT token generation, and no unnecessary barcode boxes.',
     accentColor: '#ea580c',
     badgeBg: 'bg-orange-50 text-orange-800 border-orange-200',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'GST', 'RESTAURANT_ORDERS', 'KOT', 'EXPENSES', 'REPORTS'],
     featureToggles: {
-      showBarcode: false, // Clean touch screen without barcode scanner box!
+      showBarcode: false, // Clean touch screen without barcode scanner box
       showWeightUnits: false,
       showBatchExpiry: false,
       showTableOrderType: true,
@@ -188,7 +194,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showImeiWarranty: false,
       showDoctorPrescription: false,
       showKOTToken: true,
-      hasBillScan: false, // Raw mandi items, not discrete resale SKUs
+      hasBillScan: false,
     },
     placeholders: {
       searchProduct: 'Touch category or type Chai, Paneer, Dosa, Pizza...',
@@ -219,6 +225,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
     description: 'Designed for garment shops and shoe stores with size selection, color tracking, and exchange window notes.',
     accentColor: '#7c3aed',
     badgeBg: 'bg-purple-50 text-purple-800 border-purple-200',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'SUPPLIERS', 'GST', 'BARCODE', 'VARIANTS', 'PURCHASES', 'EXPENSES', 'REPORTS'],
     featureToggles: {
       showBarcode: true,
       showWeightUnits: false,
@@ -258,6 +265,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
     description: 'Tailored for smartphone dealers and electronics retail with IMEI scan-on-bill, warranty periods, and serial tracking.',
     accentColor: '#2563eb',
     badgeBg: 'bg-blue-50 text-blue-800 border-blue-200',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'SUPPLIERS', 'GST', 'BARCODE', 'IMEI_SERIAL', 'WARRANTY', 'PURCHASES', 'EXPENSES', 'REPORTS'],
     featureToggles: {
       showBarcode: true,
       showWeightUnits: false,
@@ -297,13 +305,14 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
     description: 'Built for hardware, paint and sanitary shops with bulk box discounts, meter lengths, and contractor ledgers.',
     accentColor: '#475569',
     badgeBg: 'bg-slate-100 text-slate-800 border-slate-300',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'SUPPLIERS', 'GST', 'BARCODE', 'WEIGHT', 'PURCHASES', 'EXPENSES', 'REPORTS'],
     featureToggles: {
       showBarcode: true,
       showWeightUnits: true,
       showBatchExpiry: false,
       showTableOrderType: false,
       showSizeVariants: false,
-      showImeiWarranty: true,
+      showImeiWarranty: false,
       showDoctorPrescription: false,
       showKOTToken: false,
       hasBillScan: true,
@@ -327,7 +336,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
   },
 
   electrical: {
-    id: 'electrical' as any,
+    id: 'electrical',
     name: 'Electrical & Lighting Store',
     shortName: 'Electrical',
     iconName: 'Zap',
@@ -336,6 +345,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
     description: 'Optimized for electrical shops with wire coil lengths, bulb warranty tracking, and electrician contractor discounts.',
     accentColor: '#ca8a04',
     badgeBg: 'bg-amber-50 text-amber-900 border-amber-300',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'SUPPLIERS', 'GST', 'BARCODE', 'WEIGHT', 'WARRANTY', 'PURCHASES', 'EXPENSES', 'REPORTS'],
     featureToggles: {
       showBarcode: true,
       showWeightUnits: true,
@@ -366,7 +376,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
   },
 
   fmcg: {
-    id: 'fmcg' as any,
+    id: 'fmcg',
     name: 'FMCG & Supermarket',
     shortName: 'Supermarket',
     iconName: 'ShoppingBag',
@@ -375,6 +385,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
     description: 'High-speed checkout for mini-marts and FMCG stores with multiple MRP variants and packaged goods.',
     accentColor: '#059669',
     badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'SUPPLIERS', 'GST', 'BARCODE', 'WEIGHT', 'BATCH_EXPIRY', 'PURCHASES', 'EXPENSES', 'REPORTS'],
     featureToggles: {
       showBarcode: true,
       showWeightUnits: true,
@@ -403,6 +414,238 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       { name: 'Surf Excel Quick Wash Detergent Powder 1kg', category: 'Cleaning & Household', unit: 'piece', selling_price: 14500, purchase_price: 12600, mrp: 15500, tax_rate: 18, barcode: '890109004' },
     ],
   },
+
+  bakery: {
+    id: 'bakery',
+    name: 'Bakery & Sweet Shop',
+    shortName: 'Bakery / Mithai',
+    iconName: 'Sparkles',
+    emoji: '🧁',
+    tagline: 'Fresh bakes, custom cakes, mithai boxes & weight billing',
+    description: 'Specialized for bakeries, pastry shops, and Indian sweet marts with custom cake messages, box sets, and expiry monitoring.',
+    accentColor: '#d97706',
+    badgeBg: 'bg-amber-50 text-amber-900 border-amber-300',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'GST', 'WEIGHT', 'BATCH_EXPIRY', 'EXPENSES', 'REPORTS'],
+    featureToggles: {
+      showBarcode: true,
+      showWeightUnits: true,
+      showBatchExpiry: true,
+      showTableOrderType: false,
+      showSizeVariants: false,
+      showImeiWarranty: false,
+      showDoctorPrescription: false,
+      showKOTToken: false,
+      hasBillScan: true,
+    },
+    placeholders: {
+      searchProduct: 'Search Black Forest Cake, Kaju Katli, Bread, Cookies...',
+      newProductName: 'e.g., Fresh Cream Pineapple Cake (500g)',
+      customerSearch: 'Customer mobile for cake advance booking...',
+      customerNotes: 'e.g., Cake Message: "Happy 10th Birthday Aarav!"',
+      invoiceFooterNote: 'Freshly baked with love! Consume cream cakes within 24 hours. Keep refrigerated.',
+    },
+    defaultUnit: 'piece',
+    recommendedUnits: ['piece', 'kg', 'gram', 'box', 'packet'],
+    quickCategories: ['Fresh Birthday Cakes', 'Pastries & Desserts', 'Breads & Buns', 'Indian Sweets & Mithai', 'Cookies & Biscuits', 'Snacks & Patties'],
+    sampleProducts: [
+      { name: 'Fresh Cream Dutch Chocolate Cake 500g', category: 'Fresh Birthday Cakes', unit: 'piece', selling_price: 45000, purchase_price: 22000, mrp: 45000, tax_rate: 18, expiry_date: '2026-08-28' },
+      { name: 'Kaju Katli Premium Sweets (Box of 500g)', category: 'Indian Sweets & Mithai', unit: 'box', selling_price: 48000, purchase_price: 36000, mrp: 52000, tax_rate: 5 },
+      { name: 'Brown Bread Loaf 400g', category: 'Breads & Buns', unit: 'piece', selling_price: 5000, purchase_price: 3800, mrp: 5000, tax_rate: 0 },
+      { name: 'Veg Cheese Baked Patties', category: 'Snacks & Patties', unit: 'piece', selling_price: 3500, purchase_price: 1800, mrp: 3500, tax_rate: 5 },
+    ],
+  },
+
+  stationery: {
+    id: 'stationery',
+    name: 'Stationery & Book Store',
+    shortName: 'Stationery',
+    iconName: 'BookOpen',
+    emoji: '📚',
+    tagline: 'Notebooks, pens, school supplies, xerox & office goods',
+    description: 'Optimized for book shops, school stationery counters, and photocopy centers with packet sets and barcode tagging.',
+    accentColor: '#0891b2',
+    badgeBg: 'bg-cyan-50 text-cyan-900 border-cyan-300',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'SUPPLIERS', 'GST', 'BARCODE', 'PURCHASES', 'EXPENSES', 'REPORTS'],
+    featureToggles: {
+      showBarcode: true,
+      showWeightUnits: false,
+      showBatchExpiry: false,
+      showTableOrderType: false,
+      showSizeVariants: false,
+      showImeiWarranty: false,
+      showDoctorPrescription: false,
+      showKOTToken: false,
+      hasBillScan: true,
+    },
+    placeholders: {
+      searchProduct: 'Search Classmate Notebook, Pen, Register, File...',
+      newProductName: 'e.g., Classmate Long Book 172 Pages (Ruled)',
+      customerSearch: 'Student / Parent / School WhatsApp...',
+      customerNotes: 'e.g., School book set for Standard 8th CBSE',
+      invoiceFooterNote: 'Thank you for your purchase! All the best for your studies.',
+    },
+    defaultUnit: 'piece',
+    recommendedUnits: ['piece', 'packet', 'box', 'set', 'dozen'],
+    quickCategories: ['Notebooks & Registers', 'Pens, Pencils & Erasers', 'Office Files & Folders', 'Art & Craft Materials', 'School Bag & Bottles', 'Calculators & Geometry'],
+    sampleProducts: [
+      { name: 'Classmate Long Notebook 172 Pages', category: 'Notebooks & Registers', unit: 'piece', selling_price: 6500, purchase_price: 4800, mrp: 7000, tax_rate: 12, barcode: '890110001' },
+      { name: 'Reynolds 045 Fine Carabine Blue Pen (Box of 20)', category: 'Pens, Pencils & Erasers', unit: 'box', selling_price: 18000, purchase_price: 14000, mrp: 20000, tax_rate: 18, barcode: '890110002' },
+      { name: 'Camlin Kokuyo 24 Shades Oil Pastels', category: 'Art & Craft Materials', unit: 'box', selling_price: 14000, purchase_price: 11000, mrp: 15000, tax_rate: 12, barcode: '890110003' },
+    ],
+  },
+
+  salon: {
+    id: 'salon',
+    name: 'Salon, Spa & Beauty Care',
+    shortName: 'Salon & Spa',
+    iconName: 'Scissors',
+    emoji: '✂️',
+    tagline: 'Service packages, hair styling, skin treatments & staff commissions',
+    description: 'Designed for beauty salons and spas with service billing, packages, staff commission tracking, and client appointment notes.',
+    accentColor: '#db2777',
+    badgeBg: 'bg-pink-50 text-pink-900 border-pink-300',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'GST', 'EXPENSES', 'REPORTS'],
+    featureToggles: {
+      showBarcode: false,
+      showWeightUnits: false,
+      showBatchExpiry: false,
+      showTableOrderType: false,
+      showSizeVariants: false,
+      showImeiWarranty: false,
+      showDoctorPrescription: false,
+      showKOTToken: false,
+      hasBillScan: false,
+    },
+    placeholders: {
+      searchProduct: 'Search Haircut, Facial, Bleach, Keratin, Spa...',
+      newProductName: 'e.g., Deluxe Hydra Facial / Gold Hair Spa',
+      customerSearch: 'Client name or phone for appointment records...',
+      customerNotes: 'e.g., Stylist: Priya / Skin allergy note: Sensitive skin',
+      invoiceFooterNote: 'Thank you for visiting! Look good, feel amazing. See you again soon.',
+    },
+    defaultUnit: 'custom',
+    recommendedUnits: ['custom', 'portion', 'piece', 'set'],
+    quickCategories: ['Hair Styling & Cuts', 'Facials & Skin Cleanups', 'Hair Spa & Keratin', 'Bridal & Party Makeup', 'Manicure & Pedicure', 'Retail Hair Products'],
+    sampleProducts: [
+      { name: 'Gentlemen Executive Haircut & Beard Grooming', category: 'Hair Styling & Cuts', unit: 'custom', selling_price: 35000, purchase_price: 0, mrp: 35000, tax_rate: 18 },
+      { name: 'O3+ Bridal Glow Luxury Facial', category: 'Facials & Skin Cleanups', unit: 'custom', selling_price: 249900, purchase_price: 55000, mrp: 249900, tax_rate: 18 },
+      { name: 'L\'Oreal Professionnel Hair Spa 500ml Retail', category: 'Retail Hair Products', unit: 'piece', selling_price: 75000, purchase_price: 52000, mrp: 85000, tax_rate: 18 },
+    ],
+  },
+
+  mobile: {
+    id: 'mobile',
+    name: 'Mobile Phone & Accessories',
+    shortName: 'Mobile Store',
+    iconName: 'Smartphone',
+    emoji: '📱',
+    tagline: 'Handsets, tempered glass, covers, repairs & IMEI invoices',
+    description: 'Specialized for smartphone stores, mobile repair desks, and accessory hubs with IMEI scan-on-bill and repair tokens.',
+    accentColor: '#2563eb',
+    badgeBg: 'bg-blue-50 text-blue-900 border-blue-300',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'SUPPLIERS', 'GST', 'BARCODE', 'IMEI_SERIAL', 'WARRANTY', 'PURCHASES', 'EXPENSES', 'REPORTS'],
+    featureToggles: {
+      showBarcode: true,
+      showWeightUnits: false,
+      showBatchExpiry: false,
+      showTableOrderType: false,
+      showSizeVariants: false,
+      showImeiWarranty: true,
+      showDoctorPrescription: false,
+      showKOTToken: false,
+      hasBillScan: true,
+    },
+    placeholders: {
+      searchProduct: 'Scan IMEI or search Cover, Cable, Earphone, Display...',
+      newProductName: 'e.g., 9D Gorilla Tempered Glass for iPhone 15',
+      customerSearch: 'Customer phone for repair / warranty tracking...',
+      customerNotes: 'e.g., Handset under display replacement / PIN: 1234',
+      invoiceFooterNote: 'All mobile handsets covered under brand manufacturer warranty. Preserve bill copy.',
+    },
+    defaultUnit: 'piece',
+    recommendedUnits: ['piece', 'box', 'set', 'packet'],
+    quickCategories: ['Smartphones', 'Tempered Glass & Covers', 'Chargers & USB Cables', 'Bluetooth & Earphones', 'Screen Guards & Skins', 'Mobile Repair & Parts'],
+    sampleProducts: [
+      { name: '9D Full Glue Curved Tempered Glass', category: 'Tempered Glass & Covers', unit: 'piece', selling_price: 19900, purchase_price: 4500, mrp: 49900, tax_rate: 18 },
+      { name: 'Fast 20W Type-C Power Adapter', category: 'Chargers & USB Cables', unit: 'piece', selling_price: 69900, purchase_price: 28000, mrp: 129900, tax_rate: 18, warranty_period_months: 6 },
+    ],
+  },
+
+  services: {
+    id: 'services',
+    name: 'Professional & Repair Services',
+    shortName: 'Services / Repair',
+    iconName: 'Wrench',
+    emoji: '🛠️',
+    tagline: 'Service charges, labor fees, replacement parts & AMC bills',
+    description: 'Tailored for repair workshops, technicians, plumbers, electricians, and consulting services with customized hourly or fixed job billing.',
+    accentColor: '#64748b',
+    badgeBg: 'bg-slate-100 text-slate-900 border-slate-300',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'GST', 'EXPENSES', 'REPORTS'],
+    featureToggles: {
+      showBarcode: false,
+      showWeightUnits: false,
+      showBatchExpiry: false,
+      showTableOrderType: false,
+      showSizeVariants: false,
+      showImeiWarranty: true,
+      showDoctorPrescription: false,
+      showKOTToken: false,
+      hasBillScan: false,
+    },
+    placeholders: {
+      searchProduct: 'Search AC Service, Repair Charge, Inspection...',
+      newProductName: 'e.g., Split AC Jet Pump Cleaning & Gas Top-up',
+      customerSearch: 'Client name or site address / mobile...',
+      customerNotes: 'e.g., 30 Days service warranty / Technician: Vikas',
+      invoiceFooterNote: 'Thank you for trusting our service. 30-Day warranty applicable on repair workmanship.',
+    },
+    defaultUnit: 'custom',
+    recommendedUnits: ['custom', 'piece', 'set'],
+    quickCategories: ['Inspection & Visiting Fee', 'Appliance Repair Labor', 'Spare Parts & Materials', 'AMC Annual Contracts', 'Installation & Fitting'],
+    sampleProducts: [
+      { name: 'Split AC Deep Cleaning & Servicing', category: 'Appliance Repair Labor', unit: 'custom', selling_price: 59900, purchase_price: 0, mrp: 79900, tax_rate: 18 },
+      { name: 'Home Electrician Visit & Diagnostics', category: 'Inspection & Visiting Fee', unit: 'custom', selling_price: 25000, purchase_price: 0, mrp: 25000, tax_rate: 18 },
+    ],
+  },
+
+  other: {
+    id: 'other',
+    name: 'General Business & Retail',
+    shortName: 'General Store',
+    iconName: 'Store',
+    emoji: '🏪',
+    tagline: 'Versatile retail billing, custom inventory & customer khata',
+    description: 'Versatile all-in-one configuration suitable for gift shops, toys, sports goods, pet supplies, and general trading.',
+    accentColor: '#334155',
+    badgeBg: 'bg-slate-100 text-slate-900 border-slate-300',
+    modules: ['POS', 'INVENTORY', 'KHATA', 'CUSTOMERS', 'SUPPLIERS', 'GST', 'BARCODE', 'WEIGHT', 'PURCHASES', 'EXPENSES', 'REPORTS'],
+    featureToggles: {
+      showBarcode: true,
+      showWeightUnits: true,
+      showBatchExpiry: false,
+      showTableOrderType: false,
+      showSizeVariants: false,
+      showImeiWarranty: false,
+      showDoctorPrescription: false,
+      showKOTToken: false,
+      hasBillScan: true,
+    },
+    placeholders: {
+      searchProduct: 'Scan barcode or type item name...',
+      newProductName: 'e.g., Premium Gift Item / Custom Product',
+      customerSearch: 'Customer name or 10-digit mobile...',
+      customerNotes: 'e.g., Special instructions or delivery address',
+      invoiceFooterNote: 'Thank you for your business! Please visit again.',
+    },
+    defaultUnit: 'piece',
+    recommendedUnits: ['piece', 'box', 'packet', 'set', 'kg', 'dozen'],
+    quickCategories: ['General Items', 'Gifts & Toys', 'Accessories', 'Special Offers'],
+    sampleProducts: [
+      { name: 'Premium Decorative Gift Hamper', category: 'Gifts & Toys', unit: 'piece', selling_price: 89900, purchase_price: 45000, mrp: 99900, tax_rate: 18 },
+      { name: 'Multi-Utility Storage Container Set', category: 'General Items', unit: 'set', selling_price: 45000, purchase_price: 28000, mrp: 59900, tax_rate: 18 },
+    ],
+  },
 };
 
 /**
@@ -415,17 +658,48 @@ export function getStoreProfile(businessType?: string | null): StoreProfile {
 }
 
 /**
- * Returns an ordered array of all 8 primary store profiles for UI pickers.
+ * Checks if a specific module is enabled for a given business type or profile.
+ */
+export function hasModule(businessType: BusinessType | string | null | undefined, moduleId: ModuleId): boolean {
+  const profile = getStoreProfile(businessType);
+  return profile.modules ? profile.modules.includes(moduleId) : false;
+}
+
+/**
+ * Checks if a specific module is enabled on a given StoreProfile.
+ */
+export function isModuleEnabled(profile: StoreProfile, moduleId: ModuleId): boolean {
+  return profile.modules ? profile.modules.includes(moduleId) : false;
+}
+
+/**
+ * Returns an ordered array of primary store profiles for UI pickers, settings and onboarding.
+ * Prioritizes the 5 flagship Indian retail categories: Pharmacy, Kirana, Clothing, Hardware, Restaurant.
  */
 export function getAllStoreProfiles(): StoreProfile[] {
   return [
-    STORE_PROFILES.grocery,
     STORE_PROFILES.pharmacy,
-    STORE_PROFILES.restaurant,
+    STORE_PROFILES.grocery,
     STORE_PROFILES.clothing,
-    STORE_PROFILES.electronics,
     STORE_PROFILES.hardware,
-    STORE_PROFILES.electrical,
-    STORE_PROFILES.fmcg,
+    STORE_PROFILES.restaurant,
+    STORE_PROFILES.electronics,
+    STORE_PROFILES.other,
   ];
+}
+
+/**
+ * Returns recommended units for the given business type.
+ */
+export function getCategoryRecommendedUnits(businessType?: string | null): ProductUnit[] {
+  const profile = getStoreProfile(businessType);
+  return profile.recommendedUnits || ['piece', 'packet', 'kg', 'box'];
+}
+
+/**
+ * Returns placeholder texts for the given business type.
+ */
+export function getCategoryPlaceholders(businessType?: string | null): StoreProfile['placeholders'] {
+  const profile = getStoreProfile(businessType);
+  return profile.placeholders;
 }

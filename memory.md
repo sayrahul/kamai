@@ -19,13 +19,32 @@
 ## 2. 📜 WHAT HAPPENED (Session History & Log)
 
 ### Recent Major Updates & Milestones
-- **v3.6.0 (High-Density & Space-Saving Design System Standard — 24 Aug 2026):**
+- **v3.7.0 (5-Flagship Category Ecosystem Refinement — 25 Aug 2026):**
+  - **5 Flagship Focus**: Streamlined retail categories to 5 high-impact flagship profiles (Pharmacy, Kirana, Clothing, Hardware, Restaurant + Electronics/General) eliminating confusion and clutter.
+  - **Dynamic Dashboard Live Radar**: Niche-specific operational hubs on the home screen (Pharmacy Expiry Watchdog & Rx Desk, Restaurant Table Chips T1-T8 & KOT, Clothing Apparel Tags Studio, Kirana Loose Staples Counter, Hardware Contractor Udhar Hub).
+  - **Regulatory Compliance**: Integrated Drug License No (DL 20B/21B) & Pharmacist Reg No for Medical Stores, and FSSAI Food Safety License No (14 digits) for Restaurant & Kirana on Settings, Invoices & Thermal slips.
+  - **Automated E2E Suite**: 292-test automated verification suite (`npm run test:e2e`) covering financial math, category capability matrices, rate limiters, token validation, and ESC/POS bytecode.
+- **v3.6.2 (POS Hardware & Thermal Printing Polish — 25 Aug 2026):**
+  - **Native Dynamic UPI QR on Receipts**: Encodes NPCI UPI Intent URI directly via ESC/POS 2D QR commands (`GS ( k`) on thermal slips for instant customer scanning & payment.
+  - **58mm & 80mm Roll Width Management**: Persistent paper roll width preference (32 vs 48 chars) and cash drawer kick commands (`ESC p 0 25 250`).
+  - **Hardware Manager Modal**: Refined connection state, roll width switcher, cash drawer toggle, UPI QR toggle, and realistic test receipt print.
+  - **Barcode Studio Catalog Query**: Enhanced Dexie query to reliably load all active items (`prods.filter(p => p.is_active !== false)`).
+- **v3.6.1 (Security & Production Hardening — 25 Aug 2026):**
+  - **In-Memory Sliding Window Rate Limiting**: Zero-dependency sliding window limiter protecting `/api/admin/login` (max 5/15m) and `/api/auth/login` (max 10/5m).
+  - **Fail-Closed Production Invariant**: Eliminates dangerous in-repo fallback secrets in production (`process.env.NODE_ENV === 'production'`) for `ADMIN_PASSWORD`, `ADMIN_JWT_SECRET`, and `JWT_SECRET`.
+  - **Timing Attack Resistance**: Employs `crypto.timingSafeEqual` for SuperAdmin password hash verification and Razorpay HMAC-SHA256 signature verification.
+  - **Hardened Cookies & Auth**: Enforces `httpOnly: true`, `secure: true`, and `sameSite: 'strict'` for administrative session tokens.
+  - **Comprehensive `.env.example`**: Complete template covering all mandatory and optional backend configurations.
+- **v3.6.0 (Dynamic Category Engine & High-Density Standards — 25 Aug 2026):**
+  - **Modular Store Category Engine**: Replaced generic boolean flags with normalized capability modules (`ModuleId`) across 14 distinct retail profiles (Kirana, Pharmacy, Restaurant, Clothing, Electronics, Hardware, FMCG, Bakery, Salon, Stationery, Services, etc.).
+  - **Two-Tiered Product Form**: Clean form presenting core essentials (Name, Category, Unit, Selling Price, MRP, Tax Rate, Stock) first, conditionally rendering category-specific attributes (Batch/Expiry, Size/Color, IMEI/Warranty, Loose weights), with wholesale & cost prices tucked into a collapsible drawer.
+  - **Context-Aware POS Billing**: Touch menu items & table/KOT modes for Restaurants, prescription tags for Pharmacy, size/color pills for Apparel, and loose weights for Kirana.
+  - **Settings Category Switcher**: Interactive 1-click store category switcher in `/settings` allowing merchants to switch niches anytime with instant UI re-configuration.
   - **Single-Row Compact Headers**: Universal space-saving toolbar across Settings, Invoice Designer, Cloud Backup, GSTR Reports, Pricing, and Growth Studio.
   - **Divided Metrics Ribbons**: Standardized high-density KPI ribbons (`divide-y sm:divide-y-0 sm:divide-x`) replacing bulky floating cards across all pages.
   - **Zero-Horizontal-Scroll Mobile Standard**: Mobile-adaptive `<select>` dropdown switchers (Settings tabs, GSTR-1 tables, Tax return periods) and vertical card lists eliminating horizontal clipping.
   - **2x2 Symmetrical Grids**: Standardized 2x2 grids across Invoice Headings, App Navigation Drawer (4 sections x 4 tiles = 16 symmetrical items), Bank Account inputs, and Display Options.
-  - **Minimal Text Philosophy**: Replaced verbose marketing paragraphs with sleek micro-copy and text-free circular color swatches.
-  - **Full Details**: See [`CHANGELOG_SESSION_2026_08_24.md`](file:///c:/Users/Rushikesh%20Pardeshi/Downloads/KamaiPlus/CHANGELOG_SESSION_2026_08_24.md).
+  - **Full Details**: See [`CHANGELOG_SESSION_2026_08_24.md`](file:///c:/Users/Rushikesh%20Pardeshi/Downloads/KamaiPlus/CHANGELOG_SESSION_2026_08_24.md) and [`walkthrough.md`](file:///C:/Users/Rushikesh%20Pardeshi/.gemini/antigravity-ide/brain/8c9b4550-5c6a-4232-9a33-0d7c4aae41b6/walkthrough.md).
 - **v3.5.1 (Professional Pro User Workflow):**
   - **Clean PRO UI Experience:** When a user registers with rewards, activates a Pro plan, or is upgraded by SuperAdmin, all nagging "Upgrade" prompts, lock icons, and banner ads are automatically hidden.
   - **Active Membership Dashboard:** Dedicated `UpgradeModal` dashboard displaying plan validity date, billing cycle (Annual/Monthly), unlocked enterprise features, and a renewal/extension drawer.
@@ -65,7 +84,7 @@
 
 ## 3. 🔨 CURRENT WORK & STATUS
 
-- **Current Version:** `3.4.0`
+- **Current Version:** `3.6.0`
 - **Active Git Branch:** `main` (synchronized with `https://github.com/sayrahul/kamai.git`)
 - **Key Modules in Focus:**
   - [`PRD.md`](file:///c:/Users/Rushikesh%20Pardeshi/Downloads/KamaiPlus/PRD.md): Product requirements and problem-solution definitions.

@@ -5,7 +5,8 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { Product, Customer, CartItem, PaymentMethod, ProductUnit } from '@/types';
-import { formatINR, generateWhatsAppReceiptLink, parseRupeesToPaise, cn } from '@/lib/utils';
+import { formatINR, generateWhatsAppReceiptLink, parseRupeesToPaise, generateUPILink, cn } from '@/lib/utils';
+import QRCode from 'qrcode';
 import { playBeepSound } from '@/lib/voice/speechParser';
 import { PlatformAnalytics } from '@/lib/firebase/analytics';
 import { 
@@ -511,6 +512,11 @@ export default function BillingPage() {
   const [quickAddName, setQuickAddName] = useState('');
   const [completedSaleDetails, setCompletedSaleDetails] = useState<any>(null);
 
+  // Live Dynamic UPI QR Code States
+  const [posQrDataUrl, setPosQrDataUrl] = useState<string>('');
+  const [isEnlargeQrModalOpen, setIsEnlargeQrModalOpen] = useState<boolean>(false);
+  const [selectedUpiIndex, setSelectedUpiIndex] = useState<number>(0);
+
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const storeProfile = getStoreProfile(business?.business_type);
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
@@ -873,6 +879,49 @@ export default function BillingPage() {
   const discountTotalPaise = cart.reduce((acc, item) => acc + (item.discount_amount || 0), 0);
   const taxTotalPaise = cart.reduce((acc, item) => acc + (item.tax_amount || 0), 0);
   const grandTotalPaise = subtotalPaise;
+
+  // Real-Time Dynamic Amount UPI QR Generation (e.g. ₹848.00 auto-fills in GPay / PhonePe / Paytm)
+  useEffect(() => {
+    if (!business) return;
+
+    const availableUpis = business.upi_ids && business.upi_ids.length > 0
+      ? business.upi_ids
+      : business.upi_id
+      ? [{ id: 'def', label: 'Primary Counter', upi_id: business.upi_id, is_default: true }]
+      : [];
+
+    const activeUpi = availableUpis[selectedUpiIndex] || availableUpis[0];
+
+    if (activeUpi?.upi_id && grandTotalPaise > 0) {
+      const nextNum = business.next_invoice_number || 1;
+      const invPrefix = business.invoice_prefix || 'INV-';
+      const invCode = `${invPrefix}${String(nextNum).padStart(3, '0')}`;
+
+      // Calculate effective payable amount for UPI (handles split payment as well)
+      let payablePaise = grandTotalPaise;
+      if (paymentMethod === 'split') {
+        const splitUpiPaise = splitUpi ? Math.round(parseFloat(splitUpi) * 100) : 0;
+        payablePaise = splitUpiPaise > 0 ? splitUpiPaise : grandTotalPaise;
+      }
+
+      const upiUrl = generateUPILink(
+        activeUpi.upi_id,
+        business.name,
+        payablePaise,
+        invCode
+      );
+
+      QRCode.toDataURL(upiUrl, {
+        width: 320,
+        margin: 1,
+        color: { dark: '#0f172a', light: '#ffffff' },
+      })
+        .then(setPosQrDataUrl)
+        .catch(() => setPosQrDataUrl(''));
+    } else {
+      setPosQrDataUrl('');
+    }
+  }, [business, grandTotalPaise, paymentMethod, splitUpi, selectedUpiIndex]);
 
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
@@ -1519,6 +1568,67 @@ export default function BillingPage() {
         </div>
       )}
 
+      {/* If UPI (or Split with UPI): Real-Time Dynamic Amount QR Code Card */}
+      {((paymentMethod === 'upi') || (paymentMethod === 'split' && parseFloat(splitUpi || '0') > 0)) && cart.length > 0 && (
+        <div className="p-3 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 text-white rounded-xl border border-slate-700 shadow-md space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+              <QrCode className="w-4 h-4 text-amber-400" />
+              <span>Dynamic UPI Payment QR</span>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-black text-[10px]">
+              Exact {formatINR(paymentMethod === 'split' ? Math.round(parseFloat(splitUpi || '0') * 100) : grandTotalPaise)}
+            </span>
+          </div>
+
+          {posQrDataUrl ? (
+            <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-2.5 rounded-lg text-slate-900">
+              <div 
+                onClick={() => setIsEnlargeQrModalOpen(true)}
+                className="relative group cursor-pointer flex-shrink-0"
+                title="Click to enlarge QR on counter display"
+              >
+                <img
+                  src={posQrDataUrl}
+                  alt="Dynamic UPI QR"
+                  className="w-24 h-24 sm:w-28 sm:h-28 object-contain rounded border border-slate-200"
+                />
+                <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 rounded flex items-center justify-center text-white text-[10px] font-bold transition-opacity">
+                  <span>Enlarge 📺</span>
+                </div>
+              </div>
+
+              <div className="space-y-1 text-center sm:text-left flex-1 min-w-0">
+                <div className="text-[11px] font-bold text-slate-800 truncate">
+                  Pay to: <b>{business?.name}</b>
+                </div>
+                <div className="text-xs font-mono font-black text-emerald-700 truncate">
+                  {business?.upi_id || 'merchant@upi'}
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium leading-tight">
+                  Customer scans with Google Pay, PhonePe, Paytm or BHIM — <b>amount auto-fills instantly</b>.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEnlargeQrModalOpen(true)}
+                  className="mt-1 px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-[10.5px] inline-flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                >
+                  <QrCode className="w-3 h-3 text-slate-700" />
+                  <span>Show Customer Fullscreen QR</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 bg-slate-800/80 rounded-lg text-center text-xs text-slate-300 space-y-1">
+              <p className="font-bold text-amber-300">No UPI Address Configured</p>
+              <p className="text-[11px] text-slate-400">
+                Add your UPI ID in Settings to enable real-time dynamic amount QR codes.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Bottom Total & Checkout Button */}
       <div className="pt-2.5 border-t border-slate-200 space-y-2">
         <div className="flex items-center justify-between text-xs">
@@ -1551,7 +1661,7 @@ export default function BillingPage() {
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <Input
-                  placeholder="Search products by name, barcode or category..."
+                  placeholder={storeProfile.placeholders.searchProduct || "Search products by name, barcode or category..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   leftIcon={<Search className="w-4 h-4 text-slate-400" />}
@@ -1559,15 +1669,17 @@ export default function BillingPage() {
                 />
               </div>
 
-              {/* Barcode Camera Scanner Button */}
-              <button
-                type="button"
-                onClick={() => setIsBarcodeModalOpen(true)}
-                className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center cursor-pointer"
-                title="Scan Barcode via Camera"
-              >
-                <Camera className="w-4 h-4 text-slate-800" />
-              </button>
+              {/* Barcode Camera Scanner Button (Shown if BARCODE module enabled) */}
+              {storeProfile.featureToggles.showBarcode && (
+                <button
+                  type="button"
+                  onClick={() => setIsBarcodeModalOpen(true)}
+                  className="p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center cursor-pointer"
+                  title="Scan Barcode via Camera"
+                >
+                  <Camera className="w-4 h-4 text-slate-800" />
+                </button>
+              )}
 
               {/* Pricing Mode Toggle: Retail vs Wholesale */}
               <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-300 flex-shrink-0">
@@ -2170,6 +2282,61 @@ export default function BillingPage() {
           business={business || null}
         />
       )}
+
+      {/* Customer Fullscreen Dynamic UPI QR Modal */}
+      <Modal
+        isOpen={isEnlargeQrModalOpen}
+        onClose={() => setIsEnlargeQrModalOpen(false)}
+        title="UPI Payment Counter QR"
+        size="md"
+      >
+        <div className="p-4 flex flex-col items-center text-center space-y-4">
+          <div className="space-y-1">
+            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-950 text-xs font-black uppercase tracking-wider">
+              Scan to Pay Exact Amount
+            </span>
+            <div className="text-3xl font-black text-slate-900 font-mono tracking-tight pt-1">
+              {formatINR(paymentMethod === 'split' ? Math.round(parseFloat(splitUpi || '0') * 100) : grandTotalPaise)}
+            </div>
+            <p className="text-xs text-slate-500 font-medium">
+              Paying to: <b className="text-slate-900">{business?.name}</b> ({business?.upi_id || 'merchant@upi'})
+            </p>
+          </div>
+
+          {posQrDataUrl && (
+            <div className="p-3 bg-white rounded-2xl border-2 border-slate-900 shadow-lg">
+              <img
+                src={posQrDataUrl}
+                alt="Dynamic UPI QR"
+                className="w-64 h-64 sm:w-72 sm:h-72 object-contain"
+              />
+            </div>
+          )}
+
+          {/* Supported UPI Apps Row */}
+          <div className="space-y-1.5 w-full pt-1">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Accepted on Any UPI App
+            </div>
+            <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-700 flex-wrap">
+              <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">Google Pay</span>
+              <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">PhonePe</span>
+              <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">Paytm</span>
+              <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">BHIM</span>
+              <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">CRED</span>
+            </div>
+          </div>
+
+          <div className="w-full pt-2 flex justify-center">
+            <Button
+              onClick={() => setIsEnlargeQrModalOpen(false)}
+              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-6 py-2 rounded-xl"
+            >
+              Done / Payment Received
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Razorpay Pro Upgrade Modal */}
       <UpgradeModal

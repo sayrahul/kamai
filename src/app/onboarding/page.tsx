@@ -21,6 +21,7 @@ import {
   PackageCheck,
   Pill,
   Zap,
+  Scissors,
   Building2,
   Smartphone,
   Utensils,
@@ -38,13 +39,13 @@ export default function OnboardingPage() {
   const { language, setLanguage, t } = useTranslation();
   const [step, setStep] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [phoneError, setPhoneError] = useState<string>('');
-
-  // Form State
+  
+  // Step 1: Business Details
   const [businessName, setBusinessName] = useState<string>('');
   const [businessType, setBusinessType] = useState<BusinessType>('grocery');
   const [ownerName, setOwnerName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
+  const [phoneError, setPhoneError] = useState<string>('');
   const [address, setAddress] = useState<string>('');
   const [pincode, setPincode] = useState<string>('');
   const [gstin, setGstin] = useState<string>('');
@@ -64,17 +65,13 @@ export default function OnboardingPage() {
   }, []);
 
   const businessTypes: Array<{ type: BusinessType; title: string; desc: string; icon: any }> = [
-    { type: 'grocery', title: 'Kirana & Grocery', desc: 'Tata Salt, Parle-G, Maggi, Atta & Daily essentials', icon: Store },
-    { type: 'pharmacy', title: 'Medical Store & Pharmacy', desc: 'Dolo 650, Crocin, Vicks, Syrups & First Aid', icon: Pill },
-    { type: 'restaurant', title: 'Cafe & Restaurant', desc: 'Dosa, Paneer, Biryani, Roti, Chai & Drinks', icon: Utensils },
-    { type: 'clothing', title: 'Clothing & Footwear', desc: 'T-Shirts, Jeans, Kurtis, Leggings & Garments', icon: ShoppingBag },
-    { type: 'electronics', title: 'Electronics & Mobile', desc: 'Chargers, Cables, Earbuds, Power Banks', icon: Smartphone },
-    { type: 'hardware', title: 'Hardware & Sanitary', desc: 'Paints, Fevicol, Taplon Tape, Nails & Tools', icon: Wrench },
-    { type: 'electrical', title: 'Electrical Goods', desc: 'LED Bulbs, Havells Wire, Switches & Multi-Plugs', icon: Zap },
-    { type: 'fmcg', title: 'FMCG & Supermarket', desc: 'Packaged foods, Biscuits, Soaps & Detergents', icon: Store },
-    { type: 'bakery', title: 'Bakery & Sweets', desc: 'Cakes, Breads, Sweets & Snacks', icon: Sparkles },
-    { type: 'stationery', title: 'Stationery & Books', desc: 'Registers, Pens, School & Office items', icon: BookOpen },
-    { type: 'other', title: 'General Business / Other', desc: 'Custom products and general trading', icon: Building2 },
+    { type: 'pharmacy', title: 'Medical Store & Pharmacy', desc: 'Dolo 650, Strips/Tablets, Batch/Expiry, Doctor Rx & DL No.', icon: Pill },
+    { type: 'grocery', title: 'Kirana & Grocery Retail', desc: 'Atta, Rice, Dal, Loose Weights, Laser Barcode & FSSAI', icon: Store },
+    { type: 'clothing', title: 'Clothing & Footwear', desc: 'T-Shirts, Jeans, Kurtis, Sizes S/M/L/XL & Apparel Barcode Tags', icon: ShoppingBag },
+    { type: 'hardware', title: 'Hardware & Sanitary', desc: 'Paints, Pipes, Tools, Meter/Sqft Units & Contractor Khata', icon: Wrench },
+    { type: 'restaurant', title: 'Cafe & Restaurant', desc: 'Table Billing (T1-T10), KOT Tokens, Touch Menu & Parcels', icon: Utensils },
+    { type: 'electronics', title: 'Electronics & Mobile', desc: 'Smartphones, Earbuds, IMEI/Serial & Warranty Tracking', icon: Smartphone },
+    { type: 'other', title: 'General Business / Other', desc: 'Universal retail counter, custom catalog & wholesale trading', icon: Building2 },
   ];
 
   // Validate 10-Digit Indian Mobile Number

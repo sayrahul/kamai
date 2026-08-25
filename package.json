@@ -1,13 +1,14 @@
 {
   "name": "kamai-plus",
-  "version": "3.5.1",
+  "version": "3.7.0",
   "private": true,
   "description": "KamaiPlus (Kamai+) - Offline-first Business Management & Growth Platform for Indian Small Businesses",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e": "npx tsx scripts/e2e_simulation.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",

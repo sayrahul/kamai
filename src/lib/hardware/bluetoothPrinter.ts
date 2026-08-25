@@ -3,7 +3,6 @@
 import { EscPosEncoder, ThermalPaperWidth } from './escpos';
 import { Sale, Business } from '@/types';
 import { formatINR } from '@/lib/utils';
-import { calculateGstSummary } from '@/lib/invoices/gstCalculator';
 
 // Standard Bluetooth Serial Port Profile (SPP) and Printer UUIDs
 const BLUETOOTH_PRINTER_SERVICES = [
@@ -36,6 +35,61 @@ class BluetoothPrinterService {
 
   public getDeviceName(): string {
     return this.device?.name || 'Bluetooth Printer';
+  }
+
+  public getSavedPaperWidth(): ThermalPaperWidth {
+    if (typeof window === 'undefined') return 58;
+    try {
+      const saved = localStorage.getItem('kamai_thermal_paper_width');
+      return saved === '80' ? 80 : 58;
+    } catch {
+      return 58;
+    }
+  }
+
+  public setSavedPaperWidth(width: ThermalPaperWidth): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('kamai_thermal_paper_width', width.toString());
+    } catch {
+      // ignore
+    }
+  }
+
+  public isCashDrawerEnabled(): boolean {
+    if (typeof window === 'undefined') return true;
+    try {
+      return localStorage.getItem('kamai_cash_drawer_enabled') !== 'false';
+    } catch {
+      return true;
+    }
+  }
+
+  public setCashDrawerEnabled(enabled: boolean): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('kamai_cash_drawer_enabled', enabled ? 'true' : 'false');
+    } catch {
+      // ignore
+    }
+  }
+
+  public isUpiQrEnabled(): boolean {
+    if (typeof window === 'undefined') return true;
+    try {
+      return localStorage.getItem('kamai_print_upi_qr') !== 'false';
+    } catch {
+      return true;
+    }
+  }
+
+  public setUpiQrEnabled(enabled: boolean): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('kamai_print_upi_qr', enabled ? 'true' : 'false');
+    } catch {
+      // ignore
+    }
   }
 
   // Request & Connect to Bluetooth ESC/POS Printer
@@ -123,20 +177,29 @@ class BluetoothPrinterService {
   public async printSaleReceipt(
     sale: Sale,
     business: Business,
-    width: ThermalPaperWidth = 58
+    customWidth?: ThermalPaperWidth
   ): Promise<void> {
+    const width = customWidth || this.getSavedPaperWidth();
     const enc = new EscPosEncoder(width);
 
-    // 1. Header (Centered, Double Height Store Name)
+    // 1. Kick Cash Drawer at start if enabled and cash involved
+    const isCashTx = sale.payment_method === 'cash' || sale.payment_method === 'split';
+    if (isCashTx && this.isCashDrawerEnabled()) {
+      enc.openCashDrawer();
+    }
+
+    // 2. Header (Centered, Double Height Store Name)
     enc.alignCenter();
     enc.doubleHeight(true).bold(true).textLine(business.name).bold(false).doubleHeight(false);
     if (business.tagline) enc.textLine(business.tagline);
     if (business.address) enc.textLine(business.address);
     if (business.phone) enc.textLine(`Phone: ${business.phone}`);
     if (business.gstin) enc.textLine(`GSTIN: ${business.gstin}`);
+    if (business.drug_license_no) enc.textLine(`D.L. No: ${business.drug_license_no}`);
+    if (business.fssai_license_no) enc.textLine(`FSSAI Lic: ${business.fssai_license_no}`);
     enc.hr();
 
-    // 2. Invoice Meta
+    // 3. Invoice Meta
     enc.alignLeft();
     enc.bold(true).row(`INV: #${sale.invoice_number}`, sale.payment_status.toUpperCase()).bold(false);
     const dateStr = new Date(sale.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' });
@@ -144,9 +207,18 @@ class BluetoothPrinterService {
     if (sale.customer_name) {
       enc.textLine(`Customer: ${sale.customer_name} ${sale.customer_phone ? `(${sale.customer_phone})` : ''}`);
     }
+    if ((sale as any).doctor_name) {
+      enc.textLine(`Doctor: Dr. ${(sale as any).doctor_name}`);
+    }
+    if ((sale as any).table_no) {
+      enc.textLine(`Table: #${(sale as any).table_no} | ${((sale as any).order_type || 'Dine-In').toUpperCase()}`);
+    }
+    if ((sale as any).kot_token_no) {
+      enc.textLine(`KOT Token No: #${(sale as any).kot_token_no}`);
+    }
     enc.hr();
 
-    // 3. Table Header
+    // 4. Table Header
     enc.bold(true);
     if (width === 80) {
       enc.itemRow('ITEM', 'QTY x PRICE', 'TOTAL');
@@ -156,15 +228,27 @@ class BluetoothPrinterService {
     enc.bold(false);
     enc.hr('-');
 
-    // 4. Line Items
+    // 5. Line Items
     sale.items.forEach((item) => {
       const priceStr = `${item.quantity} ${item.unit} x ${(item.unit_price / 100).toFixed(2)}`;
       const totalStr = (item.total_amount / 100).toFixed(2);
       enc.itemRow(item.product_name, priceStr, totalStr);
+
+      // Print category specific line attributes if present
+      const metaTokens: string[] = [];
+      if (item.batch_number) metaTokens.push(`B:${item.batch_number}`);
+      if (item.expiry_date) metaTokens.push(`Exp:${item.expiry_date}`);
+      if (item.size) metaTokens.push(`Size:${item.size}`);
+      if (item.color) metaTokens.push(`${item.color}`);
+      if (item.imei_serial) metaTokens.push(`SN:${item.imei_serial}`);
+
+      if (metaTokens.length > 0) {
+        enc.textLine(`  [${metaTokens.join(' ')}]`);
+      }
     });
     enc.hr('-');
 
-    // 5. Calculations Summary
+    // 6. Calculations Summary
     enc.alignRight();
     enc.row('Subtotal:', (sale.subtotal / 100).toFixed(2));
     if (sale.discount_total > 0) {
@@ -175,7 +259,7 @@ class BluetoothPrinterService {
     }
     enc.doubleHr();
 
-    // Grand Total (Bold)
+    // Grand Total (Bold Double Height)
     enc.bold(true).doubleHeight(true);
     enc.row('GRAND TOTAL:', `Rs. ${(sale.grand_total / 100).toFixed(2)}`);
     enc.doubleHeight(false).bold(false);
@@ -187,21 +271,31 @@ class BluetoothPrinterService {
       enc.bold(true).row('UDHAR / BALANCE DUE:', `Rs. ${(sale.balance_due / 100).toFixed(2)}`).bold(false);
     }
 
-    // 6. UPI QR / Payment Note
-    if (business.upi_id) {
+    // 7. Dynamic UPI QR Code (Scannable with GPay / PhonePe / Paytm)
+    if (business.upi_id && this.isUpiQrEnabled() && sale.grand_total > 0) {
       enc.feed(1);
       enc.alignCenter();
-      enc.textLine(`* Scan & Pay via any UPI App *`);
+      enc.bold(true).textLine('* Scan & Pay with any UPI App *').bold(false);
+      
+      const payableAmount = (sale.grand_total / 100).toFixed(2);
+      const cleanStoreName = business.name.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+      const upiIntentUri = `upi://pay?pa=${encodeURIComponent(business.upi_id)}&pn=${encodeURIComponent(cleanStoreName)}&am=${payableAmount}&cu=INR&tn=${encodeURIComponent(`Invoice ${sale.invoice_number}`)}`;
+
+      // Native ESC/POS 2D QR Code Generation
+      enc.qrcode(upiIntentUri, width === 80 ? 6 : 5);
       enc.textLine(`UPI ID: ${business.upi_id}`);
+      enc.textLine(`Amount: Rs. ${payableAmount}`);
     }
 
-    // 7. Footer Thank You & Terms
+    // 8. Footer Thank You & Terms
     enc.feed(1);
     enc.alignCenter();
-    enc.textLine(business.terms_conditions || 'Goods once sold cannot be returned after 7 days.');
+    if (business.terms_conditions) {
+      enc.textLine(business.terms_conditions);
+    }
     enc.bold(true).textLine(business.footer_message || 'Thank you for shopping with us!').bold(false);
 
-    // 8. Cut & Open Drawer
+    // 9. Auto Paper Cut
     enc.cut();
 
     // Send bytecode to Bluetooth printer

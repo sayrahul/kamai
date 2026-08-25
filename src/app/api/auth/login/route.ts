@@ -3,6 +3,9 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { getSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { signSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE } from '@/lib/auth/session';
+import { getClientIp, checkRateLimit } from '@/lib/security/rateLimiter';
+
+export const dynamic = 'force-dynamic';
 
 const loginSchema = z.object({
   phone: z.string().regex(/^[6-9]\d{9}$/, 'Please enter a valid 10-digit mobile number'),
@@ -14,7 +17,22 @@ const AUTH_FAILED_MESSAGE = 'Mobile number or PIN is incorrect.';
 
 export async function POST(req: NextRequest) {
   try {
-    const rawBody = await req.json();
+    const clientIp = getClientIp(req);
+
+    // Rate Limiting: Max 10 attempts per IP within 5 minutes
+    const rateLimit = checkRateLimit(`auth_login:${clientIp}`, 10, 5 * 60 * 1000);
+    if (!rateLimit.isAllowed) {
+      const waitMinutes = Math.ceil((rateLimit.resetTimeMs - Date.now()) / (60 * 1000));
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Too many login attempts. Please wait ${waitMinutes} minutes before trying again.`,
+        },
+        { status: 429 }
+      );
+    }
+
+    const rawBody = await req.json().catch(() => ({}));
     const normalizedBody = {
       phone: (rawBody.phone || '').replace(/\D/g, ''),
       pin: rawBody.pin || rawBody.password || '',

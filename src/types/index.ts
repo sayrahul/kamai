@@ -17,6 +17,38 @@ export type BusinessType =
   | 'services'
   | 'other';
 
+export type ModuleId = 
+  | 'POS'
+  | 'INVENTORY'
+  | 'KHATA'
+  | 'CUSTOMERS'
+  | 'SUPPLIERS'
+  | 'GST'
+  | 'BARCODE'
+  | 'WEIGHT'
+  | 'BATCH_EXPIRY'
+  | 'VARIANTS'
+  | 'IMEI_SERIAL'
+  | 'WARRANTY'
+  | 'RESTAURANT_ORDERS'
+  | 'KOT'
+  | 'PHARMACY'
+  | 'PURCHASES'
+  | 'EXPENSES'
+  | 'REPORTS';
+
+export interface ProductAttributeDefinition {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'boolean' | 'date' | 'select';
+  required?: boolean;
+  visible?: boolean;
+  searchable?: boolean;
+  placeholder?: string;
+  helpText?: string;
+  options?: { value: string; label: string }[];
+}
+
 export type SupportedLanguage = 'en' | 'hi' | 'mr';
 
 export type UserRole = 'OWNER' | 'MANAGER' | 'CASHIER' | 'STAFF';
@@ -53,6 +85,7 @@ export interface InvoiceThemeConfig {
   show_pharmacy_rx?: boolean;
   drug_license_no?: string;
   pharmacist_reg_no?: string;
+  fssai_license_no?: string;
   show_ad_banner?: boolean;
   custom_ad_banner_text?: string;
   custom_ad_banner_subtext?: string;
@@ -75,6 +108,7 @@ export interface Business {
   gstin?: string;
   drug_license_no?: string;
   pharmacist_reg_no?: string;
+  fssai_license_no?: string;
   upi_id?: string;
   upi_ids?: UpiAccount[];
   bank_name?: string;
