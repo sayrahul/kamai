@@ -81,16 +81,16 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
     }
   }, [initialSale, business, isPro]);
 
-  const activeUpi = (business?.upi_ids && business.upi_ids[selectedUpiIndex])
-    ? business.upi_ids[selectedUpiIndex]
-    : { id: 'def', label: 'Primary Shop QR', upi_id: business?.upi_id || '', is_default: true };
+  const activeUpi: UpiAccount = business?.upi_ids && business.upi_ids.length > 0
+    ? (business.upi_ids[selectedUpiIndex] || business.upi_ids[0])
+    : { id: 'def', label: 'Primary Shop QR', upi_id: business?.upi_id || (business?.phone ? `${business.phone.replace(/\D/g, '')}@upi` : 'merchant@upi'), is_default: true };
 
   useEffect(() => {
     if (isOpen && sale && business) {
       setRecipientPhone(sale.customer_phone || '');
       setShowPhoneInput(!sale.customer_phone);
 
-      const upiTarget = activeUpi.upi_id || business.upi_id;
+      const upiTarget = activeUpi.upi_id || business.upi_id || (business.phone ? `${business.phone.replace(/\D/g, '')}@upi` : 'merchant@upi');
       if (upiTarget) {
         const upiUrl = generateUPILink(
           upiTarget,
@@ -559,7 +559,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 {/* Totals & QR Section */}
                 <div className="grid grid-cols-2 gap-4 pt-3 border-t-2 border-slate-800">
                   <div>
-                    {(business.invoice_theme_config || DEFAULT_INVOICE_THEME_CONFIG).show_upi_qr && qrDataUrl && (
+                    {(business.invoice_theme_config?.show_upi_qr ?? true) && qrDataUrl && (
                       <div className="space-y-1">
                         <div className="flex items-center gap-3">
                           <img src={qrDataUrl} alt="UPI QR" className="w-20 h-20 border border-slate-200 rounded p-1 bg-white" />

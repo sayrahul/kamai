@@ -272,18 +272,19 @@ class BluetoothPrinterService {
     }
 
     // 7. Dynamic UPI QR Code (Scannable with GPay / PhonePe / Paytm)
-    if (business.upi_id && this.isUpiQrEnabled() && sale.grand_total > 0) {
+    const upiTarget = business.upi_id || (business.upi_ids && business.upi_ids[0]?.upi_id) || (business.phone ? `${business.phone.replace(/\D/g, '')}@upi` : '');
+    if (upiTarget && this.isUpiQrEnabled() && sale.grand_total > 0) {
       enc.feed(1);
       enc.alignCenter();
       enc.bold(true).textLine('* Scan & Pay with any UPI App *').bold(false);
       
       const payableAmount = (sale.grand_total / 100).toFixed(2);
       const cleanStoreName = business.name.replace(/[^a-zA-Z0-9 ]/g, '').trim();
-      const upiIntentUri = `upi://pay?pa=${encodeURIComponent(business.upi_id)}&pn=${encodeURIComponent(cleanStoreName)}&am=${payableAmount}&cu=INR&tn=${encodeURIComponent(`Invoice ${sale.invoice_number}`)}`;
+      const upiIntentUri = `upi://pay?pa=${encodeURIComponent(upiTarget)}&pn=${encodeURIComponent(cleanStoreName)}&am=${payableAmount}&cu=INR&tn=${encodeURIComponent(`Invoice ${sale.invoice_number}`)}`;
 
       // Native ESC/POS 2D QR Code Generation
       enc.qrcode(upiIntentUri, width === 80 ? 6 : 5);
-      enc.textLine(`UPI ID: ${business.upi_id}`);
+      enc.textLine(`UPI ID: ${upiTarget}`);
       enc.textLine(`Amount: Rs. ${payableAmount}`);
     }
 
