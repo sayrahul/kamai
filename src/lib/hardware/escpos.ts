@@ -55,18 +55,12 @@ export class EscPosEncoder {
   }
 
   public text(str: string): this {
-    // Convert string to bytes (ASCII / Latin1)
-    for (let i = 0; i < str.length; i++) {
-      const code = str.charCodeAt(i);
-      // Replace non-ascii characters with equivalent ASCII representation
-      if (code === 8377) {
-        // Indian Rupee Symbol ₹ -> Rs.
-        this.buffer.push(0x52, 0x73, 0x2e); // 'Rs.'
-      } else if (code < 128) {
-        this.buffer.push(code);
-      } else {
-        this.buffer.push(0x20); // space for unsupported non-ascii
-      }
+    // Replace Indian Rupee Symbol ₹ with Rs.
+    const normalized = (str || '').replace(/₹/g, 'Rs.');
+    // Encode with TextEncoder for full UTF-8 / Unicode support (Devanagari, Marathi, Hindi, English)
+    const bytes = new TextEncoder().encode(normalized);
+    for (let i = 0; i < bytes.length; i++) {
+      this.buffer.push(bytes[i]);
     }
     return this;
   }

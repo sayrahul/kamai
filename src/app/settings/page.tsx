@@ -21,7 +21,8 @@ import {
   Plus,
   Star,
   Layers,
-  ChevronDown
+  ChevronDown,
+  Printer
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -36,6 +37,7 @@ import { Lock, Volume2, Sparkles } from 'lucide-react';
 import { soundboxEngine, SoundboxLanguage } from '@/lib/payments/soundboxEngine';
 import { paymentBridge } from '@/lib/payments/paymentBridge';
 import { APP_VERSION, APP_RELEASE_DATE } from '@/lib/constants/version';
+import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
 
 export default function SettingsPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
@@ -87,6 +89,7 @@ export default function SettingsPage() {
   const [isSaved, setIsSaved] = useState(false);
   const [liveQrDataUrl, setLiveQrDataUrl] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'profile' | 'upi' | 'invoicing'>('upi');
+  const [isStandeeModalOpen, setIsStandeeModalOpen] = useState(false);
 
   // Load business data into form
   useEffect(() => {
@@ -428,43 +431,13 @@ export default function SettingsPage() {
             {/* Business Information Card */}
             <div className="lg:col-span-8">
               <Card className="p-4 bg-white border border-slate-200 space-y-4 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-900 block">
-                      Store &amp; Tax Information
-                    </span>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Store contact information, GSTIN, and business address.
-                    </p>
-                  </div>
-                  <span className="self-start sm:self-auto text-[11px] font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-800 border border-slate-300 flex items-center gap-1.5 shadow-2xs">
-                    <span>{getStoreProfile(businessType).emoji}</span>
-                    <span>{getStoreProfile(businessType).name}</span>
-                    <span className="text-[9.5px] text-slate-400 font-normal">(Signup Store)</span>
+                <div className="border-b border-slate-100 pb-3">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-900 block">
+                    Store &amp; Tax Information
                   </span>
-                </div>
-
-                {/* Interactive Store Category Profile Switcher */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-900 block">
-                      Business Type / Store Category
-                    </label>
-                    <span className="text-[10px] font-bold text-slate-500">
-                      Auto-configures units, POS layout &amp; inventory fields
-                    </span>
-                  </div>
-                  <select
-                    value={businessType}
-                    onChange={(e) => setBusinessType(e.target.value as BusinessType)}
-                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-xs font-bold focus:border-slate-900 focus:outline-none min-h-[38px] shadow-2xs"
-                  >
-                    {getAllStoreProfiles().map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.emoji} {p.name} ({p.tagline})
-                      </option>
-                    ))}
-                  </select>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Store contact information, GSTIN, and business address.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -685,8 +658,20 @@ export default function SettingsPage() {
                   </div>
                 )}
 
+                {/* Action to Print or Download Counter Standee */}
+                <div className="w-full pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsStandeeModalOpen(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-[0.98]"
+                  >
+                    <Printer className="w-4 h-4 text-amber-400" />
+                    <span>Print Counter Standee (PDF)</span>
+                  </button>
+                </div>
+
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  ⚡ Customers can scan this QR code on physical bills, PDF invoices, and POS screens.
+                  ⚡ Customers can scan this QR code on physical bills, PDF invoices, and countertop standees.
                 </p>
               </Card>
             </div>
@@ -1125,6 +1110,15 @@ export default function SettingsPage() {
           </Card>
         </form>
       )}
+
+      {/* Counter Standee Print & Export Modal */}
+      <MerchantQRModal
+        isOpen={isStandeeModalOpen}
+        onClose={() => setIsStandeeModalOpen(false)}
+        business={business || null}
+        targetUpi={activePreviewUpi?.upi_id}
+        targetLabel={activePreviewUpi?.label}
+      />
 
       {/* Razorpay Pro Upgrade Modal */}
       <UpgradeModal

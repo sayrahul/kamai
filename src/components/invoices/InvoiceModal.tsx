@@ -489,6 +489,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   id="modal-printable-invoice"
                   data-format="a4"
                   className="w-full min-w-[620px] max-w-[680px] mx-auto bg-white p-5 sm:p-6 pb-6 rounded-xl text-slate-900 text-xs space-y-4 border border-slate-200 shadow-md box-border"
+                  style={{ fontFamily: "'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, sans-serif" }}
                 >
                 {/* Header Banner Styled with Theme Color */}
                 <div 
@@ -793,12 +794,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               /* Thermal Format (58mm or 80mm) */
               <div
                 id="modal-printable-invoice"
-                className={`bg-white p-4 text-slate-900 font-mono text-xs space-y-2 border border-slate-300 ${
+                className={`bg-white p-4 text-slate-900 text-xs space-y-2 border border-slate-300 ${
                   format === 'thermal-80' ? 'w-[320px]' : 'w-[260px]'
                 }`}
+                style={{ fontFamily: "'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, sans-serif" }}
               >
                 <div className="text-center pb-2 border-b border-dashed border-slate-300">
-                  <h3 className="font-black text-sm uppercase">{business.name}</h3>
+                  <h3 className="font-black text-base tracking-tight leading-tight">{business.name}</h3>
                   <p className="text-[10px] text-slate-600">{business.address}</p>
                   <p className="text-[10px] text-slate-600">Ph: {business.phone}</p>
                   {business.gstin && <p className="text-[9px] font-bold">GSTIN: {business.gstin}</p>}

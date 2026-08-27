@@ -279,7 +279,7 @@ class BluetoothPrinterService {
       enc.bold(true).textLine('* Scan & Pay with any UPI App *').bold(false);
       
       const payableAmount = (sale.grand_total / 100).toFixed(2);
-      const cleanStoreName = business.name.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+      const cleanStoreName = (business.name || 'Store').trim();
       const upiIntentUri = `upi://pay?pa=${encodeURIComponent(upiTarget)}&pn=${encodeURIComponent(cleanStoreName)}&am=${payableAmount}&cu=INR&tn=${encodeURIComponent(`Invoice ${sale.invoice_number}`)}`;
 
       // Native ESC/POS 2D QR Code Generation

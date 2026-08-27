@@ -10,7 +10,7 @@
 
   html, body {
     @apply bg-[#F8FAFC] text-slate-900 antialiased;
-    font-family: 'Inter', 'Mukta', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     min-height: 100vh;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
@@ -20,7 +20,7 @@
 
   /* Specific high-legibility styling for Marathi & Hindi (Devanagari) */
   :lang(mr), :lang(hi), [lang="mr"], [lang="hi"], .font-marathi, .font-hindi {
-    font-family: 'Mukta', 'Inter', system-ui, sans-serif !important;
+    font-family: 'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, sans-serif !important;
     letter-spacing: 0.01em;
   }
 
@@ -70,7 +70,7 @@
   background: #94a3b8;
 }
 
-/* Thermal Printer Specific Styles (58mm, 80mm and A4) */
+/* Thermal Printer & Standee Print Styles (58mm, 80mm, A4 and Counter Standee) */
 @media print {
   @page {
     margin: 0;
@@ -82,17 +82,20 @@
     color: black !important;
     margin: 0 !important;
     padding: 0 !important;
+    font-family: 'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, sans-serif !important;
   }
 
   body * {
     visibility: hidden;
   }
 
-  #printable-invoice-container, #printable-invoice-container * {
+  #modal-printable-invoice, #modal-printable-invoice *,
+  #printable-invoice-container, #printable-invoice-container *,
+  #printable-standee, #printable-standee * {
     visibility: visible;
   }
 
-  #printable-invoice-container {
+  #modal-printable-invoice, #printable-invoice-container {
     position: absolute;
     left: 0;
     top: 0;
@@ -102,5 +105,26 @@
     color: black !important;
     box-shadow: none !important;
     border: none !important;
+    font-family: 'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, sans-serif !important;
+  }
+
+  #printable-standee {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-family: 'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, sans-serif !important;
+    z-index: 999999 !important;
   }
 }

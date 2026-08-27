@@ -49,6 +49,7 @@ export async function generateInvoicePdfBlobFromElement(
       clonedElement.style.margin = '0 auto';
       clonedElement.style.padding = '24px';
       clonedElement.style.paddingBottom = '44px'; // Generous bottom padding
+      clonedElement.style.fontFamily = "'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, sans-serif";
 
       // Ensure all text elements inside cloned doc have unclipped line heights and visible overflows
       const allElements = clonedElement.querySelectorAll('*');
