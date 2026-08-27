@@ -39,6 +39,7 @@ import { paymentBridge } from '@/lib/payments/paymentBridge';
 import { APP_VERSION, APP_RELEASE_DATE } from '@/lib/constants/version';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
 import { NativeSoundboxStatusCard } from '@/components/payments/NativeSoundboxStatusCard';
+import { PWAInstallSettingsCard } from '@/components/pwa/PWAInstallSettingsCard';
 
 export default function SettingsPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
@@ -1132,6 +1133,11 @@ export default function SettingsPage() {
         onClose={() => setIsUpgradeModalOpen(false)}
         businessName={business?.name || 'Your Store'}
       />
+
+      {/* PWA App Installation Card */}
+      <div className="pt-2">
+        <PWAInstallSettingsCard />
+      </div>
 
       {/* App Build & Version Footer */}
       <div className="pt-4 pb-8 text-center space-y-1 text-slate-400">
