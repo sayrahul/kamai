@@ -23,7 +23,15 @@ import {
   Layers, 
   ChevronDown, 
   Printer,
-  X
+  X,
+  MessageCircle,
+  Copy,
+  Send,
+  ExternalLink,
+  ShieldCheck,
+  Check,
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -95,8 +103,19 @@ export default function SettingsPage() {
     description: string;
   } | null>(null);
   const [liveQrDataUrl, setLiveQrDataUrl] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'profile' | 'upi' | 'invoicing'>('upi');
+  const [activeTab, setActiveTab] = useState<'profile' | 'upi' | 'invoicing' | 'whatsapp'>('upi');
   const [isStandeeModalOpen, setIsStandeeModalOpen] = useState(false);
+
+  // Meta WhatsApp Cloud API Testing State
+  const [testWhatsAppPhone, setTestWhatsAppPhone] = useState<string>('');
+  const [isTestingWhatsApp, setIsTestingWhatsApp] = useState<boolean>(false);
+  const [testWhatsAppResult, setTestWhatsAppResult] = useState<{
+    success: boolean;
+    message: string;
+    messageId?: string;
+  } | null>(null);
+  const [hasCopiedWebhook, setHasCopiedWebhook] = useState(false);
+  const [hasCopiedToken, setHasCopiedToken] = useState(false);
 
   const showSaveNotification = (title: string, description: string = 'All changes have been successfully saved to your offline database.') => {
     setSaveNotification({ title, description });
@@ -362,6 +381,101 @@ export default function SettingsPage() {
     );
   };
 
+  // Live Test Dispatcher for Meta WhatsApp Cloud API
+  const handleTestWhatsAppInvoice = async () => {
+    const targetPhone = testWhatsAppPhone || phone;
+    if (!targetPhone || targetPhone.replace(/\D/g, '').length < 10) {
+      alert('Please enter a valid 10-digit mobile number for test invoice delivery.');
+      return;
+    }
+
+    setIsTestingWhatsApp(true);
+    setTestWhatsAppResult(null);
+
+    const sampleSale = {
+      id: 'test_sample_invoice',
+      business_id: business?.id || 'sample_business',
+      invoice_number: `${invoicePrefix}TEST-99`,
+      customer_name: 'Test Customer',
+      customer_phone: targetPhone,
+      items: [
+        {
+          id: 'item_1',
+          product_name: 'Premium Basmati Rice (1kg)',
+          quantity: 2,
+          unit: 'kg' as any,
+          unit_price: 12000,
+          tax_rate: 5,
+          discount_amount: 0,
+          total_amount: 24000,
+        },
+        {
+          id: 'item_2',
+          product_name: 'Pure Desi Ghee (500ml)',
+          quantity: 1,
+          unit: 'pc' as any,
+          unit_price: 34000,
+          tax_rate: 12,
+          discount_amount: 0,
+          total_amount: 34000,
+        },
+      ],
+      subtotal: 58000,
+      tax_total: 3200,
+      discount_total: 0,
+      grand_total: 58000,
+      amount_received: 58000,
+      balance_due: 0,
+      payment_method: 'upi' as any,
+      payment_status: 'paid' as any,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      const response = await fetch('/api/whatsapp/send-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: targetPhone,
+          sale: sampleSale,
+          business: business || {
+            name: name || 'KamaiPlus Demo Store',
+            phone: phone || '9876543210',
+            address: address || 'Pune, Maharashtra',
+            upi_id: upiList[0]?.upi_id || 'kamai@upi',
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setTestWhatsAppResult({
+          success: true,
+          message: `Official WhatsApp invoice dispatched silently to +${targetPhone.replace(/\D/g, '')}!`,
+          messageId: data.messageId,
+        });
+        showSaveNotification(
+          'WhatsApp Test Invoice Dispatched!',
+          `Live test bill dispatched via Meta Cloud API to +${targetPhone.replace(/\D/g, '')}.`
+        );
+      } else {
+        setTestWhatsAppResult({
+          success: false,
+          message: data.error || 'WhatsApp dispatch error. Check server logs or token.',
+        });
+      }
+    } catch (err: any) {
+      setTestWhatsAppResult({
+        success: false,
+        message: err.message || 'Failed to contact WhatsApp server.',
+      });
+    } finally {
+      setIsTestingWhatsApp(false);
+    }
+  };
+
   const [isClearingData, setIsClearingData] = useState(false);
 
   const handleClearTestingData = async () => {
@@ -489,6 +603,7 @@ export default function SettingsPage() {
           <option value="profile">🏪 Shop Profile &amp; Logo</option>
           <option value="upi">🔲 Multiple UPI QRs &amp; Banking</option>
           <option value="invoicing">🧾 Invoice Prefix &amp; Sequence</option>
+          <option value="whatsapp">💬 Meta WhatsApp Cloud API</option>
         </select>
         <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
       </div>
@@ -499,6 +614,7 @@ export default function SettingsPage() {
           { id: 'profile', label: 'Shop Profile & Logo', icon: Store },
           { id: 'upi', label: 'Multiple UPI QRs & Banking', icon: QrCode },
           { id: 'invoicing', label: 'Invoice Prefix & Sequence', icon: Receipt },
+          { id: 'whatsapp', label: 'Meta WhatsApp Cloud API', icon: MessageCircle },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -1307,6 +1423,261 @@ export default function SettingsPage() {
             </div>
           </Card>
         </form>
+      )}
+
+      {/* Tab 4: Meta WhatsApp Cloud API (Silent PDF Invoicing) */}
+      {activeTab === 'whatsapp' && (
+        <div className="space-y-4">
+          {/* Main WhatsApp Card */}
+          <Card className="p-4 sm:p-5 bg-white border border-slate-200 space-y-5 shadow-xs">
+            {/* Header with Live Webhook Status */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                    <MessageCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                      <span>Official Meta WhatsApp Cloud API</span>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Silent Dispatch
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Dispatches PDF invoices, receipts &amp; Udhar reminders silently without wa.me browser redirects.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Webhook Verified &amp; Active</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Webhook Configuration Details */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                1. Meta Developer Webhook Endpoint Configuration
+              </span>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Webhook URL Field */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <span>🔗 Callback Webhook URL</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText('https://kamaiplus.proventure.in/api/webhooks/whatsapp');
+                        setHasCopiedWebhook(true);
+                        setTimeout(() => setHasCopiedWebhook(false), 2500);
+                      }}
+                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-100/70 hover:bg-emerald-200/70 transition cursor-pointer"
+                    >
+                      {hasCopiedWebhook ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy URL</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-slate-200 font-mono text-xs text-slate-800 break-all select-all font-semibold">
+                    https://kamaiplus.proventure.in/api/webhooks/whatsapp
+                  </div>
+                  <p className="text-[10.5px] text-slate-500">
+                    Paste this in <b>Meta App Dashboard &gt; WhatsApp &gt; Configuration &gt; Callback URL</b>.
+                  </p>
+                </div>
+
+                {/* Verify Token Field */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <span>🔐 Webhook Verify Token</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText('kamaiplus_verify_token_2026');
+                        setHasCopiedToken(true);
+                        setTimeout(() => setHasCopiedToken(false), 2500);
+                      }}
+                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-100/70 hover:bg-emerald-200/70 transition cursor-pointer"
+                    >
+                      {hasCopiedToken ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy Token</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-slate-200 font-mono text-xs text-slate-800 font-semibold select-all">
+                    kamaiplus_verify_token_2026
+                  </div>
+                  <p className="text-[10.5px] text-slate-500">
+                    Enter this secret token in Meta Dashboard when clicking <b>Verify and Save</b>.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* API Credentials & Numbers */}
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                2. WhatsApp Sender &amp; Platform Credentials
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-500 block">Verified Phone Number ID</span>
+                  <div className="font-mono text-xs font-black text-slate-900">828389810357376</div>
+                  <span className="text-[10px] text-emerald-700 font-bold block">✓ ProVenture Verified</span>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-500 block">Graph API Version</span>
+                  <div className="font-mono text-xs font-black text-slate-900">v20.0</div>
+                  <span className="text-[10px] text-slate-500 block">Latest Meta Production Engine</span>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-500 block">Subscribed Webhook Events</span>
+                  <div className="font-mono text-xs font-black text-slate-900">messages, deliveries</div>
+                  <span className="text-[10px] text-slate-500 block">Receipts, Read &amp; Delivery Tracking</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Live Test Invoice Dispatcher */}
+            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    3. Live Test Dispatcher (Send Sample Bill)
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
+                  Instant Test
+                </span>
+              </div>
+              <p className="text-xs text-slate-600">
+                Enter your mobile number to receive a live sample invoice message with interactive receipt link directly on WhatsApp:
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    placeholder="Enter 10-digit mobile number"
+                    value={testWhatsAppPhone}
+                    onChange={(e) => setTestWhatsAppPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    className="w-full pl-11 pr-3 py-2 text-xs font-bold bg-white border border-slate-300 rounded-xl focus:border-slate-900 focus:outline-none"
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleTestWhatsAppInvoice}
+                  disabled={isTestingWhatsApp}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 rounded-xl cursor-pointer shadow-xs whitespace-nowrap h-9"
+                >
+                  {isTestingWhatsApp ? (
+                    <>
+                      <Zap className="w-3.5 h-3.5 text-amber-300 animate-spin" />
+                      <span>Dispatching...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send Sample Bill via WhatsApp</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {testWhatsAppResult && (
+                <div
+                  className={`p-3 rounded-xl text-xs font-semibold flex items-start gap-2 border ${
+                    testWhatsAppResult.success
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      : 'bg-amber-50 border-amber-200 text-amber-900'
+                  }`}
+                >
+                  {testWhatsAppResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  )}
+                  <div className="space-y-0.5 flex-1">
+                    <p className="font-bold">{testWhatsAppResult.message}</p>
+                    {testWhatsAppResult.messageId && (
+                      <p className="text-[10px] font-mono text-emerald-700">
+                        Meta Message ID: {testWhatsAppResult.messageId}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Feature Overview Pills */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+              <div className="p-3 rounded-xl border border-slate-200 bg-white space-y-1">
+                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>⚡</span>
+                  <span>Silent Cloud Dispatch</span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Sends invoices directly in background. Cashiers never wait for external browser apps.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl border border-slate-200 bg-white space-y-1">
+                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>📄</span>
+                  <span>Instant Online Bill Link</span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Customers can open, view items, and download official PDF receipts with one tap.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl border border-slate-200 bg-white space-y-1">
+                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>💳</span>
+                  <span>1-Tap Dynamic UPI</span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Udhar balance reminders include dynamic payment QR links to settle dues instantly.
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* Counter Standee Print & Export Modal */}

@@ -139,7 +139,7 @@ export function generateWhatsAppInvoiceMessage(
 }
 
 /**
- * Directly opens WhatsApp Web or WhatsApp mobile application
+ * Directly opens WhatsApp Web or WhatsApp mobile application (Standard Fallback)
  */
 export function sendInvoiceViaWhatsApp(
   phone: string,
@@ -157,5 +157,71 @@ export function sendInvoiceViaWhatsApp(
 
   if (typeof window !== 'undefined') {
     window.open(url, '_blank');
+  }
+}
+
+export interface OfficialWhatsAppDispatchResult {
+  sent: boolean;
+  messageId?: string;
+  method?: string;
+  error?: string;
+  isAccessDenied?: boolean;
+  fallbackUrl?: string;
+}
+
+/**
+ * Dispatches an invoice silently in the background via Meta WhatsApp Cloud API
+ * If the Cloud API is unconfigured or restricted, provides structured fallback details.
+ */
+export async function sendInvoiceViaOfficialCloudApi(
+  phone: string,
+  sale: Sale,
+  business: Business,
+  pdfBase64?: string
+): Promise<OfficialWhatsAppDispatchResult> {
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+
+  try {
+    const response = await fetch('/api/whatsapp/send-invoice', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phone: formattedPhone,
+        sale,
+        business,
+        pdfBase64,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        sent: true,
+        messageId: data.messageId,
+        method: data.method,
+      };
+    }
+
+    return {
+      sent: false,
+      error: data.error || 'Failed to dispatch via WhatsApp Cloud API',
+      isAccessDenied: data.isAccessDenied,
+      fallbackUrl: data.fallbackUrl || `https://wa.me/${formattedPhone}?text=${encodeURIComponent(
+        generateWhatsAppInvoiceMessage(sale, business)
+      )}`,
+    };
+  } catch (err: any) {
+    console.error('sendInvoiceViaOfficialCloudApi error:', err);
+    return {
+      sent: false,
+      error: err.message || 'Network error reaching WhatsApp server',
+      fallbackUrl: `https://wa.me/${formattedPhone}?text=${encodeURIComponent(
+        generateWhatsAppInvoiceMessage(sale, business)
+      )}`,
+    };
   }
 }

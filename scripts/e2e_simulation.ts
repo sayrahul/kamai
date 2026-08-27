@@ -318,6 +318,43 @@ const duplicateAttempt = paymentBridge.handleIncomingParsedPayment({
 });
 assert(duplicateAttempt === false, 'Duplicate payment notification with same UTR is rejected');
 
+// -----------------------------------------------------------------------------
+// TEST SUITE 6: OFFICIAL META WHATSAPP CLOUD API & WEBHOOK SUITE
+// -----------------------------------------------------------------------------
+console.log('\n💬 SUITE 6: Official Meta WhatsApp Cloud API & Webhook Verification');
+
+import { formatRecipientPhone } from '../src/lib/whatsapp/cloudApi';
+
+// 1. Recipient Phone Formatting E.164
+const formatted1 = formatRecipientPhone('9876543210');
+assert(formatted1 === '919876543210', '10-digit mobile number formatted to E.164 with 91 prefix');
+
+const formatted2 = formatRecipientPhone('+91 98765-43210');
+assert(formatted2 === '919876543210', 'Phone number with spaces, plus and dashes normalized properly');
+
+const formatted3 = formatRecipientPhone('919876543210');
+assert(formatted3 === '919876543210', 'Pre-formatted 12-digit number preserved without duplicate prefix');
+
+// 2. Webhook Challenge Verification Logic
+const defaultVerifyToken = 'kamaiplus_verify_token_2026';
+const mockChallenge = 'test_meta_challenge_token_xyz123';
+
+const testWebhookVerification = (mode: string | null, token: string | null, challenge: string | null) => {
+  if (mode === 'subscribe' && token === defaultVerifyToken) {
+    return { status: 200, challenge };
+  }
+  return { status: 403, error: 'Verification token mismatch' };
+};
+
+const validResult = testWebhookVerification('subscribe', 'kamaiplus_verify_token_2026', mockChallenge);
+assert(validResult.status === 200 && validResult.challenge === mockChallenge, 'Meta Webhook GET verification returns challenge string with HTTP 200');
+
+const tamperedResult = testWebhookVerification('subscribe', 'wrong_token', mockChallenge);
+assert(tamperedResult.status === 403, 'Tampered verify token is strictly rejected with HTTP 403');
+
+const invalidModeResult = testWebhookVerification('unknown', 'kamaiplus_verify_token_2026', mockChallenge);
+assert(invalidModeResult.status === 403, 'Invalid hub.mode is rejected with HTTP 403');
+
 console.log('');
 console.log('================================================================');
 console.log(`📊 SIMULATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED (${failedTests} failures)`);

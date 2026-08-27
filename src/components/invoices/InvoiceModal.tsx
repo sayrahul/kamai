@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Business, Sale, CartItem, UpiAccount } from '@/types';
 import { formatINR, generateUPILink } from '@/lib/utils';
 import { calculateGstSummary, numberToWordsINR } from '@/lib/invoices/gstCalculator';
-import { sendInvoiceViaWhatsApp, generateWhatsAppInvoiceMessage } from '@/lib/invoices/whatsappInvoice';
+import { sendInvoiceViaWhatsApp, generateWhatsAppInvoiceMessage, sendInvoiceViaOfficialCloudApi } from '@/lib/invoices/whatsappInvoice';
 import { usePlatformPromoConfig } from '@/lib/firebase/remoteConfig';
 import Link from 'next/link';
 import { 
@@ -30,7 +30,7 @@ import {
   Edit3,
   Lock
 } from 'lucide-react';
-import { downloadInvoicePdfFromElement, shareInvoicePdfDirect } from '@/lib/invoices/pdfGenerator';
+import { downloadInvoicePdfFromElement, shareInvoicePdfDirect, generateInvoicePdfBlobFromElement } from '@/lib/invoices/pdfGenerator';
 import { bluetoothPrinter } from '@/lib/hardware/bluetoothPrinter';
 import { Bluetooth, Zap } from 'lucide-react';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
@@ -44,24 +44,29 @@ interface InvoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
   sale: Sale | null;
-  business: Business | null;
+  business?: Business | null;
+  format?: 'a4' | 'thermal-80' | 'thermal-58';
+  initialPhone?: string;
   onInvoiceUpdated?: (updatedSale: Sale) => void;
 }
 
-export const InvoiceModal: React.FC<InvoiceModalProps> = ({
+export function InvoiceModal({
   isOpen,
   onClose,
   sale: initialSale,
   business,
+  format: initialFormat = 'a4',
+  initialPhone = '',
   onInvoiceUpdated,
-}) => {
+}: InvoiceModalProps) {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
-  const [format, setFormat] = useState<InvoiceFormat>('a4');
+  const [format, setFormat] = useState<InvoiceFormat>(initialFormat);
   const [sale, setSale] = useState<Sale | null>(initialSale);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
-  const [recipientPhone, setRecipientPhone] = useState<string>('');
-  const [showPhoneInput, setShowPhoneInput] = useState<boolean>(false);
+  const [recipientPhone, setRecipientPhone] = useState<string>(initialPhone);
+  const [showPhoneInput, setShowPhoneInput] = useState<boolean>(!initialPhone);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState<boolean>(false);
   const [shareSuccessMsg, setShareSuccessMsg] = useState<string>('');
   const [isBluetoothPrinting, setIsBluetoothPrinting] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -211,11 +216,20 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   };
 
   const handleWhatsAppSend = async () => {
+    if (!sale || !business) return;
+    const targetPhone = recipientPhone || sale.customer_phone || '';
+    if (!targetPhone) {
+      setShowPhoneInput(true);
+      return;
+    }
+
     const el = document.getElementById('modal-printable-invoice');
+    setIsSendingWhatsApp(true);
     setIsGeneratingPdf(true);
     const prevMode = viewMode;
     const scrollContainer = previewContainerRef.current;
     const prevScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+
     try {
       if (prevMode !== 'full') {
         setViewMode('full');
@@ -225,14 +239,39 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
       }
       await new Promise((r) => setTimeout(r, 60));
       const targetEl = document.getElementById('modal-printable-invoice') || el;
-      const res = await shareInvoicePdfDirect(targetEl, sale, business, recipientPhone);
-      if (res.shared) {
-        setShareSuccessMsg('Invoice dispatched to WhatsApp!');
-        setTimeout(() => setShareSuccessMsg(''), 4000);
+
+      let pdfBase64: string | undefined = undefined;
+      if (targetEl) {
+        try {
+          const { blob } = await generateInvoicePdfBlobFromElement(targetEl, `Invoice_${sale.invoice_number}.pdf`);
+          pdfBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        } catch (pdfErr) {
+          console.warn('PDF generation for WhatsApp background dispatch notice:', pdfErr);
+        }
       }
-    } catch (err) {
+
+      // Silent dispatch via Meta WhatsApp Cloud API
+      const res = await sendInvoiceViaOfficialCloudApi(targetPhone, sale, business, pdfBase64);
+
+      if (res.sent) {
+        setShareSuccessMsg(`✅ Official WhatsApp invoice delivered silently to +${targetPhone.replace(/\D/g, '')}!`);
+        setTimeout(() => setShareSuccessMsg(''), 5000);
+      } else {
+        if (res.fallbackUrl) {
+          setShareSuccessMsg(`ℹ️ Opening WhatsApp fallback chat (${res.error || 'Direct link'})...`);
+          setTimeout(() => setShareSuccessMsg(''), 4000);
+          window.open(res.fallbackUrl, '_blank');
+        } else {
+          sendInvoiceViaWhatsApp(targetPhone, sale, business);
+        }
+      }
+    } catch (err: any) {
       console.error('WhatsApp send error:', err);
-      sendInvoiceViaWhatsApp(recipientPhone, sale, business);
+      sendInvoiceViaWhatsApp(targetPhone, sale, business);
     } finally {
       if (prevMode !== 'full') {
         setViewMode(prevMode);
@@ -241,6 +280,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
         scrollContainer.scrollTop = prevScrollTop;
       }
       setIsGeneratingPdf(false);
+      setIsSendingWhatsApp(false);
     }
   };
 
@@ -426,11 +466,21 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               <Button
                 size="sm"
                 onClick={handleWhatsAppSend}
-                disabled={isGeneratingPdf}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black gap-1 rounded-xl h-8 shadow-sm cursor-pointer"
+                disabled={isGeneratingPdf || isSendingWhatsApp}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black gap-1.5 rounded-xl h-8 shadow-sm cursor-pointer"
+                title="Send official bill silently via Meta WhatsApp Cloud API"
               >
-                <MessageCircle className="w-3.5 h-3.5" />
-                <span>WhatsApp</span>
+                {isSendingWhatsApp ? (
+                  <>
+                    <Zap className="w-3.5 h-3.5 text-amber-300 animate-spin" />
+                    <span>Sending...</span>
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span>WhatsApp</span>
+                  </>
+                )}
               </Button>
             </div>
           </div>
