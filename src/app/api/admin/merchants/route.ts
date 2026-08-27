@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminRequest } from '@/lib/admin/adminAuth';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getFirestoreDb } from '@/lib/firebase/config';
-import { collection, getDocs, orderBy, query, limit } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, limit, doc, setDoc } from 'firebase/firestore';
 
 export async function GET(req: NextRequest) {
   if (!verifyAdminRequest(req)) {
@@ -109,6 +109,97 @@ export async function GET(req: NextRequest) {
     console.error('Failed to fetch merchants:', error);
     return NextResponse.json(
       { success: false, message: error.message || 'Failed to fetch merchants' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  if (!verifyAdminRequest(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const { 
+      name, 
+      owner_name, 
+      phone, 
+      email, 
+      address, 
+      city, 
+      state, 
+      gstin, 
+      business_type, 
+      subscription_tier, 
+      days_validity 
+    } = body;
+
+    if (!name || !phone) {
+      return NextResponse.json({ error: 'Store Name and Phone Number are required' }, { status: 400 });
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    const merchantId = `biz_${cleanPhone}_${Date.now()}`;
+    const nowIso = new Date().toISOString();
+
+    let expiryIso: string | null = null;
+    const tier = subscription_tier === 'pro' || subscription_tier === 'enterprise' ? subscription_tier : 'free';
+    if (tier !== 'free') {
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + (Number(days_validity) || 365));
+      expiryIso = expiry.toISOString();
+    }
+
+    const newMerchant = {
+      id: merchantId,
+      name: name.trim(),
+      owner_name: (owner_name || '').trim(),
+      phone: cleanPhone,
+      email: (email || '').trim().toLowerCase(),
+      address: (address || '').trim(),
+      city: (city || '').trim(),
+      state: (state || '').trim(),
+      gstin: (gstin || '').trim().toUpperCase(),
+      business_type: business_type || 'grocery',
+      subscription_tier: tier,
+      subscription_expires_at: expiryIso,
+      subscription_valid_until: expiryIso,
+      is_active: true,
+      created_at: nowIso,
+      updated_at: nowIso,
+    };
+
+    // 1. Save to Cloud Firestore
+    try {
+      const firestore = getFirestoreDb();
+      if (firestore) {
+        const docRef = doc(firestore, 'businesses', merchantId);
+        await setDoc(docRef, newMerchant);
+      }
+    } catch (firestoreErr) {
+      console.warn('Firestore merchant create warning:', firestoreErr);
+    }
+
+    // 2. Save to Supabase
+    try {
+      const supabase = getSupabaseServerClient();
+      if (supabase) {
+        await supabase.from('businesses').insert(newMerchant);
+      }
+    } catch (supabaseErr) {
+      console.warn('Supabase merchant create warning:', supabaseErr);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'New merchant store created successfully by SuperAdmin',
+      merchant: newMerchant,
+    });
+  } catch (error: any) {
+    console.error('Failed to create merchant:', error);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to create merchant' },
       { status: 500 }
     );
   }

@@ -15,14 +15,39 @@ export async function PATCH(
   try {
     const { id } = await context.params;
     const body = await req.json();
-    const { subscription_tier, days_extension, is_active } = body;
+    const { 
+      name,
+      owner_name,
+      phone,
+      email,
+      address,
+      city,
+      state,
+      gstin,
+      business_type,
+      upi_id,
+      subscription_tier, 
+      days_extension, 
+      is_active 
+    } = body;
 
     const updates: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };
 
+    if (name !== undefined) updates.name = name.trim();
+    if (owner_name !== undefined) updates.owner_name = owner_name.trim();
+    if (phone !== undefined) updates.phone = phone.replace(/\D/g, '');
+    if (email !== undefined) updates.email = email.trim().toLowerCase();
+    if (address !== undefined) updates.address = address.trim();
+    if (city !== undefined) updates.city = city.trim();
+    if (state !== undefined) updates.state = state.trim();
+    if (gstin !== undefined) updates.gstin = gstin.trim().toUpperCase();
+    if (business_type !== undefined) updates.business_type = business_type;
+    if (upi_id !== undefined) updates.upi_id = upi_id.trim();
+
     if (subscription_tier !== undefined) {
-      updates.subscription_tier = subscription_tier === 'pro' || subscription_tier === 'enterprise' ? 'pro' : 'free';
+      updates.subscription_tier = subscription_tier === 'pro' || subscription_tier === 'enterprise' ? subscription_tier : 'free';
       if (updates.subscription_tier === 'free') {
         updates.subscription_valid_until = null;
         updates.subscription_expires_at = null;
@@ -38,7 +63,7 @@ export async function PATCH(
       expiry.setDate(expiry.getDate() + days_extension);
       updates.subscription_expires_at = expiry.toISOString();
       updates.subscription_valid_until = expiry.toISOString();
-    } else if (updates.subscription_tier === 'pro') {
+    } else if (updates.subscription_tier === 'pro' && !updates.subscription_expires_at) {
       // Default to 1 year validity if upgrading to pro without custom days
       const expiry = new Date();
       expiry.setDate(expiry.getDate() + 365);

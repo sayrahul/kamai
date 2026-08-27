@@ -19,47 +19,55 @@ import {
   LogOut, 
   ExternalLink,
   ChevronRight,
-  Sparkles,
-  Sliders,
-  BellRing,
-  Phone,
-  Building2,
-  Calendar,
-  Layers,
-  ArrowUpDown,
-  Radio,
-  ToggleLeft,
-  ToggleRight,
-  Activity,
-  CreditCard,
-  Send,
-  Database,
-  Server,
-  Eye,
-  Trash2,
-  Ban,
-  Check,
-  Plus,
-  Tag,
-  Gift,
-  HelpCircle,
-  AlertTriangle,
-  Flame,
-  FileSpreadsheet,
-  X,
-  Clock,
-  Filter,
-  BarChart3,
-  Percent,
-  CheckSquare,
-  Globe,
-  Mail,
-  MapPin,
-  Menu,
-  QrCode,
-  Barcode,
-  ShoppingBag,
-  ArrowUpRight
+  Sparkles, 
+  Sliders, 
+  BellRing, 
+  Phone, 
+  Building2, 
+  Calendar, 
+  Layers, 
+  ArrowUpDown, 
+  Radio, 
+  ToggleLeft, 
+  ToggleRight, 
+  Activity, 
+  CreditCard, 
+  Send, 
+  Database, 
+  Server, 
+  Eye, 
+  Trash2, 
+  Ban, 
+  Check, 
+  Plus, 
+  Tag, 
+  Gift, 
+  HelpCircle, 
+  AlertTriangle, 
+  Flame, 
+  FileSpreadsheet, 
+  X, 
+  Clock, 
+  Filter, 
+  BarChart3, 
+  Percent, 
+  CheckSquare, 
+  Globe, 
+  Mail, 
+  MapPin, 
+  Menu, 
+  QrCode, 
+  Barcode, 
+  ShoppingBag, 
+  ArrowUpRight,
+  Copy,
+  CheckCheck,
+  Smartphone,
+  Monitor,
+  ChevronDown,
+  Wrench,
+  FileText,
+  IndianRupee
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -71,7 +79,7 @@ import { AdminCoupon } from '@/app/api/admin/coupons/route';
 import { PlatformRemoteConfig } from '@/app/api/admin/config/route';
 import { clearLocalDexieAndFreshSync } from '@/lib/firebase/firestoreSync';
 
-interface MerchantRecord {
+export interface MerchantRecord {
   id: string;
   name: string;
   phone: string;
@@ -82,14 +90,16 @@ interface MerchantRecord {
   gstin?: string;
   address?: string;
   business_type?: string;
+  upi_id?: string;
   subscription_tier: 'free' | 'pro' | 'growth' | 'enterprise';
   subscription_expires_at?: string;
+  subscription_valid_until?: string;
   is_active: boolean;
   created_at: string;
   updated_at?: string;
 }
 
-interface PlatformMetrics {
+export interface PlatformMetrics {
   totalMerchants: number;
   totalBusinesses: number;
   tiers: {
@@ -100,7 +110,7 @@ interface PlatformMetrics {
   recentSignups: any[];
 }
 
-interface TransactionRecord {
+export interface TransactionRecord {
   id: string;
   business_id: string;
   business_name?: string;
@@ -127,9 +137,10 @@ export default function MasterSuperAdminPage() {
   const [config, setConfig] = useState<PlatformRemoteConfig | null>(null);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [copiedCouponId, setCopiedCouponId] = useState<string | null>(null);
 
   // Active Tab State
-  const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'broadcast' | 'coupons' | 'whatsapp' | 'config' | 'revenue'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'broadcast' | 'coupons' | 'whatsapp' | 'revenue' | 'config'>('overview');
 
   // Mobile Drawer State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
@@ -138,21 +149,50 @@ export default function MasterSuperAdminPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedTierFilter, setSelectedTierFilter] = useState<string>('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
+  const [merchantSortBy, setMerchantSortBy] = useState<'newest' | 'name' | 'tier'>('newest');
 
-  // Merchant Actions State (Drawer / Modal)
+  // View / 360 Drawer State
   const [selectedMerchantForView, setSelectedMerchantForView] = useState<MerchantRecord | null>(null);
-  const [selectedMerchantForEdit, setSelectedMerchantForEdit] = useState<MerchantRecord | null>(null);
+
+  // Edit Merchant Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [selectedMerchantForEdit, setSelectedMerchantForEdit] = useState<MerchantRecord | null>(null);
+  const [editName, setEditName] = useState<string>('');
+  const [editOwnerName, setEditOwnerName] = useState<string>('');
+  const [editPhone, setEditPhone] = useState<string>('');
+  const [editEmail, setEditEmail] = useState<string>('');
+  const [editCity, setEditCity] = useState<string>('');
+  const [editAddress, setEditAddress] = useState<string>('');
+  const [editGstin, setEditGstin] = useState<string>('');
+  const [editBusinessType, setEditBusinessType] = useState<string>('grocery');
   const [editTier, setEditTier] = useState<string>('pro');
   const [editDaysExtension, setEditDaysExtension] = useState<number>(30);
+  const [editIsActive, setEditIsActive] = useState<boolean>(true);
   const [isUpdatingMerchant, setIsUpdatingMerchant] = useState<boolean>(false);
 
-  // Manual Subscription Activation Modal
+  // Add Merchant Modal State
+  const [isAddMerchantModalOpen, setIsAddMerchantModalOpen] = useState<boolean>(false);
+  const [addName, setAddName] = useState<string>('');
+  const [addOwnerName, setAddOwnerName] = useState<string>('');
+  const [addPhone, setAddPhone] = useState<string>('');
+  const [addEmail, setAddEmail] = useState<string>('');
+  const [addCity, setAddCity] = useState<string>('');
+  const [addAddress, setAddAddress] = useState<string>('');
+  const [addGstin, setAddGstin] = useState<string>('');
+  const [addBusinessType, setAddBusinessType] = useState<string>('grocery');
+  const [addTier, setAddTier] = useState<string>('free');
+  const [addDaysValidity, setAddDaysValidity] = useState<number>(365);
+  const [isCreatingMerchant, setIsCreatingMerchant] = useState<boolean>(false);
+
+  // Manual Subscription Quick Activation Modal
   const [isManualSubModalOpen, setIsManualSubModalOpen] = useState<boolean>(false);
   const [manualPhoneOrId, setManualPhoneOrId] = useState<string>('');
   const [manualTier, setManualTier] = useState<string>('pro');
   const [manualDurationDays, setManualDurationDays] = useState<number>(365);
-  const [manualNotes, setManualNotes] = useState<string>('Cash payment received');
+
+  // Delete Confirmation Modal State
+  const [merchantToDelete, setMerchantToDelete] = useState<MerchantRecord | null>(null);
+  const [isDeletingMerchant, setIsDeletingMerchant] = useState<boolean>(false);
 
   // Remote Broadcast State
   const [broadcastEnabled, setBroadcastEnabled] = useState<boolean>(false);
@@ -162,6 +202,7 @@ export default function MasterSuperAdminPage() {
   const [broadcastDuration, setBroadcastDuration] = useState<'always' | '24h' | '3d' | '7d' | 'custom'>('always');
   const [customBroadcastExpiry, setCustomBroadcastExpiry] = useState<string>('');
   const [isSavingBroadcast, setIsSavingBroadcast] = useState<boolean>(false);
+  const [broadcastPreviewDevice, setBroadcastPreviewDevice] = useState<'mobile' | 'desktop'>('mobile');
 
   // Coupon Creation State
   const [isCouponModalOpen, setIsCouponModalOpen] = useState<boolean>(false);
@@ -171,13 +212,31 @@ export default function MasterSuperAdminPage() {
   const [newCouponMaxDiscount, setNewCouponMaxDiscount] = useState<number>(500);
   const [newCouponMinOrder, setNewCouponMinOrder] = useState<number>(0);
   const [newCouponMaxUses, setNewCouponMaxUses] = useState<number>(100);
+  const [isCreatingCoupon, setIsCreatingCoupon] = useState<boolean>(false);
 
-  // Pricing Form State
-  const [formAnnualPrice, setFormAnnualPrice] = useState<number>(1999);
-  const [formMonthlyPrice, setFormMonthlyPrice] = useState<number>(249);
+  // WhatsApp Outreach State
+  const [waTemplate, setWaTemplate] = useState<'welcome' | 'offer50' | 'renewal' | 'features' | 'custom'>('offer50');
+  const [waCustomText, setWaCustomText] = useState<string>('Hello! Special offer from KamaiPlus: Upgrade to Pro today and get 50% off with coupon PRO50. Grow your store with instant WhatsApp bills!');
+  const [waTestPhone, setWaTestPhone] = useState<string>('');
+  const [waTargetTier, setWaTargetTier] = useState<'all' | 'free' | 'pro'>('free');
+
+  // Platform Remote Configuration State
+  const [formMaintenanceMode, setFormMaintenanceMode] = useState<boolean>(false);
+  const [formMaintenanceMessage, setFormMaintenanceMessage] = useState<string>('Kamai+ is undergoing scheduled system optimization. Normal POS services will resume shortly.');
+  const [formRazorpayGateway, setFormRazorpayGateway] = useState<boolean>(true);
+  const [formCloudSync, setFormCloudSync] = useState<boolean>(true);
+  const [formBarcodeGenerator, setFormBarcodeGenerator] = useState<boolean>(true);
+  const [formGrowthMarketing, setFormGrowthMarketing] = useState<boolean>(true);
+  const [formGstReports, setFormGstReports] = useState<boolean>(true);
+  const [formAnnualPrice, setFormAnnualPrice] = useState<number>(1499);
+  const [formMonthlyPrice, setFormMonthlyPrice] = useState<number>(199);
   const [formHoldBillsLimit, setFormHoldBillsLimit] = useState<number>(3);
   const [formHistoryDaysLimit, setFormHistoryDaysLimit] = useState<number>(7);
   const [formSupportPhone, setFormSupportPhone] = useState<string>('+919595997711');
+  const [formSupportWhatsApp, setFormSupportWhatsApp] = useState<string>('919595997711');
+  const [isSavingConfig, setIsSavingConfig] = useState<boolean>(false);
+
+  // Reset Dexie Cache State
   const [isResettingLocalData, setIsResettingLocalData] = useState<boolean>(false);
   const [resetStats, setResetStats] = useState<Record<string, number> | null>(null);
   const [customResetBizId, setCustomResetBizId] = useState<string>('');
@@ -188,32 +247,7 @@ export default function MasterSuperAdminPage() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const handleClearLocalDataAndFreshPull = async (targetBizId?: string) => {
-    const bizId = targetBizId || customResetBizId || (merchants[0]?.id) || 'biz_default';
-    if (
-      !confirm(
-        `⚠️ CLEAR LOCAL DATA & FRESH CLOUD PULL:\n\nThis will completely wipe local IndexedDB cache on this device (Products, Sales, Khata, Inventory) and freshly pull all latest records from Cloud Firestore for business ${bizId}.\n\nDo you want to proceed?`
-      )
-    ) {
-      return;
-    }
-
-    setIsResettingLocalData(true);
-    setResetStats(null);
-    try {
-      const res = await clearLocalDexieAndFreshSync(bizId);
-      setResetStats(res.stats);
-      showToast(
-        `🎉 Local data cleared & fresh sync complete! ${res.stats.products} products, ${res.stats.sales} sales, ${res.stats.customers} customers restored.`
-      );
-    } catch (err: any) {
-      alert(`Local reset and sync failed: ${err.message || 'Check connection'}`);
-    } finally {
-      setIsResettingLocalData(false);
-    }
-  };
-
-  // Check existing session
+  // Check existing session on mount
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -227,7 +261,7 @@ export default function MasterSuperAdminPage() {
     checkSession();
   }, []);
 
-  // Load dashboard datasets
+  // Load dashboard datasets when authenticated
   useEffect(() => {
     if (isAuthenticated) {
       loadAllAdminData();
@@ -237,45 +271,68 @@ export default function MasterSuperAdminPage() {
   const loadAllAdminData = async () => {
     setIsLoadingData(true);
     try {
-      // Metrics
+      // 1. Metrics
       const mRes = await fetch('/api/admin/metrics');
       if (mRes.ok) {
         const mData = await mRes.json();
         if (mData.metrics) setMetrics(mData.metrics);
       }
 
-      // Merchants
+      // 2. Merchants
       const merRes = await fetch('/api/admin/merchants');
       if (merRes.ok) {
         const merData = await merRes.json();
         if (merData.merchants) setMerchants(merData.merchants);
       }
 
-      // Transactions
+      // 3. Transactions
       const txRes = await fetch('/api/admin/transactions');
       if (txRes.ok) {
         const txData = await txRes.json();
         if (txData.transactions) setTransactions(txData.transactions);
       }
 
-      // Coupons
+      // 4. Coupons
       const coupRes = await fetch('/api/admin/coupons');
       if (coupRes.ok) {
         const cData = await coupRes.json();
         if (cData.coupons) setCoupons(cData.coupons);
       }
 
-      // Remote Config
+      // 5. Remote Config
       const configRes = await fetch('/api/admin/config');
       if (configRes.ok) {
         const confData = await configRes.json();
         if (confData.config) {
-          setConfig(confData.config);
-          if (confData.config.proAnnualPrice) setFormAnnualPrice(confData.config.proAnnualPrice);
-          if (confData.config.proMonthlyPrice) setFormMonthlyPrice(confData.config.proMonthlyPrice);
-          if (confData.config.freeHoldBillsLimit !== undefined) setFormHoldBillsLimit(confData.config.freeHoldBillsLimit);
-          if (confData.config.freeHistoryDaysLimit !== undefined) setFormHistoryDaysLimit(confData.config.freeHistoryDaysLimit);
-          if (confData.config.supportPhone) setFormSupportPhone(confData.config.supportPhone);
+          const c = confData.config;
+          setConfig(c);
+          if (c.maintenanceMode !== undefined) setFormMaintenanceMode(c.maintenanceMode);
+          if (c.maintenanceMessage) setFormMaintenanceMessage(c.maintenanceMessage);
+          if (c.razorpayGatewayEnabled !== undefined) setFormRazorpayGateway(c.razorpayGatewayEnabled);
+          if (c.cloudSyncEnabled !== undefined) setFormCloudSync(c.cloudSyncEnabled);
+          if (c.barcodeGeneratorEnabled !== undefined) setFormBarcodeGenerator(c.barcodeGeneratorEnabled);
+          if (c.growthMarketingEnabled !== undefined) setFormGrowthMarketing(c.growthMarketingEnabled);
+          if (c.gstReportsEnabled !== undefined) setFormGstReports(c.gstReportsEnabled);
+          if (c.proAnnualPrice) setFormAnnualPrice(c.proAnnualPrice);
+          if (c.proMonthlyPrice) setFormMonthlyPrice(c.proMonthlyPrice);
+          if (c.freeHoldBillsLimit !== undefined) setFormHoldBillsLimit(c.freeHoldBillsLimit);
+          if (c.freeHistoryDaysLimit !== undefined) setFormHistoryDaysLimit(c.freeHistoryDaysLimit);
+          if (c.supportPhone) setFormSupportPhone(c.supportPhone);
+          if (c.supportWhatsApp) setFormSupportWhatsApp(c.supportWhatsApp);
+        }
+      }
+
+      // 6. Broadcast Announcement
+      const bRes = await fetch('/api/admin/broadcast');
+      if (bRes.ok) {
+        const bData = await bRes.json();
+        if (bData.announcement) {
+          const a = bData.announcement;
+          setBroadcastEnabled(Boolean(a.enabled));
+          if (a.message) setBroadcastMessage(a.message);
+          if (a.type) setBroadcastType(a.type);
+          if (a.link) setBroadcastLink(a.link);
+          if (a.expires_at) setCustomBroadcastExpiry(a.expires_at);
         }
       }
     } catch (err) {
@@ -285,9 +342,9 @@ export default function MasterSuperAdminPage() {
     }
   };
 
-  // Filtered merchants
+  // Filtered & Sorted Merchants List
   const filteredMerchants = useMemo(() => {
-    return merchants.filter((m) => {
+    let result = merchants.filter((m) => {
       // Search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -300,7 +357,7 @@ export default function MasterSuperAdminPage() {
         if (!nameMatch && !ownerMatch && !phoneMatch && !emailMatch && !cityMatch && !gstinMatch) return false;
       }
       // Tier
-      if (selectedTierFilter !== 'all' && m.subscription_tier !== selectedTierFilter) {
+      if (selectedTierFilter !== 'all' && (m.subscription_tier || 'free').toLowerCase() !== selectedTierFilter.toLowerCase()) {
         return false;
       }
       // Status
@@ -308,13 +365,28 @@ export default function MasterSuperAdminPage() {
       if (selectedStatusFilter === 'frozen' && m.is_active) return false;
       return true;
     });
-  }, [merchants, searchQuery, selectedTierFilter, selectedStatusFilter]);
 
-  // Financial calculations
+    // Sort
+    if (merchantSortBy === 'name') {
+      result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else if (merchantSortBy === 'tier') {
+      const tierRank: Record<string, number> = { enterprise: 3, pro: 2, growth: 2, free: 1 };
+      result.sort((a, b) => (tierRank[b.subscription_tier] || 1) - (tierRank[a.subscription_tier] || 1));
+    } else {
+      result.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    }
+
+    return result;
+  }, [merchants, searchQuery, selectedTierFilter, selectedStatusFilter, merchantSortBy]);
+
+  // Financial KPI Metrics
   const totalProCount = merchants.filter((m) => m.subscription_tier === 'pro' || m.subscription_tier === 'enterprise').length;
   const totalFreeCount = merchants.filter((m) => m.subscription_tier === 'free').length;
-  const calculatedMRR = totalProCount * (config?.proMonthlyPrice || 249);
+  const activeCount = merchants.filter((m) => m.is_active).length;
+  const frozenCount = merchants.filter((m) => !m.is_active).length;
+  const calculatedMRR = totalProCount * (config?.proMonthlyPrice || formMonthlyPrice || 199);
   const calculatedARR = calculatedMRR * 12;
+  const totalRevenueCollected = transactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
 
   // -------------------------------------------------------------
   // HANDLERS
@@ -352,8 +424,17 @@ export default function MasterSuperAdminPage() {
 
   const handleOpenEditModal = (merchant: MerchantRecord) => {
     setSelectedMerchantForEdit(merchant);
-    setEditTier(merchant.subscription_tier || 'pro');
+    setEditName(merchant.name || '');
+    setEditOwnerName(merchant.owner_name || '');
+    setEditPhone(merchant.phone || '');
+    setEditEmail(merchant.email || '');
+    setEditCity(merchant.city || '');
+    setEditAddress(merchant.address || '');
+    setEditGstin(merchant.gstin || '');
+    setEditBusinessType(merchant.business_type || 'grocery');
+    setEditTier(merchant.subscription_tier || 'free');
     setEditDaysExtension(30);
+    setEditIsActive(merchant.is_active !== false);
     setIsEditModalOpen(true);
   };
 
@@ -363,19 +444,30 @@ export default function MasterSuperAdminPage() {
     setIsUpdatingMerchant(true);
 
     try {
-      const now = new Date();
-      let expiresAt: string | null = null;
+      let expiresAt: string | null = selectedMerchantForEdit.subscription_expires_at || null;
       if (editTier !== 'free') {
-        const expDate = new Date(now.getTime() + editDaysExtension * 24 * 60 * 60 * 1000);
-        expiresAt = expDate.toISOString();
+        const baseDate = expiresAt && new Date(expiresAt).getTime() > Date.now() ? new Date(expiresAt) : new Date();
+        baseDate.setDate(baseDate.getDate() + (Number(editDaysExtension) || 0));
+        expiresAt = baseDate.toISOString();
+      } else {
+        expiresAt = null;
       }
 
       const res = await fetch(`/api/admin/merchants/${selectedMerchantForEdit.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          name: editName,
+          owner_name: editOwnerName,
+          phone: editPhone,
+          email: editEmail,
+          city: editCity,
+          address: editAddress,
+          gstin: editGstin,
+          business_type: editBusinessType,
           subscription_tier: editTier,
           subscription_expires_at: expiresAt,
+          is_active: editIsActive,
         }),
       });
 
@@ -384,30 +476,85 @@ export default function MasterSuperAdminPage() {
         setMerchants((prev) =>
           prev.map((m) =>
             m.id === selectedMerchantForEdit.id
-              ? { ...m, subscription_tier: editTier as any, subscription_expires_at: expiresAt || undefined }
+              ? {
+                  ...m,
+                  name: editName,
+                  owner_name: editOwnerName,
+                  phone: editPhone,
+                  email: editEmail,
+                  city: editCity,
+                  address: editAddress,
+                  gstin: editGstin,
+                  business_type: editBusinessType,
+                  subscription_tier: editTier as any,
+                  subscription_expires_at: expiresAt || undefined,
+                  is_active: editIsActive,
+                }
               : m
           )
         );
         setIsEditModalOpen(false);
-        showToast(`Updated ${selectedMerchantForEdit.name} to ${editTier.toUpperCase()}`);
+        showToast(`Updated store "${editName}" successfully!`);
       } else {
         alert(data.message || 'Failed to update merchant');
       }
     } catch {
-      alert('Error updating merchant subscription');
+      alert('Error updating merchant profile');
     } finally {
       setIsUpdatingMerchant(false);
     }
   };
 
+  const handleCreateNewMerchant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addName.trim() || !addPhone.trim()) {
+      alert('Store Name and Phone Number are required.');
+      return;
+    }
+
+    setIsCreatingMerchant(true);
+    try {
+      const res = await fetch('/api/admin/merchants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: addName,
+          owner_name: addOwnerName,
+          phone: addPhone,
+          email: addEmail,
+          city: addCity,
+          address: addAddress,
+          gstin: addGstin,
+          business_type: addBusinessType,
+          subscription_tier: addTier,
+          days_validity: addDaysValidity,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success && data.merchant) {
+        setMerchants((prev) => [data.merchant, ...prev]);
+        setIsAddMerchantModalOpen(false);
+        setAddName('');
+        setAddOwnerName('');
+        setAddPhone('');
+        setAddEmail('');
+        setAddCity('');
+        setAddAddress('');
+        setAddGstin('');
+        showToast(`New store "${data.merchant.name}" created successfully!`);
+      } else {
+        alert(data.message || data.error || 'Failed to create merchant');
+      }
+    } catch {
+      alert('Error creating merchant');
+    } finally {
+      setIsCreatingMerchant(false);
+    }
+  };
+
   const handleToggleFreezeMerchant = async (m: MerchantRecord) => {
     const nextActive = !m.is_active;
-    const confirmMsg = nextActive
-      ? `Unfreeze store "${m.name}"? Merchant will be able to bill again.`
-      : `Freeze store "${m.name}"? Merchant POS will be locked immediately.`;
-    
-    if (!confirm(confirmMsg)) return;
-
     try {
       const res = await fetch(`/api/admin/merchants/${m.id}`, {
         method: 'PATCH',
@@ -419,36 +566,67 @@ export default function MasterSuperAdminPage() {
         setMerchants((prev) =>
           prev.map((item) => (item.id === m.id ? { ...item, is_active: nextActive } : item))
         );
-        showToast(`Store ${m.name} is now ${nextActive ? 'ACTIVE' : 'FROZEN'}`);
+        showToast(`Store "${m.name}" is now ${nextActive ? 'ACTIVE' : 'FROZEN'}`);
       }
     } catch {
       alert('Failed to toggle merchant status');
     }
   };
 
-  const handleDeleteMerchant = async (m: MerchantRecord) => {
-    if (
-      !confirm(
-        `⚠️ PERMANENT DELETE CONFIRMATION:\n\nAre you sure you want to permanently delete store "${m.name}" (${m.phone})?\n\nThis will remove all products, invoices, and cloud records for this merchant. This action cannot be undone.`
-      )
-    ) {
-      return;
+  const handleQuickExtendValidity = async (m: MerchantRecord, days: number) => {
+    try {
+      const now = new Date();
+      const currentExp = m.subscription_expires_at ? new Date(m.subscription_expires_at) : now;
+      const baseDate = currentExp.getTime() > now.getTime() ? currentExp : now;
+      baseDate.setDate(baseDate.getDate() + days);
+      const newExpiry = baseDate.toISOString();
+
+      const res = await fetch(`/api/admin/merchants/${m.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription_tier: 'pro',
+          subscription_expires_at: newExpiry,
+          days_extension: days,
+        }),
+      });
+
+      if (res.ok) {
+        setMerchants((prev) =>
+          prev.map((item) =>
+            item.id === m.id
+              ? { ...item, subscription_tier: 'pro', subscription_expires_at: newExpiry }
+              : item
+          )
+        );
+        showToast(`Extended ${m.name} by +${days} days (Pro active)`);
+      }
+    } catch {
+      alert('Failed to extend validity');
     }
+  };
+
+  const handleDeleteMerchantConfirm = async () => {
+    if (!merchantToDelete) return;
+    setIsDeletingMerchant(true);
 
     try {
-      const res = await fetch(`/api/admin/merchants/${m.id}`, {
+      const res = await fetch(`/api/admin/merchants/${merchantToDelete.id}`, {
         method: 'DELETE',
       });
 
       if (res.ok) {
-        setMerchants((prev) => prev.filter((item) => item.id !== m.id));
-        showToast(`Store "${m.name}" permanently deleted.`);
+        setMerchants((prev) => prev.filter((item) => item.id !== merchantToDelete.id));
+        showToast(`Store "${merchantToDelete.name}" permanently deleted.`);
+        setMerchantToDelete(null);
       } else {
         const data = await res.json();
         alert(data.message || 'Failed to delete merchant');
       }
     } catch {
       alert('Network error deleting merchant');
+    } finally {
+      setIsDeletingMerchant(false);
     }
   };
 
@@ -481,9 +659,9 @@ export default function MasterSuperAdminPage() {
       if (res.ok) {
         window.dispatchEvent(new Event('broadcast_updated'));
         localStorage.setItem('kamai_last_broadcast_sync', Date.now().toString());
-        showToast(broadcastEnabled ? 'In-App announcement published to all active POS counters!' : 'Announcement disabled.');
+        showToast(broadcastEnabled ? '🚀 In-App broadcast banner published live to all merchant POS screens!' : 'Broadcast banner disabled.');
       } else {
-        alert('Failed to publish broadcast announcement');
+        alert('Failed to publish broadcast');
       }
     } catch {
       alert('Network error publishing broadcast');
@@ -492,26 +670,49 @@ export default function MasterSuperAdminPage() {
     }
   };
 
-  const handleSaveConfig = async (newConfig: Partial<PlatformRemoteConfig>) => {
+  const handleSaveFullRemoteConfig = async () => {
+    setIsSavingConfig(true);
     try {
+      const payload: Partial<PlatformRemoteConfig> = {
+        maintenanceMode: formMaintenanceMode,
+        maintenanceMessage: formMaintenanceMessage,
+        razorpayGatewayEnabled: formRazorpayGateway,
+        cloudSyncEnabled: formCloudSync,
+        barcodeGeneratorEnabled: formBarcodeGenerator,
+        growthMarketingEnabled: formGrowthMarketing,
+        gstReportsEnabled: formGstReports,
+        proMonthlyPrice: Number(formMonthlyPrice),
+        proAnnualPrice: Number(formAnnualPrice),
+        freeHoldBillsLimit: Number(formHoldBillsLimit),
+        freeHistoryDaysLimit: Number(formHistoryDaysLimit),
+        supportPhone: formSupportPhone,
+        supportWhatsApp: formSupportWhatsApp,
+      };
+
       const res = await fetch('/api/admin/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newConfig),
+        body: JSON.stringify(payload),
       });
+
       if (res.ok) {
         const data = await res.json();
         if (data.config) setConfig(data.config);
-        showToast('Remote configuration updated successfully!');
+        showToast('✅ Remote platform configuration and feature switches saved live!');
+      } else {
+        alert('Failed to save remote configuration');
       }
     } catch {
-      alert('Failed to update remote configuration');
+      alert('Network error saving configuration');
+    } finally {
+      setIsSavingConfig(false);
     }
   };
 
   const handleCreateCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCouponCode.trim() || !newCouponValue) return;
+    setIsCreatingCoupon(true);
 
     try {
       const res = await fetch('/api/admin/coupons', {
@@ -522,8 +723,8 @@ export default function MasterSuperAdminPage() {
           discount_type: newCouponType,
           discount_value: Number(newCouponValue),
           max_discount_amount: Number(newCouponMaxDiscount),
-          min_order_value: Number(newCouponMinOrder),
-          max_uses: Number(newCouponMaxUses),
+          min_order_amount: Number(newCouponMinOrder),
+          max_redemptions: Number(newCouponMaxUses),
         }),
       });
 
@@ -532,12 +733,14 @@ export default function MasterSuperAdminPage() {
         setCoupons((prev) => [data.coupon, ...prev]);
         setIsCouponModalOpen(false);
         setNewCouponCode('');
-        showToast(`Coupon ${data.coupon.code} created!`);
+        showToast(`🎉 Coupon ${data.coupon.code} created & activated!`);
       } else {
-        alert(data.message || 'Failed to create coupon');
+        alert(data.message || data.error || 'Failed to create coupon');
       }
     } catch {
       alert('Network error creating coupon');
+    } finally {
+      setIsCreatingCoupon(false);
     }
   };
 
@@ -557,6 +760,28 @@ export default function MasterSuperAdminPage() {
     } catch {
       alert('Failed to update coupon');
     }
+  };
+
+  const handleDeleteCoupon = async (couponId: string) => {
+    if (!confirm('Are you sure you want to delete this coupon?')) return;
+    try {
+      const res = await fetch(`/api/admin/coupons?id=${couponId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setCoupons((prev) => prev.filter((c) => c.id !== couponId));
+        showToast('Coupon deleted.');
+      }
+    } catch {
+      alert('Failed to delete coupon');
+    }
+  };
+
+  const handleCopyCoupon = (code: string, id: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCouponId(id);
+    showToast(`Copied coupon code ${code} to clipboard!`);
+    setTimeout(() => setCopiedCouponId(null), 2000);
   };
 
   const handleExportMerchantsCSV = () => {
@@ -587,21 +812,45 @@ export default function MasterSuperAdminPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleOpenWhatsAppChat = (phone: string, merchantName: string) => {
+  const handleOpenWhatsAppChat = (phone: string, merchantName: string, customMessage?: string) => {
     const cleanNumber = phone.replace(/\D/g, '');
     const fullNumber = cleanNumber.length === 10 ? `91${cleanNumber}` : cleanNumber;
-    const text = encodeURIComponent(
-      `Hello ${merchantName}! Greetings from KamaiPlus SuperAdmin Team. How can we support your retail billing and growth today?`
-    );
+    const defaultText = `Hello ${merchantName}! Greetings from the KamaiPlus SuperAdmin Team. How can we support your retail store today?`;
+    const text = encodeURIComponent(customMessage || defaultText);
     window.open(`https://wa.me/${fullNumber}?text=${text}`, '_blank');
   };
 
+  const handleClearLocalDataAndFreshPull = async (targetBizId?: string) => {
+    const bizId = targetBizId || customResetBizId || (merchants[0]?.id) || 'biz_default';
+    if (
+      !confirm(
+        `⚠️ CLEAR LOCAL DATA & FRESH CLOUD PULL:\n\nThis will completely wipe local IndexedDB cache on this device (Products, Sales, Khata, Inventory) and freshly pull all latest records from Cloud Firestore for business ${bizId}.\n\nDo you want to proceed?`
+      )
+    ) {
+      return;
+    }
+
+    setIsResettingLocalData(true);
+    setResetStats(null);
+    try {
+      const res = await clearLocalDexieAndFreshSync(bizId);
+      setResetStats(res.stats);
+      showToast(
+        `🎉 Local data cleared & fresh sync complete! ${res.stats.products} products, ${res.stats.sales} sales, ${res.stats.customers} customers restored.`
+      );
+    } catch (err: any) {
+      alert(`Local reset and sync failed: ${err.message || 'Check connection'}`);
+    } finally {
+      setIsResettingLocalData(false);
+    }
+  };
+
   // -------------------------------------------------------------
-  // VIEW: AUTHENTICATION LOCK SCREEN (RESPONSIVE)
+  // VIEW: AUTHENTICATION LOCK SCREEN
   // -------------------------------------------------------------
   if (isAuthenticated === null) {
     return (
-      <div className="min-h-screen bg-[#070A10] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#070A11] flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-3 border-amber-400 border-t-transparent rounded-full animate-spin" />
           <span className="text-xs font-mono text-slate-400 tracking-wider">Verifying SuperAdmin Authority...</span>
@@ -612,8 +861,8 @@ export default function MasterSuperAdminPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#070A10] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-950/20 via-[#070A10] to-[#070A10] flex flex-col items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-md bg-[#0E131F]/95 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-2xl relative overflow-hidden">
+      <div className="min-h-screen bg-[#070A11] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-950/20 via-[#070A11] to-[#070A11] flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
+        <div className="w-full max-w-md bg-[#0D121F]/95 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600" />
           
           <div className="flex flex-col items-center text-center mb-6 sm:mb-8">
@@ -622,7 +871,7 @@ export default function MasterSuperAdminPage() {
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">KamaiPlus SuperAdmin</h1>
             <p className="text-xs text-slate-400 mt-1 sm:mt-1.5 leading-relaxed">
-              Master Platform Authority &amp; Merchant Ecosystem Control
+              Master Platform Authority &amp; Merchant Ecosystem Command
             </p>
           </div>
 
@@ -640,7 +889,7 @@ export default function MasterSuperAdminPage() {
                   placeholder="Enter SuperAdmin passkey"
                   required
                   autoFocus
-                  className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30 font-mono transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30 font-mono transition-all"
                 />
               </div>
             </div>
@@ -673,10 +922,10 @@ export default function MasterSuperAdminPage() {
   }
 
   // -------------------------------------------------------------
-  // VIEW: AUTHENTICATED SUPERADMIN CONTROL CENTER (UNIFIED NAVIGATION)
+  // VIEW: AUTHENTICATED MASTER CONTROL CENTER
   // -------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#070A10] text-slate-100 pb-24 md:pb-16 font-sans antialiased">
+    <div className="min-h-screen bg-[#070A11] text-slate-100 pb-24 md:pb-16 font-sans antialiased">
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div className="fixed top-4 right-4 z-50 p-3.5 sm:p-4 rounded-2xl bg-emerald-500 text-slate-950 font-black text-xs shadow-2xl flex items-center gap-2.5 backdrop-blur-md animate-in slide-in-from-top-4 duration-200 border border-emerald-400/40">
@@ -685,7 +934,7 @@ export default function MasterSuperAdminPage() {
         </div>
       )}
 
-      {/* Top Navbar Header (Systematic Desktop & Mobile) */}
+      {/* Top Navbar Header */}
       <header className="sticky top-0 z-40 bg-[#0B0F17]/95 backdrop-blur-xl border-b border-slate-800/80 px-3 sm:px-6 lg:px-8 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           {/* Left: Branding & Status */}
@@ -741,7 +990,6 @@ export default function MasterSuperAdminPage() {
 
           {/* Right: Quick Tools, Barcode & Action Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Direct Barcode Generator Link */}
             <Link
               href="/barcode-generator"
               className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-bold transition-all"
@@ -751,7 +999,6 @@ export default function MasterSuperAdminPage() {
               <span className="hidden sm:inline">Barcode</span>
             </Link>
 
-            {/* Direct POS Counter Link */}
             <Link
               href="/"
               className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-bold transition-all"
@@ -794,7 +1041,7 @@ export default function MasterSuperAdminPage() {
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {/* Main Content Body */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6">
         {/* ========================================================================= */}
         {/* TAB 1: EXECUTIVE OVERVIEW */}
@@ -804,116 +1051,125 @@ export default function MasterSuperAdminPage() {
             {/* KPI Cards Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
               {/* Total Merchants */}
-              <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#101626] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
                 <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-bold mb-1 sm:mb-2">
                   <span>Total Merchants</span>
                   <div className="p-1.5 sm:p-2 rounded-xl bg-blue-500/10 text-blue-400 shrink-0">
                     <Store className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                 </div>
-                <div className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                   {merchants.length}
                 </div>
-                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 truncate">
-                  <span className="text-emerald-400 font-bold">{merchants.filter((m) => m.is_active).length} Active</span>
+                <div className="flex items-center gap-1.5 text-[10.5px] text-slate-400 mt-2 font-medium">
+                  <span className="text-emerald-400 font-bold">{activeCount} Active</span>
                   <span>•</span>
-                  <span>{merchants.filter((m) => !m.is_active).length} Frozen</span>
+                  <span className="text-rose-400 font-bold">{frozenCount} Frozen</span>
                 </div>
               </div>
 
-              {/* Monthly Recurring Revenue (MRR) */}
-              <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
+              {/* Monthly Run-Rate (MRR) */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#101626] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
                 <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-bold mb-1 sm:mb-2">
                   <span>Monthly Run-Rate</span>
                   <div className="p-1.5 sm:p-2 rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0">
                     <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                 </div>
-                <div className="text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">
+                <div className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight">
                   {formatINR(calculatedMRR)}
                 </div>
-                <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 font-mono truncate">
-                  ARR: {formatINR(calculatedARR)}
+                <div className="text-[10.5px] text-slate-400 mt-2 font-mono truncate">
+                  ARR: <span className="text-slate-300 font-bold">{formatINR(calculatedARR)}</span>
                 </div>
               </div>
 
               {/* Active Paid Subscribers */}
-              <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#101626] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
                 <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-bold mb-1 sm:mb-2">
                   <span>Pro Subscribers</span>
                   <div className="p-1.5 sm:p-2 rounded-xl bg-amber-500/10 text-amber-400 shrink-0">
                     <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                 </div>
-                <div className="text-xl sm:text-2xl font-black text-amber-400 tracking-tight">
+                <div className="text-2xl sm:text-3xl font-black text-amber-400 tracking-tight">
                   {totalProCount}
                 </div>
-                <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 truncate">
+                <div className="text-[10.5px] text-slate-400 mt-2 truncate font-medium">
                   <span>{totalFreeCount} on Free Tier</span>
                 </div>
               </div>
 
-              {/* Firestore Cloud Status */}
-              <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-b from-[#111726] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
+              {/* Cloud System Health */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#101626] to-[#0D121F] border border-slate-800 shadow-xl relative overflow-hidden group hover:border-slate-700 transition-all">
                 <div className="flex items-center justify-between text-slate-400 text-[11px] sm:text-xs font-bold mb-1 sm:mb-2">
                   <span>Cloud Health</span>
                   <div className="p-1.5 sm:p-2 rounded-xl bg-purple-500/10 text-purple-400 shrink-0">
                     <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                 </div>
-                <div className="text-sm sm:text-lg font-black text-white flex items-center gap-1.5 sm:gap-2">
-                  <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="truncate">Operational</span>
+                <div className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="truncate">100% Online</span>
                 </div>
-                <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1.5 sm:mt-2 truncate">
-                  Firestore &amp; Auth Active
+                <div className="text-[10.5px] text-slate-400 mt-2 truncate">
+                  Firestore &amp; Auth Operational
                 </div>
               </div>
             </div>
 
-            {/* Quick Actions Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 bg-[#0E1320] border border-slate-800 rounded-2xl">
+            {/* Quick Actions Launchpad */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-[#0D121F] border border-slate-800 rounded-2xl shadow-lg">
               <div>
-                <h2 className="text-xs sm:text-sm font-bold text-white">Platform SuperAdmin Controls</h2>
-                <p className="text-[11px] sm:text-xs text-slate-400">Instant merchant upgrades, coupon generation &amp; CSV export</p>
+                <h2 className="text-xs sm:text-sm font-black text-white">SuperAdmin Quick Launchpad</h2>
+                <p className="text-[11px] text-slate-400">Onboard merchants, publish broadcasts, and manage discount codes</p>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   size="sm"
-                  onClick={() => setIsCouponModalOpen(true)}
-                  className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs h-8 px-2.5 sm:px-3 gap-1.5 cursor-pointer"
+                  onClick={() => setIsAddMerchantModalOpen(true)}
+                  className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-8.5 px-3 gap-1.5 cursor-pointer shadow-xs"
                 >
-                  <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Store</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => setIsCouponModalOpen(true)}
+                  className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs h-8.5 px-3 gap-1.5 cursor-pointer"
+                >
+                  <Tag className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Coupon</span>
                 </Button>
 
                 <Button
                   size="sm"
-                  onClick={() => setIsManualSubModalOpen(true)}
-                  className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-8 px-2.5 sm:px-3 gap-1.5 cursor-pointer"
+                  onClick={() => setActiveTab('broadcast')}
+                  className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs h-8.5 px-3 gap-1.5 cursor-pointer"
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>Upgrade</span>
+                  <BellRing className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Broadcast</span>
                 </Button>
 
                 <Button
                   size="sm"
                   onClick={handleExportMerchantsCSV}
-                  className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs h-8 px-2.5 sm:px-3 gap-1.5 cursor-pointer"
+                  className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs h-8.5 px-3 gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Export</span>
+                  <span>Export CSV</span>
                 </Button>
               </div>
             </div>
 
             {/* Recently Joined Merchants Feed */}
-            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3 sm:space-y-4">
+            <div className="bg-[#0D121F] border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3 sm:space-y-4 shadow-xl">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div>
                   <h3 className="text-xs sm:text-sm font-black text-white">Recently Joined Merchants</h3>
-                  <p className="text-[11px] sm:text-xs text-slate-400">Latest shop owners onboarded to KamaiPlus</p>
+                  <p className="text-[11px] text-slate-400">Latest business signups across India</p>
                 </div>
                 <button
                   onClick={() => setActiveTab('merchants')}
@@ -926,21 +1182,21 @@ export default function MasterSuperAdminPage() {
 
               <div className="divide-y divide-slate-800/60">
                 {merchants.slice(0, 6).map((m) => (
-                  <div key={m.id} className="py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-3 text-xs hover:bg-slate-800/20 px-1 sm:px-2 rounded-xl transition-colors">
-                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <div key={m.id} className="py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-3 text-xs hover:bg-slate-800/20 px-2 rounded-xl transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 border border-slate-700 text-amber-400 flex items-center justify-center font-black text-xs shrink-0 shadow-inner">
-                        {m.name.slice(0, 2).toUpperCase()}
+                        {(m.name || 'Store').slice(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <div className="font-bold text-white truncate text-xs sm:text-sm">{m.name}</div>
-                        <div className="text-slate-400 font-mono text-[10px] sm:text-[11px] truncate">
-                          {m.owner_name ? `${m.owner_name} • ` : ''}{m.phone}
+                        <div className="text-slate-400 font-mono text-[10.5px] truncate">
+                          {m.owner_name ? `${m.owner_name} • ` : ''}{m.phone} {m.city ? `(${m.city})` : ''}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase ${
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase ${
                         m.subscription_tier === 'pro' || m.subscription_tier === 'enterprise'
                           ? 'bg-amber-400/10 text-amber-400 border border-amber-400/30'
                           : 'bg-slate-800 text-slate-400 border border-slate-700'
@@ -950,7 +1206,7 @@ export default function MasterSuperAdminPage() {
                       <button
                         onClick={() => handleOpenWhatsAppChat(m.phone, m.name)}
                         className="p-1.5 sm:p-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 cursor-pointer transition-colors"
-                        title="Chat on WhatsApp"
+                        title="Chat with merchant on WhatsApp"
                       >
                         <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
@@ -968,38 +1224,58 @@ export default function MasterSuperAdminPage() {
         {activeTab === 'merchants' && (
           <div className="space-y-4">
             {/* Search & Filter Toolbar */}
-            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+            <div className="bg-[#0D121F] border border-slate-800 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <input
                   type="text"
-                  placeholder="Search store name, phone, owner, email, city..."
+                  placeholder="Search store name, phone, owner, city, GSTIN..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                  className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none transition-all"
                 />
               </div>
 
-              <div className="flex items-center gap-2 overflow-x-auto">
+              <div className="flex items-center gap-2 overflow-x-auto flex-wrap sm:flex-nowrap">
                 <select
                   value={selectedTierFilter}
                   onChange={(e) => setSelectedTierFilter(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-2.5 py-2 focus:border-amber-400 focus:outline-none cursor-pointer shrink-0"
+                  className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 focus:border-amber-400 focus:outline-none cursor-pointer shrink-0 font-medium"
                 >
-                  <option value="all">All Tiers</option>
+                  <option value="all">All Plans</option>
                   <option value="free">Free Plan</option>
-                  <option value="pro">Paid (Pro) Plan</option>
+                  <option value="pro">Pro Plan</option>
+                  <option value="enterprise">Enterprise</option>
                 </select>
 
                 <select
                   value={selectedStatusFilter}
                   onChange={(e) => setSelectedStatusFilter(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-2.5 py-2 focus:border-amber-400 focus:outline-none cursor-pointer shrink-0"
+                  className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 focus:border-amber-400 focus:outline-none cursor-pointer shrink-0 font-medium"
                 >
                   <option value="all">All Status</option>
                   <option value="active">Active Only</option>
                   <option value="frozen">Frozen Only</option>
                 </select>
+
+                <select
+                  value={merchantSortBy}
+                  onChange={(e) => setMerchantSortBy(e.target.value as any)}
+                  className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 focus:border-amber-400 focus:outline-none cursor-pointer shrink-0 font-medium"
+                >
+                  <option value="newest">Sort: Newest</option>
+                  <option value="name">Sort: Name</option>
+                  <option value="tier">Sort: Plan</option>
+                </select>
+
+                <Button
+                  size="sm"
+                  onClick={() => setIsAddMerchantModalOpen(true)}
+                  className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-8.5 px-3 gap-1.5 cursor-pointer shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Store</span>
+                </Button>
 
                 <Button
                   size="sm"
@@ -1012,14 +1288,15 @@ export default function MasterSuperAdminPage() {
               </div>
             </div>
 
-            {/* 1. DESKTOP VIEW: HIGH-DENSITY DATA TABLE */}
-            <div className="hidden md:block bg-[#0E1320] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+            {/* Merchants Data Table */}
+            <div className="bg-[#0D121F] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-slate-800 bg-slate-950/80 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                      <th className="py-3.5 px-4">Store &amp; Owner</th>
-                      <th className="py-3.5 px-4">Contact &amp; Email</th>
+                      <th className="py-3.5 px-4">Store &amp; Category</th>
+                      <th className="py-3.5 px-4">Owner &amp; Phone</th>
+                      <th className="py-3.5 px-4">City / State</th>
                       <th className="py-3.5 px-4">Plan &amp; Validity</th>
                       <th className="py-3.5 px-4">Status</th>
                       <th className="py-3.5 px-4 text-right">Root Actions</th>
@@ -1028,7 +1305,7 @@ export default function MasterSuperAdminPage() {
                   <tbody className="divide-y divide-slate-800/60">
                     {filteredMerchants.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-slate-500 font-mono">
+                        <td colSpan={6} className="py-12 text-center text-slate-500 font-mono">
                           No merchants matching criteria.
                         </td>
                       </tr>
@@ -1038,102 +1315,93 @@ export default function MasterSuperAdminPage() {
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-amber-400 font-black flex items-center justify-center text-xs shrink-0">
-                                {m.name.slice(0, 2).toUpperCase()}
+                                {(m.name || 'Store').slice(0, 2).toUpperCase()}
                               </div>
                               <div>
                                 <div className="font-bold text-white text-xs">{m.name}</div>
-                                <div className="text-slate-400 text-[11px]">{m.owner_name || 'Owner not set'}</div>
+                                <div className="text-slate-400 text-[10.5px] uppercase font-mono tracking-wider">{m.business_type || 'General'}</div>
                               </div>
                             </div>
                           </td>
 
                           <td className="py-3.5 px-4 font-mono">
-                            <div className="text-slate-200 font-bold">{m.phone || 'No phone'}</div>
-                            <div className="text-slate-500 text-[11px] truncate max-w-[180px]">{m.email || m.city || 'India'}</div>
+                            <div className="text-slate-200 font-bold">{m.phone}</div>
+                            <div className="text-slate-400 text-[10.5px]">{m.owner_name || 'Owner not set'}</div>
+                          </td>
+
+                          <td className="py-3.5 px-4 text-slate-400">
+                            <div>{m.city || '-'}</div>
+                            {m.gstin && (
+                              <div className="text-[10px] text-amber-400/80 font-mono">GST: {m.gstin}</div>
+                            )}
                           </td>
 
                           <td className="py-3.5 px-4">
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                              m.subscription_tier === 'pro' || m.subscription_tier === 'enterprise'
-                                ? 'bg-amber-400/10 text-amber-400 border border-amber-400/30'
-                                : 'bg-slate-800 text-slate-400 border border-slate-700'
-                            }`}>
-                              {m.subscription_tier === 'pro' || m.subscription_tier === 'enterprise' ? 'Paid (Pro)' : 'Free'}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                m.subscription_tier === 'pro' || m.subscription_tier === 'enterprise'
+                                  ? 'bg-amber-400/10 text-amber-400 border border-amber-400/30'
+                                  : 'bg-slate-800 text-slate-400 border border-slate-700'
+                              }`}>
+                                {m.subscription_tier}
+                              </span>
+                            </div>
                             <div className="text-[10px] text-slate-500 font-mono mt-0.5">
                               {m.subscription_expires_at
-                                ? `Exp: ${new Date(m.subscription_expires_at).toLocaleDateString('en-IN')}`
-                                : 'Lifetime / Free'}
+                                ? `Expires: ${new Date(m.subscription_expires_at).toLocaleDateString()}`
+                                : 'Forever Free'}
                             </div>
                           </td>
 
                           <td className="py-3.5 px-4">
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 w-fit ${
-                              m.is_active
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                            }`}>
+                            <button
+                              onClick={() => handleToggleFreezeMerchant(m)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition flex items-center gap-1.5 ${
+                                m.is_active
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
+                                  : 'bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20'
+                              }`}
+                              title={m.is_active ? 'Click to Freeze Store' : 'Click to Unfreeze Store'}
+                            >
                               <span className={`w-1.5 h-1.5 rounded-full ${m.is_active ? 'bg-emerald-400' : 'bg-rose-400'}`} />
                               <span>{m.is_active ? 'Active' : 'Frozen'}</span>
-                            </span>
+                            </button>
                           </td>
 
                           <td className="py-3.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {/* Quick Plan Extension */}
+                              <button
+                                onClick={() => handleQuickExtendValidity(m, 30)}
+                                className="px-2 py-1 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 text-amber-400 text-[10.5px] font-bold border border-amber-400/30 cursor-pointer"
+                                title="Quick Extend Pro (+30 Days)"
+                              >
+                                +30d
+                              </button>
+
                               {/* WhatsApp Chat */}
                               <button
                                 onClick={() => handleOpenWhatsAppChat(m.phone, m.name)}
-                                className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 cursor-pointer transition-colors"
+                                className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 cursor-pointer"
                                 title="Open WhatsApp Chat"
                               >
                                 <MessageCircle className="w-3.5 h-3.5" />
                               </button>
 
-                              {/* Upgrade Plan Override */}
+                              {/* Edit Profile & Plan */}
                               <button
                                 onClick={() => handleOpenEditModal(m)}
-                                className="p-1.5 rounded-lg bg-amber-400/10 text-amber-400 hover:bg-amber-400/20 cursor-pointer transition-colors"
-                                title="Change Plan / Extend Subscription"
+                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer"
+                                title="Edit Store Profile & Subscription"
                               >
-                                <Crown className="w-3.5 h-3.5" />
+                                <Sliders className="w-3.5 h-3.5" />
                               </button>
 
-                              {/* Freeze / Unfreeze Switch */}
+                              {/* Delete Merchant */}
                               <button
-                                onClick={() => handleToggleFreezeMerchant(m)}
-                                className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                                  m.is_active
-                                    ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
-                                    : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                                }`}
-                                title={m.is_active ? 'Freeze Store' : 'Unfreeze Store'}
-                              >
-                                <Ban className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* View Inspector Drawer */}
-                              <button
-                                onClick={() => setSelectedMerchantForView(m)}
-                                className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer transition-colors"
-                                title="View Store Profile"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Wipe Local Cache & Fresh Cloud Pull */}
-                              <button
-                                onClick={() => handleClearLocalDataAndFreshPull(m.id)}
-                                className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 cursor-pointer transition-colors"
-                                title="Wipe Local Device Cache & Fresh Pull from Cloud"
-                              >
-                                <RefreshCw className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Delete Merchant Permanently */}
-                              <button
-                                onClick={() => handleDeleteMerchant(m)}
-                                className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 cursor-pointer transition-colors"
-                                title="Delete Store Permanently"
+                                onClick={() => setMerchantToDelete(m)}
+                                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 cursor-pointer"
+                                title="Permanently Delete Store"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1146,213 +1414,194 @@ export default function MasterSuperAdminPage() {
                 </table>
               </div>
             </div>
-
-            {/* 2. MOBILE CARD STACK VIEW */}
-            <div className="block md:hidden space-y-3">
-              {filteredMerchants.length === 0 ? (
-                <div className="py-12 text-center text-slate-500 font-mono text-xs bg-[#0E1320] rounded-2xl border border-slate-800">
-                  No merchants found.
-                </div>
-              ) : (
-                filteredMerchants.map((m) => (
-                  <div key={m.id} className="p-4 rounded-2xl bg-[#0E1320] border border-slate-800 space-y-3 shadow-lg">
-                    {/* Header */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-amber-400 font-black flex items-center justify-center text-xs shrink-0">
-                          {m.name.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="font-bold text-white text-sm truncate">{m.name}</h4>
-                          <p className="text-[11px] text-slate-400 truncate">{m.owner_name || 'Owner not set'}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          m.subscription_tier === 'pro' || m.subscription_tier === 'enterprise'
-                            ? 'bg-amber-400/10 text-amber-400 border border-amber-400/30'
-                            : 'bg-slate-800 text-slate-400 border border-slate-700'
-                        }`}>
-                          {m.subscription_tier === 'pro' || m.subscription_tier === 'enterprise' ? 'Paid (Pro)' : 'Free'}
-                        </span>
-
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                          m.is_active
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                        }`}>
-                          {m.is_active ? 'Active' : 'Frozen'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Details Info */}
-                    <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 grid grid-cols-2 gap-2 text-[11px] font-mono">
-                      <div>
-                        <span className="text-slate-500 block text-[10px]">Mobile:</span>
-                        <span className="text-slate-200 font-bold">{m.phone || 'N/A'}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block text-[10px]">Expiry:</span>
-                        <span className="text-slate-300">
-                          {m.subscription_expires_at ? new Date(m.subscription_expires_at).toLocaleDateString('en-IN') : 'Free / Lifetime'}
-                        </span>
-                      </div>
-                      {m.email && (
-                        <div className="col-span-2 truncate">
-                          <span className="text-slate-500 block text-[10px]">Google Email:</span>
-                          <span className="text-slate-300">{m.email}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Touch-Friendly Action Bar */}
-                    <div className="grid grid-cols-5 gap-1.5 pt-1 border-t border-slate-800/80">
-                      <button
-                        onClick={() => handleOpenWhatsAppChat(m.phone, m.name)}
-                        className="py-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-colors"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        <span>Chat</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleOpenEditModal(m)}
-                        className="py-2 rounded-xl bg-amber-400/10 text-amber-400 hover:bg-amber-400/20 flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-colors"
-                      >
-                        <Crown className="w-4 h-4" />
-                        <span>Plan</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleToggleFreezeMerchant(m)}
-                        className={`py-2 rounded-xl flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-colors ${
-                          m.is_active
-                            ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
-                            : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                        }`}
-                      >
-                        <Ban className="w-4 h-4" />
-                        <span>{m.is_active ? 'Freeze' : 'Unfreeze'}</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSelectedMerchantForView(m)}
-                        className="py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>View</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleDeleteMerchant(m)}
-                        className="py-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 3: IN-APP ANNOUNCEMENT BROADCASTS */}
+        {/* TAB 3: LIVE BROADCAST COMMAND CENTER */}
         {/* ========================================================================= */}
         {activeTab === 'broadcast' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-            <div className="lg:col-span-7 bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4">
-              <div>
-                <h3 className="text-sm sm:text-base font-black text-white">Publish Terminal Announcement</h3>
-                <p className="text-xs text-slate-400">Push instant banner alerts to all active POS counters</p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <div>
-                    <span className="text-xs font-bold text-white block">Broadcast Banner Active</span>
-                    <span className="text-[11px] text-slate-400">When enabled, appears on all merchant screens.</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setBroadcastEnabled(!broadcastEnabled)}
-                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 ${
-                      broadcastEnabled ? 'bg-emerald-500' : 'bg-slate-800'
-                    }`}
-                  >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform absolute top-1 ${
-                      broadcastEnabled ? 'right-1' : 'left-1'
-                    }`} />
-                  </button>
-                </div>
-
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Column: Composer */}
+              <div className="lg:col-span-7 bg-[#0D121F] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4 shadow-xl">
                 <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1">Message Text</label>
-                  <textarea
-                    rows={3}
-                    value={broadcastMessage}
-                    onChange={(e) => setBroadcastMessage(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
-                    placeholder="Enter broadcast announcement message..."
-                  />
+                  <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                    <BellRing className="w-4 h-4 text-amber-400" />
+                    <span>Live POS Broadcast Banner Composer</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Publish instant alert messages, festive promos, or system updates directly atop all active merchant POS counters across India.
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-3.5">
                   <div>
-                    <label className="text-xs font-bold text-slate-300 block mb-1">Banner Style</label>
-                    <select
-                      value={broadcastType}
-                      onChange={(e) => setBroadcastType(e.target.value as any)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none cursor-pointer"
-                    >
-                      <option value="festive">🪔 Festive &amp; Promotion</option>
-                      <option value="info">ℹ️ Informational Update</option>
-                      <option value="warning">⚠️ Important Notice</option>
-                      <option value="success">🎉 Milestone / Success</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-300 block mb-1">Action Link (Optional)</label>
-                    <input
-                      type="text"
-                      value={broadcastLink}
-                      onChange={(e) => setBroadcastLink(e.target.value)}
-                      placeholder="/pricing or https://..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                    <label className="text-xs font-bold text-slate-300 block mb-1">Announcement Headline / Message</label>
+                    <textarea
+                      rows={3}
+                      value={broadcastMessage}
+                      onChange={(e) => setBroadcastMessage(e.target.value)}
+                      placeholder="e.g. ✨ Big Diwali Sale! Upgrade to KamaiPlus Pro for near-expiry radar & CA tax reports."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none leading-relaxed"
                     />
                   </div>
-                </div>
 
-                <Button
-                  onClick={handleSaveBroadcast}
-                  disabled={isSavingBroadcast}
-                  className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-3 cursor-pointer shadow-md"
-                >
-                  {isSavingBroadcast ? 'Saving Broadcast...' : 'Save & Publish Announcement'}
-                </Button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Theme / Alert Type</label>
+                      <select
+                        value={broadcastType}
+                        onChange={(e) => setBroadcastType(e.target.value as any)}
+                        className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 focus:border-amber-400 focus:outline-none"
+                      >
+                        <option value="festive">✨ Festive Gold (Promotions &amp; Celebrations)</option>
+                        <option value="info">ℹ️ Indigo Info (General Announcements)</option>
+                        <option value="success">✅ Emerald Success (New Feature Releases)</option>
+                        <option value="warning">⚠️ Crimson Warning (Urgent Maintenance / Radar)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Call-To-Action Link (Optional)</label>
+                      <input
+                        type="text"
+                        value={broadcastLink}
+                        onChange={(e) => setBroadcastLink(e.target.value)}
+                        placeholder="e.g. /pricing or /settings"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Broadcast Expiration Schedule</label>
+                      <select
+                        value={broadcastDuration}
+                        onChange={(e) => setBroadcastDuration(e.target.value as any)}
+                        className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 focus:border-amber-400 focus:outline-none"
+                      >
+                        <option value="always">Continuous (Until Manually Disabled)</option>
+                        <option value="24h">24 Hours from now</option>
+                        <option value="3d">3 Days</option>
+                        <option value="7d">7 Days (Full Week)</option>
+                        <option value="custom">Custom Expiry Date</option>
+                      </select>
+                    </div>
+
+                    {broadcastDuration === 'custom' && (
+                      <div>
+                        <label className="text-xs font-bold text-slate-300 block mb-1">Custom Expiry Date</label>
+                        <input
+                          type="datetime-local"
+                          value={customBroadcastExpiry}
+                          onChange={(e) => setCustomBroadcastExpiry(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Active Toggle */}
+                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+                    <div>
+                      <span className="text-xs font-bold text-white block">Broadcast State</span>
+                      <span className="text-[11px] text-slate-400">
+                        {broadcastEnabled ? 'Active — Currently displayed to all merchants' : 'Disabled — Hidden from all screens'}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setBroadcastEnabled(!broadcastEnabled)}
+                      className={`px-3 py-1 rounded-full text-xs font-black cursor-pointer transition ${
+                        broadcastEnabled
+                          ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {broadcastEnabled ? 'LIVE / ON' : 'OFF'}
+                    </button>
+                  </div>
+
+                  <Button
+                    onClick={handleSaveBroadcast}
+                    disabled={isSavingBroadcast}
+                    className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-3 cursor-pointer shadow-lg shadow-amber-400/20"
+                  >
+                    {isSavingBroadcast ? 'Publishing Broadcast...' : 'Save & Publish Live Broadcast'}
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            {/* Live Terminal Preview */}
-            <div className="lg:col-span-5 bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4">
-              <h3 className="text-sm font-black text-white">Live Merchant Preview</h3>
-              <p className="text-xs text-slate-400">How your banner appears on merchant billing terminals:</p>
+              {/* Right Column: Live Interactive Device Preview */}
+              <div className="lg:col-span-5 bg-[#0D121F] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4 shadow-xl flex flex-col">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Live Screen Preview</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-400">How merchants see this banner</p>
+                  </div>
 
-              <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 border border-amber-400/30 text-amber-300 text-xs flex items-center justify-between gap-3 shadow-lg">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="font-bold truncate">{broadcastMessage}</span>
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                    <button
+                      onClick={() => setBroadcastPreviewDevice('mobile')}
+                      className={`p-1.5 rounded text-xs cursor-pointer ${
+                        broadcastPreviewDevice === 'mobile' ? 'bg-slate-800 text-white' : 'text-slate-500'
+                      }`}
+                      title="Mobile View"
+                    >
+                      <Smartphone className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setBroadcastPreviewDevice('desktop')}
+                      className={`p-1.5 rounded text-xs cursor-pointer ${
+                        broadcastPreviewDevice === 'desktop' ? 'bg-slate-800 text-white' : 'text-slate-500'
+                      }`}
+                      title="Desktop POS View"
+                    >
+                      <Monitor className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-                {broadcastLink && (
-                  <span className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black text-[10px] shrink-0">
-                    Action
-                  </span>
-                )}
+
+                {/* Smartphone / POS Mockup */}
+                <div className="flex-1 flex items-center justify-center p-2">
+                  <div className={`w-full ${broadcastPreviewDevice === 'mobile' ? 'max-w-[280px]' : 'max-w-full'} bg-slate-950 rounded-2xl border-2 border-slate-800 p-2 shadow-2xl overflow-hidden`}>
+                    <div className="w-full flex items-center justify-between text-[9px] text-slate-500 pb-1.5 border-b border-slate-900 font-mono px-1">
+                      <span>9:41 AM</span>
+                      <span>Kamai+ POS</span>
+                    </div>
+
+                    {/* Simulated Banner */}
+                    <div className={`mt-2 p-2.5 rounded-xl text-[11px] font-bold text-white shadow-sm flex items-center justify-between gap-1.5 ${
+                      broadcastType === 'festive' ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-slate-950' :
+                      broadcastType === 'warning' ? 'bg-rose-600 text-white' :
+                      broadcastType === 'success' ? 'bg-emerald-600 text-white' :
+                      'bg-indigo-600 text-white'
+                    }`}>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate leading-tight">{broadcastMessage || 'Broadcast message preview'}</span>
+                      </div>
+                      {broadcastLink && (
+                        <span className="px-1.5 py-0.5 rounded bg-black/20 text-[9px] font-mono shrink-0">
+                          GO &gt;
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Simulated POS Content Placeholder */}
+                    <div className="mt-3 p-3 bg-slate-900/60 rounded-xl space-y-2 border border-slate-800/40">
+                      <div className="h-3 bg-slate-800 rounded w-1/2" />
+                      <div className="h-6 bg-slate-800 rounded w-full" />
+                      <div className="h-8 bg-slate-800 rounded w-full" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1363,14 +1612,20 @@ export default function MasterSuperAdminPage() {
         {/* ========================================================================= */}
         {activeTab === 'coupons' && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-[#0E1320] border border-slate-800 rounded-2xl p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0D121F] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg">
               <div>
-                <h3 className="text-sm font-black text-white">Subscription Promo Codes</h3>
-                <p className="text-xs text-slate-400">Discount codes for Kamai+ Pro upgrades</p>
+                <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-emerald-400" />
+                  <span>Subscription Promo Codes &amp; Discount Vouchers</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Create high-converting discount codes for merchants upgrading to KamaiPlus Pro
+                </p>
               </div>
+
               <Button
                 onClick={() => setIsCouponModalOpen(true)}
-                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-8.5 gap-1.5 cursor-pointer self-start sm:self-auto"
+                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs h-9 px-4 gap-1.5 cursor-pointer shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Create Coupon</span>
@@ -1379,32 +1634,72 @@ export default function MasterSuperAdminPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {coupons.map((coupon) => (
-                <div key={coupon.id} className="p-4 sm:p-5 rounded-2xl bg-[#0E1320] border border-slate-800 space-y-3">
+                <div key={coupon.id} className="p-4 sm:p-5 rounded-2xl bg-[#0D121F] border border-slate-800 space-y-3.5 shadow-xl group hover:border-slate-700 transition-all">
                   <div className="flex items-center justify-between">
-                    <span className="px-3 py-1 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-400 font-mono font-black text-sm">
-                      {coupon.code}
-                    </span>
-                    <button
-                      onClick={() => handleToggleCoupon(coupon.id, coupon.is_active)}
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold cursor-pointer ${
-                        coupon.is_active
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-slate-800 text-slate-500 border border-slate-700'
-                      }`}
-                    >
-                      {coupon.is_active ? 'Active' : 'Disabled'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-400 font-mono font-black text-sm tracking-wider">
+                        {coupon.code}
+                      </span>
+                      <button
+                        onClick={() => handleCopyCoupon(coupon.code, coupon.id)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition"
+                        title="Copy Coupon Code"
+                      >
+                        {copiedCouponId === coupon.id ? (
+                          <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleToggleCoupon(coupon.id, coupon.is_active)}
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition ${
+                          coupon.is_active
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-slate-800 text-slate-500 border border-slate-700'
+                        }`}
+                      >
+                        {coupon.is_active ? 'Active' : 'Disabled'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCoupon(coupon.id)}
+                        className="p-1 rounded-lg text-slate-500 hover:text-rose-400 cursor-pointer"
+                        title="Delete Coupon"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="text-xs text-slate-300 font-bold">
-                    {coupon.discount_type === 'percentage'
-                      ? `${coupon.discount_value}% Discount`
-                      : `Flat ₹${coupon.discount_value} OFF`}
+                  <div className="text-xs text-slate-200 font-black flex items-center gap-1">
+                    <Percent className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>
+                      {coupon.discount_type === 'percentage'
+                        ? `${coupon.discount_value}% OFF`
+                        : `Flat ₹${coupon.discount_value} OFF`}
+                    </span>
                   </div>
 
                   <div className="text-[11px] text-slate-400 space-y-1 font-mono pt-2 border-t border-slate-800">
-                    <div>Used: {coupon.redemptions_count || 0} / {coupon.max_redemptions || '∞'} times</div>
-                    <div>Min Order: ₹{coupon.min_order_amount || 0}</div>
+                    <div className="flex justify-between">
+                      <span>Redemptions:</span>
+                      <span className="text-white font-bold">{coupon.redemptions_count || 0} / {coupon.max_redemptions || '∞'}</span>
+                    </div>
+                    {coupon.min_order_amount ? (
+                      <div className="flex justify-between">
+                        <span>Min Order:</span>
+                        <span>₹{coupon.min_order_amount}</span>
+                      </div>
+                    ) : null}
+                    {coupon.expires_at ? (
+                      <div className="flex justify-between text-[10px] text-amber-400">
+                        <span>Valid Until:</span>
+                        <span>{new Date(coupon.expires_at).toLocaleDateString()}</span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -1413,203 +1708,448 @@ export default function MasterSuperAdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 5: WHATSAPP AUTOMATION */}
+        {/* TAB 5: WHATSAPP CAMPAIGNS & OUTREACH */}
         {/* ========================================================================= */}
         {activeTab === 'whatsapp' && (
-          <div className="space-y-4">
-            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4">
+          <div className="space-y-6">
+            <div className="bg-[#0D121F] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-5 shadow-xl">
               <div>
-                <h3 className="text-sm sm:text-base font-black text-white">WhatsApp Business Platform Controls</h3>
-                <p className="text-xs text-slate-400">Manage templates, webhooks, and direct merchant communications</p>
+                <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4 text-emerald-400" />
+                  <span>WhatsApp Merchant Outreach &amp; Campaign Center</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Direct 1-click WhatsApp messaging to onboard new merchants, announce feature upgrades, or prompt Pro renewals.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <span className="text-xs font-bold text-slate-400 block">Cloud API Status</span>
-                  <span className="text-sm font-black text-emerald-400 mt-1 block">Connected ✅</span>
+              {/* Template Selectors */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 block">Select Message Template</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  {[
+                    { id: 'welcome', title: '👋 Welcome Onboarding', preview: 'Welcome to KamaiPlus! Your retail store is now digitally enabled.' },
+                    { id: 'offer50', title: '🎁 50% Pro Discount', preview: 'Upgrade to KamaiPlus Pro today with code PRO50 and get unlimited bills.' },
+                    { id: 'renewal', title: '⏰ Renewal Reminder', preview: 'Your KamaiPlus Pro plan is due for renewal. Avoid uninterrupted billing.' },
+                    { id: 'features', title: '🚀 New Features Release', preview: 'We just released instant GST tax filing & barcode label generation.' },
+                  ].map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => {
+                        setWaTemplate(tpl.id as any);
+                        setWaCustomText(tpl.preview);
+                      }}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition ${
+                        waTemplate === tpl.id
+                          ? 'border-amber-400 bg-amber-400/10 text-white'
+                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="text-xs font-bold text-white">{tpl.title}</div>
+                      <div className="text-[10.5px] text-slate-400 mt-1 line-clamp-2">{tpl.preview}</div>
+                    </button>
+                  ))}
                 </div>
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <span className="text-xs font-bold text-slate-400 block">WhatsApp OTP Auth</span>
-                  <span className="text-sm font-black text-amber-400 mt-1 block">Replaced by Google OAuth ⚡</span>
+              </div>
+
+              {/* Message Editor */}
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-slate-300 block">Message Content</label>
+                <textarea
+                  rows={4}
+                  value={waCustomText}
+                  onChange={(e) => setWaCustomText(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none leading-relaxed"
+                />
+              </div>
+
+              {/* Single Test Phone Sender */}
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex-1">
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Direct Test Send (Any Phone Number)</label>
+                  <input
+                    type="text"
+                    value={waTestPhone}
+                    onChange={(e) => setWaTestPhone(e.target.value)}
+                    placeholder="Enter 10-digit mobile number (e.g. 9876543210)"
+                    className="w-full bg-[#0D121F] border border-slate-800 rounded-xl p-2 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
+                  />
                 </div>
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <span className="text-xs font-bold text-slate-400 block">Bill PDF Sharing</span>
-                  <span className="text-sm font-black text-blue-400 mt-1 block">Direct WhatsApp Web link</span>
-                </div>
+
+                <Button
+                  size="sm"
+                  disabled={!waTestPhone.trim() || !waCustomText.trim()}
+                  onClick={() => handleOpenWhatsAppChat(waTestPhone, 'Merchant', waCustomText)}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs h-9 px-4 gap-1.5 cursor-pointer self-end sm:self-auto shadow-xs"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Launch WhatsApp</span>
+                </Button>
               </div>
             </div>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 6: TRANSACTIONS & REVENUE */}
+        {/* TAB 6: TRANSACTIONS & REVENUE INTELLIGENCE */}
         {/* ========================================================================= */}
         {activeTab === 'revenue' && (
-          <div className="space-y-4">
-            <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-5">
-              <h3 className="text-sm font-black text-white mb-1">Razorpay Platform Transactions</h3>
-              <p className="text-xs text-slate-400">Live transaction history for paid subscription upgrades</p>
+          <div className="space-y-4 sm:space-y-6">
+            {/* Financial Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#0D121F] border border-slate-800 shadow-xl">
+                <span className="text-slate-400 text-xs font-bold block">Total Online Volume</span>
+                <div className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">
+                  {formatINR(totalRevenueCollected)}
+                </div>
+                <span className="text-[10px] text-slate-500 mt-1 block">Processed via Razorpay</span>
+              </div>
 
-              <div className="mt-4 divide-y divide-slate-800/60">
-                {transactions.length === 0 ? (
-                  <div className="py-8 text-center text-slate-500 font-mono text-xs">
-                    No Razorpay transactions recorded yet.
-                  </div>
-                ) : (
-                  transactions.map((tx) => (
-                    <div key={tx.id} className="py-3 flex items-center justify-between text-xs gap-2">
-                      <div className="min-w-0">
-                        <div className="font-bold text-white truncate">{tx.business_name || tx.business_id}</div>
-                        <div className="text-slate-400 font-mono text-[10px] sm:text-[11px] truncate">
-                          {tx.razorpay_payment_id || 'Manual Activation'} • {new Date(tx.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="font-black text-emerald-400">{formatINR(tx.amount || 0)}</div>
-                        <span className="px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400">
-                          {tx.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#0D121F] border border-slate-800 shadow-xl">
+                <span className="text-slate-400 text-xs font-bold block">Captured Transactions</span>
+                <div className="text-2xl sm:text-3xl font-black text-white mt-1">
+                  {transactions.filter((tx) => tx.status === 'captured' || tx.status === 'paid').length}
+                </div>
+                <span className="text-[10px] text-slate-500 mt-1 block">Completed payments</span>
+              </div>
+
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#0D121F] border border-slate-800 shadow-xl">
+                <span className="text-slate-400 text-xs font-bold block">Average Plan Value</span>
+                <div className="text-2xl sm:text-3xl font-black text-amber-400 mt-1">
+                  {formatINR(transactions.length ? Math.round(totalRevenueCollected / transactions.length) : formAnnualPrice)}
+                </div>
+                <span className="text-[10px] text-slate-500 mt-1 block">Annual &amp; monthly blend</span>
+              </div>
+            </div>
+
+            {/* Transactions Log Table */}
+            <div className="bg-[#0D121F] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
+              <h3 className="text-sm sm:text-base font-black text-white mb-1">Razorpay Online Payments Log</h3>
+              <p className="text-xs text-slate-400 mb-4">Complete audit trail of all online subscription upgrades</p>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400 font-bold uppercase text-[10px]">
+                      <th className="py-2.5 px-3">Store / ID</th>
+                      <th className="py-2.5 px-3">Payment ID</th>
+                      <th className="py-2.5 px-3">Plan</th>
+                      <th className="py-2.5 px-3 text-right">Amount</th>
+                      <th className="py-2.5 px-3 text-right">Status</th>
+                      <th className="py-2.5 px-3 text-right">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-mono">
+                    {transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-500 text-xs">
+                          No Razorpay payments recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      transactions.map((tx) => (
+                        <tr key={tx.id} className="hover:bg-slate-800/30">
+                          <td className="py-3 px-3 font-sans font-bold text-white">{tx.business_name || tx.business_id}</td>
+                          <td className="py-3 px-3 text-slate-400">{tx.razorpay_payment_id || 'Manual Entry'}</td>
+                          <td className="py-3 px-3 uppercase text-amber-400 font-bold">{tx.tier}</td>
+                          <td className="py-3 px-3 text-right font-black text-emerald-400">{formatINR(tx.amount || 0)}</td>
+                          <td className="py-3 px-3 text-right">
+                            <span className="px-2 py-0.5 rounded text-[9.5px] font-black uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                              {tx.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right text-slate-400 text-[10px]">
+                            {new Date(tx.created_at).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 7: PLATFORM CONFIG & PRICING */}
+        {/* TAB 7: PLATFORM CONFIG & FEATURE SWITCHES */}
         {/* ========================================================================= */}
         {activeTab === 'config' && (
-          <div className="bg-[#0E1320] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-5">
+          <div className="bg-[#0D121F] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-6 shadow-xl">
             <div>
-              <h3 className="text-sm sm:text-base font-black text-white">Platform Settings &amp; Pricing Engine</h3>
-              <p className="text-xs text-slate-400">Manage dynamic plan pricing, hold bills quotas, and support hotlines</p>
+              <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-amber-400" />
+                <span>Master Platform Switches &amp; Remote Engine</span>
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Toggle platform features live, customize pricing tiers, and configure customer support hotlines.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">Pro Plan Monthly Price (₹)</label>
-                <input
-                  type="number"
-                  value={formMonthlyPrice}
-                  onChange={(e) => setFormMonthlyPrice(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none"
-                />
-              </div>
+            {/* Master Feature Toggles Grid */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300 block">
+                Platform Master Feature Gates
+              </span>
 
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">Pro Plan Annual Price (₹)</label>
-                <input
-                  type="number"
-                  value={formAnnualPrice}
-                  onChange={(e) => setFormAnnualPrice(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">Free Tier Hold Bills Limit</label>
-                <input
-                  type="number"
-                  value={formHoldBillsLimit}
-                  onChange={(e) => setFormHoldBillsLimit(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">SuperAdmin Support Hotline Phone</label>
-                <input
-                  type="text"
-                  value={formSupportPhone}
-                  onChange={(e) => setFormSupportPhone(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <Button
-                onClick={() =>
-                  handleSaveConfig({
-                    proMonthlyPrice: formMonthlyPrice,
-                    proAnnualPrice: formAnnualPrice,
-                    freeHoldBillsLimit: formHoldBillsLimit,
-                    supportPhone: formSupportPhone,
-                  })
-                }
-                className="w-full sm:w-auto bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-2.5 px-6 cursor-pointer"
-              >
-                Save Remote Configuration
-              </Button>
-            </div>
-
-            {/* SUPERADMIN DATABASE RESET & FRESH CLOUD PULL TOOL */}
-            <div className="mt-6 pt-6 border-t border-slate-800 space-y-4 bg-slate-950/60 p-4 sm:p-5 rounded-2xl border border-rose-500/20">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center font-black shrink-0 border border-rose-500/30">
-                  <Database className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-black text-white">Local Device Database Reset &amp; Fresh Cloud Sync</h4>
-                    <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 text-[10px] font-black uppercase">
-                      Admin Recovery
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* Maintenance Mode */}
+                <div className={`p-4 rounded-xl border transition ${
+                  formMaintenanceMode ? 'bg-rose-500/10 border-rose-500/40' : 'bg-slate-950 border-slate-800'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Wrench className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Maintenance Mode</span>
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => setFormMaintenanceMode(!formMaintenanceMode)}
+                      className={`px-2.5 py-0.5 rounded text-[10px] font-black cursor-pointer ${
+                        formMaintenanceMode ? 'bg-rose-500 text-white' : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {formMaintenanceMode ? 'ACTIVE' : 'OFF'}
+                    </button>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    Wipes all local browser/IndexedDB tables (Products, Sales, Khata, Ledger, Expenses) on this device and performs a 100% fresh pull directly from Cloud Firestore.
+                  <p className="text-[10.5px] text-slate-400 leading-tight">
+                    Temporarily shows a maintenance banner and pauses heavy cloud write operations.
+                  </p>
+                </div>
+
+                {/* Razorpay Gateway */}
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Razorpay Online Gateway</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFormRazorpayGateway(!formRazorpayGateway)}
+                      className={`px-2.5 py-0.5 rounded text-[10px] font-black cursor-pointer ${
+                        formRazorpayGateway ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {formRazorpayGateway ? 'ENABLED' : 'DISABLED'}
+                    </button>
+                  </div>
+                  <p className="text-[10.5px] text-slate-400 leading-tight">
+                    Allows merchants to self-upgrade to Pro online with UPI, Card, NetBanking.
+                  </p>
+                </div>
+
+                {/* Cloud Firestore Sync */}
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Database className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Cloud Sync Engine</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFormCloudSync(!formCloudSync)}
+                      className={`px-2.5 py-0.5 rounded text-[10px] font-black cursor-pointer ${
+                        formCloudSync ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {formCloudSync ? 'ENABLED' : 'DISABLED'}
+                    </button>
+                  </div>
+                  <p className="text-[10.5px] text-slate-400 leading-tight">
+                    Background synchronization between local Dexie IndexedDB and Cloud Firestore.
+                  </p>
+                </div>
+
+                {/* Barcode Generator */}
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Barcode className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Barcode Generator</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFormBarcodeGenerator(!formBarcodeGenerator)}
+                      className={`px-2.5 py-0.5 rounded text-[10px] font-black cursor-pointer ${
+                        formBarcodeGenerator ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {formBarcodeGenerator ? 'ENABLED' : 'DISABLED'}
+                    </button>
+                  </div>
+                  <p className="text-[10.5px] text-slate-400 leading-tight">
+                    Allows printing custom EAN/CODE128 barcode stickers on sticky thermal paper.
+                  </p>
+                </div>
+
+                {/* Growth Marketing */}
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Growth Marketing Tools</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFormGrowthMarketing(!formGrowthMarketing)}
+                      className={`px-2.5 py-0.5 rounded text-[10px] font-black cursor-pointer ${
+                        formGrowthMarketing ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {formGrowthMarketing ? 'ENABLED' : 'DISABLED'}
+                    </button>
+                  </div>
+                  <p className="text-[10.5px] text-slate-400 leading-tight">
+                    WhatsApp customer marketing templates and festival promotions engine.
+                  </p>
+                </div>
+
+                {/* GST Reports */}
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>GST Tax Filing Reports</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFormGstReports(!formGstReports)}
+                      className={`px-2.5 py-0.5 rounded text-[10px] font-black cursor-pointer ${
+                        formGstReports ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {formGstReports ? 'ENABLED' : 'DISABLED'}
+                    </button>
+                  </div>
+                  <p className="text-[10.5px] text-slate-400 leading-tight">
+                    GSTR-1 JSON and B2B/B2C audit spreadsheets generation.
                   </p>
                 </div>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-300 block mb-1">Target Business ID to Freshly Pull</label>
+            {/* Pricing Engine & Quotas */}
+            <div className="space-y-3 pt-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300 block">
+                Subscription Pricing Engine &amp; Free Plan Limits
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Pro Monthly Price (₹)</label>
                   <input
-                    type="text"
-                    placeholder="Enter Business ID (or select merchant from table)..."
-                    value={customResetBizId}
-                    onChange={(e) => setCustomResetBizId(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white font-mono focus:border-rose-400 focus:outline-none"
+                    type="number"
+                    value={formMonthlyPrice}
+                    onChange={(e) => setFormMonthlyPrice(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
                   />
                 </div>
 
                 <div>
-                  <Button
-                    onClick={() => handleClearLocalDataAndFreshPull()}
-                    disabled={isResettingLocalData}
-                    className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs py-2.5 px-4 cursor-pointer gap-2 border-none shadow-md"
-                  >
-                    {isResettingLocalData ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Wiping &amp; Pulling...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="w-4 h-4" />
-                        <span>Wipe &amp; Fresh Pull from Cloud</span>
-                      </>
-                    )}
-                  </Button>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Pro Annual Price (₹)</label>
+                  <input
+                    type="number"
+                    value={formAnnualPrice}
+                    onChange={(e) => setFormAnnualPrice(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
+                  />
                 </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Free Hold Bills Limit</label>
+                  <input
+                    type="number"
+                    value={formHoldBillsLimit}
+                    onChange={(e) => setFormHoldBillsLimit(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Free Sales History (Days)</label>
+                  <input
+                    type="number"
+                    value={formHistoryDaysLimit}
+                    onChange={(e) => setFormHistoryDaysLimit(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Support Contacts */}
+            <div className="space-y-3 pt-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300 block">
+                SuperAdmin Support &amp; Hotline Contacts
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Support Phone Hotline</label>
+                  <input
+                    type="text"
+                    value={formSupportPhone}
+                    onChange={(e) => setFormSupportPhone(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Support WhatsApp Number</label>
+                  <input
+                    type="text"
+                    value={formSupportWhatsApp}
+                    onChange={(e) => setFormSupportWhatsApp(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between gap-4 border-t border-slate-800">
+              <Button
+                onClick={handleSaveFullRemoteConfig}
+                disabled={isSavingConfig}
+                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-2.5 px-6 cursor-pointer shadow-lg shadow-amber-400/20"
+              >
+                {isSavingConfig ? 'Saving Changes...' : 'Save Remote Configuration'}
+              </Button>
+            </div>
+
+            {/* SUPERADMIN DATABASE RESET & FRESH CLOUD PULL TOOL */}
+            <div className="pt-4 border-t border-slate-800 space-y-3 bg-slate-950/60 p-4 sm:p-5 rounded-2xl border border-rose-500/20">
+              <div className="flex items-center gap-2 text-rose-400">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-xs font-black uppercase tracking-wider">SuperAdmin Diagnostic Tools</span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                If testing or resolving a local synchronization conflict on this device, this tool wipes local Dexie tables and freshly streams the latest cloud snapshot from Cloud Firestore.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  placeholder="Target Business ID (optional)"
+                  value={customResetBizId}
+                  onChange={(e) => setCustomResetBizId(e.target.value)}
+                  className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono flex-1 focus:outline-none focus:border-rose-400"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => handleClearLocalDataAndFreshPull()}
+                  disabled={isResettingLocalData}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs h-9 px-4 gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isResettingLocalData ? 'animate-spin' : ''}`} />
+                  <span>{isResettingLocalData ? 'Pulling from Cloud...' : 'Clear Dexie & Fresh Pull'}</span>
+                </Button>
               </div>
 
               {resetStats && (
-                <div className="p-3.5 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-xs space-y-1.5 animate-in fade-in">
-                  <div className="font-bold text-emerald-300 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Local Data Cleared &amp; Cloud Records Successfully Restored:</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px] text-slate-300 pt-1">
-                    <div>📦 Products: <strong className="text-white">{resetStats.products || 0}</strong></div>
-                    <div>🧾 Sales: <strong className="text-white">{resetStats.sales || 0}</strong></div>
-                    <div>👥 Customers: <strong className="text-white">{resetStats.customers || 0}</strong></div>
-                    <div>📒 Khata Ledger: <strong className="text-white">{resetStats.ledger || 0}</strong></div>
-                  </div>
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
+                  ✅ Restored: {resetStats.products} products, {resetStats.sales} sales, {resetStats.customers} customers.
                 </div>
               )}
             </div>
@@ -1618,299 +2158,428 @@ export default function MasterSuperAdminPage() {
       </main>
 
       {/* ========================================================================= */}
-      {/* INTERACTIVE MOBILE BOTTOM NAVIGATION BAR (FIXED DOCK) */}
+      {/* MODAL: ADD NEW MERCHANT */}
       {/* ========================================================================= */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0B0F17]/95 backdrop-blur-2xl border-t border-slate-800/90 py-1.5 px-2 lg:hidden flex items-center justify-around shadow-2xl">
-        {[
-          { id: 'overview', label: 'Overview', icon: BarChart3 },
-          { id: 'merchants', label: 'Merchants', icon: Store, badge: merchants.length },
-          { id: 'coupons', label: 'Coupons', icon: Tag },
-          { id: 'broadcast', label: 'Broadcast', icon: BellRing },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
+      <Modal
+        isOpen={isAddMerchantModalOpen}
+        onClose={() => setIsAddMerchantModalOpen(false)}
+        title="Onboard New Merchant Store"
+      >
+        <form onSubmit={handleCreateNewMerchant} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Store / Business Name *"
+              placeholder="e.g. Mahadev Super Mart"
+              value={addName}
+              onChange={(e) => setAddName(e.target.value)}
+              required
+            />
+            <Input
+              label="Owner / Contact Person"
+              placeholder="e.g. Ramesh Patil"
+              value={addOwnerName}
+              onChange={(e) => setAddOwnerName(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Mobile Number (10-Digit) *"
+              placeholder="e.g. 9876543210"
+              value={addPhone}
+              onChange={(e) => setAddPhone(e.target.value)}
+              required
+            />
+            <Input
+              label="Email Address"
+              placeholder="e.g. store@gmail.com"
+              value={addEmail}
+              onChange={(e) => setAddEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="City"
+              placeholder="e.g. Pune, Mumbai, Solapur"
+              value={addCity}
+              onChange={(e) => setAddCity(e.target.value)}
+            />
+            <Input
+              label="GSTIN (Optional)"
+              placeholder="e.g. 27AAAAA0000A1Z5"
+              value={addGstin}
+              onChange={(e) => setAddGstin(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Business / Store Category</label>
+            <select
+              value={addBusinessType}
+              onChange={(e) => setAddBusinessType(e.target.value)}
+              className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs font-bold focus:border-slate-900 focus:outline-none"
+            >
+              <option value="grocery">🛒 Grocery / Kirana &amp; Supermarket</option>
+              <option value="restaurant">🍽️ Restaurant, Cafe &amp; Fast Food</option>
+              <option value="pharmacy">💊 Pharmacy &amp; Medical Chemist</option>
+              <option value="clothing">👕 Apparel, Clothing &amp; Footwear</option>
+              <option value="electronics">⚡ Electronics &amp; Mobile Accessories</option>
+              <option value="hardware">🔧 Hardware, Electrical &amp; Sanitary</option>
+              <option value="services">💼 Salon, Spa &amp; Professional Services</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Initial Plan</label>
+              <select
+                value={addTier}
+                onChange={(e) => setAddTier(e.target.value)}
+                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs font-bold focus:border-slate-900 focus:outline-none"
+              >
+                <option value="free">Free Tier</option>
+                <option value="pro">Pro Plan</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+
+            {addTier !== 'free' && (
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Validity (Days)</label>
+                <input
+                  type="number"
+                  value={addDaysValidity}
+                  onChange={(e) => setAddDaysValidity(Number(e.target.value))}
+                  className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs font-bold focus:border-slate-900 focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsAddMerchantModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isCreatingMerchant}
+              className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black"
+            >
+              {isCreatingMerchant ? 'Creating Store...' : 'Create & Onboard Store'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL: EDIT MERCHANT FULL PROFILE & PLAN */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={`Edit Store: ${selectedMerchantForEdit?.name}`}
+      >
+        <form onSubmit={handleSaveMerchantEdit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Store Name *"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              required
+            />
+            <Input
+              label="Owner Name"
+              value={editOwnerName}
+              onChange={(e) => setEditOwnerName(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Phone Number"
+              value={editPhone}
+              onChange={(e) => setEditPhone(e.target.value)}
+              required
+            />
+            <Input
+              label="Email"
+              value={editEmail}
+              onChange={(e) => setEditEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="City"
+              value={editCity}
+              onChange={(e) => setEditCity(e.target.value)}
+            />
+            <Input
+              label="GSTIN"
+              value={editGstin}
+              onChange={(e) => setEditGstin(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Subscription Plan</label>
+              <select
+                value={editTier}
+                onChange={(e) => setEditTier(e.target.value)}
+                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs font-bold focus:border-slate-900 focus:outline-none"
+              >
+                <option value="free">Free Tier</option>
+                <option value="pro">Pro Plan</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+
+            {editTier !== 'free' && (
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Extend Validity (+Days)</label>
+                <input
+                  type="number"
+                  value={editDaysExtension}
+                  onChange={(e) => setEditDaysExtension(Number(e.target.value))}
+                  className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs font-bold focus:border-slate-900 focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200">
+            <div>
+              <span className="text-xs font-bold text-slate-800 block">Account Status</span>
+              <span className="text-[11px] text-slate-500">
+                {editIsActive ? 'Store is active and can generate bills' : 'Store is frozen (POS locked)'}
+              </span>
+            </div>
             <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id as any);
-                setIsMobileMenuOpen(false);
-              }}
-              className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all relative cursor-pointer ${
-                isActive ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              type="button"
+              onClick={() => setEditIsActive(!editIsActive)}
+              className={`px-3 py-1 rounded-full text-xs font-black cursor-pointer ${
+                editIsActive ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
               }`}
             >
-              <div className={`p-1.5 rounded-xl transition-all relative ${isActive ? 'bg-amber-400/10' : ''}`}>
-                <Icon className="w-5 h-5" />
-                {tab.badge !== undefined && tab.badge > 0 && (
-                  <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 font-black text-[9px]">
-                    {tab.badge}
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] mt-0.5 tracking-tight">{tab.label}</span>
+              {editIsActive ? 'ACTIVE' : 'FROZEN'}
             </button>
-          );
-        })}
-
-        {/* More / Menu Button */}
-        <button
-          onClick={() => setIsMobileMenuOpen(true)}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all cursor-pointer ${
-            isMobileMenuOpen ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className="p-1.5 rounded-xl">
-            <Menu className="w-5 h-5" />
           </div>
-          <span className="text-[10px] mt-0.5 tracking-tight">More</span>
-        </button>
-      </nav>
+
+          <div className="pt-2 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEditModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isUpdatingMerchant}
+              className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black"
+            >
+              {isUpdatingMerchant ? 'Saving Changes...' : 'Save Store Details'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* ========================================================================= */}
-      {/* MOBILE "MORE" NAVIGATION DRAWER */}
+      {/* MODAL: CREATE COUPON */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={isCouponModalOpen}
+        onClose={() => setIsCouponModalOpen(false)}
+        title="Create Promotional Discount Coupon"
+      >
+        <form onSubmit={handleCreateCoupon} className="space-y-4">
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Coupon Code *</label>
+            <input
+              type="text"
+              placeholder="e.g. DIWALI50, FESTIVE100, PROMO20"
+              value={newCouponCode}
+              onChange={(e) => setNewCouponCode(e.target.value.toUpperCase())}
+              required
+              className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2.5 text-xs font-mono font-bold uppercase focus:border-slate-900 focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Discount Type</label>
+              <select
+                value={newCouponType}
+                onChange={(e) => setNewCouponType(e.target.value as any)}
+                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs font-bold focus:border-slate-900 focus:outline-none"
+              >
+                <option value="percentage">Percentage (%)</option>
+                <option value="flat">Flat Amount (₹)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                {newCouponType === 'percentage' ? 'Percentage (%)' : 'Amount (₹)'} *
+              </label>
+              <input
+                type="number"
+                value={newCouponValue}
+                onChange={(e) => setNewCouponValue(Number(e.target.value))}
+                required
+                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs font-bold focus:border-slate-900 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Min Order Value (₹)</label>
+              <input
+                type="number"
+                value={newCouponMinOrder}
+                onChange={(e) => setNewCouponMinOrder(Number(e.target.value))}
+                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs font-bold focus:border-slate-900 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Max Redemptions</label>
+              <input
+                type="number"
+                value={newCouponMaxUses}
+                onChange={(e) => setNewCouponMaxUses(Number(e.target.value))}
+                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg p-2 text-xs font-bold focus:border-slate-900 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsCouponModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isCreatingCoupon}
+              className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black"
+            >
+              {isCreatingCoupon ? 'Creating...' : 'Activate Coupon'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL: DELETE CONFIRMATION */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={Boolean(merchantToDelete)}
+        onClose={() => setMerchantToDelete(null)}
+        title="⚠️ Delete Merchant Store"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Are you sure you want to permanently delete store <strong className="text-slate-950">{merchantToDelete?.name}</strong> ({merchantToDelete?.phone})?
+          </p>
+          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+            This will permanently remove all cloud sales, customer khata ledger entries, and store profiles for this merchant. This action cannot be undone.
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setMerchantToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDeleteMerchantConfirm}
+              disabled={isDeletingMerchant}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+            >
+              {isDeletingMerchant ? 'Deleting...' : 'Confirm Permanent Deletion'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MOBILE NAVIGATION DRAWER */}
       {/* ========================================================================= */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#0E1320] border-t border-slate-800 rounded-t-3xl p-6 space-y-4 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-200 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-xs"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <div className="relative w-72 max-w-[80vw] bg-[#0D121F] border-r border-slate-800 h-full p-4 flex flex-col z-10 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-amber-400" />
-                <span className="font-black text-white text-sm">SuperAdmin Navigation Menu</span>
+                <span className="font-black text-sm text-white">SuperAdmin Menu</span>
               </div>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+                className="p-1 rounded text-slate-400 hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
-              <Link
-                href="/barcode-generator"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 text-left hover:border-amber-400 transition-colors"
-              >
-                <Barcode className="w-5 h-5 text-amber-400" />
-                <span className="font-bold text-white text-xs">Barcode Generator</span>
-                <span className="text-[10px] text-slate-400">Print custom EAN-13 labels</span>
-              </Link>
-
-              <Link
-                href="/"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 text-left hover:border-emerald-400 transition-colors"
-              >
-                <ShoppingBag className="w-5 h-5 text-emerald-400" />
-                <span className="font-bold text-white text-xs">Launch POS Counter</span>
-                <span className="text-[10px] text-slate-400">Open main billing interface</span>
-              </Link>
-
-              <button
-                onClick={() => {
-                  setActiveTab('whatsapp');
-                  setIsMobileMenuOpen(false);
-                }}
-                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 text-left hover:border-blue-400 transition-colors cursor-pointer"
-              >
-                <MessageCircle className="w-5 h-5 text-blue-400" />
-                <span className="font-bold text-white text-xs">WhatsApp Automation</span>
-                <span className="text-[10px] text-slate-400">Cloud API &amp; Webhooks</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setActiveTab('revenue');
-                  setIsMobileMenuOpen(false);
-                }}
-                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 text-left hover:border-emerald-400 transition-colors cursor-pointer"
-              >
-                <CreditCard className="w-5 h-5 text-emerald-400" />
-                <span className="font-bold text-white text-xs">Transactions &amp; Revenue</span>
-                <span className="text-[10px] text-slate-400">Razorpay subscription logs</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setActiveTab('config');
-                  setIsMobileMenuOpen(false);
-                }}
-                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-1.5 text-left hover:border-amber-400 transition-colors cursor-pointer col-span-2"
-              >
-                <Sliders className="w-5 h-5 text-amber-400" />
-                <span className="font-bold text-white text-xs">Platform Settings &amp; Pricing Engine</span>
-                <span className="text-[10px] text-slate-400">Adjust Pro plan pricing, limits &amp; hotline</span>
-              </button>
+            <div className="py-4 space-y-1 flex-1">
+              {[
+                { id: 'overview', label: 'Executive Overview', icon: BarChart3 },
+                { id: 'merchants', label: `Merchants Hub (${merchants.length})`, icon: Store },
+                { id: 'broadcast', label: 'Broadcasts & Alerts', icon: BellRing },
+                { id: 'coupons', label: `Coupons (${coupons.length})`, icon: Tag },
+                { id: 'whatsapp', label: 'WhatsApp Campaigns', icon: MessageCircle },
+                { id: 'revenue', label: 'Revenue Intelligence', icon: CreditCard },
+                { id: 'config', label: 'Platform Config', icon: Sliders },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id as any);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer text-left ${
+                      isActive
+                        ? 'bg-amber-400 text-slate-950 font-black'
+                        : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="pt-2">
-              <Button
-                variant="outline"
+            <div className="pt-4 border-t border-slate-800">
+              <button
                 onClick={handleLogout}
-                className="w-full bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs font-bold py-2.5 gap-2"
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Logout from SuperAdmin</span>
-              </Button>
+                <span>Logout Session</span>
+              </button>
             </div>
           </div>
         </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL 1: EDIT PLAN OVERRIDE */}
-      {/* ========================================================================= */}
-      {isEditModalOpen && selectedMerchantForEdit && (
-        <Modal
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          title={`Override Plan: ${selectedMerchantForEdit.name}`}
-        >
-          <form onSubmit={handleSaveMerchantEdit} className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                Select Subscription Tier
-              </label>
-              <select
-                value={editTier}
-                onChange={(e) => setEditTier(e.target.value)}
-                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white"
-              >
-                <option value="free">Free Plan</option>
-                <option value="pro">Paid (Pro) Plan</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                Validity Extension (Days)
-              </label>
-              <input
-                type="number"
-                value={editDaysExtension}
-                onChange={(e) => setEditDaysExtension(Number(e.target.value))}
-                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsEditModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" disabled={isUpdatingMerchant} className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black">
-                {isUpdatingMerchant ? 'Saving...' : 'Apply Plan Override'}
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL 2: CREATE COUPON */}
-      {/* ========================================================================= */}
-      {isCouponModalOpen && (
-        <Modal
-          isOpen={isCouponModalOpen}
-          onClose={() => setIsCouponModalOpen(false)}
-          title="Create New Subscription Coupon"
-        >
-          <form onSubmit={handleCreateCoupon} className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Coupon Code</label>
-              <input
-                type="text"
-                placeholder="e.g. FESTIVE50 or VIP2026"
-                value={newCouponCode}
-                onChange={(e) => setNewCouponCode(e.target.value.toUpperCase())}
-                required
-                className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl p-2.5 text-xs font-mono font-bold"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Type</label>
-                <select
-                  value={newCouponType}
-                  onChange={(e) => setNewCouponType(e.target.value as any)}
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl p-2 text-xs"
-                >
-                  <option value="percentage">Percentage (%)</option>
-                  <option value="flat">Flat (₹)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Value</label>
-                <input
-                  type="number"
-                  value={newCouponValue}
-                  onChange={(e) => setNewCouponValue(Number(e.target.value))}
-                  required
-                  className="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl p-2 text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsCouponModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black">
-                Create Coupon
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* ========================================================================= */}
-      {/* DRAWER: MERCHANT 360° INSPECTOR */}
-      {/* ========================================================================= */}
-      {selectedMerchantForView && (
-        <Modal
-          isOpen={!!selectedMerchantForView}
-          onClose={() => setSelectedMerchantForView(null)}
-          title={`Store Inspector: ${selectedMerchantForView.name}`}
-        >
-          <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-900 space-y-2.5">
-              <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500">Store ID:</span>
-                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedMerchantForView.id}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Owner Name:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{selectedMerchantForView.owner_name || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Phone:</span>
-                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedMerchantForView.phone}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Google Email:</span>
-                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedMerchantForView.email || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Category:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{selectedMerchantForView.business_type || 'Grocery'}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Registered On:</span>
-                <span className="font-mono text-slate-800 dark:text-slate-200">
-                  {new Date(selectedMerchantForView.created_at).toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Button size="sm" onClick={() => setSelectedMerchantForView(null)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </Modal>
       )}
     </div>
   );

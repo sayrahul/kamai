@@ -73,7 +73,17 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { code, discount_type, discount_value, min_order_amount, max_redemptions, expires_at } = body;
+    const { 
+      code, 
+      discount_type, 
+      discount_value, 
+      min_order_amount, 
+      min_order_value,
+      max_redemptions, 
+      max_uses,
+      max_discount_amount,
+      expires_at 
+    } = body;
 
     if (!code || !discount_value) {
       return NextResponse.json({ error: 'Coupon code and discount value required' }, { status: 400 });
@@ -84,8 +94,8 @@ export async function POST(req: NextRequest) {
       code: code.trim().toUpperCase(),
       discount_type: discount_type || 'percentage',
       discount_value: Number(discount_value),
-      min_order_amount: min_order_amount ? Number(min_order_amount) : undefined,
-      max_redemptions: max_redemptions ? Number(max_redemptions) : undefined,
+      min_order_amount: (min_order_amount ?? min_order_value) ? Number(min_order_amount ?? min_order_value) : undefined,
+      max_redemptions: (max_redemptions ?? max_uses) ? Number(max_redemptions ?? max_uses) : undefined,
       redemptions_count: 0,
       expires_at: expires_at || undefined,
       is_active: true,
@@ -126,6 +136,8 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: err.message || 'Failed to update coupon' }, { status: 500 });
   }
 }
+
+export const PATCH = PUT;
 
 export async function DELETE(req: NextRequest) {
   if (!verifyAdminRequest(req)) {
