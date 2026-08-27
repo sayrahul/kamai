@@ -59,6 +59,10 @@ import { Sale } from '@/types';
 import { paymentBridge } from '@/lib/payments/paymentBridge';
 import { soundboxEngine } from '@/lib/payments/soundboxEngine';
 import { ParsedPaymentEvent } from '@/lib/payments/notificationParser';
+import { getFirestoreDb } from '@/lib/firebase/config';
+import { doc, setDoc } from 'firebase/firestore';
+import { sanitizeForFirestore } from '@/lib/firebase/firestoreSync';
+import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
 
 // Lazy-load non-critical heavy modals
 const BarcodeScannerModal = dynamic(
@@ -560,8 +564,24 @@ export default function BillingPage() {
 
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
 
-  const getCartQuantityForProduct = (productId: string) =>
-    cart.reduce((sum, item) => (item.product_id === productId ? sum + item.quantity : sum), 0);
+  // Stock reservation across ALL open bill tabs (so other parallel bills don't oversell or display ghost stock)
+  const getTotalCartQuantityForProduct = (productId: string, productName?: string) => {
+    return tabs.reduce((total, tab) => {
+      const tabQty = tab.cart.reduce((sum, item) => {
+        const matchesId = item.product_id === productId;
+        const matchesName = Boolean(productName && item.product_name.toLowerCase() === productName.toLowerCase());
+        return (matchesId || matchesName) ? sum + item.quantity : sum;
+      }, 0);
+      return total + tabQty;
+    }, 0);
+  };
+
+  const getCartQuantityForProduct = (productId: string, productName?: string) =>
+    cart.reduce((sum, item) => {
+      const matchesId = item.product_id === productId;
+      const matchesName = Boolean(productName && item.product_name.toLowerCase() === productName.toLowerCase());
+      return (matchesId || matchesName) ? sum + item.quantity : sum;
+    }, 0);
 
   // Pricing Mode State (Retail vs Wholesale / Thok)
   const [pricingMode, setPricingMode] = useState<'retail' | 'wholesale'>('retail');
@@ -602,8 +622,56 @@ export default function BillingPage() {
 
   const getAvailableStockForProduct = (product: Product) => {
     if (product.is_unlimited_stock) return 999999;
-    const reservedQty = getCartQuantityForProduct(product.id);
-    return Math.max(0, product.current_stock - reservedQty);
+    const stock = Number(product.current_stock ?? 0);
+    const reservedQty = getTotalCartQuantityForProduct(product.id, product.name);
+    return Math.max(0, stock - reservedQty);
+  };
+
+  // Instant POS Quick Restock and Add to Cart
+  const handleRestockAndAddToCart = async (product: Product, restockQty: number = 10, billQty: number = 1) => {
+    try {
+      const now = new Date().toISOString();
+      const current = Number(product.current_stock ?? 0);
+      const newStock = current + restockQty;
+
+      const updatedProduct: Product = {
+        ...product,
+        current_stock: newStock,
+        updated_at: now,
+      };
+
+      await db.products.put(updatedProduct);
+
+      await db.inventory_movements.put({
+        id: `mov_pos_restock_${Date.now()}_${product.id}`,
+        business_id: product.business_id || business?.id || 'biz_default',
+        product_id: product.id,
+        product_name: product.name,
+        movement_type: 'PURCHASE',
+        quantity: restockQty,
+        previous_stock: current,
+        new_stock: newStock,
+        reason: `POS Quick Restock (+${restockQty} ${product.unit || 'units'}) during billing`,
+        created_by: 'cashier',
+        created_at: now,
+      });
+
+      // Direct cloud sync to prevent stale overwrite
+      try {
+        const firestore = getFirestoreDb();
+        const bizId = product.business_id || business?.id;
+        if (firestore && bizId && bizId !== 'biz_default') {
+          await setDoc(doc(firestore, `businesses/${bizId}/products/${product.id}`), sanitizeForFirestore(updatedProduct), { merge: true });
+        }
+      } catch (cloudErr) {
+        // Non-blocking offline fallback
+      }
+
+      addToCart(updatedProduct, billQty);
+    } catch (err) {
+      console.error('Failed to quick restock from POS:', err);
+      alert('Failed to restock item. Please check inventory.');
+    }
   };
 
   // Cart operations
@@ -612,12 +680,18 @@ export default function BillingPage() {
     const isUnlimited = Boolean(product.is_unlimited_stock);
 
     if (!isUnlimited) {
-      const currentCartQty = getCartQuantityForProduct(product.id);
-      const available = Math.max(0, product.current_stock - currentCartQty);
+      const stock = Number(product.current_stock ?? 0);
+      const available = getAvailableStockForProduct(product);
       const safeQty = Math.min(quantityToAdd, available);
 
-      if (safeQty <= 0 || product.current_stock <= 0) {
-        alert(`${product.name} is out of stock.`);
+      if (stock <= 0 || available <= 0 || safeQty <= 0) {
+        playBeepSound('alert');
+        const wantsRestock = window.confirm(
+          `⚠️ "${product.name}" is OUT OF STOCK (${stock <= 0 ? '0' : available} ${product.unit || 'units'} available in inventory).\n\nWould you like to Quick Restock +10 ${product.unit || 'units'} into inventory now and add it to this bill?`
+        );
+        if (wantsRestock) {
+          handleRestockAndAddToCart(product, 10, quantityToAdd);
+        }
         return;
       }
     }
@@ -625,7 +699,7 @@ export default function BillingPage() {
     playBeepSound('success');
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
-      const allowedQty = quantityToAdd;
+      const allowedQty = isUnlimited ? quantityToAdd : Math.min(quantityToAdd, getAvailableStockForProduct(product));
 
       if (allowedQty <= 0) {
         return prev;
@@ -688,14 +762,24 @@ export default function BillingPage() {
     const product = products.find((p) => p.id === productId);
     if (!product) return;
 
+    if (delta > 0 && !product.is_unlimited_stock) {
+      const stock = Number(product.current_stock ?? 0);
+      const existing = cart.find((i) => i.product_id === productId);
+      const currentQty = existing ? existing.quantity : 0;
+      if (currentQty + delta > stock) {
+        playBeepSound('alert');
+        alert(`❌ Cannot add more. Available inventory stock for "${product.name}" is only ${stock} ${product.unit || 'units'}.`);
+        return;
+      }
+    }
+
     setCart((prev) =>
       prev
         .map((item) => {
           if (item.product_id === productId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
-            if (newQty > product.current_stock) {
-              alert(`Cannot add more. Available stock for ${product.name} is ${product.current_stock}`);
+            if (!product.is_unlimited_stock && newQty > Number(product.current_stock ?? 0)) {
               return item;
             }
             const { price, tier } = calculateEffectiveUnitPrice(product, newQty, pricingMode);
@@ -969,185 +1053,239 @@ export default function BillingPage() {
   const handleCompleteSale = async (explicitPayment?: ParsedPaymentEvent) => {
     if (cart.length === 0) return;
 
-    const invalidStockItems = cart.filter((item) => {
-      const product = products.find((p) => p.id === item.product_id);
-      return !product || item.quantity > product.current_stock;
-    });
+    try {
+      // 0. Stock validation before sale completion
+      const invalidStockItems: Array<{ name: string; requested: number; available: number }> = [];
+      for (const item of cart) {
+        let prod = products.find((p) => p.id === item.product_id);
+        if (!prod) {
+          prod = await db.products.get(item.product_id);
+        }
+        if (!prod && item.barcode) {
+          prod = await db.products.where('barcode').equals(item.barcode).first();
+        }
+        if (!prod && item.product_name) {
+          prod = await db.products.where('name').equalsIgnoreCase(item.product_name).first();
+        }
 
-    if (invalidStockItems.length > 0) {
-      const blocked = invalidStockItems.slice(0, 3).map((item) => item.product_name).join(', ');
-      alert(`Cannot complete sale: ${blocked} exceeds available stock.`);
-      return;
-    }
+        if (prod && !prod.is_unlimited_stock) {
+          const available = Number(prod.current_stock ?? 0);
+          if (item.quantity > available) {
+            invalidStockItems.push({
+              name: item.product_name,
+              requested: item.quantity,
+              available,
+            });
+          }
+        }
+      }
 
-    const businessId = business?.id || 'biz_default';
-    const nextNum = business?.next_invoice_number || 1;
-    const invPrefix = business?.invoice_prefix || 'INV-';
-    const invoiceNumber = `${invPrefix}${String(nextNum).padStart(3, '0')}`;
-    const now = new Date().toISOString();
+      if (invalidStockItems.length > 0) {
+        const blocked = invalidStockItems
+          .map((i) => `• ${i.name} (in cart: ${i.requested}, available: ${i.available})`)
+          .join('\n');
+        alert(`❌ Cannot complete sale. The following items exceed available stock:\n\n${blocked}\n\nPlease adjust cart quantities before checkout.`);
+        return;
+      }
 
-    let finalMethod: PaymentMethod = explicitPayment ? 'upi' : paymentMethod;
-    let receivedPaise = 0;
-    let balanceDuePaise = 0;
-    let changeReturnedPaise = 0;
-    let paymentSplitData: any = undefined;
+      const businessId = business?.id || 'biz_default';
+      const nextNum = business?.next_invoice_number || 1;
+      const invPrefix = business?.invoice_prefix || 'INV-';
+      const invoiceNumber = `${invPrefix}${String(nextNum).padStart(3, '0')}`;
+      const now = new Date().toISOString();
 
-    if (explicitPayment) {
-      receivedPaise = grandTotalPaise;
-      balanceDuePaise = 0;
-      changeReturnedPaise = 0;
-    } else if (paymentMethod === 'split') {
-      const cashP = splitCash ? Math.round(parseFloat(splitCash) * 100) : 0;
-      const upiP = splitUpi ? Math.round(parseFloat(splitUpi) * 100) : 0;
-      const cardP = splitCard ? Math.round(parseFloat(splitCard) * 100) : 0;
-      const creditP = splitCredit ? Math.round(parseFloat(splitCredit) * 100) : 0;
-      
-      const allocatedP = cashP + upiP + cardP + creditP;
-      const unassigned = Math.max(0, grandTotalPaise - allocatedP);
-      const finalCreditP = creditP + (selectedCustomer ? unassigned : 0);
-      const finalCashP = cashP + (!selectedCustomer ? unassigned : 0);
+      let finalMethod: PaymentMethod = explicitPayment ? 'upi' : paymentMethod;
+      let receivedPaise = 0;
+      let balanceDuePaise = 0;
+      let changeReturnedPaise = 0;
+      let paymentSplitData: any = undefined;
 
-      receivedPaise = finalCashP + upiP + cardP;
-      balanceDuePaise = finalCreditP;
-      paymentSplitData = {
-        cash_amount: finalCashP,
-        upi_amount: upiP,
-        card_amount: cardP,
-        credit_amount: finalCreditP,
-      };
-    } else {
-      receivedPaise = amountReceivedInput ? Math.round(parseFloat(amountReceivedInput) * 100) : grandTotalPaise;
-      const isCredit = paymentMethod === 'credit' || receivedPaise < grandTotalPaise;
-      balanceDuePaise = isCredit ? Math.max(0, grandTotalPaise - receivedPaise) : 0;
-      changeReturnedPaise = !isCredit && receivedPaise > grandTotalPaise ? receivedPaise - grandTotalPaise : 0;
-    }
+      if (explicitPayment) {
+        receivedPaise = grandTotalPaise;
+        balanceDuePaise = 0;
+        changeReturnedPaise = 0;
+      } else if (paymentMethod === 'split') {
+        const cashP = splitCash ? Math.round(parseFloat(splitCash) * 100) : 0;
+        const upiP = splitUpi ? Math.round(parseFloat(splitUpi) * 100) : 0;
+        const cardP = splitCard ? Math.round(parseFloat(splitCard) * 100) : 0;
+        const creditP = splitCredit ? Math.round(parseFloat(splitCredit) * 100) : 0;
+        
+        const allocatedP = cashP + upiP + cardP + creditP;
+        const unassigned = Math.max(0, grandTotalPaise - allocatedP);
+        const finalCreditP = creditP + (selectedCustomer ? unassigned : 0);
+        const finalCashP = cashP + (!selectedCustomer ? unassigned : 0);
 
-    const saleId = `sale_${Date.now()}`;
+        receivedPaise = finalCashP + upiP + cardP;
+        balanceDuePaise = finalCreditP;
+        paymentSplitData = {
+          cash_amount: finalCashP,
+          upi_amount: upiP,
+          card_amount: cardP,
+          credit_amount: finalCreditP,
+        };
+      } else {
+        receivedPaise = amountReceivedInput ? Math.round(parseFloat(amountReceivedInput) * 100) : grandTotalPaise;
+        const isCredit = paymentMethod === 'credit' || receivedPaise < grandTotalPaise;
+        balanceDuePaise = isCredit ? Math.max(0, grandTotalPaise - receivedPaise) : 0;
+        changeReturnedPaise = !isCredit && receivedPaise > grandTotalPaise ? receivedPaise - grandTotalPaise : 0;
+      }
 
-    const newSale: Sale = {
-      id: saleId,
-      business_id: businessId,
-      invoice_number: invoiceNumber,
-      customer_id: selectedCustomer?.id,
-      customer_name: selectedCustomer?.name || 'Cash Customer',
-      customer_phone: selectedCustomer?.phone,
-      items: [...cart],
-      subtotal: subtotalPaise,
-      discount_total: discountTotalPaise,
-      tax_total: taxTotalPaise,
-      grand_total: grandTotalPaise,
-      payment_method: finalMethod,
-      payment_split: paymentSplitData,
-      amount_received: receivedPaise,
-      balance_due: balanceDuePaise,
-      change_returned: changeReturnedPaise,
-      payment_status: balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
-      status: 'completed',
-      table_no: tableNo || undefined,
-      order_type: orderType || undefined,
-      token_number: Math.floor(100 + (nextNum % 900)),
-      doctor_name: doctorName || undefined,
-      notes: explicitPayment?.referenceNumber ? `UPI Ref / UTR: ${explicitPayment.referenceNumber} (${explicitPayment.sourceApp})` : undefined,
-      created_by: 'owner',
-      created_at: now,
-      updated_at: now,
-      sync_status: 'synced',
-    };
+      const saleId = `sale_${Date.now()}`;
 
-    // 1. Save Sale in Dexie DB
-    await db.sales.put(newSale);
-
-    // Track sale creation in Firebase Analytics for Platform Owner
-    PlatformAnalytics.invoiceCreated({
-      invoiceNumber: newSale.invoice_number,
-      totalAmountPaise: newSale.grand_total,
-      paymentMode: newSale.payment_method,
-      itemCount: newSale.items.length,
-      businessId: newSale.business_id,
-      isGstBill: (newSale.tax_total || 0) > 0,
-    });
-
-    // 2. Increment business invoice number counter
-    if (business) {
-      await db.businesses.update(business.id, {
-        next_invoice_number: nextNum + 1,
+      const newSale: Sale = {
+        id: saleId,
+        business_id: businessId,
+        invoice_number: invoiceNumber,
+        customer_id: selectedCustomer?.id,
+        customer_name: selectedCustomer?.name || 'Cash Customer',
+        customer_phone: selectedCustomer?.phone,
+        items: [...cart],
+        subtotal: subtotalPaise,
+        discount_total: discountTotalPaise,
+        tax_total: taxTotalPaise,
+        grand_total: grandTotalPaise,
+        payment_method: finalMethod,
+        payment_split: paymentSplitData,
+        amount_received: receivedPaise,
+        balance_due: balanceDuePaise,
+        change_returned: changeReturnedPaise,
+        payment_status: balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
+        status: 'completed',
+        table_no: tableNo || undefined,
+        order_type: orderType || undefined,
+        token_number: Math.floor(100 + (nextNum % 900)),
+        doctor_name: doctorName || undefined,
+        notes: explicitPayment?.referenceNumber ? `UPI Ref / UTR: ${explicitPayment.referenceNumber} (${explicitPayment.sourceApp})` : undefined,
+        created_by: 'owner',
+        created_at: now,
         updated_at: now,
-      });
-    }
+        sync_status: 'synced',
+      };
 
-    // 3. Deduct product inventory stock & create movement logs
-    for (const item of cart) {
-      const prod = await db.products.get(item.product_id);
-      if (prod) {
-        const prevStock = prod.current_stock;
-        const newStock = Math.max(0, prevStock - item.quantity);
-        await db.products.update(prod.id, {
-          current_stock: newStock,
+      // 1. Save Sale in Dexie DB
+      await db.sales.put(newSale);
+
+      // Track sale creation in Firebase Analytics for Platform Owner (safe non-blocking)
+      try {
+        PlatformAnalytics.invoiceCreated({
+          invoiceNumber: newSale.invoice_number,
+          totalAmountPaise: newSale.grand_total,
+          paymentMode: newSale.payment_method,
+          itemCount: newSale.items.length,
+          businessId: newSale.business_id,
+          isGstBill: (newSale.tax_total || 0) > 0,
+        });
+      } catch {}
+
+      // 2. Increment business invoice number counter
+      if (business) {
+        await db.businesses.update(business.id, {
+          next_invoice_number: nextNum + 1,
+          updated_at: now,
+        });
+      }
+
+      // 3. Deduct product inventory stock & create movement logs with name/barcode resilience
+      for (const item of cart) {
+        let prod = await db.products.get(item.product_id);
+        if (!prod && item.barcode) {
+          prod = await db.products.where('barcode').equals(item.barcode).first();
+        }
+        if (!prod && item.product_name) {
+          prod = await db.products.where('name').equalsIgnoreCase(item.product_name).first();
+        }
+
+        if (prod && !prod.is_unlimited_stock) {
+          const prevStock = Number(prod.current_stock ?? 0);
+          const newStock = Math.max(0, prevStock - item.quantity);
+          const updatedProd: Product = {
+            ...prod,
+            current_stock: newStock,
+            updated_at: now,
+          };
+          // Persist using put to guarantee index rewrite and reactive LiveQuery updates
+          await db.products.put(updatedProd);
+
+          await db.inventory_movements.put({
+            id: `mov_${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${prod.id}`,
+            business_id: businessId,
+            product_id: prod.id,
+            product_name: prod.name,
+            movement_type: 'SALE',
+            quantity: item.quantity,
+            previous_stock: prevStock,
+            new_stock: newStock,
+            reference_id: saleId,
+            reason: `Sold on Invoice #${invoiceNumber}`,
+            created_by: 'owner',
+            created_at: now,
+          });
+
+          // Direct cloud sync to prevent stale overwrite from cloud background sync
+          try {
+            const firestore = getFirestoreDb();
+            if (firestore && businessId && businessId !== 'biz_default') {
+              const prodRef = doc(firestore, `businesses/${businessId}/products/${prod.id}`);
+              await setDoc(prodRef, sanitizeForFirestore(updatedProd), { merge: true });
+            }
+          } catch {}
+        }
+      }
+
+      // Trigger background sync debounce for full backup
+      try {
+        triggerBackgroundSync(businessId);
+      } catch {}
+
+      // 4. If Udhar / Credit, update customer balance & write ledger entry
+      if (selectedCustomer && balanceDuePaise > 0) {
+        const updatedBalance = selectedCustomer.current_balance + balanceDuePaise;
+        await db.customers.update(selectedCustomer.id, {
+          current_balance: updatedBalance,
           updated_at: now,
         });
 
-        await db.inventory_movements.put({
-          id: `mov_${Date.now()}_${item.product_id}`,
+        await db.ledger_transactions.put({
+          id: `ledg_${Date.now()}`,
           business_id: businessId,
-          product_id: prod.id,
-          product_name: prod.name,
-          movement_type: 'SALE',
-          quantity: item.quantity,
-          previous_stock: prevStock,
-          new_stock: newStock,
+          party_type: 'customer',
+          party_id: selectedCustomer.id,
+          party_name: selectedCustomer.name,
+          transaction_type: 'CREDIT_SALE',
+          amount: balanceDuePaise,
+          balance_after: updatedBalance,
           reference_id: saleId,
-          reason: `Sold on Invoice #${invoiceNumber}`,
-          created_by: 'owner',
+          notes: `Credit on Invoice #${invoiceNumber}`,
           created_at: now,
         });
       }
-    }
 
-    // 4. If Udhar / Credit, update customer balance & write ledger entry
-    if (selectedCustomer && balanceDuePaise > 0) {
-      const updatedBalance = selectedCustomer.current_balance + balanceDuePaise;
-      await db.customers.update(selectedCustomer.id, {
-        current_balance: updatedBalance,
-        updated_at: now,
+      // 5. Open detailed Invoice & thermal receipt modal
+      setActiveSaleForInvoice(newSale);
+      setCompletedSaleDetails({
+        invoiceNumber,
+        customerName: selectedCustomer?.name,
+        customerPhone: selectedCustomer?.phone,
+        grandTotalPaise,
+        balanceDuePaise,
+        items: [...cart],
       });
 
-      await db.ledger_transactions.put({
-        id: `ledg_${Date.now()}`,
-        business_id: businessId,
-        party_type: 'customer',
-        party_id: selectedCustomer.id,
-        party_name: selectedCustomer.name,
-        transaction_type: 'CREDIT_SALE',
-        amount: balanceDuePaise,
-        balance_after: updatedBalance,
-        reference_id: saleId,
-        notes: `Credit on Invoice #${invoiceNumber}`,
-        created_at: now,
-      });
-    }
+      setIsInvoiceModalOpen(true);
+      setIsMobileCartOpen(false);
 
-    // 5. Open detailed Invoice & thermal receipt modal
-    setActiveSaleForInvoice(newSale);
-    setCompletedSaleDetails({
-      invoiceNumber,
-      customerName: selectedCustomer?.name,
-      customerPhone: selectedCustomer?.phone,
-      grandTotalPaise,
-      balanceDuePaise,
-      items: [...cart],
-    });
-
-    setIsInvoiceModalOpen(true);
-    setIsMobileCartOpen(false);
-
-    // 7. Remove completed tab or reset if single
-    if (tabs.length > 1) {
-      const remainingTabs = tabs.filter((t) => t.id !== activeTabId);
-      setTabs(remainingTabs);
-      setActiveTabId(remainingTabs[0].id);
-    } else {
-      setCart([]);
-      setAmountReceivedInput('');
+      // 7. Remove completed tab or reset if single
+      if (tabs.length > 1) {
+        const remainingTabs = tabs.filter((t) => t.id !== activeTabId);
+        setTabs(remainingTabs);
+        setActiveTabId(remainingTabs[0].id);
+      } else {
+        setCart([]);
+        setAmountReceivedInput('');
+      }
+    } catch (saleErr) {
+      console.error('Sale completion encountered an error:', saleErr);
+      alert('Encountered an unexpected error completing the sale. Please verify inventory.');
     }
   };
 
@@ -1858,8 +1996,9 @@ export default function BillingPage() {
                 products.map((p) => {
                   const inCart = cart.find((i) => i.product_id === p.id);
                   const availableStock = getAvailableStockForProduct(p);
-                  const isOutOfStock = availableStock <= 0;
-                  const isLowStock = availableStock <= p.min_stock_level;
+                  const stockNum = Number(p.current_stock ?? 0);
+                  const isOutOfStock = !p.is_unlimited_stock && (stockNum <= 0 || availableStock <= 0);
+                  const isLowStock = !p.is_unlimited_stock && !isOutOfStock && availableStock <= (p.min_stock_level || 5);
                   const isWholesaleApplied = pricingMode === 'wholesale' && p.wholesale_price && p.wholesale_price > 0;
                   const displayPrice = isWholesaleApplied ? p.wholesale_price! : p.selling_price;
 
@@ -1867,12 +2006,11 @@ export default function BillingPage() {
                     <button
                       key={p.id}
                       type="button"
-                      disabled={isOutOfStock}
-                      onClick={() => !isOutOfStock && addToCart(p, 1)}
+                      onClick={() => addToCart(p, 1)}
                       className={cn(
-                        'p-2 sm:p-2.5 rounded-xl border text-left flex flex-col justify-between relative overflow-hidden transition-all active:scale-[0.98] min-h-[76px] sm:min-h-[82px]',
+                        'p-2 sm:p-2.5 rounded-xl border text-left flex flex-col justify-between relative overflow-hidden transition-all active:scale-[0.98] min-h-[76px] sm:min-h-[82px] cursor-pointer',
                         isOutOfStock
-                          ? 'cursor-not-allowed opacity-45 border-slate-200 bg-slate-100'
+                          ? 'border-rose-300/80 bg-rose-50/50 hover:border-rose-400'
                           : 'cursor-pointer bg-white hover:border-slate-400 shadow-2xs',
                         inCart && !isOutOfStock
                           ? 'border-amber-400 ring-1.5 ring-amber-400/50 bg-amber-50/35'
@@ -1910,8 +2048,8 @@ export default function BillingPage() {
                           )}
                         </div>
                         <span className={cn(
-                          "text-[10px] font-semibold flex-shrink-0",
-                          isOutOfStock ? "text-rose-700" : isLowStock ? "text-amber-700" : "text-slate-400"
+                          "text-[10px] font-bold flex-shrink-0 px-1 py-0.2 rounded",
+                          isOutOfStock ? "text-rose-700 bg-rose-100 font-extrabold uppercase" : isLowStock ? "text-amber-800 bg-amber-100" : "text-slate-400"
                         )}>
                           {isOutOfStock ? 'Out of stock' : `${availableStock} left`}
                         </span>

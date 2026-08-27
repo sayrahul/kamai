@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
-import { formatINR } from '@/lib/utils';
+import { formatINR, cn } from '@/lib/utils';
 import {
   AlertTriangle,
   ArrowRight,
@@ -42,6 +42,7 @@ import {
   Clock,
   Sparkle
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { getStoreProfile, hasModule } from '@/lib/constants/storeProfiles';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -51,14 +52,21 @@ import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingReportModal';
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
-import { Sale } from '@/types';
+import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
+import { Sale, Product } from '@/types';
 import { MessageCircle } from 'lucide-react';
+
+const RapidBarcodeInwardModal = dynamic(
+  () => import('@/components/products/RapidBarcodeInwardModal').then((m) => m.RapidBarcodeInwardModal),
+  { ssr: false }
+);
 
 export default function HomePage() {
   const { t, language } = useTranslation();
   const { isPro, isUpgradeModalOpen: isUpgradeOpen, setIsUpgradeModalOpen: setIsUpgradeOpen } = useProSubscription();
   const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
   const [isClosingReportOpen, setIsClosingReportOpen] = useState<boolean>(false);
+  const [isRapidInwardOpen, setIsRapidInwardOpen] = useState<boolean>(false);
 
   // Recent Transactions Filter & Collapse States
   const [isRecentCollapsed, setIsRecentCollapsed] = useState<boolean>(false);
@@ -66,12 +74,87 @@ export default function HomePage() {
   const [recentPaymentFilter, setRecentPaymentFilter] = useState<'all' | 'cash' | 'upi' | 'credit' | 'split'>('all');
   const [recentSearchQuery, setRecentSearchQuery] = useState<string>('');
 
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
-  const allExpenses = useLiveQuery(async () => db.cash_expenses.toArray()) || [];
+  // Memoized date boundary strings for today
+  const { todayStartISO, todayEndISO } = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    return {
+      todayStartISO: start.toISOString(),
+      todayEndISO: end.toISOString(),
+    };
+  }, []);
 
-  // Metrics Queries
+  const business = useLiveQuery(async () => db.businesses.toCollection().first());
+
+  // High-performance indexed today's expenses seek
+  const todaysExpenses = useLiveQuery(
+    async () => db.cash_expenses.where('created_at').between(todayStartISO, todayEndISO, true, true).toArray(),
+    [todayStartISO, todayEndISO]
+  ) || [];
+
+  // Metrics Queries & Robust Stock Filtering
   const products = useLiveQuery(async () => db.products.toArray()) || [];
-  const lowStockProducts = products.filter((p) => p.current_stock <= p.min_stock_level);
+  const activeProducts = useMemo(() => products.filter((p) => p.is_active !== false), [products]);
+
+  // Out of Stock products (strictly 0 or negative units)
+  const outOfStockProducts = useMemo(() => {
+    return activeProducts.filter(
+      (p) => !p.is_unlimited_stock && Number(p.current_stock ?? 0) <= 0
+    );
+  }, [activeProducts]);
+
+  // Low Stock products (at or below min_stock_level threshold, including 0)
+  const lowStockProducts = useMemo(() => {
+    return activeProducts.filter(
+      (p) => !p.is_unlimited_stock && (Number(p.current_stock ?? 0) <= Number(p.min_stock_level ?? 5) || Number(p.current_stock ?? 0) <= 0)
+    );
+  }, [activeProducts]);
+
+  // Combined Watchlist: Out of stock (0) first, then lowest stock
+  const stockWatchlist = useMemo(() => {
+    return [...lowStockProducts].sort((a, b) => {
+      const stockA = Number(a.current_stock ?? 0);
+      const stockB = Number(b.current_stock ?? 0);
+      return stockA - stockB;
+    });
+  }, [lowStockProducts]);
+
+  // 1-Tap Quick Restock directly from dashboard
+  const handleQuickRestock = async (product: Product, quantityToAdd: number = 10) => {
+    try {
+      const now = new Date().toISOString();
+      const current = Number(product.current_stock ?? 0);
+      const newStock = current + quantityToAdd;
+
+      await db.products.update(product.id, {
+        current_stock: newStock,
+        updated_at: now,
+      });
+
+      await db.inventory_movements.put({
+        id: `mov_dash_restock_${Date.now()}_${product.id}`,
+        business_id: product.business_id || 'biz_default',
+        product_id: product.id,
+        product_name: product.name,
+        movement_type: 'PURCHASE',
+        quantity: quantityToAdd,
+        previous_stock: current,
+        new_stock: newStock,
+        reason: `Quick Dashboard Restock (+${quantityToAdd} ${product.unit || 'units'})`,
+        created_by: 'owner',
+        created_at: now,
+      });
+
+      // Background cloud sync
+      try {
+        triggerBackgroundSync(product.business_id);
+      } catch {}
+    } catch (err) {
+      console.error('Failed to quick restock item:', err);
+    }
+  };
 
   // Niche Metric Computations
   const businessType = business?.business_type || 'grocery';
@@ -93,41 +176,74 @@ export default function HomePage() {
   const customersWithCredit = customers.filter((c) => c.current_balance > 0);
   const totalOutstandingCredit = customers.reduce((acc, c) => acc + (c.current_balance > 0 ? c.current_balance : 0), 0);
 
-  const allSales = useLiveQuery(async () => db.sales.toArray()) || [];
-  const todayDatePrefix = new Date().toISOString().split('T')[0];
-  const todaysSales = allSales.filter((s) => s.created_at.startsWith(todayDatePrefix));
+  // High-performance indexed today's sales seek
+  const todaysSales = useLiveQuery(
+    async () => db.sales.where('created_at').between(todayStartISO, todayEndISO, true, true).toArray(),
+    [todayStartISO, todayEndISO]
+  ) || [];
   const todaysSalesTotal = todaysSales.reduce((acc, s) => acc + s.grand_total, 0);
 
   const isFree = !isPro;
 
+  // Compute boundaries for the selected filter preset
+  const filterDateBoundaries = useMemo(() => {
+    const now = new Date();
+    if (recentDateFilter === 'today') {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      return { start: start.toISOString(), end: end.toISOString() };
+    } else if (recentDateFilter === 'yesterday') {
+      const start = new Date();
+      start.setDate(start.getDate() - 1);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date();
+      end.setDate(end.getDate() - 1);
+      end.setHours(23, 59, 59, 999);
+      return { start: start.toISOString(), end: end.toISOString() };
+    } else if (recentDateFilter === '7days') {
+      const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return { start: start.toISOString(), end: now.toISOString() };
+    } else if (recentDateFilter === 'this_month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      return { start: start.toISOString(), end: end.toISOString() };
+    }
+    return null;
+  }, [recentDateFilter]);
+
+  // Indexed Recent Sales Query
+  const recentSalesRaw: Sale[] = useLiveQuery(async () => {
+    if (filterDateBoundaries) {
+      return await db.sales
+        .where('created_at')
+        .between(filterDateBoundaries.start, filterDateBoundaries.end, true, true)
+        .reverse()
+        .toArray();
+    }
+    if (isFree) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      return await db.sales
+        .where('created_at')
+        .aboveOrEqual(sevenDaysAgo)
+        .reverse()
+        .toArray();
+    }
+    return await db.sales.orderBy('created_at').reverse().limit(100).toArray();
+  }, [filterDateBoundaries, isFree]) || [];
+
+  // Check if free user has sales older than 7 days for the upgrade banner (single indexed seek)
+  const hasOlderSalesThan7Days = useLiveQuery(async () => {
+    if (!isFree) return false;
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const olderSale = await db.sales.where('created_at').below(sevenDaysAgo).first();
+    return Boolean(olderSale);
+  }, [isFree]);
+
   // Filtered recent sales for home widget — sorted newest-first
-  const filteredRecentSales = [...allSales]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .filter((s) => {
-      const saleDate = new Date(s.created_at);
-      const now = new Date();
-
-      // Free user restriction: strictly last 7 days of sales
-      if (isFree) {
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        if (saleDate < sevenDaysAgo) return false;
-      }
-
-      if (recentDateFilter === 'today') {
-        const todayStr = now.toISOString().split('T')[0];
-        if (!s.created_at.startsWith(todayStr)) return false;
-      } else if (recentDateFilter === 'yesterday') {
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yStr = yesterday.toISOString().split('T')[0];
-        if (!s.created_at.startsWith(yStr)) return false;
-      } else if (recentDateFilter === '7days') {
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        if (saleDate < weekAgo) return false;
-      } else if (recentDateFilter === 'this_month') {
-        if (saleDate.getMonth() !== now.getMonth() || saleDate.getFullYear() !== now.getFullYear()) return false;
-      }
-
+  const filteredRecentSales = useMemo(() => {
+    return recentSalesRaw.filter((s) => {
       if (recentPaymentFilter !== 'all' && s.payment_method !== recentPaymentFilter) {
         return false;
       }
@@ -142,6 +258,7 @@ export default function HomePage() {
 
       return true;
     });
+  }, [recentSalesRaw, recentPaymentFilter, recentSearchQuery]);
 
   const displayedSales = filteredRecentSales.slice(0, 10);
 
@@ -236,8 +353,8 @@ export default function HomePage() {
           </Card>
         </Link>
 
-        {/* Card 3: Low Stock Count */}
-        <Link href="/products" className="group block focus:outline-none">
+        {/* Card 3: Low & Out of Stock Count */}
+        <Link href="/products?filter=low_stock" className="group block focus:outline-none">
           <Card className="p-2.5 sm:p-4 bg-gradient-to-br from-white to-rose-50/50 border border-rose-200/90 hover:border-rose-400 active:scale-[0.98] transition-all rounded-xl sm:rounded-2xl shadow-xs group-hover:shadow-md h-full flex flex-col justify-between cursor-pointer">
             <div>
               <div className="flex items-center justify-between gap-1">
@@ -245,34 +362,40 @@ export default function HomePage() {
                   <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-600 flex-shrink-0" />
                   <span className="truncate">
                     <span className="sm:hidden">Low Stock</span>
-                    <span className="hidden sm:inline">Low Stock Count</span>
+                    <span className="hidden sm:inline">Low &amp; Out of Stock</span>
                   </span>
                 </div>
                 <span className={`hidden lg:inline-flex px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                  lowStockProducts.length > 0
-                    ? 'bg-rose-100 text-rose-950'
+                  outOfStockProducts.length > 0
+                    ? 'bg-rose-600 text-white animate-pulse'
+                    : lowStockProducts.length > 0
+                    ? 'bg-amber-100 text-amber-950'
                     : 'bg-emerald-100 text-emerald-950'
                 }`}>
-                  {lowStockProducts.length > 0 ? 'Alert' : 'OK'}
+                  {outOfStockProducts.length > 0 ? `${outOfStockProducts.length} Out` : lowStockProducts.length > 0 ? 'Alert' : 'OK'}
                 </span>
               </div>
 
-              <div className="text-sm sm:text-2xl font-black text-slate-900 tracking-tight mt-1.5 sm:mt-2 flex items-baseline gap-1 truncate">
+              <div className="text-sm sm:text-2xl font-black text-slate-900 tracking-tight mt-1.5 sm:mt-2 flex items-baseline gap-1.5 truncate">
                 <span>{lowStockProducts.length}</span>
-                <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">Items</span>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">
+                  {outOfStockProducts.length > 0 ? `(${outOfStockProducts.length} Zero)` : 'Items'}
+                </span>
               </div>
             </div>
 
             <div className="pt-1.5 sm:pt-2 mt-1.5 sm:mt-2 border-t border-rose-100/80 flex items-center justify-between text-[10px] sm:text-xs">
               <span className="text-slate-600 font-semibold truncate">
-                {lowStockProducts.length > 0 ? (
-                  <span className="text-rose-700 font-bold">Restock</span>
+                {outOfStockProducts.length > 0 ? (
+                  <span className="text-rose-700 font-bold">Reorder Needed</span>
+                ) : lowStockProducts.length > 0 ? (
+                  <span className="text-amber-700 font-bold">Restock Needed</span>
                 ) : (
-                  <span className="text-emerald-700 font-bold">Safe</span>
+                  <span className="text-emerald-700 font-bold">Safe Level</span>
                 )}
               </span>
               <span className="text-rose-700 font-bold hidden sm:inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform text-[10px]">
-                <span>Items</span>
+                <span>View</span>
                 <ArrowRight className="w-2.5 h-2.5" />
               </span>
             </div>
@@ -280,35 +403,69 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* ---------------- 1-TAP DAY-END CLOSING ACTION (RESPONSIVE FOR ALL SCREEN SIZES) ---------------- */}
-      <div 
-        onClick={() => setIsClosingReportOpen(true)}
-        className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between gap-2 sm:gap-3 shadow-md shadow-emerald-600/15 cursor-pointer active:scale-[0.99] transition-all border border-emerald-500/30"
-      >
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold flex-shrink-0">
-            <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs sm:text-sm font-black flex items-center gap-1.5 flex-wrap">
-              <span className="truncate">Day-End Sales Summary</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[9px] sm:text-[10px] font-black uppercase tracking-tight flex-shrink-0">
-                Closing
-              </span>
+      {/* ---------------- 1-TAP QUICK ACTIONS BAR (STOCK INWARD & DAY-END CLOSING) ---------------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+        {/* Action 1: Rapid Stock Inward (Stock In / Mal Aavya) */}
+        <div 
+          onClick={() => setIsRapidInwardOpen(true)}
+          className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between gap-2 sm:gap-3 shadow-md shadow-blue-600/15 cursor-pointer active:scale-[0.99] transition-all border border-blue-500/30 group"
+        >
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+              <Boxes className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <div className="text-[10.5px] sm:text-[11px] text-emerald-100 font-medium truncate">
-              Daily sales PDF &amp; WhatsApp report (Cash, UPI &amp; Udhar)
+            <div className="min-w-0 flex-1">
+              <div className="text-xs sm:text-sm font-black flex items-center gap-1.5 flex-wrap">
+                <span className="truncate">Stock Inward (Mal Aavya)</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-cyan-300 text-slate-950 text-[9px] sm:text-[10px] font-black uppercase tracking-tight flex-shrink-0">
+                  Stock In
+                </span>
+              </div>
+              <div className="text-[10.5px] sm:text-[11px] text-blue-100 font-medium truncate">
+                Rapid barcode scan, carton inward &amp; stock update
+              </div>
             </div>
           </div>
+
+          <button
+            type="button"
+            className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-white text-slate-950 font-black text-[11px] sm:text-xs flex items-center gap-1 flex-shrink-0 shadow-xs hover:bg-blue-50 transition"
+          >
+            <span>Stock In</span>
+            <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          </button>
         </div>
 
-        <button
-          type="button"
-          className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-white text-slate-950 font-black text-[11px] sm:text-xs flex items-center gap-1 flex-shrink-0 shadow-xs hover:bg-emerald-50 transition"
+        {/* Action 2: Day-End Sales Summary */}
+        <div 
+          onClick={() => setIsClosingReportOpen(true)}
+          className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between gap-2 sm:gap-3 shadow-md shadow-emerald-600/15 cursor-pointer active:scale-[0.99] transition-all border border-emerald-500/30 group"
         >
-          <span>Summary</span>
-          <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-        </button>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+              <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs sm:text-sm font-black flex items-center gap-1.5 flex-wrap">
+                <span className="truncate">Day-End Sales Summary</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[9px] sm:text-[10px] font-black uppercase tracking-tight flex-shrink-0">
+                  Closing
+                </span>
+              </div>
+              <div className="text-[10.5px] sm:text-[11px] text-emerald-100 font-medium truncate">
+                Daily sales PDF &amp; WhatsApp report (Cash, UPI &amp; Udhar)
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-white text-slate-950 font-black text-[11px] sm:text-xs flex items-center gap-1 flex-shrink-0 shadow-xs hover:bg-emerald-50 transition"
+          >
+            <span>Summary</span>
+            <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* ---------------- SPECIALIZED NICHE RADAR & ADAPTIVE HUB ---------------- */}
@@ -635,7 +792,126 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* ---------------- LOW STOCK & OUT OF STOCK WATCHLIST WIDGET ---------------- */}
+      {stockWatchlist.length > 0 && (
+        <div className="bg-white border border-rose-200/90 rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-3 animate-in fade-in">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-rose-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-4.5 h-4.5 text-rose-600" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm font-black text-slate-900">Low Stock &amp; Out-of-Stock Alert</h3>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                    outOfStockProducts.length > 0
+                      ? 'bg-rose-600 text-white animate-pulse'
+                      : 'bg-amber-500 text-slate-950'
+                  }`}>
+                    {outOfStockProducts.length > 0 ? `${outOfStockProducts.length} Out of Stock` : `${lowStockProducts.length} Needs Restock`}
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-slate-500">
+                  Items below minimum threshold. Restock in 1-tap or scan new cartons.
+                </p>
+              </div>
+            </div>
 
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setIsRapidInwardOpen(true)}
+                className="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95"
+              >
+                <Boxes className="w-3.5 h-3.5" />
+                <span>Rapid Stock In</span>
+              </button>
+
+              <Link href="/products?filter=low_stock">
+                <button
+                  type="button"
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                >
+                  <span>View All ({stockWatchlist.length})</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </Link>
+            </div>
+          </div>
+
+          {/* List of Out of Stock & Low Stock Items */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5">
+            {stockWatchlist.slice(0, 6).map((item) => {
+              const stockNum = Number(item.current_stock ?? 0);
+              const isZero = stockNum <= 0;
+
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "p-2.5 sm:p-3 rounded-xl border flex flex-col justify-between transition-all",
+                    isZero
+                      ? "bg-rose-50/50 border-rose-200 ring-1 ring-rose-300/40"
+                      : "bg-amber-50/30 border-amber-200/80"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block truncate">
+                        {item.category_name || 'General'}
+                      </span>
+                      <h4 className="text-xs font-bold text-slate-900 truncate mt-0.5" title={item.name}>
+                        {item.name}
+                      </h4>
+                      <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                        Rate: <span className="font-bold text-slate-800">{formatINR(item.selling_price)}</span>/{item.unit}
+                      </div>
+                    </div>
+
+                    <span className={cn(
+                      "px-1.5 py-0.5 rounded-md text-[9.5px] sm:text-[10px] font-black uppercase shrink-0",
+                      isZero
+                        ? "bg-rose-600 text-white shadow-2xs"
+                        : "bg-amber-200 text-amber-950 font-bold"
+                    )}>
+                      {isZero ? '0 Left (Out)' : `${stockNum} left`}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 pt-1.5 border-t border-slate-200/60 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-slate-500 font-medium truncate">
+                      Min: {item.min_stock_level || 5} {item.unit}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => handleQuickRestock(item, 10)}
+                      className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] sm:text-[10.5px] font-black flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95 transition shrink-0"
+                      title="Add 10 units to stock instantly"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>+10 Stock</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {stockWatchlist.length > 6 && (
+            <div className="text-center pt-1">
+              <Link
+                href="/products?filter=low_stock"
+                className="text-xs font-bold text-rose-700 hover:text-rose-800 hover:underline inline-flex items-center gap-1"
+              >
+                <span>+{stockWatchlist.length - 6} more items need restock in catalog</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ---------------- RECENT TRANSACTIONS WIDGET (CLEAN LIGHT THEME) ---------------- */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
@@ -763,7 +1039,7 @@ export default function HomePage() {
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {displayedSales.map((s) => (
+                {displayedSales.map((s: Sale) => (
                   <div
                     key={s.id}
                     onClick={() => setSelectedSaleForInvoice(s)}
@@ -829,7 +1105,7 @@ export default function HomePage() {
             )}
 
             {/* Free Tier 7-Day History Limit Banner */}
-            {isFree && allSales.some((s) => new Date(s.created_at) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) && (
+            {isFree && hasOlderSalesThan7Days && (
               <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 flex items-center justify-between gap-2 shadow-2xs mt-2">
                 <div className="flex items-center gap-1.5 font-bold">
                   <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
@@ -863,8 +1139,14 @@ export default function HomePage() {
         isOpen={isClosingReportOpen}
         onClose={() => setIsClosingReportOpen(false)}
         business={business}
-        sales={allSales}
-        expenses={allExpenses}
+        sales={todaysSales}
+        expenses={todaysExpenses}
+      />
+
+      {/* Rapid Barcode Stock Inward (Stock In / Mal Aavya) Modal */}
+      <RapidBarcodeInwardModal
+        isOpen={isRapidInwardOpen}
+        onClose={() => setIsRapidInwardOpen(false)}
       />
     </div>
   );

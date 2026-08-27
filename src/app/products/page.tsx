@@ -38,6 +38,7 @@ import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/Pro
 import { lookupCategoryBarcode } from '@/lib/barcode/categoryBarcodeLoader';
 import { getStoreProfile, hasModule, MASTER_UNITS } from '@/lib/constants/storeProfiles';
 import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
+import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
 
 // Lazy-load heavy modals & external libraries (xlsx, zxing, qr scanner)
 const PurchaseInwardOptionsSheet = dynamic(
@@ -121,12 +122,18 @@ export default function ProductsPage() {
     return counts;
   }, [allProducts]);
 
-  // Auto-open master add product modal if arriving with ?action=new
+  // Auto-handle incoming URL parameters (?action=new, ?action=inward, ?filter=low_stock)
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       if (params.get('action') === 'new') {
         setIsModalOpen(true);
+      } else if (params.get('action') === 'inward' || params.get('action') === 'stock_in') {
+        setIsRapidInwardOpen(true);
+      }
+
+      if (params.get('filter') === 'low_stock') {
+        setShowLowStockOnly(true);
       }
     }
   }, []);
@@ -150,7 +157,7 @@ export default function ProductsPage() {
     }
 
     if (showLowStockOnly) {
-      prods = prods.filter((p) => !p.is_unlimited_stock && p.current_stock <= p.min_stock_level);
+      prods = prods.filter((p) => !p.is_unlimited_stock && (Number(p.current_stock ?? 0) <= Number(p.min_stock_level ?? 5) || Number(p.current_stock ?? 0) <= 0));
     }
 
     return prods;
@@ -164,13 +171,16 @@ export default function ProductsPage() {
 
     for (let i = 0; i < allProducts.length; i++) {
       const p = allProducts[i];
-      if (!p.is_unlimited_stock && p.current_stock <= p.min_stock_level) {
+      if (p.is_active === false) continue;
+      const stock = Number(p.current_stock ?? 0);
+      const minLevel = Number(p.min_stock_level ?? 5);
+      if (!p.is_unlimited_stock && (stock <= minLevel || stock <= 0)) {
         lowStockCount++;
       } else {
         inStockCount++;
       }
-      if (!p.is_unlimited_stock && p.current_stock > 0) {
-        totalStockValuePaise += (p.purchase_price || p.selling_price) * p.current_stock;
+      if (!p.is_unlimited_stock && stock > 0) {
+        totalStockValuePaise += (p.purchase_price || p.selling_price) * stock;
       }
     }
 
@@ -733,7 +743,40 @@ export default function ProductsPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {(isOutOfStock || isLowStock) && (
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const now = new Date().toISOString();
+                            const current = Number(p.current_stock ?? 0);
+                            const newStock = current + 10;
+                            await db.products.update(p.id, { current_stock: newStock, updated_at: now });
+                            await db.inventory_movements.put({
+                              id: `mov_prod_quick_${Date.now()}_${p.id}`,
+                              business_id: p.business_id,
+                              product_id: p.id,
+                              product_name: p.name,
+                              movement_type: 'PURCHASE',
+                              quantity: 10,
+                              previous_stock: current,
+                              new_stock: newStock,
+                              reason: 'Quick Catalog Restock (+10)',
+                              created_by: 'owner',
+                              created_at: now,
+                            });
+                            try {
+                              triggerBackgroundSync(p.business_id);
+                            } catch {}
+                          }}
+                          className="px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black cursor-pointer shadow-2xs active:scale-95 transition"
+                          title="Quick Restock +10 units"
+                        >
+                          +10
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={(e) => {

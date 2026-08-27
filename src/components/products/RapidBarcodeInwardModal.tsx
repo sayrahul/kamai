@@ -12,6 +12,7 @@ import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
 import { 
   Barcode, 
   Zap, 
@@ -313,6 +314,10 @@ export const RapidBarcodeInwardModal: React.FC<RapidBarcodeInwardModalProps> = (
     }
 
     playBeepSound('success');
+    try {
+      triggerBackgroundSync(businessId);
+    } catch {}
+
     if (onComplete) onComplete();
     onClose();
   };

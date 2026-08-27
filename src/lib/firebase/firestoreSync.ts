@@ -170,11 +170,20 @@ export async function restoreFirestoreToLocalDexie(businessId: string): Promise<
 
   // 2. Products
   const prodSnap = await getDocs(collection(firestore, `businesses/${businessId}/products`));
-  const products: Product[] = [];
-  prodSnap.forEach((d) => products.push(d.data() as Product));
-  if (products.length > 0) {
-    await db.products.bulkPut(products);
-    stats.products = products.length;
+  const cloudProducts: Product[] = [];
+  prodSnap.forEach((d) => cloudProducts.push(d.data() as Product));
+  if (cloudProducts.length > 0) {
+    const productsToUpdate: Product[] = [];
+    for (const cp of cloudProducts) {
+      const lp = await db.products.get(cp.id);
+      if (!lp || !lp.updated_at || !cp.updated_at || new Date(cp.updated_at).getTime() >= new Date(lp.updated_at).getTime()) {
+        productsToUpdate.push(cp);
+      }
+    }
+    if (productsToUpdate.length > 0) {
+      await db.products.bulkPut(productsToUpdate);
+    }
+    stats.products = cloudProducts.length;
   }
 
   // 3. Customers
@@ -304,11 +313,20 @@ export function subscribeToMultiDeviceSync(businessId: string): Unsubscribe[] {
       async (snapshot) => {
         if (!snapshot.empty) {
           const items: Product[] = [];
-          snapshot.docChanges().forEach((change) => {
+          for (const change of snapshot.docChanges()) {
             if (change.type === 'added' || change.type === 'modified') {
-              items.push(change.doc.data() as Product);
+              const cloudProd = change.doc.data() as Product;
+              if (cloudProd && cloudProd.id) {
+                const localProd = await db.products.get(cloudProd.id);
+                // Conflict resolution: only overwrite if local record is missing or cloud is strictly newer
+                if (!localProd || !localProd.updated_at || !cloudProd.updated_at) {
+                  items.push(cloudProd);
+                } else if (new Date(cloudProd.updated_at).getTime() > new Date(localProd.updated_at).getTime()) {
+                  items.push(cloudProd);
+                }
+              }
             }
-          });
+          }
           if (items.length > 0) {
             await db.products.bulkPut(items);
           }

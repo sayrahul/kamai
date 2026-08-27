@@ -37,6 +37,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import dynamic from 'next/dynamic';
 import { Input } from '@/components/ui/Input';
 import Link from 'next/link';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
@@ -47,9 +48,15 @@ import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/Pro
 import { ExpiryRadar } from '@/components/inventory/ExpiryRadar';
 import { Lock } from 'lucide-react';
 
+const RapidBarcodeInwardModal = dynamic(
+  () => import('@/components/products/RapidBarcodeInwardModal').then((m) => m.RapidBarcodeInwardModal),
+  { ssr: false }
+);
+
 export default function InventoryPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const [isExcelImporterOpen, setIsExcelImporterOpen] = useState(false);
+  const [isRapidInwardOpen, setIsRapidInwardOpen] = useState(false);
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const storeProfile = getStoreProfile(business?.business_type);
   const products = useLiveQuery(async () => {
@@ -78,6 +85,20 @@ export default function InventoryPage() {
   );
   const [expiryFilter, setExpiryFilter] = useState<'all' | '15days' | '30days' | 'expired'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Auto-handle incoming URL parameters (?action=inward, ?tab=reorder, etc.)
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('action') === 'inward' || params.get('action') === 'stock_in') {
+        setIsRapidInwardOpen(true);
+      }
+      const tabParam = params.get('tab');
+      if (tabParam && ['expiry', 'variants', 'serials', 'reorder', 'batches', 'movements'].includes(tabParam)) {
+        setActiveTab(tabParam as any);
+      }
+    }
+  }, []);
 
   // Reorder Quantities State (mapped by product ID)
   const [reorderQtys, setReorderQtys] = useState<{ [productId: string]: number }>({});
@@ -414,6 +435,16 @@ export default function InventoryPage() {
               <span className="hidden md:inline">Purchases</span>
             </Button>
           </Link>
+
+          <Button
+            size="sm"
+            onClick={() => setIsRapidInwardOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs gap-1 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs"
+            title="Rapid Barcode Stock Inward (Stock In / Mal Aavya)"
+          >
+            <Boxes className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">Stock Inward</span>
+          </Button>
 
           <Link href="/products?action=new">
             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs" title="Add New Product">
@@ -1248,6 +1279,12 @@ export default function InventoryPage() {
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
         businessName={business?.name || 'Your Store'}
+      />
+
+      {/* Rapid Barcode Stock Inward (Stock In / Mal Aavya) Modal */}
+      <RapidBarcodeInwardModal
+        isOpen={isRapidInwardOpen}
+        onClose={() => setIsRapidInwardOpen(false)}
       />
     </div>
   );
