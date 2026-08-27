@@ -123,7 +123,7 @@ export const HardwareManagerModal: React.FC<HardwareManagerModalProps> = ({
       const sampleBiz: any = {
         name: 'KamaiPlus Demo Store',
         phone: '9876543210',
-        upi_id: 'merchant@upi',
+        upi_id: '',
         tagline: 'Bluetooth ESC/POS Thermal Ready',
         terms_conditions: 'Thank you for testing hardware integration!',
         footer_message: 'Powered by KamaiPlus Retail POS',

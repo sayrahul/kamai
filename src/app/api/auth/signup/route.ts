@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
         address: address || null,
         pincode: pincode || null,
         gstin: gstin || null,
-        upi_id: upi_id || `${phone}@upi`,
+        upi_id: upi_id ? upi_id.trim() : null,
         subscription_tier: 'free',
         subscription_valid_until: null,
       })

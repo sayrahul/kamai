@@ -109,12 +109,8 @@ export function decodeInvoicePayload(base64: string): SharedInvoicePayload | nul
 export function generateWhatsAppInvoiceMessage(
   sale: Sale,
   business: Business,
-  originUrl?: string
+  _originUrl?: string
 ): string {
-  const origin = originUrl || (typeof window !== 'undefined' ? window.location.origin : '');
-  const encodedPayload = encodeInvoiceForSharing(sale, business);
-  const digitalInvoiceUrl = `${origin}/invoice?d=${encodedPayload}`;
-
   const header = `🧾 *TAX INVOICE / BILL*\n*${business.name.toUpperCase()}*`;
   const info = `${business.phone ? `📞 ${business.phone}` : ''}${business.address ? `\n📍 ${business.address}` : ''}${business.gstin ? `\nGSTIN: ${business.gstin}` : ''}`;
   
@@ -137,11 +133,9 @@ export function generateWhatsAppInvoiceMessage(
     ? `\n\n💳 *Pay Pending Amount via UPI:*\n${generateUPILink(business.upi_id, business.name, sale.balance_due, sale.invoice_number)}`
     : '';
 
-  const digitalLink = `\n\n📄 *View & Download PDF Invoice Online:*\n${digitalInvoiceUrl}`;
-
   const footer = `\n\n_Thank you for your business! Visit again._ 🙏`;
 
-  return `${header}\n${info}${invDetails}\n\n*ITEMS PURCHASED:*\n${itemsList}\n\n${paymentBreakdown}${upiPay}${digitalLink}${footer}`;
+  return `${header}\n${info}${invDetails}\n\n*ITEMS PURCHASED:*\n${itemsList}\n\n${paymentBreakdown}${upiPay}${footer}`;
 }
 
 /**

@@ -32,13 +32,13 @@ export const MerchantQRModal: React.FC<MerchantQRModalProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
-  const upiId = business?.upi_id || 'merchant@upi';
+  const upiId = business?.upi_id || '';
   const businessName = business?.name || 'KamaiPlus Store';
-  const upiLink = generateUPILink(upiId, businessName);
+  const upiLink = upiId ? generateUPILink(upiId, businessName) : '';
 
   useEffect(() => {
     setSoundEnabled(isSoundboxEnabled());
-    if (isOpen) {
+    if (isOpen && upiLink) {
       QRCode.toDataURL(upiLink, {
         width: 240,
         margin: 1,

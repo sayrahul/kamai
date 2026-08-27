@@ -27,8 +27,15 @@ export async function generateInvoicePdfBlobFromElement(
     useCORS: true,
     logging: false,
     backgroundColor: '#ffffff',
+    scrollX: 0,
+    scrollY: 0,
     windowWidth: 1200, // Always use a desktop viewport so mobile doesn't squeeze the layout
     onclone: (clonedDoc, clonedElement) => {
+      // Ensure cloned document is scrolled to top-left
+      if (clonedDoc.defaultView) {
+        clonedDoc.defaultView.scrollTo(0, 0);
+      }
+
       // Force master dimensions on cloned element regardless of device screen size
       clonedElement.style.width = `${targetRenderWidth}px`;
       clonedElement.style.minWidth = `${targetRenderWidth}px`;
@@ -39,6 +46,7 @@ export async function generateInvoicePdfBlobFromElement(
       clonedElement.style.position = 'relative';
       clonedElement.style.transform = 'none';
       clonedElement.style.boxShadow = 'none';
+      clonedElement.style.margin = '0 auto';
       clonedElement.style.padding = '24px';
       clonedElement.style.paddingBottom = '44px'; // Generous bottom padding
 
@@ -58,6 +66,10 @@ export async function generateInvoicePdfBlobFromElement(
         parent.style.overflow = 'visible';
         parent.style.width = 'auto';
         parent.style.maxWidth = 'none';
+        parent.style.transform = 'none';
+        parent.style.transformOrigin = 'initial';
+        parent.style.marginBottom = '0px';
+        parent.style.marginTop = '0px';
         parent = parent.parentElement;
       }
     },

@@ -676,30 +676,12 @@ export default function BillingPage() {
 
   // Cart operations
   const addToCart = (product: Product, quantityToAdd: number = 1) => {
-    if (!product.is_active) return;
-    const isUnlimited = Boolean(product.is_unlimited_stock);
-
-    if (!isUnlimited) {
-      const stock = Number(product.current_stock ?? 0);
-      const available = getAvailableStockForProduct(product);
-      const safeQty = Math.min(quantityToAdd, available);
-
-      if (stock <= 0 || available <= 0 || safeQty <= 0) {
-        playBeepSound('alert');
-        const wantsRestock = window.confirm(
-          `⚠️ "${product.name}" is OUT OF STOCK (${stock <= 0 ? '0' : available} ${product.unit || 'units'} available in inventory).\n\nWould you like to Quick Restock +10 ${product.unit || 'units'} into inventory now and add it to this bill?`
-        );
-        if (wantsRestock) {
-          handleRestockAndAddToCart(product, 10, quantityToAdd);
-        }
-        return;
-      }
-    }
+    if (product.is_active === false) return;
 
     playBeepSound('success');
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
-      const allowedQty = isUnlimited ? quantityToAdd : Math.min(quantityToAdd, getAvailableStockForProduct(product));
+      const allowedQty = quantityToAdd;
 
       if (allowedQty <= 0) {
         return prev;
@@ -762,26 +744,12 @@ export default function BillingPage() {
     const product = products.find((p) => p.id === productId);
     if (!product) return;
 
-    if (delta > 0 && !product.is_unlimited_stock) {
-      const stock = Number(product.current_stock ?? 0);
-      const existing = cart.find((i) => i.product_id === productId);
-      const currentQty = existing ? existing.quantity : 0;
-      if (currentQty + delta > stock) {
-        playBeepSound('alert');
-        alert(`❌ Cannot add more. Available inventory stock for "${product.name}" is only ${stock} ${product.unit || 'units'}.`);
-        return;
-      }
-    }
-
     setCart((prev) =>
       prev
         .map((item) => {
           if (item.product_id === productId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
-            if (!product.is_unlimited_stock && newQty > Number(product.current_stock ?? 0)) {
-              return item;
-            }
             const { price, tier } = calculateEffectiveUnitPrice(product, newQty, pricingMode);
             const lineTotal = Math.max(0, newQty * price - (item.discount_amount || 0));
             const taxRate = item.tax_rate || 0;
@@ -1054,40 +1022,6 @@ export default function BillingPage() {
     if (cart.length === 0) return;
 
     try {
-      // 0. Stock validation before sale completion
-      const invalidStockItems: Array<{ name: string; requested: number; available: number }> = [];
-      for (const item of cart) {
-        let prod = products.find((p) => p.id === item.product_id);
-        if (!prod) {
-          prod = await db.products.get(item.product_id);
-        }
-        if (!prod && item.barcode) {
-          prod = await db.products.where('barcode').equals(item.barcode).first();
-        }
-        if (!prod && item.product_name) {
-          prod = await db.products.where('name').equalsIgnoreCase(item.product_name).first();
-        }
-
-        if (prod && !prod.is_unlimited_stock) {
-          const available = Number(prod.current_stock ?? 0);
-          if (item.quantity > available) {
-            invalidStockItems.push({
-              name: item.product_name,
-              requested: item.quantity,
-              available,
-            });
-          }
-        }
-      }
-
-      if (invalidStockItems.length > 0) {
-        const blocked = invalidStockItems
-          .map((i) => `• ${i.name} (in cart: ${i.requested}, available: ${i.available})`)
-          .join('\n');
-        alert(`❌ Cannot complete sale. The following items exceed available stock:\n\n${blocked}\n\nPlease adjust cart quantities before checkout.`);
-        return;
-      }
-
       const businessId = business?.id || 'biz_default';
       const nextNum = business?.next_invoice_number || 1;
       const invPrefix = business?.invoice_prefix || 'INV-';
@@ -2513,7 +2447,7 @@ export default function BillingPage() {
               {formatINR(paymentMethod === 'split' ? Math.round(parseFloat(splitUpi || '0') * 100) : grandTotalPaise)}
             </div>
             <p className="text-xs text-slate-500 font-medium">
-              Paying to: <b className="text-slate-900">{business?.name}</b> ({business?.upi_id || 'merchant@upi'})
+              Paying to: <b className="text-slate-900">{business?.name}</b>{business?.upi_id ? ` (${business.upi_id})` : ''}
             </p>
           </div>
 

@@ -104,16 +104,18 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
     }
   }, [initialSale, business, isPro]);
 
-  const activeUpi: UpiAccount = business?.upi_ids && business.upi_ids.length > 0
+  const activeUpi: UpiAccount | null = business?.upi_ids && business.upi_ids.length > 0
     ? (business.upi_ids[selectedUpiIndex] || business.upi_ids[0])
-    : { id: 'def', label: 'Primary Shop QR', upi_id: business?.upi_id || (business?.phone ? `${business.phone.replace(/\D/g, '')}@upi` : 'merchant@upi'), is_default: true };
+    : business?.upi_id
+    ? { id: 'def', label: 'Primary Shop QR', upi_id: business.upi_id, is_default: true }
+    : null;
 
   useEffect(() => {
-    if (isOpen && sale && business) {
+    if (isOpen && sale && business && activeUpi?.upi_id) {
       setRecipientPhone(sale.customer_phone || '');
       setShowPhoneInput(!sale.customer_phone);
 
-      const upiTarget = activeUpi.upi_id || business.upi_id || (business.phone ? `${business.phone.replace(/\D/g, '')}@upi` : 'merchant@upi');
+      const upiTarget = activeUpi.upi_id;
       if (upiTarget) {
         const upiUrl = generateUPILink(
           upiTarget,
@@ -130,9 +132,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
           .catch(() => setQrDataUrl(''));
       }
     } else {
+      if (sale) {
+        setRecipientPhone(sale.customer_phone || '');
+        setShowPhoneInput(!sale.customer_phone);
+      }
       setQrDataUrl('');
     }
-  }, [isOpen, sale, business, selectedUpiIndex]);
+  }, [isOpen, sale, business, selectedUpiIndex, activeUpi]);
 
   if (!sale || !business) return null;
 
@@ -151,12 +157,30 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
     const el = document.getElementById('modal-printable-invoice');
     if (!el) return;
     setIsGeneratingPdf(true);
+    const prevMode = viewMode;
+    const scrollContainer = previewContainerRef.current;
+    const prevScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
     try {
-      await downloadInvoicePdfFromElement(el, sale.invoice_number);
+      if (prevMode !== 'full') {
+        setViewMode('full');
+      }
+      if (scrollContainer) {
+        scrollContainer.scrollTop = 0;
+      }
+      // Wait for unscaled layout repaint
+      await new Promise((r) => setTimeout(r, 60));
+      const targetEl = document.getElementById('modal-printable-invoice') || el;
+      await downloadInvoicePdfFromElement(targetEl, sale.invoice_number);
     } catch (err) {
       console.error('PDF download error:', err);
       window.print();
     } finally {
+      if (prevMode !== 'full') {
+        setViewMode(prevMode);
+      }
+      if (scrollContainer) {
+        scrollContainer.scrollTop = prevScrollTop;
+      }
       setIsGeneratingPdf(false);
     }
   };
@@ -182,8 +206,19 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   const handleWhatsAppSend = async () => {
     const el = document.getElementById('modal-printable-invoice');
     setIsGeneratingPdf(true);
+    const prevMode = viewMode;
+    const scrollContainer = previewContainerRef.current;
+    const prevScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
     try {
-      const res = await shareInvoicePdfDirect(el, sale, business, recipientPhone);
+      if (prevMode !== 'full') {
+        setViewMode('full');
+      }
+      if (scrollContainer) {
+        scrollContainer.scrollTop = 0;
+      }
+      await new Promise((r) => setTimeout(r, 60));
+      const targetEl = document.getElementById('modal-printable-invoice') || el;
+      const res = await shareInvoicePdfDirect(targetEl, sale, business, recipientPhone);
       if (res.shared) {
         setShareSuccessMsg('Invoice dispatched to WhatsApp!');
         setTimeout(() => setShareSuccessMsg(''), 4000);
@@ -192,6 +227,12 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
       console.error('WhatsApp send error:', err);
       sendInvoiceViaWhatsApp(recipientPhone, sale, business);
     } finally {
+      if (prevMode !== 'full') {
+        setViewMode(prevMode);
+      }
+      if (scrollContainer) {
+        scrollContainer.scrollTop = prevScrollTop;
+      }
       setIsGeneratingPdf(false);
     }
   };
@@ -631,7 +672,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 {/* Totals & QR Section */}
                 <div className="grid grid-cols-2 gap-4 pt-3 border-t-2 border-slate-800">
                   <div>
-                    {(business.invoice_theme_config?.show_upi_qr ?? true) && qrDataUrl && (
+                    {(business.invoice_theme_config?.show_upi_qr ?? true) && qrDataUrl && activeUpi && (
                       <div className="space-y-1">
                         <div className="flex items-center gap-3">
                           <img src={qrDataUrl} alt="UPI QR" className="w-20 h-20 border border-slate-200 rounded p-1 bg-white" />
@@ -856,11 +897,11 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 </div>
 
                 {/* Dynamic QR */}
-                {qrDataUrl && (
+                {qrDataUrl && activeUpi && (
                   <div className="flex flex-col items-center py-1">
                     <img src={qrDataUrl} alt="UPI QR" className="w-24 h-24" />
                     <div className="text-[9px] font-bold text-slate-700 mt-1">{activeUpi.label || 'Scan to Pay via UPI'}</div>
-                    <div className="text-[8px] font-mono text-slate-500">{activeUpi.upi_id || business.upi_id}</div>
+                    <div className="text-[8px] font-mono text-slate-500">{activeUpi.upi_id}</div>
                   </div>
                 )}
 

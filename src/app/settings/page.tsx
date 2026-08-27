@@ -225,7 +225,7 @@ export default function SettingsPage() {
     e.preventDefault();
     if (!business) return;
 
-    const primaryUpi = upiList.find((u) => u.is_default)?.upi_id || upiList[0]?.upi_id || 'merchant@upi';
+    const primaryUpi = upiList.find((u) => u.is_default)?.upi_id || upiList[0]?.upi_id || '';
 
     await db.businesses.update(business.id, {
       name: name.trim(),

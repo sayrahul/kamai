@@ -94,7 +94,7 @@ export default function InvoiceDesignerPage() {
         ? business.upi_ids
         : business.upi_id
         ? [{ id: 'upi_def', label: 'Primary Shop QR', upi_id: business.upi_id, is_default: true }]
-        : [{ id: 'upi_def', label: 'Primary Shop QR', upi_id: 'merchant@upi', is_default: true }];
+        : [];
 
       setUpiList(initialUpiList);
     }
@@ -103,7 +103,12 @@ export default function InvoiceDesignerPage() {
   // Update Sample QR when active UPI or config changes
   useEffect(() => {
     const activeUpi = upiList[selectedUpiIndex] || upiList[0];
-    const upiString = activeUpi?.upi_id || business?.upi_id || 'merchant@upi';
+    const upiString = activeUpi?.upi_id || business?.upi_id || '';
+
+    if (!upiString) {
+      setSampleQrUrl('');
+      return;
+    }
 
     const upiLink = generateUPILink(
       upiString,
@@ -674,7 +679,7 @@ export default function InvoiceDesignerPage() {
                           {activeUpi?.label || 'Scan & Pay via UPI'}
                         </div>
                         <div className="text-[10px] text-slate-700 font-mono font-bold truncate mt-0.5 leading-snug">
-                          {activeUpi?.upi_id || business?.upi_id || 'merchant@upi'}
+                          {activeUpi?.upi_id || business?.upi_id || ''}
                         </div>
                         <div className="text-[9px] text-slate-500 mt-0.5 leading-snug">Zero transaction charges</div>
                       </div>
