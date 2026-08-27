@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>KamaiPlus POS</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #070A11;
+      color: #F8FAFC;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+    }
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(251, 191, 36, 0.2);
+      border-top-color: #F59E0B;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 900;
+      margin: 0 0 6px 0;
+      color: #F59E0B;
+      letter-spacing: -0.5px;
+    }
+    p {
+      font-size: 12px;
+      color: #94A3B8;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="spinner"></div>
+  <h1>KamaiPlus POS</h1>
+  <p>Loading Smart Retail Engine...</p>
+</body>
+</html>

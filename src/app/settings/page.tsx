@@ -38,6 +38,7 @@ import { soundboxEngine, SoundboxLanguage } from '@/lib/payments/soundboxEngine'
 import { paymentBridge } from '@/lib/payments/paymentBridge';
 import { APP_VERSION, APP_RELEASE_DATE } from '@/lib/constants/version';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
+import { NativeSoundboxStatusCard } from '@/components/payments/NativeSoundboxStatusCard';
 
 export default function SettingsPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
@@ -822,6 +823,11 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               </Card>
+            </div>
+
+            {/* Native Android Soundbox & Background UPI Listener Status Card */}
+            <div className="lg:col-span-12">
+              <NativeSoundboxStatusCard language="hi" />
             </div>
 
             {/* Smart Soundbox & Android Notification Bridge Section */}

@@ -1,9 +1,22 @@
 /**
  * Live Payment Bridge & Event Bus for Real-Time POS Payment Matching
- * Connects Native Android Notification Listeners, Bank SMS Streams, and Web POS.
+ * Connects Native Android Notification Listeners (Capacitor / NotificationListenerService),
+ * Bank SMS Streams, and Web POS.
  */
 
 import { ParsedPaymentEvent, parsePaymentNotification } from './notificationParser';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+export interface KamaiUpiPluginInterface {
+  isNotificationListenerEnabled(): Promise<{ enabled: boolean; packageName: string }>;
+  openNotificationSettings(): Promise<{ success: boolean }>;
+  speakPayment(options: { amount: number; language: string }): Promise<{ success: boolean }>;
+  addListener(eventName: 'onPaymentReceived', listenerFunc: (payment: ParsedPaymentEvent) => void): Promise<any>;
+}
+
+export const KamaiUpiPlugin = typeof window !== 'undefined'
+  ? registerPlugin<KamaiUpiPluginInterface>('KamaiUpiPlugin')
+  : null;
 
 type PaymentListener = (event: ParsedPaymentEvent) => void;
 
@@ -58,13 +71,79 @@ class PaymentBridgeService {
       },
       getBridgeStatus: () => ({
         active: true,
-        version: '1.0.0',
+        version: '2.0.0',
+        isNativePlatform: Capacitor.isNativePlatform(),
         listenersCount: this.listeners.size,
         historyCount: this.paymentHistory.length,
       }),
     };
 
+    // 4. Capacitor Native Android Plugin Listener (KamaiNotificationListenerService)
+    if (Capacitor.isNativePlatform() && KamaiUpiPlugin) {
+      try {
+        KamaiUpiPlugin.addListener('onPaymentReceived', (payment: ParsedPaymentEvent) => {
+          if (payment) {
+            console.log('[NativeBridge] Received payment from Android NotificationListenerService:', payment);
+            this.handleIncomingParsedPayment(payment, true);
+          }
+        });
+        console.log('[NativeBridge] Subscribed to native KamaiUpiPlugin events');
+      } catch (err) {
+        console.warn('Failed to attach Capacitor KamaiUpiPlugin listener:', err);
+      }
+    }
+
     this.isInitialized = true;
+  }
+
+  /**
+   * Check if running inside native Android / iOS Capacitor container
+   */
+  public isNative(): boolean {
+    return Capacitor.isNativePlatform();
+  }
+
+  /**
+   * Check if Android Notification Access permission is enabled
+   */
+  public async checkNotificationPermission(): Promise<boolean> {
+    if (!Capacitor.isNativePlatform() || !KamaiUpiPlugin) {
+      return false;
+    }
+    try {
+      const res = await KamaiUpiPlugin.isNotificationListenerEnabled();
+      return Boolean(res && res.enabled);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Deep link to Android Notification Access settings screen
+   */
+  public async openNotificationAccessSettings(): Promise<boolean> {
+    if (!Capacitor.isNativePlatform() || !KamaiUpiPlugin) {
+      return false;
+    }
+    try {
+      const res = await KamaiUpiPlugin.openNotificationSettings();
+      return Boolean(res && res.success);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Trigger native Android TextToSpeech announcement
+   */
+  public async speakNativeVoice(amount: number, language = 'hi'): Promise<void> {
+    if (Capacitor.isNativePlatform() && KamaiUpiPlugin) {
+      try {
+        await KamaiUpiPlugin.speakPayment({ amount, language });
+      } catch (err) {
+        console.warn('Native speech failed, falling back to Web Speech:', err);
+      }
+    }
   }
 
   /**
