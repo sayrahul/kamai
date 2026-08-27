@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import QRCode from 'qrcode';
-import { generateUPILink } from '@/lib/utils';
+import { generateUPILink, cn } from '@/lib/utils';
 import { UpiAccount } from '@/types';
 import Link from 'next/link';
 import { 
@@ -16,13 +16,14 @@ import {
   Building2, 
   Camera, 
   Trash2, 
-  Palette,
-  HardDrive,
-  Plus,
-  Star,
-  Layers,
-  ChevronDown,
-  Printer
+  Palette, 
+  HardDrive, 
+  Plus, 
+  Star, 
+  Layers, 
+  ChevronDown, 
+  Printer,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -89,9 +90,24 @@ export default function SettingsPage() {
 
   // UI state
   const [isSaved, setIsSaved] = useState(false);
+  const [saveNotification, setSaveNotification] = useState<{
+    title: string;
+    description: string;
+  } | null>(null);
   const [liveQrDataUrl, setLiveQrDataUrl] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'profile' | 'upi' | 'invoicing'>('upi');
   const [isStandeeModalOpen, setIsStandeeModalOpen] = useState(false);
+
+  const showSaveNotification = (title: string, description: string = 'All changes have been successfully saved to your offline database.') => {
+    setSaveNotification({ title, description });
+    setIsSaved(true);
+    setTimeout(() => {
+      setIsSaved(false);
+    }, 3500);
+    setTimeout(() => {
+      setSaveNotification((prev) => (prev?.title === title ? null : prev));
+    }, 4500);
+  };
 
   // Load business data into form
   useEffect(() => {
@@ -166,10 +182,27 @@ export default function SettingsPage() {
       // Immediate responsive UI update
       setLogoUrl(dataUrl);
 
+      if (business) {
+        await db.businesses.update(business.id, {
+          logo_url: dataUrl,
+          updated_at: new Date().toISOString(),
+        });
+      }
+      showSaveNotification(
+        'Store Logo Uploaded & Saved!',
+        'Your store logo has been updated and will appear on all bills and invoices.'
+      );
+
       // 2. Cloud Storage upload
       try {
         const { url } = await uploadStoreLogoToStorage(file, business?.id || 'biz_default');
         setLogoUrl(url);
+        if (business) {
+          await db.businesses.update(business.id, {
+            logo_url: url,
+            updated_at: new Date().toISOString(),
+          });
+        }
       } catch (err) {
         console.log('Firebase Storage not configured or offline, using compressed image data:', err);
       }
@@ -179,8 +212,19 @@ export default function SettingsPage() {
     }
   };
 
+  const handleRemoveLogo = async () => {
+    setLogoUrl('');
+    if (business) {
+      await db.businesses.update(business.id, {
+        logo_url: undefined,
+        updated_at: new Date().toISOString(),
+      });
+    }
+    showSaveNotification('Store Logo Removed', 'Logo has been removed from invoices and store profile.');
+  };
+
   // Add New UPI ID
-  const handleAddUpiAccount = () => {
+  const handleAddUpiAccount = async () => {
     if (!isPro && upiList.length >= 1) {
       setIsUpgradeModalOpen(true);
       return;
@@ -195,36 +239,69 @@ export default function SettingsPage() {
       upi_id: newUpiId.trim(),
       is_default: upiList.length === 0,
     };
-    setUpiList((prev) => [...prev, newEntry]);
+    const updatedList = [...upiList, newEntry];
+    setUpiList(updatedList);
     setSelectedPreviewUpiIndex(upiList.length);
     setNewUpiLabel('');
     setNewUpiId('');
+
+    if (business) {
+      await db.businesses.update(business.id, {
+        upi_ids: updatedList,
+        upi_id: updatedList.find((u) => u.is_default)?.upi_id || updatedList[0]?.upi_id || '',
+        updated_at: new Date().toISOString(),
+      });
+    }
+    showSaveNotification(
+      'New UPI Account Added & Saved!',
+      `Added "${newEntry.label}" (${newEntry.upi_id}) to your counter QR list.`
+    );
   };
 
   // Set Default UPI ID
-  const handleSetDefaultUpi = (id: string) => {
-    setUpiList((prev) =>
-      prev.map((u) => ({
-        ...u,
-        is_default: u.id === id,
-      }))
+  const handleSetDefaultUpi = async (id: string) => {
+    const updated = upiList.map((u) => ({
+      ...u,
+      is_default: u.id === id,
+    }));
+    setUpiList(updated);
+    const target = updated.find((u) => u.id === id);
+    if (business) {
+      await db.businesses.update(business.id, {
+        upi_id: target?.upi_id || '',
+        upi_ids: updated,
+        updated_at: new Date().toISOString(),
+      });
+    }
+    showSaveNotification(
+      'Primary Counter UPI Changed',
+      `"${target?.label || 'Selected QR'}" (${target?.upi_id}) is now set as the primary payment QR on POS.`
     );
   };
 
   // Delete UPI ID
-  const handleDeleteUpi = (id: string) => {
+  const handleDeleteUpi = async (id: string) => {
     if (upiList.length <= 1) {
       alert('You must keep at least one UPI address.');
       return;
     }
-    setUpiList((prev) => {
-      const filtered = prev.filter((u) => u.id !== id);
-      if (filtered.length > 0 && !filtered.some((u) => u.is_default)) {
-        filtered[0].is_default = true;
-      }
-      return filtered;
-    });
+    const filtered = upiList.filter((u) => u.id !== id);
+    if (filtered.length > 0 && !filtered.some((u) => u.is_default)) {
+      filtered[0].is_default = true;
+    }
+    setUpiList(filtered);
     setSelectedPreviewUpiIndex(0);
+    if (business) {
+      await db.businesses.update(business.id, {
+        upi_id: filtered.find((u) => u.is_default)?.upi_id || filtered[0]?.upi_id || '',
+        upi_ids: filtered,
+        updated_at: new Date().toISOString(),
+      });
+    }
+    showSaveNotification(
+      'UPI Address Removed',
+      'The selected UPI address has been removed from store settings.'
+    );
   };
 
   // Save Settings to IndexedDB
@@ -262,8 +339,27 @@ export default function SettingsPage() {
       updated_at: new Date().toISOString(),
     });
 
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3500);
+    showSaveNotification(
+      'Settings Saved Successfully!',
+      'All store details, UPI accounts, and invoice rules are saved and active across POS counters.'
+    );
+  };
+
+  // Change GST Pricing Mode (Exclusive vs Inclusive)
+  const handleGstPricingModeChange = async (mode: 'exclusive' | 'inclusive') => {
+    setGstPricingMode(mode);
+    if (business) {
+      await db.businesses.update(business.id, {
+        gst_pricing_mode: mode,
+        updated_at: new Date().toISOString(),
+      });
+    }
+    showSaveNotification(
+      mode === 'exclusive' ? 'GST Mode: Added on Top (Exclusive)' : 'GST Mode: Included in Price (Inclusive)',
+      mode === 'exclusive'
+        ? 'Base menu prices used; GST is calculated and added on top of bill subtotal.'
+        : 'MRP retail mode; selling prices already include GST taxes.'
+    );
   };
 
   const [isClearingData, setIsClearingData] = useState(false);
@@ -291,7 +387,10 @@ export default function SettingsPage() {
         setNextInvoiceNumber('1');
       }
 
-      alert('✅ All test sales, test ledger entries, and test customers have been cleared! Your store is now 100% clean and ready for real production sales.');
+      showSaveNotification(
+        'Test Database Cleared Successfully',
+        'All sample invoices, dummy debts, and test transactions have been wiped. Your store is clean and ready.'
+      );
     } catch (err: any) {
       alert(`Failed to clear test data: ${err?.message}`);
     } finally {
@@ -302,7 +401,41 @@ export default function SettingsPage() {
   const activePreviewUpi = upiList[selectedPreviewUpiIndex] || upiList[0];
 
   return (
-    <div className="space-y-3.5 pb-12 max-w-5xl mx-auto">
+    <div className="space-y-3.5 pb-12 max-w-5xl mx-auto relative">
+      {/* ---------------- FLOATING PROFESSIONAL SAVE / CHANGE CONFIRMATION TOAST ---------------- */}
+      {saveNotification && (
+        <div className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[92vw] sm:w-auto animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-auto shadow-2xl">
+          <div className="bg-slate-900/95 backdrop-blur-md border-2 border-emerald-500/80 text-white rounded-2xl p-3.5 sm:p-4 shadow-emerald-950/60 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0 mt-0.5">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 animate-pulse" />
+            </div>
+
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm font-black text-white tracking-tight">
+                  {saveNotification.title}
+                </span>
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-slate-950 text-[9px] font-black uppercase tracking-wider">
+                  ✓ DONE
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-snug">
+                {saveNotification.description}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSaveNotification(null)}
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer shrink-0 ml-1"
+              aria-label="Close notification"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ---------------- HEADER BAR (Single Row Compact) ---------------- */}
       <div className="bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
@@ -416,7 +549,7 @@ export default function SettingsPage() {
                 {logoUrl && (
                   <button
                     type="button"
-                    onClick={() => setLogoUrl('')}
+                    onClick={handleRemoveLogo}
                     className="text-xs text-rose-600 font-bold hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -538,8 +671,24 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="pt-3 border-t border-slate-200 flex justify-end">
-                  <Button type="submit" size="sm" className="font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white">
-                    Save Profile Details
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className={cn(
+                      "font-bold text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer",
+                      isSaved
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 scale-[1.02]"
+                        : "bg-slate-900 hover:bg-slate-800 text-white"
+                    )}
+                  >
+                    {isSaved ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-white animate-bounce" />
+                        <span>✓ Done &amp; Saved!</span>
+                      </>
+                    ) : (
+                      <span>Save Profile Details</span>
+                    )}
                   </Button>
                 </div>
               </Card>
@@ -819,8 +968,24 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="pt-2.5 border-t border-slate-200 flex justify-end">
-                  <Button type="submit" size="sm" className="font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-2xs">
-                    Save UPI &amp; Banking Settings
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className={cn(
+                      "font-bold text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer",
+                      isSaved
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 scale-[1.02]"
+                        : "bg-slate-900 hover:bg-slate-800 text-white shadow-2xs"
+                    )}
+                  >
+                    {isSaved ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-white animate-bounce" />
+                        <span>✓ Done &amp; Saved!</span>
+                      </>
+                    ) : (
+                      <span>Save UPI &amp; Banking Settings</span>
+                    )}
                   </Button>
                 </div>
               </Card>
@@ -872,6 +1037,10 @@ export default function SettingsPage() {
                           onClick={() => {
                             setSoundboxLang(lang.id as SoundboxLanguage);
                             soundboxEngine.setLanguage(lang.id as SoundboxLanguage);
+                            showSaveNotification(
+                              'Soundbox Voice Language Changed',
+                              `Payment voice announcements set to ${lang.label}.`
+                            );
                           }}
                           className={`p-2 rounded-lg border text-left transition cursor-pointer ${
                             soundboxLang === lang.id
@@ -900,6 +1069,12 @@ export default function SettingsPage() {
                           const v = parseFloat(e.target.value);
                           setSoundboxVol(v);
                           soundboxEngine.setVolume(v);
+                        }}
+                        onMouseUp={() => {
+                          showSaveNotification('Soundbox Volume Saved', `Speaker volume set to ${Math.round(soundboxVol * 100)}%.`);
+                        }}
+                        onTouchEnd={() => {
+                          showSaveNotification('Soundbox Volume Saved', `Speaker volume set to ${Math.round(soundboxVol * 100)}%.`);
                         }}
                         className="w-full accent-amber-400 cursor-pointer"
                       />
@@ -1034,7 +1209,7 @@ export default function SettingsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 <div
-                  onClick={() => setGstPricingMode('exclusive')}
+                  onClick={() => handleGstPricingModeChange('exclusive')}
                   className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
                     gstPricingMode === 'exclusive'
                       ? 'border-emerald-600 bg-emerald-50/50 shadow-2xs'
@@ -1046,8 +1221,8 @@ export default function SettingsPage() {
                       type="radio"
                       name="gstPricingMode"
                       checked={gstPricingMode === 'exclusive'}
-                      onChange={() => setGstPricingMode('exclusive')}
-                      className="accent-emerald-600"
+                      onChange={() => handleGstPricingModeChange('exclusive')}
+                      className="accent-emerald-600 cursor-pointer"
                     />
                     <span className="text-xs font-bold text-slate-900">
                       Add GST on Top of Total (Exclusive)
@@ -1059,7 +1234,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div
-                  onClick={() => setGstPricingMode('inclusive')}
+                  onClick={() => handleGstPricingModeChange('inclusive')}
                   className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
                     gstPricingMode === 'inclusive'
                       ? 'border-emerald-600 bg-emerald-50/50 shadow-2xs'
@@ -1071,8 +1246,8 @@ export default function SettingsPage() {
                       type="radio"
                       name="gstPricingMode"
                       checked={gstPricingMode === 'inclusive'}
-                      onChange={() => setGstPricingMode('inclusive')}
-                      className="accent-emerald-600"
+                      onChange={() => handleGstPricingModeChange('inclusive')}
+                      className="accent-emerald-600 cursor-pointer"
                     />
                     <span className="text-xs font-bold text-slate-900">
                       Prices Include GST (Inclusive)
@@ -1110,8 +1285,24 @@ export default function SettingsPage() {
             </div>
 
             <div className="pt-3 border-t border-slate-200 flex justify-end">
-              <Button type="submit" size="sm" className="font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white">
-                Save Invoicing Preferences
+              <Button
+                type="submit"
+                size="sm"
+                className={cn(
+                  "font-bold text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer",
+                  isSaved
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 scale-[1.02]"
+                    : "bg-slate-900 hover:bg-slate-800 text-white"
+                )}
+              >
+                {isSaved ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-white animate-bounce" />
+                    <span>✓ Done &amp; Saved!</span>
+                  </>
+                ) : (
+                  <span>Save Invoicing Preferences</span>
+                )}
               </Button>
             </div>
           </Card>
