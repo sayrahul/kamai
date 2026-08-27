@@ -127,6 +127,7 @@ export interface Business {
   terms_conditions?: string;
   footer_message?: string;
   invoice_theme_config?: InvoiceThemeConfig;
+  gst_pricing_mode?: 'exclusive' | 'inclusive';
   subscription_tier?: 'free' | 'pro' | 'enterprise';
   subscription_valid_until?: string;
   is_onboarded: boolean;
@@ -264,6 +265,7 @@ export interface CartItem {
   tax_rate: number;
   tax_amount: number; // in paise
   total_amount: number; // in paise
+  is_tax_inclusive?: boolean;
   notes?: string;
 }
 

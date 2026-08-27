@@ -142,7 +142,14 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
 
   if (!sale || !business) return null;
 
-  const gstBreakup = calculateGstSummary(sale.items, false);
+  const isExclusive = business.gst_pricing_mode === 'exclusive' || (business.business_type === 'restaurant' && business.gst_pricing_mode !== 'inclusive');
+  const gstBreakup = calculateGstSummary(sale.items, false, isExclusive);
+
+  // Ensure Subtotal + Total GST = Grand Total (handles legacy invoices where subtotal was saved equal to grand total)
+  const displaySubtotal = (sale.subtotal === sale.grand_total && sale.tax_total > 0)
+    ? Math.max(0, sale.grand_total - sale.tax_total)
+    : sale.subtotal;
+
   const amountWords = numberToWordsINR(sale.grand_total);
   const saleDateFormatted = new Date(sale.created_at).toLocaleString('en-IN', {
     dateStyle: 'medium',
@@ -714,7 +721,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   <div className="space-y-1.5 text-right text-xs">
                     <div className="flex justify-between text-slate-600">
                       <span>Subtotal:</span>
-                      <span className="font-semibold text-slate-800 tabular-nums">{formatINR(sale.subtotal)}</span>
+                      <span className="font-semibold text-slate-800 tabular-nums">{formatINR(displaySubtotal)}</span>
                     </div>
                     {sale.discount_total > 0 && (
                       <div className="flex justify-between text-emerald-700">
@@ -872,7 +879,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 <div className="space-y-1 text-[11px] pb-2 border-b border-dashed border-slate-300 leading-relaxed">
                   <div className="flex justify-between py-0.5">
                     <span className="text-slate-600">Subtotal:</span>
-                    <span className="font-mono">{formatINR(sale.subtotal)}</span>
+                    <span className="font-mono">{formatINR(displaySubtotal)}</span>
                   </div>
                   {sale.tax_total > 0 && (
                     <div className="flex justify-between text-slate-600 py-0.5">

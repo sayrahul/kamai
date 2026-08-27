@@ -62,6 +62,18 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
     return list.filter((p) => p.is_active !== false);
   }) || [];
 
+  const businesses = useLiveQuery(() => db.businesses.toArray()) || [];
+  const business = businesses[0];
+  const isBusinessGstExclusive = business?.gst_pricing_mode === 'exclusive' || (business?.business_type === 'restaurant' && business?.gst_pricing_mode !== 'inclusive');
+
+  const calculateItemTax = (lineTotal: number, taxRate: number, isProductInclusive?: boolean) => {
+    if (!taxRate || taxRate <= 0 || lineTotal <= 0) return 0;
+    const isExclusive = isProductInclusive !== undefined ? !isProductInclusive : isBusinessGstExclusive;
+    return isExclusive
+      ? Math.round((lineTotal * taxRate) / 100)
+      : Math.round(lineTotal - lineTotal / (1 + taxRate / 100));
+  };
+
   // Initialize modal state when sale opens
   useEffect(() => {
     if (sale) {
@@ -90,7 +102,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
         if (i !== index) return item;
         const lineTotal = Math.max(0, newQty * item.unit_price - (item.discount_amount || 0));
         const taxRate = item.tax_rate || 0;
-        const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
+        const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive);
         return {
           ...item,
           quantity: newQty,
@@ -108,7 +120,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
         if (i !== index) return item;
         const lineTotal = Math.max(0, item.quantity * unitPricePaise - (item.discount_amount || 0));
         const taxRate = item.tax_rate || 0;
-        const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
+        const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive);
         return {
           ...item,
           unit_price: unitPricePaise,
@@ -126,7 +138,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
         if (i !== index) return item;
         const lineTotal = Math.max(0, item.quantity * item.unit_price - discPaise);
         const taxRate = item.tax_rate || 0;
-        const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
+        const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive);
         return {
           ...item,
           discount_amount: discPaise,
@@ -148,7 +160,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
     } else {
       const taxRate = product.tax_rate || 0;
       const lineTotal = product.selling_price;
-      const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
+      const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
       setItems((prev) => [
         ...prev,
         {
@@ -164,6 +176,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
           tax_rate: taxRate,
           tax_amount: taxAmt,
           total_amount: lineTotal,
+          is_tax_inclusive: product.is_tax_inclusive,
         },
       ]);
     }
@@ -172,10 +185,16 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
   };
 
   // Calculations
-  const subtotalPaise = items.reduce((acc, i) => acc + i.total_amount, 0);
   const discountTotalPaise = items.reduce((acc, i) => acc + (i.discount_amount || 0), 0);
   const taxTotalPaise = items.reduce((acc, i) => acc + (i.tax_amount || 0), 0);
-  const grandTotalPaise = subtotalPaise;
+  const subtotalPaise = items.reduce((acc, item) => {
+    const itemIsInclusive = item.is_tax_inclusive !== undefined ? item.is_tax_inclusive : !isBusinessGstExclusive;
+    if (itemIsInclusive && item.tax_rate > 0) {
+      return acc + (item.total_amount - (item.tax_amount || 0));
+    }
+    return acc + item.total_amount;
+  }, 0);
+  const grandTotalPaise = subtotalPaise + taxTotalPaise;
 
   const enteredReceivedPaise = amountReceivedInput
     ? Math.round(parseFloat(amountReceivedInput) * 100)

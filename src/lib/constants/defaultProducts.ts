@@ -256,7 +256,7 @@ export const DEFAULT_CATEGORY_PRODUCTS: Record<string, SeedProductDefinition[]> 
       current_stock: 10,
       min_stock_level: 5,
       tax_rate: 5,
-      is_tax_inclusive: true,
+      is_tax_inclusive: false,
       hsn_code: '9963',
     },
     {
@@ -269,7 +269,7 @@ export const DEFAULT_CATEGORY_PRODUCTS: Record<string, SeedProductDefinition[]> 
       current_stock: 10,
       min_stock_level: 5,
       tax_rate: 5,
-      is_tax_inclusive: true,
+      is_tax_inclusive: false,
       hsn_code: '9963',
     },
     {
@@ -282,7 +282,7 @@ export const DEFAULT_CATEGORY_PRODUCTS: Record<string, SeedProductDefinition[]> 
       current_stock: 10,
       min_stock_level: 5,
       tax_rate: 5,
-      is_tax_inclusive: true,
+      is_tax_inclusive: false,
       hsn_code: '9963',
     },
     {
@@ -295,7 +295,7 @@ export const DEFAULT_CATEGORY_PRODUCTS: Record<string, SeedProductDefinition[]> 
       current_stock: 10,
       min_stock_level: 5,
       tax_rate: 5,
-      is_tax_inclusive: true,
+      is_tax_inclusive: false,
       hsn_code: '9963',
     },
     {
@@ -308,7 +308,7 @@ export const DEFAULT_CATEGORY_PRODUCTS: Record<string, SeedProductDefinition[]> 
       current_stock: 10,
       min_stock_level: 5,
       tax_rate: 5,
-      is_tax_inclusive: true,
+      is_tax_inclusive: false,
       hsn_code: '9963',
     },
     {
@@ -321,7 +321,7 @@ export const DEFAULT_CATEGORY_PRODUCTS: Record<string, SeedProductDefinition[]> 
       current_stock: 10,
       min_stock_level: 5,
       tax_rate: 5,
-      is_tax_inclusive: true,
+      is_tax_inclusive: false,
       hsn_code: '9963',
     },
     {
@@ -334,7 +334,7 @@ export const DEFAULT_CATEGORY_PRODUCTS: Record<string, SeedProductDefinition[]> 
       current_stock: 10,
       min_stock_level: 5,
       tax_rate: 5,
-      is_tax_inclusive: true,
+      is_tax_inclusive: false,
       hsn_code: '9963',
     },
     {
@@ -347,7 +347,7 @@ export const DEFAULT_CATEGORY_PRODUCTS: Record<string, SeedProductDefinition[]> 
       current_stock: 10,
       min_stock_level: 5,
       tax_rate: 5,
-      is_tax_inclusive: true,
+      is_tax_inclusive: false,
       hsn_code: '9963',
     },
   ],

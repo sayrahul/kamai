@@ -71,6 +71,7 @@ export default function SettingsPage() {
   // Invoicing Preferences
   const [invoicePrefix, setInvoicePrefix] = useState('INV-');
   const [nextInvoiceNumber, setNextInvoiceNumber] = useState('1');
+  const [gstPricingMode, setGstPricingMode] = useState<'exclusive' | 'inclusive'>('exclusive');
   const [terms, setTerms] = useState('');
   const [footerMessage, setFooterMessage] = useState('');
 
@@ -118,6 +119,7 @@ export default function SettingsPage() {
       setBankAccountName(business.bank_account_name || '');
       setInvoicePrefix(business.invoice_prefix || 'INV-');
       setNextInvoiceNumber((business.next_invoice_number || 1).toString());
+      setGstPricingMode(business.gst_pricing_mode || (business.business_type === 'restaurant' ? 'exclusive' : 'inclusive'));
       setTerms(business.terms_conditions || 'Goods once sold will not be returned after 3 days. Thank you for shopping with us!');
       setFooterMessage(business.footer_message || 'Thank you for your business! Please visit again.');
     }
@@ -249,6 +251,7 @@ export default function SettingsPage() {
       bank_account_name: bankAccountName.trim() || undefined,
       invoice_prefix: invoicePrefix.trim() || 'INV-',
       next_invoice_number: parseInt(nextInvoiceNumber) || 1,
+      gst_pricing_mode: gstPricingMode,
       terms_conditions: terms.trim(),
       footer_message: footerMessage.trim(),
       updated_at: new Date().toISOString(),
@@ -1020,6 +1023,74 @@ export default function SettingsPage() {
                 onChange={(e) => setNextInvoiceNumber(e.target.value)}
                 helperText="Auto increments with each completed sale"
               />
+            </div>
+
+            {/* GST / Tax Pricing Calculation Mode */}
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                  <span>📊</span>
+                  <span>GST Billing &amp; Calculation Mode</span>
+                </span>
+                <span className="text-[10px] font-mono font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded border border-amber-300">
+                  {gstPricingMode === 'exclusive' ? '+ ADD GST ON TOTAL' : 'INCLUSIVE IN MRP'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600">
+                Choose how GST is calculated and displayed on your receipts, POS screen, and PDF invoices:
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <div
+                  onClick={() => setGstPricingMode('exclusive')}
+                  className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    gstPricingMode === 'exclusive'
+                      ? 'border-emerald-600 bg-emerald-50/50 shadow-2xs'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="gstPricingMode"
+                      checked={gstPricingMode === 'exclusive'}
+                      onChange={() => setGstPricingMode('exclusive')}
+                      className="accent-emerald-600"
+                    />
+                    <span className="text-xs font-bold text-slate-900">
+                      Add GST on Top of Total (Exclusive)
+                    </span>
+                  </div>
+                  <p className="text-[10.5px] text-slate-600 mt-1 pl-5 leading-snug">
+                    <b>Standard for Restaurants, Cafes, Hotels, Services &amp; Wholesale.</b> Menu prices are base prices; 5%, 12%, or 18% GST is added on top to calculate the Grand Total.
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => setGstPricingMode('inclusive')}
+                  className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    gstPricingMode === 'inclusive'
+                      ? 'border-emerald-600 bg-emerald-50/50 shadow-2xs'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="gstPricingMode"
+                      checked={gstPricingMode === 'inclusive'}
+                      onChange={() => setGstPricingMode('inclusive')}
+                      className="accent-emerald-600"
+                    />
+                    <span className="text-xs font-bold text-slate-900">
+                      Prices Include GST (Inclusive)
+                    </span>
+                  </div>
+                  <p className="text-[10.5px] text-slate-600 mt-1 pl-5 leading-snug">
+                    <b>Standard for MRP Retail, Supermarkets &amp; Kirana.</b> Selling prices already include GST; Subtotal shows Taxable Base Value and GST is itemized.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div>

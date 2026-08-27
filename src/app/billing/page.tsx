@@ -586,6 +586,19 @@ export default function BillingPage() {
   // Pricing Mode State (Retail vs Wholesale / Thok)
   const [pricingMode, setPricingMode] = useState<'retail' | 'wholesale'>('retail');
 
+  // Whether GST is added on top of prices (Exclusive) vs included in prices (Inclusive)
+  const isBusinessGstExclusive = 
+    business?.gst_pricing_mode === 'exclusive' || 
+    (business?.business_type === 'restaurant' && business?.gst_pricing_mode !== 'inclusive');
+
+  const calculateItemTax = (lineTotal: number, taxRate: number, isProductInclusive?: boolean) => {
+    if (!taxRate || taxRate <= 0 || lineTotal <= 0) return 0;
+    const isExclusive = isProductInclusive !== undefined ? !isProductInclusive : isBusinessGstExclusive;
+    return isExclusive
+      ? Math.round((lineTotal * taxRate) / 100)
+      : Math.round(lineTotal - lineTotal / (1 + taxRate / 100));
+  };
+
   // Calculates effective unit price based on active mode, wholesale price, and quantity
   const calculateEffectiveUnitPrice = (product: Product, quantity: number, mode: 'retail' | 'wholesale') => {
     if (mode === 'wholesale' && product.wholesale_price && product.wholesale_price > 0) {
@@ -606,7 +619,7 @@ export default function BillingPage() {
         const { price, tier } = calculateEffectiveUnitPrice(prod, item.quantity, mode);
         const lineTotal = Math.max(0, item.quantity * price - (item.discount_amount || 0));
         const taxRate = item.tax_rate || 0;
-        const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
+        const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive ?? prod.is_tax_inclusive);
         return {
           ...item,
           unit_price: price,
@@ -692,7 +705,7 @@ export default function BillingPage() {
         const { price, tier } = calculateEffectiveUnitPrice(product, newQty, pricingMode);
         const lineTotal = Math.max(0, newQty * price - (existing.discount_amount || 0));
         const taxRate = existing.tax_rate || 0;
-        const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
+        const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
         return prev.map((item) =>
           item.product_id === product.id
             ? { 
@@ -701,7 +714,8 @@ export default function BillingPage() {
                 unit_price: price, 
                 pricing_tier: tier, 
                 total_amount: lineTotal, 
-                tax_amount: taxAmt 
+                tax_amount: taxAmt,
+                is_tax_inclusive: product.is_tax_inclusive,
               }
             : item
         );
@@ -709,7 +723,7 @@ export default function BillingPage() {
         const { price, tier } = calculateEffectiveUnitPrice(product, allowedQty, pricingMode);
         const lineTotal = price * allowedQty;
         const taxRate = product.tax_rate || 0;
-        const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
+        const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
         return [
           ...prev,
           {
@@ -728,6 +742,7 @@ export default function BillingPage() {
             tax_rate: taxRate,
             tax_amount: taxAmt,
             total_amount: lineTotal,
+            is_tax_inclusive: product.is_tax_inclusive,
             batch_number: product.batch_number,
             expiry_date: product.expiry_date,
             size: product.size,
@@ -753,7 +768,7 @@ export default function BillingPage() {
             const { price, tier } = calculateEffectiveUnitPrice(product, newQty, pricingMode);
             const lineTotal = Math.max(0, newQty * price - (item.discount_amount || 0));
             const taxRate = item.tax_rate || 0;
-            const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
+            const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive ?? product.is_tax_inclusive);
             return { 
               ...item, 
               quantity: newQty, 
@@ -789,9 +804,10 @@ export default function BillingPage() {
 
   const handleSaveEditItem = () => {
     if (!editingCartItem) return;
+
     const qty = parseFloat(editItemQty);
-    const unitPricePaise = Math.round(parseFloat(editItemPrice || '0') * 100);
-    const discountPaise = Math.round(parseFloat(editItemDiscount || '0') * 100);
+    const unitPricePaise = Math.round((parseFloat(editItemPrice) || 0) * 100);
+    const discountPaise = Math.round((parseFloat(editItemDiscount) || 0) * 100);
 
     if (isNaN(qty) || qty <= 0 || isNaN(unitPricePaise) || unitPricePaise < 0) {
       alert('Please enter valid numeric values.');
@@ -807,7 +823,7 @@ export default function BillingPage() {
     const rawTotal = qty * unitPricePaise;
     const lineTotal = Math.max(0, rawTotal - discountPaise);
     const taxRate = editingCartItem.tax_rate || 0;
-    const taxAmt = taxRate > 0 ? Math.round(lineTotal - lineTotal / (1 + taxRate / 100)) : 0;
+    const taxAmt = calculateItemTax(lineTotal, taxRate, editingCartItem.is_tax_inclusive);
 
     setCart((prev) =>
       prev.map((item) =>
@@ -939,10 +955,20 @@ export default function BillingPage() {
 
   // Calculations
   const totalItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const subtotalPaise = cart.reduce((acc, item) => acc + item.total_amount, 0);
   const discountTotalPaise = cart.reduce((acc, item) => acc + (item.discount_amount || 0), 0);
   const taxTotalPaise = cart.reduce((acc, item) => acc + (item.tax_amount || 0), 0);
-  const grandTotalPaise = subtotalPaise;
+
+  // In exclusive mode (standard for restaurants & services), line total is base price and GST is added on top.
+  // In inclusive mode (standard for MRP retail), line total includes tax, so taxable base is (total_amount - tax_amount).
+  const subtotalPaise = cart.reduce((acc, item) => {
+    const itemIsInclusive = item.is_tax_inclusive !== undefined ? item.is_tax_inclusive : !isBusinessGstExclusive;
+    if (itemIsInclusive && item.tax_rate > 0) {
+      return acc + (item.total_amount - (item.tax_amount || 0));
+    }
+    return acc + item.total_amount;
+  }, 0);
+
+  const grandTotalPaise = subtotalPaise + taxTotalPaise;
 
   // Real-Time Dynamic Amount UPI QR Generation (e.g. ₹848.00 auto-fills in GPay / PhonePe / Paytm)
   useEffect(() => {
@@ -1723,7 +1749,7 @@ export default function BillingPage() {
                   Pay to: <b>{business?.name}</b>
                 </div>
                 <div className="text-xs font-mono font-black text-emerald-700 truncate">
-                  {business?.upi_id || 'merchant@upi'}
+                  {business?.upi_id || ''}
                 </div>
                 <div className="text-[10px] text-slate-500 font-medium leading-tight">
                   Customer scans with Google Pay, PhonePe, Paytm or BHIM — <b>amount auto-fills instantly</b>.
@@ -1778,9 +1804,25 @@ export default function BillingPage() {
       )}
 
       {/* Bottom Total & Checkout Button */}
-      <div className="pt-2.5 border-t border-slate-200 space-y-2">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-bold text-slate-600 uppercase tracking-wider">Grand Total</span>
+      <div className="pt-2.5 border-t border-slate-200 space-y-1.5">
+        <div className="flex items-center justify-between text-xs text-slate-600">
+          <span>Subtotal</span>
+          <span className="font-semibold text-slate-800 font-mono">{formatINR(subtotalPaise)}</span>
+        </div>
+        {discountTotalPaise > 0 && (
+          <div className="flex items-center justify-between text-xs text-emerald-700">
+            <span>Discount</span>
+            <span className="font-semibold font-mono">-{formatINR(discountTotalPaise)}</span>
+          </div>
+        )}
+        {taxTotalPaise > 0 && (
+          <div className="flex items-center justify-between text-xs text-slate-600">
+            <span>Total GST</span>
+            <span className="font-semibold text-slate-800 font-mono">+{formatINR(taxTotalPaise)}</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200">
+          <span className="font-bold text-slate-900 uppercase tracking-wider">Grand Total</span>
           <span className="text-xl font-extrabold text-slate-900 font-mono">
             {formatINR(grandTotalPaise)}
           </span>

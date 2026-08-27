@@ -17,24 +17,35 @@ export interface GstTaxBreakup {
  */
 export function calculateGstSummary(
   items: CartItem[],
-  isInterState: boolean = false
+  isInterState: boolean = false,
+  isExclusive: boolean = false
 ): GstTaxBreakup[] {
-  const hsnMap: Record<string, { taxable: number; rate: number }> = {};
+  const hsnMap: Record<string, { taxable: number; rate: number; taxPaise: number }> = {};
 
   for (const item of items) {
     const hsn = (item as any).hsn_code || 'LOCAL';
     const rate = item.tax_rate || 0;
+    const itemIsExclusive = item.is_tax_inclusive === false || isExclusive;
 
     // Calculate base taxable amount from line total
     let taxable = item.total_amount;
+    let lineTax = item.tax_amount || 0;
+
     if (rate > 0) {
-      taxable = Math.round(item.total_amount / (1 + rate / 100));
+      if (itemIsExclusive) {
+        taxable = item.total_amount;
+        lineTax = item.tax_amount || Math.round((taxable * rate) / 100);
+      } else {
+        taxable = Math.round(item.total_amount / (1 + rate / 100));
+        lineTax = item.total_amount - taxable;
+      }
     }
 
     if (!hsnMap[hsn]) {
-      hsnMap[hsn] = { taxable: 0, rate };
+      hsnMap[hsn] = { taxable: 0, rate, taxPaise: 0 };
     }
     hsnMap[hsn].taxable += taxable;
+    hsnMap[hsn].taxPaise += lineTax;
   }
 
   const result: GstTaxBreakup[] = [];
@@ -42,10 +53,10 @@ export function calculateGstSummary(
   for (const [hsn, data] of Object.entries(hsnMap)) {
     const rate = data.rate;
     const taxable = data.taxable;
+    const totalTax = data.taxPaise;
 
     if (isInterState) {
       // Inter-state: 100% IGST
-      const igstAmount = Math.round((taxable * rate) / 100);
       result.push({
         hsnCode: hsn,
         taxableAmountPaise: taxable,
@@ -54,14 +65,14 @@ export function calculateGstSummary(
         sgstRate: 0,
         sgstAmountPaise: 0,
         igstRate: rate,
-        igstAmountPaise: igstAmount,
-        totalTaxPaise: igstAmount,
+        igstAmountPaise: totalTax,
+        totalTaxPaise: totalTax,
       });
     } else {
       // Intra-state: 50% CGST + 50% SGST
       const halfRate = rate / 2;
-      const cgstAmount = Math.round((taxable * halfRate) / 100);
-      const sgstAmount = Math.round((taxable * halfRate) / 100);
+      const cgstAmount = Math.round(totalTax / 2);
+      const sgstAmount = totalTax - cgstAmount;
       result.push({
         hsnCode: hsn,
         taxableAmountPaise: taxable,
@@ -71,7 +82,7 @@ export function calculateGstSummary(
         sgstAmountPaise: sgstAmount,
         igstRate: 0,
         igstAmountPaise: 0,
-        totalTaxPaise: cgstAmount + sgstAmount,
+        totalTaxPaise: totalTax,
       });
     }
   }

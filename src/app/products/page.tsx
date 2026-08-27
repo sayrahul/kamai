@@ -92,6 +92,7 @@ export default function ProductsPage() {
   const [formIsUnlimitedStock, setFormIsUnlimitedStock] = useState(false);
   const [formMrp, setFormMrp] = useState('');
   const [formTaxRate, setFormTaxRate] = useState<number>(0);
+  const [formIsTaxInclusive, setFormIsTaxInclusive] = useState(false);
   const [formStock, setFormStock] = useState('');
   const [formMinStock, setFormMinStock] = useState('5');
   const [formBarcode, setFormBarcode] = useState('');
@@ -210,6 +211,7 @@ export default function ProductsPage() {
     setFormIsUnlimitedStock(business?.business_type === 'restaurant');
     setFormMrp('');
     setFormTaxRate(0);
+    setFormIsTaxInclusive(business?.business_type === 'restaurant' ? false : (business?.gst_pricing_mode === 'inclusive'));
     setFormStock(business?.business_type === 'restaurant' ? '999' : '10');
     setFormMinStock('5');
     setFormBarcode('');
@@ -237,6 +239,7 @@ export default function ProductsPage() {
     setFormIsUnlimitedStock(Boolean(p.is_unlimited_stock));
     setFormMrp((p.mrp / 100).toString());
     setFormTaxRate(p.tax_rate);
+    setFormIsTaxInclusive(p.is_tax_inclusive !== undefined ? p.is_tax_inclusive : (business?.business_type === 'restaurant' ? false : true));
     setFormStock(p.current_stock.toString());
     setFormMinStock(p.min_stock_level.toString());
     setFormBarcode(p.barcode || '');
@@ -280,7 +283,7 @@ export default function ProductsPage() {
       is_unlimited_stock: formIsUnlimitedStock,
       mrp: mrpPaise,
       tax_rate: formTaxRate,
-      is_tax_inclusive: true,
+      is_tax_inclusive: formIsTaxInclusive,
       current_stock: formIsUnlimitedStock ? 999999 : stockNum,
       min_stock_level: minStockNum,
       barcode: formBarcode.trim() || undefined,
@@ -1043,26 +1046,58 @@ export default function ProductsPage() {
             </div>
 
             {/* GST Tax Slabs */}
-            <div>
-              <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                {t('products.taxRate')} (GST)
-              </label>
-              <div className="flex items-center gap-1.5">
-                {[0, 5, 12, 18, 28].map((rate) => (
-                  <button
-                    key={rate}
-                    type="button"
-                    onClick={() => setFormTaxRate(rate)}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer ${
-                      formTaxRate === rate
-                        ? 'bg-slate-900 border-slate-900 text-white shadow-2xs'
-                        : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    {rate}%
-                  </button>
-                ))}
+            <div className="space-y-2">
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                  {t('products.taxRate')} (GST)
+                </label>
+                <div className="flex items-center gap-1.5">
+                  {[0, 5, 12, 18, 28].map((rate) => (
+                    <button
+                      key={rate}
+                      type="button"
+                      onClick={() => setFormTaxRate(rate)}
+                      className={`flex-1 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer ${
+                        formTaxRate === rate
+                          ? 'bg-slate-900 border-slate-900 text-white shadow-2xs'
+                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {rate}%
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {formTaxRate > 0 && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2 rounded-lg bg-white border border-slate-200 text-xs">
+                  <span className="font-bold text-slate-700">GST Billing Mode:</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setFormIsTaxInclusive(false)}
+                      className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition ${
+                        !formIsTaxInclusive
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      + Add on Total (Exclusive)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormIsTaxInclusive(true)}
+                      className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition ${
+                        formIsTaxInclusive
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Included in Price (Inclusive)
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Barcode & Loose Weight Row (if module enabled) */}
