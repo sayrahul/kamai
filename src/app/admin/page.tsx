@@ -78,6 +78,7 @@ import { formatINR } from '@/lib/utils';
 import { AdminCoupon } from '@/app/api/admin/coupons/route';
 import { PlatformRemoteConfig } from '@/app/api/admin/config/route';
 import { clearLocalDexieAndFreshSync } from '@/lib/firebase/firestoreSync';
+import { GlobalBroadcastBanner } from '@/components/common/GlobalBroadcastBanner';
 
 export interface MerchantRecord {
   id: string;
@@ -630,7 +631,12 @@ export default function MasterSuperAdminPage() {
     }
   };
 
-  const handleSaveBroadcast = async () => {
+  const handlePublishBroadcast = async (shouldEnable: boolean = true) => {
+    if (shouldEnable && !broadcastMessage.trim()) {
+      alert('Please enter an announcement headline or message before publishing.');
+      return;
+    }
+
     setIsSavingBroadcast(true);
     try {
       let expiresAt: string | null = null;
@@ -648,7 +654,7 @@ export default function MasterSuperAdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          enabled: broadcastEnabled,
+          enabled: shouldEnable,
           message: broadcastMessage.trim(),
           type: broadcastType,
           link: broadcastLink.trim(),
@@ -656,12 +662,36 @@ export default function MasterSuperAdminPage() {
         }),
       });
 
-      if (res.ok) {
-        window.dispatchEvent(new Event('broadcast_updated'));
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setBroadcastEnabled(shouldEnable);
+
+        // 1. Write to localStorage for instant synchronous hydration across all POS tabs
+        if (data.announcement) {
+          localStorage.setItem('kamai_broadcast_announcement', JSON.stringify(data.announcement));
+        }
         localStorage.setItem('kamai_last_broadcast_sync', Date.now().toString());
-        showToast(broadcastEnabled ? '🚀 In-App broadcast banner published live to all merchant POS screens!' : 'Broadcast banner disabled.');
+
+        // 2. BroadcastChannel instant sync to all open tabs without delay
+        try {
+          const bc = new BroadcastChannel('kamai_broadcast_channel');
+          bc.postMessage({ type: 'BROADCAST_UPDATED', announcement: data.announcement });
+          bc.close();
+        } catch { }
+
+        // 3. Clear dismissed key in session so it pops up immediately
+        sessionStorage.removeItem('kamai_dismissed_broadcast_key');
+
+        // 4. Trigger window events
+        window.dispatchEvent(new Event('broadcast_updated'));
+
+        showToast(
+          shouldEnable
+            ? '🚀 Live broadcast published! Displayed on all active merchant POS counters.'
+            : '⏹️ Broadcast disabled. Removed from all merchant POS counters.'
+        );
       } else {
-        alert('Failed to publish broadcast');
+        alert(data.message || 'Failed to publish broadcast');
       }
     } catch {
       alert('Network error publishing broadcast');
@@ -933,6 +963,9 @@ export default function MasterSuperAdminPage() {
           <span>{toastMessage}</span>
         </div>
       )}
+
+      {/* Live In-App Global Broadcast Banner */}
+      <GlobalBroadcastBanner />
 
       {/* Top Navbar Header */}
       <header className="sticky top-0 z-40 bg-[#0B0F17]/95 backdrop-blur-xl border-b border-slate-800/80 px-3 sm:px-6 lg:px-8 py-3">
@@ -1425,24 +1458,101 @@ export default function MasterSuperAdminPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left Column: Composer */}
               <div className="lg:col-span-7 bg-[#0D121F] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4 shadow-xl">
-                <div>
-                  <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
-                    <BellRing className="w-4 h-4 text-amber-400" />
-                    <span>Live POS Broadcast Banner Composer</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Publish instant alert messages, festive promos, or system updates directly atop all active merchant POS counters across India.
-                  </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3.5">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                      <BellRing className="w-4 h-4 text-amber-400" />
+                      <span>Live POS Broadcast Banner Composer</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Publish instant announcements atop all active merchant POS counters across India in real time.
+                    </p>
+                  </div>
+
+                  <div className="shrink-0">
+                    {broadcastEnabled ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black shadow-xs">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>LIVE ON POS COUNTERS</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-slate-400 text-xs font-bold">
+                        <span className="w-2 h-2 rounded-full bg-slate-500" />
+                        <span>INACTIVE / DRAFT</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="space-y-3.5">
+                {/* Quick 1-Click Presets */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300 block">Quick Announcement Presets</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBroadcastType('festive');
+                        setBroadcastMessage('✨ Big Festive Sale! Upgrade to KamaiPlus Pro for near-expiry radar & CA tax filing.');
+                        setBroadcastLink('/pricing');
+                      }}
+                      className="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-amber-400/40 text-left transition cursor-pointer"
+                    >
+                      <div className="text-[11px] font-black text-amber-400">✨ Festive Offer</div>
+                      <div className="text-[9.5px] text-slate-400 truncate">Pro upgrade discount</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBroadcastType('warning');
+                        setBroadcastMessage('⚠️ Scheduled Cloud Optimization tonight 11:00 PM - 11:30 PM. Offline billing continues as usual.');
+                        setBroadcastLink('');
+                      }}
+                      className="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-rose-400/40 text-left transition cursor-pointer"
+                    >
+                      <div className="text-[11px] font-black text-rose-400">⚠️ Maintenance</div>
+                      <div className="text-[9.5px] text-slate-400 truncate">Cloud sync advisory</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBroadcastType('success');
+                        setBroadcastMessage('🚀 Instant GST Tax Filing & Thermal Barcode Sticker printing now live on KamaiPlus!');
+                        setBroadcastLink('/barcode-generator');
+                      }}
+                      className="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-400/40 text-left transition cursor-pointer"
+                    >
+                      <div className="text-[11px] font-black text-emerald-400">🚀 New Feature</div>
+                      <div className="text-[9.5px] text-slate-400 truncate">GST &amp; Barcode labels</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBroadcastType('info');
+                        setBroadcastMessage('📢 Daily Reminder: Verify cash drawer & print Day-End closing report before closing shop.');
+                        setBroadcastLink('');
+                      }}
+                      className="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-blue-400/40 text-left transition cursor-pointer"
+                    >
+                      <div className="text-[11px] font-black text-blue-400">📢 Store Checklist</div>
+                      <div className="text-[9.5px] text-slate-400 truncate">Day-end closing tip</div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3.5 pt-1">
                   <div>
-                    <label className="text-xs font-bold text-slate-300 block mb-1">Announcement Headline / Message</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-300">Announcement Headline / Message *</label>
+                      <span className="text-[10px] text-slate-500 font-mono">{broadcastMessage.length} chars</span>
+                    </div>
                     <textarea
                       rows={3}
                       value={broadcastMessage}
                       onChange={(e) => setBroadcastMessage(e.target.value)}
-                      placeholder="e.g. ✨ Big Diwali Sale! Upgrade to KamaiPlus Pro for near-expiry radar & CA tax reports."
+                      placeholder="e.g. ✨ Special Diwali Offer! Upgrade to KamaiPlus Pro for 50% OFF with coupon PRO50."
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none leading-relaxed"
                     />
                   </div>
@@ -1468,9 +1578,17 @@ export default function MasterSuperAdminPage() {
                         type="text"
                         value={broadcastLink}
                         onChange={(e) => setBroadcastLink(e.target.value)}
-                        placeholder="e.g. /pricing or /settings"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none"
+                        placeholder="e.g. /pricing, /barcode-generator or https://..."
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:border-amber-400 focus:outline-none font-mono"
                       />
+                      <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-500">
+                        <span>Quick:</span>
+                        <button type="button" onClick={() => setBroadcastLink('/pricing')} className="hover:text-amber-400 underline">/pricing</button>
+                        <span>•</span>
+                        <button type="button" onClick={() => setBroadcastLink('/barcode-generator')} className="hover:text-amber-400 underline">/barcode-generator</button>
+                        <span>•</span>
+                        <button type="button" onClick={() => setBroadcastLink('')} className="hover:text-amber-400 underline">Clear</button>
+                      </div>
                     </div>
                   </div>
 
@@ -1482,7 +1600,7 @@ export default function MasterSuperAdminPage() {
                         onChange={(e) => setBroadcastDuration(e.target.value as any)}
                         className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 focus:border-amber-400 focus:outline-none"
                       >
-                        <option value="always">Continuous (Until Manually Disabled)</option>
+                        <option value="always">Continuous (Until Manually Stopped)</option>
                         <option value="24h">24 Hours from now</option>
                         <option value="3d">3 Days</option>
                         <option value="7d">7 Days (Full Week)</option>
@@ -1503,35 +1621,28 @@ export default function MasterSuperAdminPage() {
                     )}
                   </div>
 
-                  {/* Active Toggle */}
-                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800">
-                    <div>
-                      <span className="text-xs font-bold text-white block">Broadcast State</span>
-                      <span className="text-[11px] text-slate-400">
-                        {broadcastEnabled ? 'Active — Currently displayed to all merchants' : 'Disabled — Hidden from all screens'}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setBroadcastEnabled(!broadcastEnabled)}
-                      className={`px-3 py-1 rounded-full text-xs font-black cursor-pointer transition ${
-                        broadcastEnabled
-                          ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                          : 'bg-slate-800 text-slate-400'
-                      }`}
+                  {/* Primary Action Buttons: Publish vs Stop */}
+                  <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                    <Button
+                      onClick={() => handlePublishBroadcast(true)}
+                      disabled={isSavingBroadcast || !broadcastMessage.trim()}
+                      className="flex-1 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs py-3 gap-2 cursor-pointer shadow-lg shadow-amber-400/20"
                     >
-                      {broadcastEnabled ? 'LIVE / ON' : 'OFF'}
-                    </button>
-                  </div>
+                      <Send className="w-4 h-4" />
+                      <span>{isSavingBroadcast ? 'Publishing Live...' : '🚀 Publish Live to POS Counters'}</span>
+                    </Button>
 
-                  <Button
-                    onClick={handleSaveBroadcast}
-                    disabled={isSavingBroadcast}
-                    className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-3 cursor-pointer shadow-lg shadow-amber-400/20"
-                  >
-                    {isSavingBroadcast ? 'Publishing Broadcast...' : 'Save & Publish Live Broadcast'}
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handlePublishBroadcast(false)}
+                      disabled={isSavingBroadcast || !broadcastEnabled}
+                      className="bg-slate-900 border-slate-800 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 text-xs py-3 px-4 gap-1.5 cursor-pointer"
+                    >
+                      <Ban className="w-3.5 h-3.5" />
+                      <span>⏹️ Disable Broadcast</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -1541,9 +1652,9 @@ export default function MasterSuperAdminPage() {
                   <div>
                     <h3 className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Live Screen Preview</span>
+                      <span>Live Screen Simulation</span>
                     </h3>
-                    <p className="text-[11px] text-slate-400">How merchants see this banner</p>
+                    <p className="text-[11px] text-slate-400">Live preview of counter appearance</p>
                   </div>
 
                   <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
@@ -1569,23 +1680,23 @@ export default function MasterSuperAdminPage() {
                 </div>
 
                 {/* Smartphone / POS Mockup */}
-                <div className="flex-1 flex items-center justify-center p-2">
+                <div className="flex-1 flex flex-col items-center justify-center p-2 space-y-3">
                   <div className={`w-full ${broadcastPreviewDevice === 'mobile' ? 'max-w-[280px]' : 'max-w-full'} bg-slate-950 rounded-2xl border-2 border-slate-800 p-2 shadow-2xl overflow-hidden`}>
                     <div className="w-full flex items-center justify-between text-[9px] text-slate-500 pb-1.5 border-b border-slate-900 font-mono px-1">
                       <span>9:41 AM</span>
-                      <span>Kamai+ POS</span>
+                      <span>Kamai+ POS Counter</span>
                     </div>
 
                     {/* Simulated Banner */}
-                    <div className={`mt-2 p-2.5 rounded-xl text-[11px] font-bold text-white shadow-sm flex items-center justify-between gap-1.5 ${
+                    <div className={`mt-2 p-2.5 rounded-xl text-[11px] font-bold shadow-sm flex items-center justify-between gap-1.5 transition-all ${
                       broadcastType === 'festive' ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-slate-950' :
                       broadcastType === 'warning' ? 'bg-rose-600 text-white' :
                       broadcastType === 'success' ? 'bg-emerald-600 text-white' :
                       'bg-indigo-600 text-white'
                     }`}>
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate leading-tight">{broadcastMessage || 'Broadcast message preview'}</span>
+                        <Sparkles className="w-3.5 h-3.5 shrink-0 animate-pulse" />
+                        <span className="truncate leading-tight">{broadcastMessage || 'Broadcast message preview...'}</span>
                       </div>
                       {broadcastLink && (
                         <span className="px-1.5 py-0.5 rounded bg-black/20 text-[9px] font-mono shrink-0">
@@ -1596,10 +1707,38 @@ export default function MasterSuperAdminPage() {
 
                     {/* Simulated POS Content Placeholder */}
                     <div className="mt-3 p-3 bg-slate-900/60 rounded-xl space-y-2 border border-slate-800/40">
-                      <div className="h-3 bg-slate-800 rounded w-1/2" />
-                      <div className="h-6 bg-slate-800 rounded w-full" />
-                      <div className="h-8 bg-slate-800 rounded w-full" />
+                      <div className="flex justify-between items-center">
+                        <div className="h-3 bg-slate-800 rounded w-1/3" />
+                        <div className="h-3 bg-slate-800 rounded w-1/4" />
+                      </div>
+                      <div className="h-7 bg-slate-800 rounded w-full" />
+                      <div className="h-9 bg-slate-800 rounded w-full" />
                     </div>
+                  </div>
+
+                  {/* Quick POS Direct Verification Link */}
+                  <div className="w-full flex items-center justify-between gap-2 pt-2 border-t border-slate-800/60 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sessionStorage.removeItem('kamai_dismissed_broadcast_key');
+                        window.dispatchEvent(new Event('broadcast_updated'));
+                        showToast('Dismissal cache cleared! Banner refreshed.');
+                      }}
+                      className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
+                    >
+                      Clear Dismissal Cache
+                    </button>
+
+                    <a
+                      href="/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-400 hover:text-amber-300"
+                    >
+                      <span>Open Live POS Screen</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </a>
                   </div>
                 </div>
               </div>

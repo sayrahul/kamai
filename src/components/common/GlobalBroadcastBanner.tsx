@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Sparkles, AlertTriangle, CheckCircle2, Info, X, ArrowRight } from 'lucide-react';
 
-interface Announcement {
+export interface Announcement {
   enabled: boolean;
   message: string;
   type?: 'info' | 'warning' | 'success' | 'festive';
@@ -17,52 +17,97 @@ export function GlobalBroadcastBanner() {
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
 
-  useEffect(() => {
-    fetchBroadcast();
+  const applyAnnouncement = useCallback((a: Announcement | null) => {
+    if (!a || !a.enabled || !a.message) {
+      setAnnouncement(null);
+      return;
+    }
 
-    const handleBroadcastEvent = () => fetchBroadcast();
-    window.addEventListener('storage', handleBroadcastEvent);
-    window.addEventListener('broadcast_updated', handleBroadcastEvent);
+    // Check expiry
+    if (a.expires_at && new Date(a.expires_at).getTime() < Date.now()) {
+      setAnnouncement(null);
+      return;
+    }
 
-    // Poll every 20 seconds
-    const interval = setInterval(fetchBroadcast, 20000);
-    return () => {
-      window.removeEventListener('storage', handleBroadcastEvent);
-      window.removeEventListener('broadcast_updated', handleBroadcastEvent);
-      clearInterval(interval);
-    };
+    // Check if dismissed for this specific announcement timestamp
+    const dismissedKey = sessionStorage.getItem('kamai_dismissed_broadcast_key');
+    const currentKey = `${a.message}_${a.updatedAt || ''}`;
+    if (dismissedKey === currentKey) {
+      setAnnouncement(a);
+      setIsDismissed(true);
+    } else {
+      setAnnouncement(a);
+      setIsDismissed(false);
+    }
   }, []);
 
-  const fetchBroadcast = async () => {
+  const fetchBroadcast = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/broadcast', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         const a = data.announcement;
-        if (a && a.enabled && a.message) {
-          // Check expiration
-          if (a.expires_at && new Date(a.expires_at).getTime() < Date.now()) {
-            setAnnouncement(null);
-            return;
-          }
-
-          const dismissedId = sessionStorage.getItem('kamai_dismissed_broadcast_key');
-          const currentKey = `${a.message}_${a.updatedAt || ''}`;
-          if (dismissedId !== currentKey) {
-            setAnnouncement(a);
-            setIsDismissed(false);
-          } else {
-            setAnnouncement(a);
-            setIsDismissed(true);
-          }
+        if (a) {
+          localStorage.setItem('kamai_broadcast_announcement', JSON.stringify(a));
+          applyAnnouncement(a);
         } else {
           setAnnouncement(null);
         }
       }
     } catch {
-      // ignore network errors
+      // Offline fallback: check localStorage
+      try {
+        const local = localStorage.getItem('kamai_broadcast_announcement');
+        if (local) {
+          applyAnnouncement(JSON.parse(local));
+        }
+      } catch { }
     }
-  };
+  }, [applyAnnouncement]);
+
+  useEffect(() => {
+    // 1. Instant hydration from localStorage
+    try {
+      const local = localStorage.getItem('kamai_broadcast_announcement');
+      if (local) {
+        applyAnnouncement(JSON.parse(local));
+      }
+    } catch { }
+
+    // 2. Fetch fresh from server
+    fetchBroadcast();
+
+    // 3. Setup BroadcastChannel for instant cross-tab sync
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('kamai_broadcast_channel');
+      bc.onmessage = (event) => {
+        if (event.data?.type === 'BROADCAST_UPDATED') {
+          if (event.data.announcement) {
+            localStorage.setItem('kamai_broadcast_announcement', JSON.stringify(event.data.announcement));
+            applyAnnouncement(event.data.announcement);
+          } else {
+            fetchBroadcast();
+          }
+        }
+      };
+    } catch { }
+
+    // 4. Custom event & storage listeners
+    const handleBroadcastEvent = () => fetchBroadcast();
+    window.addEventListener('storage', handleBroadcastEvent);
+    window.addEventListener('broadcast_updated', handleBroadcastEvent);
+
+    // 5. Polling interval (every 10 seconds for real-time POS responsiveness)
+    const interval = setInterval(fetchBroadcast, 10000);
+
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener('storage', handleBroadcastEvent);
+      window.removeEventListener('broadcast_updated', handleBroadcastEvent);
+      clearInterval(interval);
+    };
+  }, [fetchBroadcast, applyAnnouncement]);
 
   const handleDismiss = () => {
     if (announcement) {
@@ -97,7 +142,7 @@ export function GlobalBroadcastBanner() {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <IconComponent className="w-4 h-4 flex-shrink-0 animate-pulse" />
-          <div className="text-xs font-bold leading-snug line-clamp-2 sm:line-clamp-1">
+          <div className="text-xs font-black leading-snug line-clamp-2 sm:line-clamp-1">
             {announcement.message}
           </div>
 
