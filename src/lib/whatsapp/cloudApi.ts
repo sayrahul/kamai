@@ -366,90 +366,136 @@ export async function sendWhatsAppOTP(toPhone: string, otpCode: string): Promise
     };
   }
 
-  try {
-    const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${phoneId}/messages`;
+  const primaryTemplateName = process.env.WHATSAPP_OTP_TEMPLATE_NAME?.trim() || 'kamai_auth_otp';
+  const primaryLang = process.env.WHATSAPP_OTP_TEMPLATE_LANG?.trim() || 'en';
 
-    const payload = {
-      messaging_product: 'whatsapp',
-      to: cleanPhone,
-      type: 'template',
-      template: {
-        name: 'kamaiplus_auth_otp',
-        language: {
-          code: 'en_US',
+  // Candidate payload structures for Authentication & Custom OTP templates
+  const candidates = [
+    // Candidate 1: Standard Auth template (Body + URL/Code Button) in primary language
+    {
+      name: primaryTemplateName,
+      lang: primaryLang,
+      components: [
+        { type: 'body', parameters: [{ type: 'text', text: otpCode }] },
+        { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: otpCode }] },
+      ],
+    },
+    // Candidate 2: Standard Auth template in en_US / en alternate
+    {
+      name: primaryTemplateName,
+      lang: primaryLang === 'en' ? 'en_US' : 'en',
+      components: [
+        { type: 'body', parameters: [{ type: 'text', text: otpCode }] },
+        { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: otpCode }] },
+      ],
+    },
+    // Candidate 3: Body-only parameter (for custom utility/auth templates without button parameters)
+    {
+      name: primaryTemplateName,
+      lang: primaryLang,
+      components: [
+        { type: 'body', parameters: [{ type: 'text', text: otpCode }] },
+      ],
+    },
+    // Candidate 4: Body-only parameter in alternate language
+    {
+      name: primaryTemplateName,
+      lang: primaryLang === 'en' ? 'en_US' : 'en',
+      components: [
+        { type: 'body', parameters: [{ type: 'text', text: otpCode }] },
+      ],
+    },
+    // Candidate 5: Copy code button variant (sub_type: copy_code / coupon_code)
+    {
+      name: primaryTemplateName,
+      lang: primaryLang,
+      components: [
+        { type: 'body', parameters: [{ type: 'text', text: otpCode }] },
+        { type: 'button', sub_type: 'copy_code', index: '0', parameters: [{ type: 'coupon_code', coupon_code: otpCode }] },
+      ],
+    },
+    // Candidate 6: Fallback name kamaiplus_auth_otp if renamed
+    {
+      name: 'kamaiplus_auth_otp',
+      lang: 'en_US',
+      components: [
+        { type: 'body', parameters: [{ type: 'text', text: otpCode }] },
+        { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: otpCode }] },
+      ],
+    },
+  ];
+
+  let lastError = 'Failed to send WhatsApp OTP.';
+  let lastErrCode: number | undefined;
+  let lastIsAccessDenied = false;
+
+  for (const candidate of candidates) {
+    try {
+      const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${phoneId}/messages`;
+      const payload = {
+        messaging_product: 'whatsapp',
+        to: cleanPhone,
+        type: 'template',
+        template: {
+          name: candidate.name,
+          language: {
+            code: candidate.lang,
+          },
+          components: candidate.components,
         },
-        components: [
-          {
-            type: 'body',
-            parameters: [
-              {
-                type: 'text',
-                text: otpCode,
-              },
-            ],
-          },
-          {
-            type: 'button',
-            sub_type: 'url',
-            index: '0',
-            parameters: [
-              {
-                type: 'text',
-                text: otpCode,
-              },
-            ],
-          },
-        ],
-      },
-    };
+      };
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok || data.error) {
-      const errCode = data.error?.code;
-      const errMsg = data.error?.message || 'Failed to send WhatsApp OTP.';
-
-      let helpfulMsg = errMsg;
-      let isAccessDenied = false;
-
-      if (errCode === 131005 || errMsg.includes('131005') || errMsg.toLowerCase().includes('access denied')) {
-        isAccessDenied = true;
-        helpfulMsg = `(#131005) Access Denied by Meta: Your WhatsApp App in Meta Developer Portal is in Development Mode. To receive OTPs on this number, either add +${cleanPhone} to the "To" test recipient list in Meta Developer Portal (WhatsApp > API Setup), or switch your Meta App to Live Mode.`;
-      } else if (errMsg.includes('Unsupported post request') || errMsg.includes('Object with ID') || (phoneId.length === 10 && /^\d{10}$/.test(phoneId))) {
-        helpfulMsg = `Meta API Configuration Error: WHATSAPP_PHONE_NUMBER_ID is set to a 10-digit mobile number (${phoneId}) instead of Meta's 15-16 digit Phone Number ID. Please copy the numeric "Phone number ID" from Meta Developer Portal (WhatsApp > API Setup) and set it in your environment variables.`;
-      } else if (errCode === 131030) {
-        helpfulMsg = `(#131030) Template not found or not approved. Ensure 'kamaiplus_auth_otp' is approved in en_US language on your WhatsApp Business Account.`;
-      } else if (errCode === 190) {
-        helpfulMsg = `(#190) WhatsApp Access Token has expired. Please generate a new System User Token in Meta Business Manager.`;
+      if (response.ok && data.messages?.[0]?.id) {
+        return {
+          success: true,
+          messageId: data.messages[0].id,
+        };
       }
 
-      return {
-        success: false,
-        error: helpfulMsg,
-        errorCode: errCode,
-        isAccessDenied,
-      };
-    }
+      if (data.error) {
+        const errCode = data.error?.code;
+        const errMsg = data.error?.message || 'Meta API error';
+        lastErrCode = errCode;
 
-    const messageId = data.messages?.[0]?.id;
-    return {
-      success: true,
-      messageId,
-    };
-  } catch (err: any) {
-    console.error('WhatsApp send exception:', err?.message || err);
-    return {
-      success: false,
-      error: err?.message || 'Network error while contacting WhatsApp API.',
-    };
+        if (errCode === 131005 || errMsg.includes('131005') || errMsg.toLowerCase().includes('access denied')) {
+          lastIsAccessDenied = true;
+          lastError = `(#131005) Access Denied by Meta: Your WhatsApp App in Meta Developer Portal is in Development Mode. Add +${cleanPhone} to the "To" test recipient list in Meta Developer Portal (WhatsApp > API Setup), or switch your Meta App to Live Mode.`;
+          break; // No need to retry different candidate templates if phone number is unapproved
+        } else if (errMsg.includes('Unsupported post request') || errMsg.includes('Object with ID') || (phoneId.length === 10 && /^\d{10}$/.test(phoneId))) {
+          lastError = `Meta API Configuration Error: WHATSAPP_PHONE_NUMBER_ID is set to a 10-digit mobile number (${phoneId}) instead of Meta's 15-16 digit Phone Number ID. Please copy the numeric "Phone number ID" from Meta Developer Portal (WhatsApp > API Setup).`;
+          break;
+        } else if (errCode === 190) {
+          lastError = `(#190) WhatsApp Access Token has expired. Please generate a new System User Token in Meta Business Manager.`;
+          break;
+        } else if (errCode === 132001 || errCode === 132000 || errCode === 132016) {
+          // Template translation or component mismatch - continue loop to try next candidate
+          lastError = `(#${errCode}) Meta Template Error: ${errMsg}`;
+          continue;
+        } else {
+          lastError = `(#${errCode || 'ERR'}) ${errMsg}`;
+        }
+      }
+    } catch (err: any) {
+      console.warn(`WhatsApp dispatch attempt failed for template ${candidate.name} (${candidate.lang}):`, err?.message);
+      lastError = err?.message || 'Network error while contacting WhatsApp API.';
+    }
   }
+
+  return {
+    success: false,
+    error: lastError,
+    errorCode: lastErrCode,
+    isAccessDenied: lastIsAccessDenied,
+  };
 }
