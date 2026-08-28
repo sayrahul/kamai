@@ -208,15 +208,27 @@ export async function handleOwnerBotMessage(fromPhone: string, messageBody: stri
       if (firestore && businessId) {
         try {
           const todayPrefix = new Date().toISOString().slice(0, 10);
-          const salesQuery = query(
-            collection(firestore, 'sales'),
-            where('business_id', '==', businessId),
-            limit(50)
-          );
-          const salesSnap = await getDocs(salesQuery);
+          
+          // 1. Try business subcollection first: businesses/{id}/sales
+          let salesDocs: any[] = [];
+          try {
+            const subSalesSnap = await getDocs(
+              query(collection(firestore, `businesses/${businessId}/sales`), limit(100))
+            );
+            subSalesSnap.forEach((d) => salesDocs.push(d.data()));
+          } catch {}
 
-          salesSnap.forEach((docSnap) => {
-            const s = docSnap.data();
+          // 2. Fallback to root sales collection if subcollection is empty
+          if (salesDocs.length === 0) {
+            try {
+              const rootSalesSnap = await getDocs(
+                query(collection(firestore, 'sales'), where('business_id', '==', businessId), limit(100))
+              );
+              rootSalesSnap.forEach((d) => salesDocs.push(d.data()));
+            } catch {}
+          }
+
+          salesDocs.forEach((s) => {
             if (s.created_at?.startsWith(todayPrefix) && s.status !== 'cancelled') {
               totalBills++;
               grossSalesPaise += s.grand_total || 0;
@@ -283,16 +295,28 @@ export async function handleOwnerBotMessage(fromPhone: string, messageBody: stri
       const firestore = getFirestoreDb();
       if (firestore && businessId) {
         try {
-          const prodQuery = query(
-            collection(firestore, 'products'),
-            where('business_id', '==', businessId),
-            limit(100)
-          );
-          const prodSnap = await getDocs(prodQuery);
-          totalProducts = prodSnap.size;
+          // 1. Try business subcollection first: businesses/{id}/products
+          let prodDocs: any[] = [];
+          try {
+            const subProdSnap = await getDocs(
+              query(collection(firestore, `businesses/${businessId}/products`), limit(200))
+            );
+            subProdSnap.forEach((d) => prodDocs.push(d.data()));
+          } catch {}
 
-          prodSnap.forEach((docSnap) => {
-            const p = docSnap.data();
+          // 2. Fallback to root products collection if subcollection is empty
+          if (prodDocs.length === 0) {
+            try {
+              const rootProdSnap = await getDocs(
+                query(collection(firestore, 'products'), where('business_id', '==', businessId), limit(200))
+              );
+              rootProdSnap.forEach((d) => prodDocs.push(d.data()));
+            } catch {}
+          }
+
+          totalProducts = prodDocs.length;
+
+          prodDocs.forEach((p) => {
             const currentStock = typeof p.stock === 'number' ? p.stock : parseFloat(p.stock || '0');
             const alertThreshold = p.min_stock_alert || 5;
 
@@ -346,15 +370,26 @@ export async function handleOwnerBotMessage(fromPhone: string, messageBody: stri
       const firestore = getFirestoreDb();
       if (firestore && businessId) {
         try {
-          const custQuery = query(
-            collection(firestore, 'customers'),
-            where('business_id', '==', businessId),
-            limit(100)
-          );
-          const custSnap = await getDocs(custQuery);
+          // 1. Try business subcollection first: businesses/{id}/customers
+          let custDocs: any[] = [];
+          try {
+            const subCustSnap = await getDocs(
+              query(collection(firestore, `businesses/${businessId}/customers`), limit(200))
+            );
+            subCustSnap.forEach((d) => custDocs.push(d.data()));
+          } catch {}
 
-          custSnap.forEach((docSnap) => {
-            const c = docSnap.data();
+          // 2. Fallback to root customers collection if subcollection is empty
+          if (custDocs.length === 0) {
+            try {
+              const rootCustSnap = await getDocs(
+                query(collection(firestore, 'customers'), where('business_id', '==', businessId), limit(200))
+              );
+              rootCustSnap.forEach((d) => custDocs.push(d.data()));
+            } catch {}
+          }
+
+          custDocs.forEach((c) => {
             const due = c.balance_due || c.balanceDue || 0;
             if (due > 0) {
               totalDuePaise += due;

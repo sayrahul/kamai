@@ -1139,6 +1139,11 @@ export default function BillingPage() {
         });
       } catch {}
 
+      // Trigger instant background sync to Firestore for WhatsApp Bot & Cloud backup
+      if (newSale.business_id) {
+        triggerBackgroundSync(newSale.business_id).catch(() => {});
+      }
+
       // 2. Increment business invoice number counter
       if (business) {
         await db.businesses.update(business.id, {
