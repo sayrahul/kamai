@@ -78,14 +78,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Security: Check authenticated session if available to prevent cross-business tampering
+    // 3. Security: Check authenticated session if available
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
     if (sessionCookie) {
       const session = verifySessionToken(sessionCookie);
-      if (session && sale.business_id && session.business_id !== sale.business_id) {
+      if (!session && process.env.NODE_ENV === 'production') {
         return NextResponse.json(
-          { success: false, error: 'Unauthorized: Cannot send invoices for another business.' },
-          { status: 403 }
+          { success: false, error: 'Session expired. Please log in again.' },
+          { status: 401 }
         );
       }
     }
@@ -127,9 +127,6 @@ export async function POST(req: NextRequest) {
           error: result.error,
           errorCode: result.errorCode,
           isAccessDenied: result.isAccessDenied,
-          fallbackUrl: `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-            generateWhatsAppInvoiceMessage(sale, business, baseUrl)
-          )}`,
         },
         { status: 200 }
       );

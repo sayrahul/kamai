@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Business, Sale, CartItem, UpiAccount } from '@/types';
 import { formatINR, generateUPILink } from '@/lib/utils';
 import { calculateGstSummary, numberToWordsINR } from '@/lib/invoices/gstCalculator';
-import { sendInvoiceViaWhatsApp, generateWhatsAppInvoiceMessage, sendInvoiceViaOfficialCloudApi } from '@/lib/invoices/whatsappInvoice';
+import { sendInvoiceViaOfficialCloudApi } from '@/lib/invoices/whatsappInvoice';
 import { usePlatformPromoConfig } from '@/lib/firebase/remoteConfig';
 import Link from 'next/link';
 import { 
@@ -259,20 +259,17 @@ export function InvoiceModal({
       const res = await sendInvoiceViaOfficialCloudApi(targetPhone, sale, business, pdfBase64);
 
       if (res.sent) {
-        setShareSuccessMsg(`✅ Official WhatsApp invoice delivered silently to +${targetPhone.replace(/\D/g, '')}!`);
+        const masked = targetPhone.replace(/\D/g, '').slice(-10);
+        setShareSuccessMsg(`✅ Official WhatsApp invoice delivered silently to +91${masked}!`);
         setTimeout(() => setShareSuccessMsg(''), 5000);
       } else {
-        if (res.fallbackUrl) {
-          setShareSuccessMsg(`ℹ️ Opening WhatsApp fallback chat (${res.error || 'Direct link'})...`);
-          setTimeout(() => setShareSuccessMsg(''), 4000);
-          window.open(res.fallbackUrl, '_blank');
-        } else {
-          sendInvoiceViaWhatsApp(targetPhone, sale, business);
-        }
+        setShareSuccessMsg(`⚠️ ${res.error || 'Failed to dispatch WhatsApp invoice'}`);
+        setTimeout(() => setShareSuccessMsg(''), 6000);
       }
     } catch (err: any) {
       console.error('WhatsApp send error:', err);
-      sendInvoiceViaWhatsApp(targetPhone, sale, business);
+      setShareSuccessMsg(`⚠️ ${err?.message || 'Failed to send WhatsApp invoice'}`);
+      setTimeout(() => setShareSuccessMsg(''), 6000);
     } finally {
       if (prevMode !== 'full') {
         setViewMode(prevMode);

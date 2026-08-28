@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Sale, Business } from '@/types';
 import { formatINR } from '@/lib/utils';
-import { sendInvoiceViaOfficialCloudApi, sendInvoiceViaWhatsApp } from './whatsappInvoice';
+import { sendInvoiceViaOfficialCloudApi } from './whatsappInvoice';
 
 /**
  * Renders an HTML element to a full, un-cropped high-resolution PDF Blob
@@ -239,9 +239,8 @@ export async function shareInvoicePdfDirect(
     if (cloudRes.sent) {
       return { shared: true, method: 'cloud-api', messageId: cloudRes.messageId };
     }
+    return { shared: false, method: 'cloud-api' };
   }
 
-  // 3. Fallback: Open formatted WhatsApp chat message if offline / unconfigured
-  sendInvoiceViaWhatsApp(targetPhone, sale, business);
-  return { shared: true, method: 'whatsapp-link' };
+  return { shared: false, method: 'cloud-api' };
 }

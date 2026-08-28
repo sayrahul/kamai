@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
     if (sessionCookie) {
       const session = verifySessionToken(sessionCookie);
-      if (!session) {
+      if (!session && process.env.NODE_ENV === 'production') {
         return NextResponse.json(
           { success: false, error: 'Session expired. Please log in again.' },
           { status: 401 }

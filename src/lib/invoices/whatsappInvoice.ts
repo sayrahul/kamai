@@ -210,18 +210,12 @@ export async function sendInvoiceViaOfficialCloudApi(
       sent: false,
       error: data.error || 'Failed to dispatch via WhatsApp Cloud API',
       isAccessDenied: data.isAccessDenied,
-      fallbackUrl: data.fallbackUrl || `https://wa.me/${formattedPhone}?text=${encodeURIComponent(
-        generateWhatsAppInvoiceMessage(sale, business)
-      )}`,
     };
   } catch (err: any) {
     console.error('sendInvoiceViaOfficialCloudApi error:', err);
     return {
       sent: false,
       error: err.message || 'Network error reaching WhatsApp server',
-      fallbackUrl: `https://wa.me/${formattedPhone}?text=${encodeURIComponent(
-        generateWhatsAppInvoiceMessage(sale, business)
-      )}`,
     };
   }
 }
