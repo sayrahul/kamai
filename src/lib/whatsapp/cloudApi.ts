@@ -588,7 +588,7 @@ export async function sendWhatsAppWelcomeMessage(params: {
   category?: string;
   appUrl?: string;
 }): Promise<WhatsAppSendResult> {
-  const { phone, storeName, ownerName = 'Merchant', category = 'Retail', appUrl = 'https://kamai-kappa.vercel.app' } = params;
+  const { phone, storeName, ownerName = 'Merchant', category = 'Retail', appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://kamaiplus.proventure.in') } = params;
 
   const textBody = 
 `🎉 *Welcome to KamaiPlus POS!* 🚀
@@ -622,7 +622,7 @@ export async function sendWhatsAppLoginAlert(params: {
   ownerName?: string;
   appUrl?: string;
 }): Promise<WhatsAppSendResult> {
-  const { phone, storeName, ownerName = 'Merchant', appUrl = 'https://kamai-kappa.vercel.app' } = params;
+  const { phone, storeName, ownerName = 'Merchant', appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://kamaiplus.proventure.in') } = params;
   const nowStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
 
   const textBody = 

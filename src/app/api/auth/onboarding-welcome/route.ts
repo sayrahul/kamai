@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       storeName: storeName || 'My Store',
       ownerName: ownerName || 'Merchant',
       category: category || 'Retail Store',
-      appUrl: appUrl || (process.env.NEXT_PUBLIC_APP_URL || 'https://kamai-kappa.vercel.app'),
+      appUrl: appUrl || (process.env.NEXT_PUBLIC_APP_URL || 'https://kamaiplus.proventure.in'),
     });
 
     return NextResponse.json({
