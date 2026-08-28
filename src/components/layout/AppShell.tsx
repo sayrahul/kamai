@@ -8,10 +8,6 @@ import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { GlobalBroadcastBanner } from '@/components/common/GlobalBroadcastBanner';
-import { useFirebasePageTracking } from '@/lib/firebase/analytics';
-import { initFirebaseAppCheck } from '@/lib/firebase/appCheck';
-import { initBackgroundCloudSync } from '@/lib/firebase/backgroundSync';
-import { restoreFirestoreToLocalDexie } from '@/lib/firebase/firestoreSync';
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -19,9 +15,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const router = useRouter();
   const [isClient, setIsClient] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-
-  // Auto Page View Analytics for Platform Owner
-  useFirebasePageTracking();
 
   // --- PERSISTENT STORAGE & OFFLINE RESILIENCY ---
   useEffect(() => {
@@ -48,15 +41,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     requestPersistentStorage();
   }, []);
 
-  // --- AUTH, SESSION, ROUTE GUARDING & BACKGROUND CLOUD SYNC ---
+  // --- AUTH, SESSION, ROUTE GUARDING & LOCAL DATABASE INITIALIZATION ---
   useEffect(() => {
     setIsClient(true);
-    initFirebaseAppCheck();
     const cachedUser = getStoredUser();
     setCurrentUser(cachedUser);
-
-    // Initialize auto background sync & real-time multi-device cloud stream
-    const cleanupSync = initBackgroundCloudSync(cachedUser?.business_id);
 
     const handleAuthChange = () => {
       const user = getStoredUser();
@@ -98,7 +87,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       }
     }
 
-    // Verify session with server API (/api/auth/me) in the background
+    // Verify session with server API (/api/auth/me) in the background if online
     const checkServerSession = async () => {
       try {
         const res = await fetch('/api/auth/me');
@@ -118,7 +107,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             setStoredUser(verifiedUser);
             setCurrentUser(verifiedUser);
 
-            // Instant sync of subscription tier from Cloud DB
             if (data.business?.subscription_tier) {
               subscriptionService.setTierFromCloud(
                 data.business.subscription_tier,
@@ -128,41 +116,31 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           }
         }
       } catch (err) {
-        console.warn('Offline or session check bypassed:', err);
+        console.warn('Offline session check notice:', err);
       }
     };
 
     checkServerSession();
 
-    // Ensure DB is open & auto-align cloud business if mismatched on this device
+    // Ensure Dexie database is open and local business is initialized
     const initDb = async () => {
       try {
         if (!localDb.isOpen()) {
           await localDb.open();
         }
 
-        // Auto-align cloud store if local DB has a different store/type
-        if (cachedUser?.business_id && cachedUser.business_id !== 'biz_pending' && typeof navigator !== 'undefined' && navigator.onLine) {
-          const localBiz = await localDb.businesses.toCollection().first();
-          if (!localBiz || localBiz.id !== cachedUser.business_id) {
-            console.log('🔄 Aligning local device store with Cloud profile:', cachedUser.business_id);
-            await restoreFirestoreToLocalDexie(cachedUser.business_id);
-          } else if (localBiz?.subscription_tier) {
-            subscriptionService.setTierFromCloud(
-              localBiz.subscription_tier,
-              localBiz.subscription_valid_until
-            );
-          }
+        const localBiz = await localDb.businesses.toCollection().first();
+        if (!localBiz && (!cachedUser || !cachedUser.business_id)) {
+          await ensureStarterBusinessIfEmpty();
         }
       } catch (err) {
-        console.warn('DB init & cloud alignment check:', err);
+        console.warn('Local Dexie DB init notice:', err);
       }
     };
 
     initDb();
 
     return () => {
-      cleanupSync();
       window.removeEventListener('auth_changed', handleAuthChange);
       window.removeEventListener('storage', handleAuthChange);
     };
@@ -206,3 +184,5 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     </div>
   );
 };
+
+export default AppShell;
