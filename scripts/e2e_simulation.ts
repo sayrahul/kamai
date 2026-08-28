@@ -4,6 +4,25 @@
  * and ESC/POS thermal hardware bytecode generation.
  */
 
+import fs from 'fs';
+import path from 'path';
+
+// Load .env.local if present in development / simulation
+const envPath = path.resolve(__dirname, '../.env.local');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+      const [key, ...rest] = trimmed.split('=');
+      const val = rest.join('=').replace(/^["'](.*)["']$/, '$1').trim();
+      if (key && !process.env[key.trim()]) {
+        process.env[key.trim()] = val;
+      }
+    }
+  }
+}
+
 import { STORE_PROFILES, getAllStoreProfiles, getStoreProfile, hasModule } from '../src/lib/constants/storeProfiles';
 import { getDefaultProductsForCategory, DEFAULT_CATEGORY_PRODUCTS } from '../src/lib/constants/defaultProducts';
 import { checkRateLimit } from '../src/lib/security/rateLimiter';
