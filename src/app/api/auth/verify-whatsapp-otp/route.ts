@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
 import { signSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE } from '@/lib/auth/session';
+import { verifyStatelessOtp, verifyLocalOtp } from '@/lib/auth/otpService';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,26 +22,36 @@ export async function POST(req: NextRequest) {
 
     const clean10Digit = phone.slice(-10);
 
-    // 1. Strict OTP Validation for standard users
-    const stored = globalThis.__kamai_otp_store?.get(clean10Digit);
+    // 1. Multi-Layer OTP Verification: Stateless Signed Token (Serverless) + Memory Cache Fallback
+    const otpSessionToken = body.otpSessionToken || req.cookies.get('kamai_otp_session')?.value;
+    let isOtpValid = false;
+    let verificationError = 'Invalid or expired OTP.';
 
-    if (!stored || stored.expiresAt < Date.now()) {
-      globalThis.__kamai_otp_store?.delete(clean10Digit);
+    if (otpSessionToken) {
+      const statelessResult = verifyStatelessOtp(clean10Digit, enteredOtp, otpSessionToken);
+      if (statelessResult.valid) {
+        isOtpValid = true;
+      } else {
+        verificationError = statelessResult.error || verificationError;
+      }
+    }
+
+    // If stateless verification didn't match, check local cache (backup)
+    if (!isOtpValid) {
+      const localResult = verifyLocalOtp(clean10Digit, enteredOtp);
+      if (localResult.valid) {
+        isOtpValid = true;
+      } else if (!otpSessionToken) {
+        verificationError = localResult.error || verificationError;
+      }
+    }
+
+    if (!isOtpValid) {
       return NextResponse.json(
-        { success: false, error: 'OTP has expired or was not requested. Please request a new OTP.' },
+        { success: false, error: verificationError },
         { status: 401 }
       );
     }
-
-    if (stored.code !== enteredOtp) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid 6-digit OTP code. Please check your WhatsApp.' },
-        { status: 401 }
-      );
-    }
-
-    // Consume OTP immediately
-    globalThis.__kamai_otp_store?.delete(clean10Digit);
 
     const supabase = getSupabaseServerClient();
     if (!supabase || !isSupabaseServerConfigured()) {
@@ -76,6 +87,14 @@ export async function POST(req: NextRequest) {
         }
       });
 
+      // Clear the used OTP session cookie
+      response.cookies.set({
+        name: 'kamai_otp_session',
+        value: '',
+        maxAge: 0,
+        path: '/',
+      });
+
       response.cookies.set({
         name: SESSION_COOKIE_NAME,
         value: fallbackToken,
@@ -99,7 +118,6 @@ export async function POST(req: NextRequest) {
     let business = null;
 
     if (staff) {
-      // Deactivated staff check
       if (!staff.is_active) {
         return NextResponse.json(
           { success: false, error: 'This account has been deactivated. Please contact support.' },
@@ -116,7 +134,7 @@ export async function POST(req: NextRequest) {
       business = biz;
     }
 
-    // Mode-specific handling for regular users
+    // Mode-specific handling
     if (mode === 'login') {
       if (!staff || !business) {
         return NextResponse.json(
@@ -140,103 +158,115 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const storeName = (body.storeName || '').trim();
-      const ownerName = (body.ownerName || '').trim();
+      const newBizId = `biz_${clean10Digit}_${Date.now()}`;
+      const newStaffId = `staff_${clean10Digit}_${Date.now()}`;
+      const chosenStoreName = body.storeName?.trim() || 'My Store';
+      const chosenOwnerName = body.ownerName?.trim() || 'Store Owner';
+      const chosenBusinessType = body.businessType || 'grocery';
+      const chosenAddress = body.address?.trim() || '';
 
-      if (!storeName || !ownerName) {
-        return NextResponse.json(
-          { success: false, error: 'Store Name and Owner Name are required for registration.' },
-          { status: 400 }
-        );
-      }
-
-      const pinHash = await bcrypt.hash('123456', 10);
-
-      // Create business record in Supabase
-      const { data: newBiz, error: bizErr } = await supabase
+      const { data: newBiz, error: createBizErr } = await supabase
         .from('businesses')
         .insert({
-          name: storeName,
-          owner_name: ownerName,
+          id: newBizId,
+          name: chosenStoreName,
+          business_type: chosenBusinessType,
+          owner_name: chosenOwnerName,
           phone: clean10Digit,
-          business_type: body.businessType || 'grocery',
+          address: chosenAddress,
           subscription_tier: 'free',
+          subscription_valid_until: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .select()
         .single();
 
-      if (bizErr || !newBiz) {
-        console.error('Failed to insert business:', bizErr);
+      if (createBizErr || !newBiz) {
+        console.error('Failed to create business in Supabase:', createBizErr);
         return NextResponse.json(
-          { success: false, error: 'Failed to create business in database. Please try again.' },
+          { success: false, error: 'Failed to create business account. Please try again.' },
           { status: 500 }
         );
       }
 
-      business = newBiz;
-
-      // Create owner staff record in Supabase
-      const { data: newStaff, error: staffErr } = await supabase
+      const dummyPassHash = await bcrypt.hash(`WA_AUTH_${clean10Digit}_${Date.now()}`, 10);
+      const { data: newStaff, error: createStaffErr } = await supabase
         .from('business_staff')
         .insert({
+          id: newStaffId,
           business_id: newBiz.id,
-          name: ownerName,
+          name: chosenOwnerName,
           phone: clean10Digit,
-          pin_hash: pinHash,
+          password_hash: dummyPassHash,
           role: 'owner',
           is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .select()
         .single();
 
-      if (staffErr || !newStaff) {
-        console.error('Failed to insert staff:', staffErr);
+      if (createStaffErr || !newStaff) {
+        console.error('Failed to create staff record in Supabase:', createStaffErr);
         await supabase.from('businesses').delete().eq('id', newBiz.id);
         return NextResponse.json(
-          { success: false, error: 'Failed to create owner profile. Please try again.' },
+          { success: false, error: 'Failed to create staff user record. Please try again.' },
           { status: 500 }
         );
       }
 
       staff = newStaff;
+      business = newBiz;
     }
 
     if (!staff || !business) {
       return NextResponse.json(
-        { success: false, error: 'Account profile could not be resolved. Please try again.' },
-        { status: 404 }
+        { success: false, error: 'Authentication could not complete.' },
+        { status: 500 }
       );
     }
 
-    // 5. Issue 30-Day httpOnly Signed JWT Session Cookie
-    const token = signSessionToken({
+    const sessionToken = signSessionToken({
       staff_id: staff.id,
       business_id: business.id,
-      phone: clean10Digit,
-      role: (staff.role as any) || 'owner',
+      phone: staff.phone,
+      role: staff.role || 'owner',
     });
 
-    const isProduction = process.env.NODE_ENV === 'production';
     const response = NextResponse.json({
       success: true,
       user: {
         id: staff.id,
         name: staff.name,
-        phone: clean10Digit,
-        role: staff.role || 'owner',
+        phone: staff.phone,
+        role: staff.role,
         business_id: business.id,
         business_name: business.name,
         subscription_tier: business.subscription_tier || 'free',
-        subscription_valid_until: business.subscription_valid_until,
       },
-      business,
+      business: {
+        id: business.id,
+        name: business.name,
+        owner_name: business.owner_name,
+        business_type: business.business_type,
+        subscription_tier: business.subscription_tier || 'free',
+      }
+    });
+
+    // Clear the used OTP session cookie
+    response.cookies.set({
+      name: 'kamai_otp_session',
+      value: '',
+      maxAge: 0,
+      path: '/',
     });
 
     response.cookies.set({
       name: SESSION_COOKIE_NAME,
-      value: token,
+      value: sessionToken,
       httpOnly: true,
-      secure: isProduction,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: SESSION_MAX_AGE,
       path: '/',
@@ -244,9 +274,9 @@ export async function POST(req: NextRequest) {
 
     return response;
   } catch (err: any) {
-    console.error('Verify OTP error:', err);
+    console.error('Verify OTP exception:', err?.message || err);
     return NextResponse.json(
-      { success: false, error: err.message || 'Authentication verification failed.' },
+      { success: false, error: err?.message || 'Authentication failed.' },
       { status: 500 }
     );
   }

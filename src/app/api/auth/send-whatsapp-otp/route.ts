@@ -2,20 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sendWhatsAppOTP } from '@/lib/whatsapp/cloudApi';
 import { getSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase/server';
+import { checkOtpCooldown, setLocalOtp, signOtpSessionToken } from '@/lib/auth/otpService';
 
 export const dynamic = 'force-dynamic';
-
-// In-memory OTP storage with strict expiry
-// Key: phone, Value: { code: string, expiresAt: number, lastRequestedAt: number }
-declare global {
-  var __kamai_otp_store: Map<string, { code: string; expiresAt: number; lastRequestedAt: number }> | undefined;
-}
-
-if (!globalThis.__kamai_otp_store) {
-  globalThis.__kamai_otp_store = new Map();
-}
-
-const otpStore = globalThis.__kamai_otp_store;
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,13 +23,12 @@ export async function POST(req: NextRequest) {
     const now = Date.now();
 
     // 1. Rate Limiting: 60-second cooldown per mobile number
-    const existing = otpStore.get(clean10Digit);
-    if (existing && now - existing.lastRequestedAt < 60 * 1000) {
-      const waitSeconds = Math.ceil((60 * 1000 - (now - existing.lastRequestedAt)) / 1000);
+    const cooldown = checkOtpCooldown(clean10Digit);
+    if (!cooldown.allowed) {
       return NextResponse.json(
         {
           success: false,
-          error: `Please wait ${waitSeconds} seconds before requesting another OTP.`,
+          error: `Please wait ${cooldown.waitSeconds} seconds before requesting another OTP.`,
         },
         { status: 429 }
       );
@@ -95,11 +83,9 @@ export async function POST(req: NextRequest) {
     const otpCode = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = now + 10 * 60 * 1000; // 10 minutes lifetime
 
-    otpStore.set(clean10Digit, {
-      code: otpCode,
-      expiresAt,
-      lastRequestedAt: now,
-    });
+    // Save in local cache & create stateless signed token for multi-instance serverless verification
+    setLocalOtp(clean10Digit, otpCode, expiresAt);
+    const otpSessionToken = signOtpSessionToken(clean10Digit, otpCode, expiresAt);
 
     // 4. Send Official WhatsApp Authentication Template Message
     const sendResult = await sendWhatsAppOTP(clean10Digit, otpCode);
@@ -108,26 +94,56 @@ export async function POST(req: NextRequest) {
       console.error('WhatsApp dispatch failed:', sendResult.error);
       const isDev = process.env.NODE_ENV !== 'production';
 
-      return NextResponse.json(
+      const errResponse = NextResponse.json(
         {
           success: false,
           error: `WhatsApp Delivery: ${sendResult.error}`,
           errorCode: sendResult.errorCode,
           isAccessDenied: sendResult.isAccessDenied,
           devOtp: isDev ? otpCode : undefined,
+          otpSessionToken: isDev ? otpSessionToken : undefined,
         },
         { status: 502 }
       );
+
+      // Set cookie for dev mode testing
+      if (isDev) {
+        errResponse.cookies.set({
+          name: 'kamai_otp_session',
+          value: otpSessionToken,
+          httpOnly: true,
+          secure: false,
+          sameSite: 'lax',
+          maxAge: 600,
+          path: '/',
+        });
+      }
+
+      return errResponse;
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: `Official OTP sent to your WhatsApp (+91 ${clean10Digit}).`,
+      otpSessionToken,
     });
+
+    // Set secure HttpOnly cookie for seamless serverless verification across lambdas
+    response.cookies.set({
+      name: 'kamai_otp_session',
+      value: otpSessionToken,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 600,
+      path: '/',
+    });
+
+    return response;
   } catch (err: any) {
-    console.error('Send OTP exception:', err);
+    console.error('Send OTP exception:', err?.message || err);
     return NextResponse.json(
-      { success: false, error: err.message || 'Failed to send OTP.' },
+      { success: false, error: err?.message || 'Failed to send OTP.' },
       { status: 500 }
     );
   }

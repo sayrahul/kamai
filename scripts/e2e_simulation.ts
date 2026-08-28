@@ -323,7 +323,8 @@ assert(duplicateAttempt === false, 'Duplicate payment notification with same UTR
 // -----------------------------------------------------------------------------
 console.log('\n💬 SUITE 6: Official Meta WhatsApp Cloud API & Webhook Verification');
 
-import { formatRecipientPhone } from '../src/lib/whatsapp/cloudApi';
+import { formatRecipientPhone, isValidPdfBuffer } from '../src/lib/whatsapp/cloudApi';
+import { signOtpSessionToken, verifyStatelessOtp } from '../src/lib/auth/otpService';
 
 // 1. Recipient Phone Formatting E.164
 const formatted1 = formatRecipientPhone('9876543210');
@@ -335,7 +336,20 @@ assert(formatted2 === '919876543210', 'Phone number with spaces, plus and dashes
 const formatted3 = formatRecipientPhone('919876543210');
 assert(formatted3 === '919876543210', 'Pre-formatted 12-digit number preserved without duplicate prefix');
 
-// 2. Webhook Challenge Verification Logic
+const formatted4 = formatRecipientPhone('09876543210');
+assert(formatted4 === '919876543210', '11-digit number with leading zero normalized to 91 prefix');
+
+const formatted5 = formatRecipientPhone('91919876543210');
+assert(formatted5 === '919876543210', 'Accidental duplicate 9191 prefix cleaned to 919876543210');
+
+// 2. PDF Buffer Validation
+const validPdfBuffer = Buffer.from('%PDF-1.4 sample content here');
+assert(isValidPdfBuffer(validPdfBuffer) === true, 'Buffer starting with %PDF- header identified as valid PDF');
+
+const invalidPdfBuffer = Buffer.from('<html><body>Not a PDF</body></html>');
+assert(isValidPdfBuffer(invalidPdfBuffer) === false, 'Buffer without %PDF- magic bytes rejected');
+
+// 3. Webhook Challenge Verification Logic
 const defaultVerifyToken = 'kamaiplus_verify_token_2026';
 const mockChallenge = 'test_meta_challenge_token_xyz123';
 
@@ -354,6 +368,41 @@ assert(tamperedResult.status === 403, 'Tampered verify token is strictly rejecte
 
 const invalidModeResult = testWebhookVerification('unknown', 'kamaiplus_verify_token_2026', mockChallenge);
 assert(invalidModeResult.status === 403, 'Invalid hub.mode is rejected with HTTP 403');
+
+// 4. Webhook HMAC-SHA256 Signature Verification
+const mockSecret = 'test_meta_app_secret_123';
+const mockPayload = JSON.stringify({ object: 'whatsapp_business_account', entry: [] });
+const validHmac = `sha256=${crypto.createHmac('sha256', mockSecret).update(mockPayload).digest('hex')}`;
+const invalidHmac = 'sha256=invalid_signature_hash_xyz';
+
+const verifyHmacSignature = (header: string, body: string, secret: string): boolean => {
+  const expected = `sha256=${crypto.createHmac('sha256', secret).update(body).digest('hex')}`;
+  const bufA = Buffer.from(header, 'utf8');
+  const bufB = Buffer.from(expected, 'utf8');
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+};
+
+assert(verifyHmacSignature(validHmac, mockPayload, mockSecret) === true, 'Webhook HMAC-SHA256 signature passes with valid secret');
+assert(verifyHmacSignature(invalidHmac, mockPayload, mockSecret) === false, 'Tampered Webhook HMAC-SHA256 signature is rejected');
+
+// 5. Serverless Stateless OTP Verification
+const testPhone = '9876543210';
+const testOtp = '748291';
+const expiresAt = Date.now() + 10 * 60 * 1000;
+const validSessionToken = signOtpSessionToken(testPhone, testOtp, expiresAt);
+
+const otpVerifyPass = verifyStatelessOtp(testPhone, testOtp, validSessionToken);
+assert(otpVerifyPass.valid === true, 'Stateless OTP verification succeeds with matching token and code across lambdas');
+
+const otpVerifyWrongCode = verifyStatelessOtp(testPhone, '000000', validSessionToken);
+assert(otpVerifyWrongCode.valid === false, 'Stateless OTP verification rejects incorrect code');
+
+const otpVerifyWrongPhone = verifyStatelessOtp('9999999999', testOtp, validSessionToken);
+assert(otpVerifyWrongPhone.valid === false, 'Stateless OTP verification rejects mismatched phone number');
+
+const expiredSessionToken = signOtpSessionToken(testPhone, testOtp, Date.now() - 1000);
+const otpVerifyExpired = verifyStatelessOtp(testPhone, testOtp, expiredSessionToken);
+assert(otpVerifyExpired.valid === false, 'Stateless OTP verification rejects expired token');
 
 console.log('');
 console.log('================================================================');
