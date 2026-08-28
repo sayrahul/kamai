@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import QRCode from 'qrcode';
@@ -31,7 +31,10 @@ import {
   ShieldCheck,
   Check,
   Zap,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw,
+  Eye,
+  Save
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -49,6 +52,12 @@ import { APP_VERSION, APP_RELEASE_DATE } from '@/lib/constants/version';
 import { MerchantQRModal } from '@/components/paytm/MerchantQRModal';
 import { NativeSoundboxStatusCard } from '@/components/payments/NativeSoundboxStatusCard';
 import { PWAInstallSettingsCard } from '@/components/pwa/PWAInstallSettingsCard';
+import { 
+  SettingsChangeBar, 
+  SettingsReviewModal, 
+  SettingsUnsavedTabModal,
+  ChangedField 
+} from '@/components/settings/SettingsChangeDialogue';
 
 export default function SettingsPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
@@ -96,8 +105,13 @@ export default function SettingsPage() {
   );
   const [parsedSmsResult, setParsedSmsResult] = useState<any>(null);
 
-  // UI state
+  // UI & Dialogue states
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isUnsavedTabModalOpen, setIsUnsavedTabModalOpen] = useState(false);
+  const [pendingTab, setPendingTab] = useState<'profile' | 'upi' | 'invoicing' | 'whatsapp' | null>(null);
+
   const [saveNotification, setSaveNotification] = useState<{
     title: string;
     description: string;
@@ -164,6 +178,429 @@ export default function SettingsPage() {
       setFooterMessage(business.footer_message || 'Thank you for your business! Please visit again.');
     }
   }, [business]);
+
+  // ---------------- CHANGE DETECTION TRACKER ----------------
+  const changedFields = useMemo<ChangedField[]>(() => {
+    if (!business) return [];
+    const changes: ChangedField[] = [];
+
+    const initialName = business.name || '';
+    if (name.trim() !== initialName.trim()) {
+      changes.push({
+        key: 'name',
+        label: 'Store / Business Name',
+        category: 'profile',
+        categoryLabel: 'Store Profile',
+        oldValue: initialName,
+        newValue: name.trim(),
+      });
+    }
+
+    const initialTagline = business.tagline || '';
+    if (tagline.trim() !== initialTagline.trim()) {
+      changes.push({
+        key: 'tagline',
+        label: 'Tagline / Motto',
+        category: 'profile',
+        categoryLabel: 'Store Profile',
+        oldValue: initialTagline,
+        newValue: tagline.trim(),
+      });
+    }
+
+    const initialOwner = business.owner_name || '';
+    if (ownerName.trim() !== initialOwner.trim()) {
+      changes.push({
+        key: 'owner_name',
+        label: 'Owner / Contact Person',
+        category: 'profile',
+        categoryLabel: 'Store Profile',
+        oldValue: initialOwner,
+        newValue: ownerName.trim(),
+      });
+    }
+
+    const initialPhone = business.phone || '';
+    if (phone.trim() !== initialPhone.trim()) {
+      changes.push({
+        key: 'phone',
+        label: 'Primary Mobile Phone',
+        category: 'profile',
+        categoryLabel: 'Store Profile',
+        oldValue: initialPhone,
+        newValue: phone.trim(),
+      });
+    }
+
+    const initialEmail = business.email || '';
+    if (email.trim() !== initialEmail.trim()) {
+      changes.push({
+        key: 'email',
+        label: 'Email Address',
+        category: 'profile',
+        categoryLabel: 'Store Profile',
+        oldValue: initialEmail,
+        newValue: email.trim(),
+      });
+    }
+
+    const initialAddress = business.address || '';
+    if (address.trim() !== initialAddress.trim()) {
+      changes.push({
+        key: 'address',
+        label: 'Store Address',
+        category: 'profile',
+        categoryLabel: 'Store Profile',
+        oldValue: initialAddress,
+        newValue: address.trim(),
+      });
+    }
+
+    const initialPincode = business.pincode || '';
+    if (pincode.trim() !== initialPincode.trim()) {
+      changes.push({
+        key: 'pincode',
+        label: 'Pincode',
+        category: 'profile',
+        categoryLabel: 'Store Profile',
+        oldValue: initialPincode,
+        newValue: pincode.trim(),
+      });
+    }
+
+    const initialGstin = business.gstin || '';
+    if (gstin.trim() !== initialGstin.trim()) {
+      changes.push({
+        key: 'gstin',
+        label: 'GSTIN Number',
+        category: 'profile',
+        categoryLabel: 'Store Profile',
+        oldValue: initialGstin,
+        newValue: gstin.trim(),
+      });
+    }
+
+    const initialDrug = business.drug_license_no || '';
+    if (drugLicenseNo.trim() !== initialDrug.trim()) {
+      changes.push({
+        key: 'drug_license_no',
+        label: 'Drug License No.',
+        category: 'profile',
+        categoryLabel: 'Store Profile',
+        oldValue: initialDrug,
+        newValue: drugLicenseNo.trim(),
+      });
+    }
+
+    const initialPharm = business.pharmacist_reg_no || '';
+    if (pharmacistRegNo.trim() !== initialPharm.trim()) {
+      changes.push({
+        key: 'pharmacist_reg_no',
+        label: 'Pharmacist Reg. No.',
+        category: 'profile',
+        categoryLabel: 'Store Profile',
+        oldValue: initialPharm,
+        newValue: pharmacistRegNo.trim(),
+      });
+    }
+
+    const initialFssai = business.fssai_license_no || '';
+    if (fssaiLicenseNo.trim() !== initialFssai.trim()) {
+      changes.push({
+        key: 'fssai_license_no',
+        label: 'FSSAI License No.',
+        category: 'profile',
+        categoryLabel: 'Store Profile',
+        oldValue: initialFssai,
+        newValue: fssaiLicenseNo.trim(),
+      });
+    }
+
+    const initialBankName = business.bank_name || '';
+    if (bankName.trim() !== initialBankName.trim()) {
+      changes.push({
+        key: 'bank_name',
+        label: 'Bank Name',
+        category: 'upi',
+        categoryLabel: 'UPI & Banking',
+        oldValue: initialBankName,
+        newValue: bankName.trim(),
+      });
+    }
+
+    const initialBankAccName = business.bank_account_name || '';
+    if (bankAccountName.trim() !== initialBankAccName.trim()) {
+      changes.push({
+        key: 'bank_account_name',
+        label: 'Account Holder Name',
+        category: 'upi',
+        categoryLabel: 'UPI & Banking',
+        oldValue: initialBankAccName,
+        newValue: bankAccountName.trim(),
+      });
+    }
+
+    const initialBankAccNo = business.bank_account_no || '';
+    if (bankAccountNo.trim() !== initialBankAccNo.trim()) {
+      changes.push({
+        key: 'bank_account_no',
+        label: 'Bank Account Number',
+        category: 'upi',
+        categoryLabel: 'UPI & Banking',
+        oldValue: initialBankAccNo,
+        newValue: bankAccountNo.trim(),
+      });
+    }
+
+    const initialBankIfsc = business.bank_ifsc || '';
+    if (bankIfsc.trim() !== initialBankIfsc.trim()) {
+      changes.push({
+        key: 'bank_ifsc',
+        label: 'Bank IFSC Code',
+        category: 'upi',
+        categoryLabel: 'UPI & Banking',
+        oldValue: initialBankIfsc,
+        newValue: bankIfsc.trim(),
+      });
+    }
+
+    const initialPrefix = business.invoice_prefix || 'INV-';
+    if (invoicePrefix.trim() !== initialPrefix.trim()) {
+      changes.push({
+        key: 'invoice_prefix',
+        label: 'Invoice Prefix',
+        category: 'invoicing',
+        categoryLabel: 'Invoicing & Terms',
+        oldValue: initialPrefix,
+        newValue: invoicePrefix.trim(),
+      });
+    }
+
+    const initialNextInv = (business.next_invoice_number || 1).toString();
+    if (nextInvoiceNumber.trim() !== initialNextInv.trim()) {
+      changes.push({
+        key: 'next_invoice_number',
+        label: 'Next Invoice Sequence Number',
+        category: 'invoicing',
+        categoryLabel: 'Invoicing & Terms',
+        oldValue: initialNextInv,
+        newValue: nextInvoiceNumber.trim(),
+      });
+    }
+
+    const initialGstMode = business.gst_pricing_mode || (business.business_type === 'restaurant' ? 'exclusive' : 'inclusive');
+    if (gstPricingMode !== initialGstMode) {
+      changes.push({
+        key: 'gst_pricing_mode',
+        label: 'GST Billing Calculation Mode',
+        category: 'invoicing',
+        categoryLabel: 'Invoicing & Terms',
+        oldValue: initialGstMode === 'exclusive' ? 'Add GST on Top (Exclusive)' : 'Prices Include GST (Inclusive)',
+        newValue: gstPricingMode === 'exclusive' ? 'Add GST on Top (Exclusive)' : 'Prices Include GST (Inclusive)',
+      });
+    }
+
+    const initialTerms = business.terms_conditions || 'Goods once sold will not be returned after 3 days. Thank you for shopping with us!';
+    if (terms.trim() !== initialTerms.trim()) {
+      changes.push({
+        key: 'terms_conditions',
+        label: 'Terms & Conditions',
+        category: 'invoicing',
+        categoryLabel: 'Invoicing & Terms',
+        oldValue: initialTerms,
+        newValue: terms.trim(),
+      });
+    }
+
+    const initialFooter = business.footer_message || 'Thank you for your business! Please visit again.';
+    if (footerMessage.trim() !== initialFooter.trim()) {
+      changes.push({
+        key: 'footer_message',
+        label: 'Invoice Footer Thank You Note',
+        category: 'invoicing',
+        categoryLabel: 'Invoicing & Terms',
+        oldValue: initialFooter,
+        newValue: footerMessage.trim(),
+      });
+    }
+
+    return changes;
+  }, [
+    business,
+    name,
+    tagline,
+    ownerName,
+    phone,
+    email,
+    address,
+    pincode,
+    gstin,
+    drugLicenseNo,
+    pharmacistRegNo,
+    fssaiLicenseNo,
+    bankName,
+    bankAccountName,
+    bankAccountNo,
+    bankIfsc,
+    invoicePrefix,
+    nextInvoiceNumber,
+    gstPricingMode,
+    terms,
+    footerMessage,
+  ]);
+
+  // Discard all uncommitted changes and revert to saved database snapshot
+  const handleDiscardChanges = useCallback(() => {
+    if (!business) return;
+    setName(business.name || '');
+    setBusinessType(business.business_type || 'grocery');
+    setTagline(business.tagline || '');
+    setOwnerName(business.owner_name || '');
+    setPhone(business.phone || '');
+    setEmail(business.email || '');
+    setAddress(business.address || '');
+    setPincode(business.pincode || '');
+    setGstin(business.gstin || '');
+    setDrugLicenseNo(business.drug_license_no || '');
+    setPharmacistRegNo(business.pharmacist_reg_no || '');
+    setFssaiLicenseNo(business.fssai_license_no || '');
+    setBankName(business.bank_name || '');
+    setBankAccountNo(business.bank_account_no || '');
+    setBankIfsc(business.bank_ifsc || '');
+    setBankAccountName(business.bank_account_name || '');
+    setInvoicePrefix(business.invoice_prefix || 'INV-');
+    setNextInvoiceNumber((business.next_invoice_number || 1).toString());
+    setGstPricingMode(business.gst_pricing_mode || (business.business_type === 'restaurant' ? 'exclusive' : 'inclusive'));
+    setTerms(business.terms_conditions || 'Goods once sold will not be returned after 3 days. Thank you for shopping with us!');
+    setFooterMessage(business.footer_message || 'Thank you for your business! Please visit again.');
+
+    showSaveNotification(
+      'Changes Discarded',
+      'All modified fields have been reverted back to your saved store settings.'
+    );
+  }, [business]);
+
+  // Core Save Function
+  const handleSaveSettingsDirect = useCallback(async () => {
+    if (!business) return;
+    setIsSaving(true);
+    try {
+      const primaryUpi = upiList.find((u) => u.is_default)?.upi_id || upiList[0]?.upi_id || '';
+
+      await db.businesses.update(business.id, {
+        name: name.trim(),
+        business_type: businessType,
+        tagline: tagline.trim(),
+        logo_url: logoUrl || undefined,
+        owner_name: ownerName.trim(),
+        phone: phone.trim(),
+        email: email.trim() || undefined,
+        address: address.trim(),
+        pincode: pincode.trim() || undefined,
+        gstin: gstin.trim() || undefined,
+        drug_license_no: drugLicenseNo.trim() || undefined,
+        pharmacist_reg_no: pharmacistRegNo.trim() || undefined,
+        fssai_license_no: fssaiLicenseNo.trim() || undefined,
+        upi_id: primaryUpi,
+        upi_ids: upiList,
+        bank_name: bankName.trim() || undefined,
+        bank_account_no: bankAccountNo.trim() || undefined,
+        bank_ifsc: bankIfsc.trim() || undefined,
+        bank_account_name: bankAccountName.trim() || undefined,
+        invoice_prefix: invoicePrefix.trim() || 'INV-',
+        next_invoice_number: parseInt(nextInvoiceNumber) || 1,
+        gst_pricing_mode: gstPricingMode,
+        terms_conditions: terms.trim(),
+        footer_message: footerMessage.trim(),
+        updated_at: new Date().toISOString(),
+      });
+
+      showSaveNotification(
+        'Settings Saved Successfully!',
+        'All store details, UPI accounts, and invoice rules are saved and active across POS counters.'
+      );
+    } catch (err: any) {
+      alert(`Failed to save settings: ${err?.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    business,
+    name,
+    businessType,
+    tagline,
+    logoUrl,
+    ownerName,
+    phone,
+    email,
+    address,
+    pincode,
+    gstin,
+    drugLicenseNo,
+    pharmacistRegNo,
+    fssaiLicenseNo,
+    upiList,
+    bankName,
+    bankAccountNo,
+    bankIfsc,
+    bankAccountName,
+    invoicePrefix,
+    nextInvoiceNumber,
+    gstPricingMode,
+    terms,
+    footerMessage,
+  ]);
+
+  // Form submit wrapper
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleSaveSettingsDirect();
+  };
+
+  // Keyboard shortcut (Ctrl+S / Cmd+S)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (changedFields.length > 0) {
+          handleSaveSettingsDirect();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [changedFields.length, handleSaveSettingsDirect]);
+
+  // Browser navigation guard (beforeunload)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (changedFields.length > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [changedFields.length]);
+
+  // Tab switching guard with unsaved changes dialogue
+  const handleRequestTabChange = (nextTab: 'profile' | 'upi' | 'invoicing' | 'whatsapp') => {
+    if (nextTab === activeTab) return;
+    if (changedFields.length > 0) {
+      setPendingTab(nextTab);
+      setIsUnsavedTabModalOpen(true);
+    } else {
+      setActiveTab(nextTab);
+    }
+  };
+
+  // Tab Labels mapping for dialogue
+  const tabLabels: Record<string, string> = {
+    profile: 'Shop Profile & Logo',
+    upi: 'Multiple UPI QRs & Banking',
+    invoicing: 'Invoice Prefix & Sequence',
+    whatsapp: 'Meta WhatsApp Cloud API',
+  };
 
   // Generate live UPI QR Code for the active preview selection
   useEffect(() => {
@@ -320,47 +757,6 @@ export default function SettingsPage() {
     showSaveNotification(
       'UPI Address Removed',
       'The selected UPI address has been removed from store settings.'
-    );
-  };
-
-  // Save Settings to IndexedDB
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!business) return;
-
-    const primaryUpi = upiList.find((u) => u.is_default)?.upi_id || upiList[0]?.upi_id || '';
-
-    await db.businesses.update(business.id, {
-      name: name.trim(),
-      business_type: businessType,
-      tagline: tagline.trim(),
-      logo_url: logoUrl || undefined,
-      owner_name: ownerName.trim(),
-      phone: phone.trim(),
-      email: email.trim() || undefined,
-      address: address.trim(),
-      pincode: pincode.trim() || undefined,
-      gstin: gstin.trim() || undefined,
-      drug_license_no: drugLicenseNo.trim() || undefined,
-      pharmacist_reg_no: pharmacistRegNo.trim() || undefined,
-      fssai_license_no: fssaiLicenseNo.trim() || undefined,
-      upi_id: primaryUpi,
-      upi_ids: upiList,
-      bank_name: bankName.trim() || undefined,
-      bank_account_no: bankAccountNo.trim() || undefined,
-      bank_ifsc: bankIfsc.trim() || undefined,
-      bank_account_name: bankAccountName.trim() || undefined,
-      invoice_prefix: invoicePrefix.trim() || 'INV-',
-      next_invoice_number: parseInt(nextInvoiceNumber) || 1,
-      gst_pricing_mode: gstPricingMode,
-      terms_conditions: terms.trim(),
-      footer_message: footerMessage.trim(),
-      updated_at: new Date().toISOString(),
-    });
-
-    showSaveNotification(
-      'Settings Saved Successfully!',
-      'All store details, UPI accounts, and invoice rules are saved and active across POS counters.'
     );
   };
 
@@ -597,12 +993,18 @@ export default function SettingsPage() {
       <div className="sm:hidden relative">
         <select
           value={activeTab}
-          onChange={(e) => setActiveTab(e.target.value as any)}
+          onChange={(e) => handleRequestTabChange(e.target.value as any)}
           className="w-full appearance-none bg-white hover:bg-slate-50 border border-slate-300 text-slate-900 text-xs font-black rounded-xl pl-3 pr-8 py-2 cursor-pointer outline-none focus:ring-2 focus:ring-slate-900 shadow-2xs"
         >
-          <option value="profile">🏪 Shop Profile &amp; Logo</option>
-          <option value="upi">🔲 Multiple UPI QRs &amp; Banking</option>
-          <option value="invoicing">🧾 Invoice Prefix &amp; Sequence</option>
+          <option value="profile">
+            🏪 Shop Profile &amp; Logo {changedFields.some(f => f.category === 'profile') ? `(● ${changedFields.filter(f => f.category === 'profile').length} unsaved)` : ''}
+          </option>
+          <option value="upi">
+            🔲 Multiple UPI QRs &amp; Banking {changedFields.some(f => f.category === 'upi') ? `(● ${changedFields.filter(f => f.category === 'upi').length} unsaved)` : ''}
+          </option>
+          <option value="invoicing">
+            🧾 Invoice Prefix &amp; Sequence {changedFields.some(f => f.category === 'invoicing') ? `(● ${changedFields.filter(f => f.category === 'invoicing').length} unsaved)` : ''}
+          </option>
           <option value="whatsapp">💬 Meta WhatsApp Cloud API</option>
         </select>
         <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -611,18 +1013,20 @@ export default function SettingsPage() {
       {/* Desktop Navigation Tabs */}
       <div className="hidden sm:flex items-center gap-1.5 pb-0.5">
         {[
-          { id: 'profile', label: 'Shop Profile & Logo', icon: Store },
-          { id: 'upi', label: 'Multiple UPI QRs & Banking', icon: QrCode },
-          { id: 'invoicing', label: 'Invoice Prefix & Sequence', icon: Receipt },
-          { id: 'whatsapp', label: 'Meta WhatsApp Cloud API', icon: MessageCircle },
+          { id: 'profile', label: 'Shop Profile & Logo', icon: Store, category: 'profile' },
+          { id: 'upi', label: 'Multiple UPI QRs & Banking', icon: QrCode, category: 'upi' },
+          { id: 'invoicing', label: 'Invoice Prefix & Sequence', icon: Receipt, category: 'invoicing' },
+          { id: 'whatsapp', label: 'Meta WhatsApp Cloud API', icon: MessageCircle, category: 'whatsapp' },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
+          const tabModCount = changedFields.filter((f) => f.category === tab.category).length;
+
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer shadow-2xs ${
+              onClick={() => handleRequestTabChange(tab.id as any)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer shadow-2xs relative ${
                 isActive
                   ? 'bg-slate-900 text-white'
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -630,6 +1034,13 @@ export default function SettingsPage() {
             >
               <Icon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
+              {tabModCount > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                  isActive ? 'bg-amber-400 text-slate-950' : 'bg-amber-100 text-amber-900 border border-amber-300'
+                }`}>
+                  {tabModCount}
+                </span>
+              )}
             </button>
           );
         })}
@@ -1700,6 +2111,52 @@ export default function SettingsPage() {
       <div className="pt-2">
         <PWAInstallSettingsCard />
       </div>
+
+      {/* Floating Interactive Dialogue Bar for Unsaved Changes */}
+      <SettingsChangeBar
+        changedFields={changedFields}
+        isSaving={isSaving}
+        onSave={handleSaveSettingsDirect}
+        onDiscard={handleDiscardChanges}
+        onOpenReview={() => setIsReviewModalOpen(true)}
+      />
+
+      {/* Interactive Settings Review & Diff Modal */}
+      <SettingsReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        changedFields={changedFields}
+        isSaving={isSaving}
+        onSave={handleSaveSettingsDirect}
+        onDiscard={handleDiscardChanges}
+      />
+
+      {/* Unsaved Tab Switch Guard Modal */}
+      <SettingsUnsavedTabModal
+        isOpen={isUnsavedTabModalOpen}
+        onClose={() => {
+          setIsUnsavedTabModalOpen(false);
+          setPendingTab(null);
+        }}
+        targetTabName={pendingTab ? tabLabels[pendingTab] || pendingTab : ''}
+        changedCount={changedFields.length}
+        onSaveAndSwitch={async () => {
+          await handleSaveSettingsDirect();
+          if (pendingTab) {
+            setActiveTab(pendingTab);
+          }
+          setIsUnsavedTabModalOpen(false);
+          setPendingTab(null);
+        }}
+        onDiscardAndSwitch={() => {
+          handleDiscardChanges();
+          if (pendingTab) {
+            setActiveTab(pendingTab);
+          }
+          setIsUnsavedTabModalOpen(false);
+          setPendingTab(null);
+        }}
+      />
 
       {/* App Build & Version Footer */}
       <div className="pt-4 pb-8 text-center space-y-1 text-slate-400">
