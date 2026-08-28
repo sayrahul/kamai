@@ -37,6 +37,7 @@ import { paymentBridge } from '../src/lib/payments/paymentBridge';
 import { formatRecipientPhone, isValidPdfBuffer, sendWhatsAppWelcomeMessage, sendWhatsAppLoginAlert } from '../src/lib/whatsapp/cloudApi';
 import { signOtpSessionToken, verifyStatelessOtp } from '../src/lib/auth/otpService';
 import { createHandshakeSession, verifyHandshakeSessionByMessage, getHandshakeStatus } from '../src/lib/auth/reverseHandshakeService';
+import { parseOwnerIntent } from '../src/lib/whatsapp/ownerBotService';
 import crypto from 'crypto';
 
 let totalTests = 0;
@@ -446,6 +447,19 @@ assert(typeof sendWhatsAppLoginAlert === 'function', 'sendWhatsAppLoginAlert hel
 // 8. Shop Owner Daily Sales Summary & PDF Report Tests
 const samplePdfBuffer = Buffer.from('%PDF-1.4 Daily Report Sample Content');
 assert(isValidPdfBuffer(samplePdfBuffer) === true, 'Daily closing PDF buffer validated with %PDF- header');
+
+// 9. WhatsApp Store Owner ChatOps & Bot Automation Tests
+assert(parseOwnerIntent('Hi') === 'GREETING', 'Owner Bot recognizes greeting "Hi"');
+assert(parseOwnerIntent('menu') === 'GREETING', 'Owner Bot recognizes "menu"');
+assert(parseOwnerIntent('Sales') === 'SALES', 'Owner Bot recognizes keyword "Sales"');
+assert(parseOwnerIntent('1') === 'SALES', 'Owner Bot recognizes option "1" for sales');
+assert(parseOwnerIntent('today') === 'SALES', 'Owner Bot recognizes keyword "today" for sales');
+assert(parseOwnerIntent('stock') === 'STOCK', 'Owner Bot recognizes keyword "stock"');
+assert(parseOwnerIntent('2') === 'STOCK', 'Owner Bot recognizes option "2" for stock');
+assert(parseOwnerIntent('khata') === 'KHATA', 'Owner Bot recognizes keyword "khata"');
+assert(parseOwnerIntent('3') === 'KHATA', 'Owner Bot recognizes option "3" for khata');
+assert(parseOwnerIntent('pdf') === 'PDF', 'Owner Bot recognizes keyword "pdf" for report');
+assert(parseOwnerIntent('4') === 'PDF', 'Owner Bot recognizes option "4" for pdf');
 
 console.log('');
 console.log('================================================================');

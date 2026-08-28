@@ -105,11 +105,12 @@ export async function POST(req: NextRequest) {
 
               console.log(`[Incoming WhatsApp Msg] From: ${fromMasked}, Type: ${msg.type}, Text: "${textBody}"`);
 
-              // Check Reverse Handshake Login
+              // 2. Process Handshake Login OR Store Owner Bot Commands
               if (rawFrom && textBody) {
                 try {
                   const { verifyHandshakeSessionByMessage } = await import('@/lib/auth/reverseHandshakeService');
                   const handshakeRes = verifyHandshakeSessionByMessage(rawFrom, textBody);
+
                   if (handshakeRes.verified) {
                     console.log(`🎉 [Reverse Handshake Success] Verified login for ${fromMasked} with code ${handshakeRes.code}`);
                     
@@ -124,9 +125,17 @@ export async function POST(req: NextRequest) {
                     } catch (replyErr) {
                       console.warn('Instant handshake reply notice:', replyErr);
                     }
+                  } else {
+                    // Non-handshake message: Trigger Store Owner Bot Automation (Hi, Sales, Stock, Khata, etc.)
+                    try {
+                      const { handleOwnerBotMessage } = await import('@/lib/whatsapp/ownerBotService');
+                      await handleOwnerBotMessage(rawFrom, textBody);
+                    } catch (botErr) {
+                      console.warn('Store Owner bot execution notice:', botErr);
+                    }
                   }
                 } catch (hErr) {
-                  console.warn('Reverse handshake processing error:', hErr);
+                  console.warn('Message processing error in webhook:', hErr);
                 }
               }
             }
