@@ -460,6 +460,10 @@ assert(parseOwnerIntent('khata') === 'KHATA', 'Owner Bot recognizes keyword "kha
 assert(parseOwnerIntent('3') === 'KHATA', 'Owner Bot recognizes option "3" for khata');
 assert(parseOwnerIntent('pdf') === 'PDF', 'Owner Bot recognizes keyword "pdf" for report');
 assert(parseOwnerIntent('4') === 'PDF', 'Owner Bot recognizes option "4" for pdf');
+assert(parseOwnerIntent('/sales') === 'SALES', 'Owner Bot recognizes Meta command "/sales"');
+assert(parseOwnerIntent('/stock') === 'STOCK', 'Owner Bot recognizes Meta command "/stock"');
+assert(parseOwnerIntent('/khata') === 'KHATA', 'Owner Bot recognizes Meta command "/khata"');
+assert(parseOwnerIntent('/pdf') === 'PDF', 'Owner Bot recognizes Meta command "/pdf"');
 
 console.log('');
 console.log('================================================================');

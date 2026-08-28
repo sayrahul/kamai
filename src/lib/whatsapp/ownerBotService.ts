@@ -12,7 +12,7 @@ export type OwnerIntent = 'GREETING' | 'SALES' | 'STOCK' | 'KHATA' | 'PDF' | 'UN
  * Normalizes and classifies incoming message intent for the store owner
  */
 export function parseOwnerIntent(rawText: string): OwnerIntent {
-  const text = (rawText || '').trim().toLowerCase();
+  const text = (rawText || '').trim().toLowerCase().replace(/^\//, '');
 
   if (!text) return 'UNKNOWN';
 
