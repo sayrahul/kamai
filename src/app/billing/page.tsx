@@ -346,7 +346,7 @@ export default function BillingPage() {
   const splitCard = activeTab.splitCard;
   const splitCredit = activeTab.splitCredit;
   const tableNo = activeTab.tableNo || '';
-  const orderType = activeTab.orderType || 'dine_in';
+  const orderType = activeTab.orderType;
   const doctorName = activeTab.doctorName || '';
   const patientName = activeTab.patientName || '';
 
@@ -534,6 +534,8 @@ export default function BillingPage() {
   const [isCelebrationOpen, setIsCelebrationOpen] = useState<boolean>(false);
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
+  const isRestaurant = business?.business_type === 'restaurant';
+  const isPharmacy = business?.business_type === 'pharmacy';
   const storeProfile = getStoreProfile(business?.business_type);
   const categories = useLiveQuery(async () => db.categories.toArray()) || [];
   const customers = useLiveQuery(async () => db.customers.toArray()) || [];
@@ -1111,10 +1113,10 @@ export default function BillingPage() {
         change_returned: changeReturnedPaise,
         payment_status: balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
         status: 'completed',
-        table_no: tableNo || undefined,
-        order_type: orderType || undefined,
-        token_number: Math.floor(100 + (nextNum % 900)),
-        doctor_name: doctorName || undefined,
+        table_no: isRestaurant ? (tableNo || undefined) : undefined,
+        order_type: isRestaurant ? (orderType || 'dine_in') : undefined,
+        token_number: isRestaurant ? Math.floor(100 + (nextNum % 900)) : undefined,
+        doctor_name: isPharmacy ? (doctorName || undefined) : undefined,
         notes: explicitPayment?.referenceNumber ? `UPI Ref / UTR: ${explicitPayment.referenceNumber} (${explicitPayment.sourceApp})` : undefined,
         created_by: 'owner',
         created_at: now,

@@ -210,11 +210,13 @@ class BluetoothPrinterService {
     if ((sale as any).doctor_name) {
       enc.textLine(`Doctor: Dr. ${(sale as any).doctor_name}`);
     }
-    if ((sale as any).table_no) {
-      enc.textLine(`Table: #${(sale as any).table_no} | ${((sale as any).order_type || 'Dine-In').toUpperCase()}`);
-    }
-    if ((sale as any).kot_token_no) {
-      enc.textLine(`KOT Token No: #${(sale as any).kot_token_no}`);
+    if (business?.business_type === 'restaurant') {
+      if ((sale as any).table_no) {
+        enc.textLine(`Table: #${(sale as any).table_no} | ${((sale as any).order_type || 'Dine-In').toUpperCase()}`);
+      }
+      if ((sale as any).token_number || (sale as any).kot_token_no) {
+        enc.textLine(`Token No: #${(sale as any).token_number || (sale as any).kot_token_no}`);
+      }
     }
     enc.hr();
 

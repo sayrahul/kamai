@@ -147,7 +147,8 @@ export function InvoiceModal({
 
   if (!sale || !business) return null;
 
-  const isExclusive = business.gst_pricing_mode === 'exclusive' || (business.business_type === 'restaurant' && business.gst_pricing_mode !== 'inclusive');
+  const isRestaurant = business.business_type === 'restaurant';
+  const isExclusive = business.gst_pricing_mode === 'exclusive' || (isRestaurant && business.gst_pricing_mode !== 'inclusive');
   const gstBreakup = calculateGstSummary(sale.items, false, isExclusive);
 
   // Ensure Subtotal + Total GST = Grand Total (handles legacy invoices where subtotal was saved equal to grand total)
@@ -650,8 +651,8 @@ export function InvoiceModal({
                       )}
                     </div>
 
-                    {/* Niche Order Details (Restaurant Table, Token) */}
-                    {(sale.table_no || sale.order_type || sale.token_number) && (
+                    {/* Restaurant-Specific Order Details (Table, Token, Order Type) */}
+                    {isRestaurant && (sale.table_no || sale.order_type || sale.token_number) && (
                       <div className="col-span-2 pt-2 border-t border-slate-200 flex flex-wrap items-center gap-3 text-[10px] text-slate-700 font-medium">
                         {sale.token_number && (
                           <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-mono font-bold">
@@ -871,8 +872,8 @@ export function InvoiceModal({
                     <span>{new Date(sale.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
 
-                  {/* Niche Order Details in Thermal Header */}
-                  {(sale.token_number || sale.table_no || sale.order_type) && (
+                  {/* Restaurant Order Details in Thermal Header */}
+                  {isRestaurant && (sale.token_number || sale.table_no || sale.order_type) && (
                     <div className="flex justify-between pt-0.5 font-bold">
                       {sale.token_number && <span>Token #{sale.token_number}</span>}
                       {sale.table_no && <span>Table: {sale.table_no}</span>}
