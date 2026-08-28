@@ -339,6 +339,20 @@ export default function CashRegisterPage() {
             {!isPro && <Lock className="w-3 h-3 text-amber-300" />}
           </Button>
 
+          {/* Direct WhatsApp Bot Chat Shortcut */}
+          <a
+            href="https://wa.me/message/TNIXVEOIXK4PH1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs shadow-2xs transition"
+            title="Chat with WhatsApp Store Bot"
+          >
+            <svg className="w-3.5 h-3.5 fill-[#25D366] shrink-0" viewBox="0 0 24 24">
+              <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.04 14.69 2 12.04 2Z" />
+            </svg>
+            <span className="hidden sm:inline">Store Bot</span>
+          </a>
+
           {activeShift ? (
             <>
               <Button

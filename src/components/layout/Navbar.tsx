@@ -152,6 +152,20 @@ export const Navbar: React.FC = () => {
             <span className="hidden sm:inline">Store QR</span>
           </button>
 
+          {/* Official WhatsApp Bot Assistant Shortcut */}
+          <a
+            href="https://wa.me/message/TNIXVEOIXK4PH1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold cursor-pointer transition shadow-2xs"
+            title="Chat with KamaiPlus Store Bot on WhatsApp"
+          >
+            <svg className="w-3.5 h-3.5 fill-[#25D366] shrink-0" viewBox="0 0 24 24">
+              <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.04 14.69 2 12.04 2Z" />
+            </svg>
+            <span className="hidden md:inline">WhatsApp Bot</span>
+          </a>
+
           {/* Network Status Badge */}
           {isOnline ? (
             <div className="hidden md:inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-medium">
@@ -305,6 +319,19 @@ export const Navbar: React.FC = () => {
                   <QrCode className="w-4 h-4 text-slate-500" />
                   <span>Show Store Payment QR</span>
                 </button>
+
+                <a
+                  href="https://wa.me/message/TNIXVEOIXK4PH1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowStoreMenu(false)}
+                  className="w-full text-left px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-2.5 font-bold cursor-pointer transition"
+                >
+                  <svg className="w-4 h-4 fill-[#25D366] shrink-0" viewBox="0 0 24 24">
+                    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.04 14.69 2 12.04 2Z" />
+                  </svg>
+                  <span>WhatsApp Store Bot (Chat)</span>
+                </a>
 
                 <button
                   onClick={() => {
