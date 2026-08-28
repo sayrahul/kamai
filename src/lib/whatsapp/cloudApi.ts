@@ -424,6 +424,8 @@ export async function sendWhatsAppOTP(toPhone: string, otpCode: string): Promise
       if (errCode === 131005 || errMsg.includes('131005') || errMsg.toLowerCase().includes('access denied')) {
         isAccessDenied = true;
         helpfulMsg = `(#131005) Access Denied by Meta: Your WhatsApp App in Meta Developer Portal is in Development Mode. To receive OTPs on this number, either add +${cleanPhone} to the "To" test recipient list in Meta Developer Portal (WhatsApp > API Setup), or switch your Meta App to Live Mode.`;
+      } else if (errMsg.includes('Unsupported post request') || errMsg.includes('Object with ID') || (phoneId.length === 10 && /^\d{10}$/.test(phoneId))) {
+        helpfulMsg = `Meta API Configuration Error: WHATSAPP_PHONE_NUMBER_ID is set to a 10-digit mobile number (${phoneId}) instead of Meta's 15-16 digit Phone Number ID. Please copy the numeric "Phone number ID" from Meta Developer Portal (WhatsApp > API Setup) and set it in your environment variables.`;
       } else if (errCode === 131030) {
         helpfulMsg = `(#131030) Template not found or not approved. Ensure 'kamaiplus_auth_otp' is approved in en_US language on your WhatsApp Business Account.`;
       } else if (errCode === 190) {
