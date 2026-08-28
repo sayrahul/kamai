@@ -443,6 +443,10 @@ assert(formatRecipientPhone('09876543210') === '919876543210', 'Recipient phone 
 assert(typeof sendWhatsAppWelcomeMessage === 'function', 'sendWhatsAppWelcomeMessage helper function exported');
 assert(typeof sendWhatsAppLoginAlert === 'function', 'sendWhatsAppLoginAlert helper function exported');
 
+// 8. Shop Owner Daily Sales Summary & PDF Report Tests
+const samplePdfBuffer = Buffer.from('%PDF-1.4 Daily Report Sample Content');
+assert(isValidPdfBuffer(samplePdfBuffer) === true, 'Daily closing PDF buffer validated with %PDF- header');
+
 console.log('');
 console.log('================================================================');
 console.log(`📊 SIMULATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED (${failedTests} failures)`);

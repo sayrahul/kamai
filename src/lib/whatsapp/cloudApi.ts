@@ -1,4 +1,4 @@
-const WHATSAPP_API_VERSION = 'v20.0';
+export const WHATSAPP_API_VERSION = 'v20.0';
 const DEFAULT_DEV_PHONE_ID = '828389810357376'; // Development fallback only
 
 export interface WhatsAppSendResult {

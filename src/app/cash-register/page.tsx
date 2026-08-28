@@ -245,29 +245,52 @@ export default function CashRegisterPage() {
     }
   };
 
-  // WhatsApp Z-Report Dispatch to Owner
-  const handleSendZReportWhatsApp = () => {
-    if (!business) return;
-    const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    const msg = 
-      `📊 *DAILY BUSINESS Z-REPORT (${dateStr})*\n` +
-      `🏪 *${business.name}*\n\n` +
-      `💵 *CASH DRAWER TALLY:*\n` +
-      `• Opening Float: ${formatINR(openingFloatPaise)}\n` +
-      `• Cash Sales: ${formatINR(cashSalesTotalPaise)}\n` +
-      `• Cash Expenses: -${formatINR(cashExpensesPaise)}\n` +
-      `👉 *Expected Cash in Till:* ${formatINR(expectedCashInTillPaise)}\n` +
-      `👉 *Actual Counted Cash:* ${formatINR(actualCountedCashPaise)}\n` +
-      `⚖️ *Variance:* ${formatINR(cashVariancePaise)} (${cashVariancePaise === 0 ? 'Balanced' : cashVariancePaise > 0 ? 'Surplus' : 'Short'})\n\n` +
-      `📱 *NON-CASH SUMMARY:*\n` +
-      `• UPI / QR Collections: ${formatINR(upiSalesTotalPaise)}\n` +
-      `• Customer Credit Extended: ${formatINR(creditSalesTotalPaise)}\n` +
-      `• Total Invoices: ${todaySales.length} bills\n\n` +
-      `_Generated automatically via KamaiPlus POS_`;
+  // WhatsApp Z-Report Dispatch to Owner via Official WhatsApp Cloud API
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [whatsAppNotice, setWhatsAppNotice] = useState<string | null>(null);
 
-    const cleanPhone = (business.phone || '').replace(/[^0-9]/g, '');
-    const targetPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+  const handleSendZReportWhatsApp = async () => {
+    if (!business) return;
+    setIsSendingWhatsApp(true);
+    setWhatsAppNotice(null);
+
+    const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const targetPhone = business.phone || '';
+
+    try {
+      const res = await fetch('/api/reports/send-daily-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toPhone: targetPhone,
+          storeName: business.name || 'My Store',
+          ownerName: business.owner_name || 'Store Owner',
+          dateFormatted: dateStr,
+          timeFormatted: timeStr,
+          summary: {
+            totalInvoices: todaySales.length,
+            grossSales: formatINR(cashSalesTotalPaise + upiSalesTotalPaise + creditSalesTotalPaise),
+            cashSales: formatINR(cashSalesTotalPaise),
+            upiSales: formatINR(upiSalesTotalPaise),
+            creditSales: formatINR(creditSalesTotalPaise),
+            totalExpenses: formatINR(cashExpensesPaise),
+            netCash: formatINR(actualCountedCashPaise || expectedCashInTillPaise),
+          },
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setWhatsAppNotice(`✅ Z-Report sent directly to owner WhatsApp (+91 ${targetPhone.slice(-10)})`);
+      } else {
+        setWhatsAppNotice(`⚠️ WhatsApp notice: ${data.error || 'Failed to dispatch'}`);
+      }
+    } catch (err: any) {
+      setWhatsAppNotice(`⚠️ Could not contact WhatsApp API.`);
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
   };
 
   return (
