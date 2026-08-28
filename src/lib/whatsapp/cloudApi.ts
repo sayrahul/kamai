@@ -499,3 +499,144 @@ export async function sendWhatsAppOTP(toPhone: string, otpCode: string): Promise
     isAccessDenied: lastIsAccessDenied,
   };
 }
+
+/**
+ * Sends a freeform text message over Meta WhatsApp Cloud API during the 24-hour service window (Zero Meta Fee)
+ */
+export async function sendWhatsAppFreeformTextMessage(
+  toPhone: string,
+  textBody: string
+): Promise<WhatsAppSendResult> {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN?.trim() || '';
+  const { phoneId, error: phoneIdError } = getWhatsAppPhoneId();
+
+  if (phoneIdError || !phoneId) {
+    return {
+      success: false,
+      error: phoneIdError || 'WhatsApp Phone Number ID is not configured.',
+    };
+  }
+
+  const cleanPhone = formatRecipientPhone(toPhone);
+  if (!cleanPhone || cleanPhone.length < 10) {
+    return {
+      success: false,
+      error: 'Invalid recipient phone number.',
+    };
+  }
+
+  if (!token) {
+    return {
+      success: false,
+      error: 'WhatsApp Access Token is not configured.',
+    };
+  }
+
+  try {
+    const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${phoneId}/messages`;
+    const payload = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: cleanPhone,
+      type: 'text',
+      text: {
+        preview_url: true,
+        body: textBody,
+      },
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.messages?.[0]?.id) {
+      return {
+        success: true,
+        messageId: data.messages[0].id,
+        method: 'cloud-api-text',
+      };
+    }
+
+    return {
+      success: false,
+      error: data.error?.message || 'Failed to send WhatsApp text message.',
+      errorCode: data.error?.code,
+    };
+  } catch (err: any) {
+    console.error('WhatsApp text message exception:', err?.message || err);
+    return {
+      success: false,
+      error: err?.message || 'Network error while contacting WhatsApp API.',
+    };
+  }
+}
+
+/**
+ * Sends an English celebratory Welcome Message & Starter Guide to newly registered merchants
+ */
+export async function sendWhatsAppWelcomeMessage(params: {
+  phone: string;
+  storeName: string;
+  ownerName?: string;
+  category?: string;
+  appUrl?: string;
+}): Promise<WhatsAppSendResult> {
+  const { phone, storeName, ownerName = 'Merchant', category = 'Retail', appUrl = 'https://kamai-kappa.vercel.app' } = params;
+
+  const textBody = 
+`🎉 *Welcome to KamaiPlus POS!* 🚀
+━━━━━━━━━━━━━━━━━━━━
+Hello *${ownerName}*, your digital billing and store setup for *"${storeName}"* is now active!
+
+✨ *Your Store Capabilities:*
+• ⚡ 3-Second Fast Billing (100% Offline POS)
+• 📲 WhatsApp Digital Invoices & Receipts
+• 📒 Digital Customer Khata & Auto-Payment Reminders
+• 📊 Daily Profit Summary & GST Reports
+
+📦 *Category: ${category}* (Starter products have been seeded to your catalog).
+
+👉 *Open POS Counter & Start Billing:*
+${appUrl}
+
+💡 *Need assistance?* Reply to this message anytime with *'HELP'* or *'SUPPORT'*.
+━━━━━━━━━━━━━━━━━━━━
+_KamaiPlus — Smart Retail Billing Platform_`;
+
+  return sendWhatsAppFreeformTextMessage(phone, textBody);
+}
+
+/**
+ * Sends an English Login Confirmation Alert to returning merchants
+ */
+export async function sendWhatsAppLoginAlert(params: {
+  phone: string;
+  storeName: string;
+  ownerName?: string;
+  appUrl?: string;
+}): Promise<WhatsAppSendResult> {
+  const { phone, storeName, ownerName = 'Merchant', appUrl = 'https://kamai-kappa.vercel.app' } = params;
+  const nowStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+
+  const textBody = 
+`✅ *KamaiPlus Login Successful*
+━━━━━━━━━━━━━━━━━━━━
+Hello *${ownerName}*, your POS billing session for *"${storeName}"* is now active and synced! 🔄
+
+📅 *Time:* ${nowStr} (IST)
+📍 *Status:* POS Counter Ready & Synced
+
+👉 *Continue Billing:* ${appUrl}
+
+_If you did not initiate this login, please contact support immediately._`;
+
+  return sendWhatsAppFreeformTextMessage(phone, textBody);
+}
+

@@ -112,6 +112,18 @@ export async function POST(req: NextRequest) {
                   const handshakeRes = verifyHandshakeSessionByMessage(rawFrom, textBody);
                   if (handshakeRes.verified) {
                     console.log(`🎉 [Reverse Handshake Success] Verified login for ${fromMasked} with code ${handshakeRes.code}`);
+                    
+                    // Send instant English confirmation to user's WhatsApp
+                    try {
+                      const { sendWhatsAppLoginAlert } = await import('@/lib/whatsapp/cloudApi');
+                      await sendWhatsAppLoginAlert({
+                        phone: rawFrom,
+                        storeName: 'KamaiPlus POS',
+                        ownerName: 'Merchant',
+                      });
+                    } catch (replyErr) {
+                      console.warn('Instant handshake reply notice:', replyErr);
+                    }
                   }
                 } catch (hErr) {
                   console.warn('Reverse handshake processing error:', hErr);

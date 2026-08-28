@@ -34,6 +34,9 @@ import { formatINR } from '../src/lib/utils';
 import { parsePaymentNotification } from '../src/lib/payments/notificationParser';
 import { numberToHindiWords, numberToEnglishWords, soundboxEngine } from '../src/lib/payments/soundboxEngine';
 import { paymentBridge } from '../src/lib/payments/paymentBridge';
+import { formatRecipientPhone, isValidPdfBuffer, sendWhatsAppWelcomeMessage, sendWhatsAppLoginAlert } from '../src/lib/whatsapp/cloudApi';
+import { signOtpSessionToken, verifyStatelessOtp } from '../src/lib/auth/otpService';
+import { createHandshakeSession, verifyHandshakeSessionByMessage, getHandshakeStatus } from '../src/lib/auth/reverseHandshakeService';
 import crypto from 'crypto';
 
 let totalTests = 0;
@@ -342,9 +345,6 @@ assert(duplicateAttempt === false, 'Duplicate payment notification with same UTR
 // -----------------------------------------------------------------------------
 console.log('\n💬 SUITE 6: Official Meta WhatsApp Cloud API & Webhook Verification');
 
-import { formatRecipientPhone, isValidPdfBuffer } from '../src/lib/whatsapp/cloudApi';
-import { signOtpSessionToken, verifyStatelessOtp } from '../src/lib/auth/otpService';
-
 // 1. Recipient Phone Formatting E.164
 const formatted1 = formatRecipientPhone('9876543210');
 assert(formatted1 === '919876543210', '10-digit mobile number formatted to E.164 with 91 prefix');
@@ -424,7 +424,6 @@ const otpVerifyExpired = verifyStatelessOtp(testPhone, testOtp, expiredSessionTo
 assert(otpVerifyExpired.valid === false, 'Stateless OTP verification rejects expired token');
 
 // 6. Zero-Cost WhatsApp Reverse Click-to-Chat Handshake Tests
-const { createHandshakeSession, verifyHandshakeSessionByMessage, getHandshakeStatus } = require('../src/lib/auth/reverseHandshakeService');
 const hsSession = createHandshakeSession('127.0.0.1');
 assert(hsSession.code.startsWith('KP-'), 'Reverse handshake creates valid KP- prefixed code');
 assert(hsSession.whatsappUrl.includes('wa.me'), 'Reverse handshake generates valid wa.me deep-link');
@@ -437,6 +436,12 @@ assert(hsVerified.verified === true && hsVerified.phone === '9876543210', 'Incom
 
 const finalStatus = getHandshakeStatus(hsSession.code);
 assert(finalStatus.status === 'verified' && finalStatus.phone === '9876543210', 'Reverse handshake session reflects verified status with correct phone number');
+
+// 7. English Welcome & Login Confirmation WhatsApp Templates
+assert(formatRecipientPhone('9876543210') === '919876543210', 'Recipient phone format handles 10-digit number');
+assert(formatRecipientPhone('09876543210') === '919876543210', 'Recipient phone format strips leading zero');
+assert(typeof sendWhatsAppWelcomeMessage === 'function', 'sendWhatsAppWelcomeMessage helper function exported');
+assert(typeof sendWhatsAppLoginAlert === 'function', 'sendWhatsAppLoginAlert helper function exported');
 
 console.log('');
 console.log('================================================================');

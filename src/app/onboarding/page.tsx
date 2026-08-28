@@ -191,6 +191,20 @@ export default function OnboardingPage() {
         await syncProfileToCloud(businessId);
       } catch (e) {}
 
+      // Send celebratory English WhatsApp Welcome Kit in background if phone is present
+      if (cleanPhone) {
+        fetch('/api/auth/onboarding-welcome', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: cleanPhone,
+            storeName: cleanStoreName,
+            ownerName: cleanOwnerName,
+            category: businessType,
+          }),
+        }).catch(() => {});
+      }
+
       // 4. Navigate to dashboard with setup complete notification
       router.replace('/');
     } catch (err: any) {
