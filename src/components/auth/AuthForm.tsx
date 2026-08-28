@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithGoogle } from '@/lib/firebase/googleAuth';
 import { setStoredUser, AuthUser } from '@/lib/auth';
@@ -19,12 +19,16 @@ import {
   RefreshCw,
   ArrowRight,
   Lock,
-  ChevronRight
+  ChevronRight,
+  ExternalLink,
+  QrCode,
+  Copy,
+  Check
 } from 'lucide-react';
 
 export const AuthForm: React.FC = () => {
   const router = useRouter();
-  const [authMethod, setAuthMethod] = useState<'all' | 'google' | 'phone'>('all');
+  const [whatsappMode, setWhatsappMode] = useState<'handshake' | 'manual_otp'>('handshake');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
@@ -34,7 +38,14 @@ export const AuthForm: React.FC = () => {
   const [cooldown, setCooldown] = useState(0);
   const [welcomeMessage, setWelcomeMessage] = useState<string | null>(null);
 
-  // Countdown timer for WhatsApp OTP resend
+  // Reverse Handshake (Click-to-Chat) States
+  const [handshakeCode, setHandshakeCode] = useState<string | null>(null);
+  const [handshakeUrl, setHandshakeUrl] = useState<string | null>(null);
+  const [isHandshakeWaiting, setIsHandshakeWaiting] = useState<boolean>(false);
+  const [isCopied, setIsCopied] = useState<boolean>(false);
+  const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Countdown timer for manual WhatsApp OTP resend
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setInterval(() => {
@@ -43,11 +54,20 @@ export const AuthForm: React.FC = () => {
     return () => clearInterval(timer);
   }, [cooldown]);
 
+  // Clean up polling timer on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current);
+      }
+    };
+  }, []);
+
   /**
    * Universal Post-Authentication Handler
-   * Handles routing and cloud hydration for both Google OAuth and WhatsApp OTP
+   * Handles routing and local hydration for Google OAuth, WhatsApp Handshake, and WhatsApp OTP
    */
-  const handlePostAuth = async (authUser: {
+  const handlePostAuth = useCallback(async (authUser: {
     uid: string;
     phone?: string | null;
     email?: string | null;
@@ -77,7 +97,6 @@ export const AuthForm: React.FC = () => {
         // 2. Fallback check: Query collection `businesses` by user_uid, user_email or phone
         if (!merchantData) {
           try {
-            // Check by user_uid
             if (uid) {
               const uidQ = query(collection(firestore, 'businesses'), where('user_uid', '==', uid), limit(1));
               const uidSnap = await getDocs(uidQ);
@@ -86,7 +105,6 @@ export const AuthForm: React.FC = () => {
               }
             }
 
-            // Check by email
             if (!merchantData && cleanEmail) {
               const emailQ = query(collection(firestore, 'businesses'), where('user_email', '==', cleanEmail), limit(1));
               const emailSnap = await getDocs(emailQ);
@@ -95,7 +113,6 @@ export const AuthForm: React.FC = () => {
               }
             }
 
-            // Check by phone
             if (!merchantData && cleanPhone) {
               const phoneQ = query(collection(firestore, 'businesses'), where('phone', '==', cleanPhone), limit(1));
               const phoneSnap = await getDocs(phoneQ);
@@ -107,6 +124,17 @@ export const AuthForm: React.FC = () => {
             console.warn('businesses lookup fallback notice:', bErr);
           }
         }
+      }
+
+      // Check local Dexie if already initialized
+      if (!merchantData) {
+        try {
+          if (!localDb.isOpen()) await localDb.open();
+          const localBiz = await localDb.businesses.toCollection().first();
+          if (localBiz && (localBiz.phone === cleanPhone || (localBiz as any).user_uid === uid)) {
+            merchantData = localBiz;
+          }
+        } catch (lErr) {}
       }
 
       // CASE A: Returning User (Merchant document or business exists)
@@ -184,7 +212,6 @@ export const AuthForm: React.FC = () => {
         }, 1000);
       } else {
         // CASE B: First-Time User (Document Does NOT Exist)
-        // Store partial user session in storage indicating onboarding is incomplete (no business_id)
         const partialUser: AuthUser = {
           uid,
           id: uid,
@@ -197,16 +224,6 @@ export const AuthForm: React.FC = () => {
         };
         setStoredUser(partialUser);
 
-        // Wipe any stale local tables
-        try {
-          await localDb.sales.clear();
-          await localDb.customers.clear();
-          await localDb.products.clear();
-          await localDb.categories.clear();
-          await localDb.ledger_transactions.clear();
-          await localDb.businesses.clear();
-        } catch (e) {}
-
         // Navigate immediately to onboarding page
         router.replace('/onboarding');
       }
@@ -215,8 +232,34 @@ export const AuthForm: React.FC = () => {
       setError(err?.message || 'Failed to initialize merchant session.');
       setLoading(false);
       setOtpLoading(false);
+      setIsHandshakeWaiting(false);
     }
-  };
+  }, [router]);
+
+  /**
+   * Clipboard Auto-Paste Detector
+   * When user copies the 6-digit code from WhatsApp and focuses the app, auto-fill and auto-submit!
+   */
+  useEffect(() => {
+    const handleWindowFocus = async () => {
+      if (step === 'OTP' && typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.readText) {
+        try {
+          const clipboardText = await navigator.clipboard.readText();
+          const digitsOnly = (clipboardText || '').replace(/\D/g, '').slice(0, 6);
+          if (digitsOnly.length === 6 && digitsOnly !== otp) {
+            setOtp(digitsOnly);
+            // Trigger verification automatically
+            verifyOtpCode(digitsOnly);
+          }
+        } catch (clipErr) {
+          // Clipboard read may require user gesture in some browsers
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
+  }, [step, otp]);
 
   // Google OAuth Sign-In
   const handleGoogleSignIn = async () => {
@@ -247,7 +290,78 @@ export const AuthForm: React.FC = () => {
     }
   };
 
-  // Send WhatsApp OTP
+  /**
+   * 1-Tap Reverse WhatsApp Handshake Initiator
+   * Zero Meta Fee: User taps button -> WhatsApp opens with prefilled text -> User taps send -> Instantly verified!
+   */
+  const handleStartReverseHandshake = async () => {
+    setError('');
+    setLoading(true);
+
+    if (pollingTimerRef.current) {
+      clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+
+    try {
+      const res = await fetch('/api/auth/reverse-handshake/create', {
+        method: 'POST',
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.error || 'Could not start WhatsApp handshake.');
+        setLoading(false);
+        return;
+      }
+
+      setHandshakeCode(data.code);
+      setHandshakeUrl(data.whatsappUrl);
+      setIsHandshakeWaiting(true);
+      setLoading(false);
+
+      // Open WhatsApp deep-link immediately
+      window.open(data.whatsappUrl, '_blank');
+
+      // Start polling status every 1.5 seconds
+      pollingTimerRef.current = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`/api/auth/reverse-handshake/status?code=${data.code}`);
+          const statusData = await statusRes.json();
+
+          if (statusData.verified && statusData.user) {
+            if (pollingTimerRef.current) {
+              clearInterval(pollingTimerRef.current);
+              pollingTimerRef.current = null;
+            }
+            setIsHandshakeWaiting(false);
+
+            await handlePostAuth({
+              uid: statusData.user.id || statusData.user.uid,
+              phone: statusData.user.phone,
+              name: statusData.user.name,
+            });
+          } else if (statusData.status === 'expired') {
+            if (pollingTimerRef.current) {
+              clearInterval(pollingTimerRef.current);
+              pollingTimerRef.current = null;
+            }
+            setIsHandshakeWaiting(false);
+            setError('Handshake expired. Please tap the button again.');
+          }
+        } catch (pollErr) {
+          console.warn('Handshake status poll notice:', pollErr);
+        }
+      }, 1500);
+    } catch (err: any) {
+      console.error('Reverse Handshake Exception:', err);
+      setError(err?.message || 'Failed to connect to WhatsApp authentication service.');
+      setLoading(false);
+      setIsHandshakeWaiting(false);
+    }
+  };
+
+  // Send Manual WhatsApp OTP
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const cleanPhone = phoneNumber.replace(/\D/g, '').slice(-10);
@@ -272,9 +386,7 @@ export const AuthForm: React.FC = () => {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        // If requireSignup is true or failed dispatch, allow proceeding to OTP for onboarding
         if (data.requireSignup) {
-          // Send OTP directly
           const directRes = await fetch('/api/auth/send-whatsapp-otp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -304,11 +416,10 @@ export const AuthForm: React.FC = () => {
     }
   };
 
-  // Verify WhatsApp OTP
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Reusable verify OTP code function
+  const verifyOtpCode = async (codeToVerify: string) => {
     const cleanPhone = phoneNumber.replace(/\D/g, '').slice(-10);
-    const cleanOtp = otp.trim();
+    const cleanOtp = codeToVerify.trim();
 
     if (!cleanOtp || cleanOtp.length !== 6) {
       setError('Please enter the complete 6-digit WhatsApp OTP.');
@@ -351,6 +462,19 @@ export const AuthForm: React.FC = () => {
     }
   };
 
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    verifyOtpCode(otp);
+  };
+
+  const handleCopyCode = () => {
+    if (handshakeCode) {
+      navigator.clipboard?.writeText(handshakeCode);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
   return (
     <div className="w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl relative overflow-hidden text-white">
       {/* Top Gradient Glow Accent */}
@@ -362,7 +486,7 @@ export const AuthForm: React.FC = () => {
           Welcome to KamaiPlus
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          Offline-First Billing POS &amp; Cloud Sync Platform
+          Offline-First Billing POS &amp; Digital Khata Platform
         </p>
       </div>
 
@@ -388,14 +512,14 @@ export const AuthForm: React.FC = () => {
       )}
 
       <div className="space-y-4">
-        {/* Method 1: Google OAuth Sign-In Button */}
+        {/* Method 1: Google OAuth Sign-In Button (Primary 1-Tap) */}
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          disabled={loading || otpLoading || !!welcomeMessage}
+          disabled={loading || otpLoading || isHandshakeWaiting || !!welcomeMessage}
           className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm shadow-xl hover:shadow-2xl transition-all duration-200 border border-slate-200 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
         >
-          {loading ? (
+          {loading && !isHandshakeWaiting ? (
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
               <span>Authenticating with Google...</span>
@@ -417,125 +541,232 @@ export const AuthForm: React.FC = () => {
         <div className="relative flex py-1 items-center">
           <div className="flex-grow border-t border-slate-800" />
           <span className="flex-shrink mx-3 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-500">
-            Or with WhatsApp OTP
+            Or with WhatsApp
           </span>
           <div className="flex-grow border-t border-slate-800" />
         </div>
 
-        {/* Method 2: WhatsApp OTP Flow */}
-        {step === 'PHONE' ? (
-          <form onSubmit={handleSendOtp} className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                WhatsApp / Mobile Number
-              </label>
-              <div className="flex rounded-xl overflow-hidden border border-slate-800 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition bg-slate-950">
-                <div className="flex items-center gap-1.5 px-3.5 py-3 bg-slate-900/90 border-r border-slate-800 text-slate-200 text-xs font-bold select-none flex-shrink-0">
-                  <span className="text-sm">🇮🇳</span>
-                  <span className="text-emerald-400 font-mono">+91</span>
-                </div>
-                <input
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={10}
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                  placeholder="98765 43210"
-                  required
-                  disabled={loading || otpLoading}
-                  className="flex-1 px-4 py-3 bg-transparent text-white text-base font-mono tracking-wide placeholder:text-slate-600 placeholder:font-sans focus:outline-none"
-                />
-              </div>
-            </div>
+        {/* WhatsApp Sub-Tabs (Reverse Handshake vs Manual OTP) */}
+        <div className="grid grid-cols-2 p-1 bg-slate-950/80 rounded-2xl border border-slate-800/80 text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => { setWhatsappMode('handshake'); setError(''); }}
+            className={`py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              whatsappMode === 'handshake'
+                ? 'bg-emerald-500 text-slate-950 shadow-md font-black'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>1-Tap WhatsApp ⚡</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setWhatsappMode('manual_otp'); setError(''); }}
+            className={`py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              whatsappMode === 'manual_otp'
+                ? 'bg-amber-400 text-slate-950 shadow-md font-black'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Phone className="w-3.5 h-3.5" />
+            <span>Enter OTP Code</span>
+          </button>
+        </div>
 
-            <button
-              type="submit"
-              disabled={loading || otpLoading || phoneNumber.length < 10}
-              className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-slate-950 font-black text-sm rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              {otpLoading ? (
-                <span className="flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
-                  <span>Sending WhatsApp Code...</span>
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 fill-slate-950 text-slate-950" />
-                  <span>Send WhatsApp OTP</span>
-                  <ArrowRight className="w-4 h-4" />
-                </span>
-              )}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyOtp} className="space-y-4 animate-in fade-in duration-200">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Enter 6-Digit WhatsApp Code
-                </label>
-                <span className="text-xs text-emerald-400 font-mono font-bold">
-                  +91 {phoneNumber}
-                </span>
-              </div>
+        {/* ------------------------------------------------------------- */}
+        {/* OPTION 1: 1-Tap Reverse WhatsApp Handshake (Zero Meta Cost) */}
+        {/* ------------------------------------------------------------- */}
+        {whatsappMode === 'handshake' && (
+          <div className="p-4 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-3.5 animate-in fade-in duration-150">
+            {!isHandshakeWaiting ? (
+              <div className="text-center space-y-3">
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Opens WhatsApp with a verification text. Tap <span className="text-emerald-400 font-bold">Send</span> to sign in with zero OTP typing.
+                </p>
 
-              <div className="relative">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="123456"
-                  autoFocus
-                  required
-                  disabled={otpLoading}
-                  className="w-full py-3.5 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:outline-none text-white text-center text-2xl tracking-[0.5em] font-mono placeholder:text-slate-700 placeholder:tracking-normal transition"
-                />
-              </div>
-
-              <div className="flex items-center justify-between mt-2.5 text-xs">
                 <button
                   type="button"
-                  onClick={() => { setStep('PHONE'); setOtp(''); setError(''); }}
-                  className="text-slate-400 hover:text-white underline transition"
+                  onClick={handleStartReverseHandshake}
+                  disabled={loading || !!welcomeMessage}
+                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-slate-950 font-black text-sm rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  Change Number
+                  <MessageSquare className="w-4 h-4 fill-slate-950 text-slate-950" />
+                  <span>Launch 1-Tap WhatsApp Login 🚀</span>
                 </button>
+              </div>
+            ) : (
+              <div className="text-center space-y-3 py-1 animate-in zoom-in-95 duration-200">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto">
+                  <RefreshCw className="w-6 h-6 text-emerald-400 animate-spin" />
+                </div>
 
-                {cooldown > 0 ? (
-                  <span className="text-slate-400 font-mono">Resend in {cooldown}s</span>
-                ) : (
+                <div>
+                  <h4 className="text-sm font-bold text-white">Waiting for WhatsApp message...</h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Tap &quot;Send&quot; in WhatsApp. Your screen will unlock automatically!
+                  </p>
+                </div>
+
+                {handshakeCode && (
+                  <div className="flex items-center justify-center gap-2 p-2 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-amber-400">
+                    <span>Code: <strong>{handshakeCode}</strong></span>
+                    <button
+                      type="button"
+                      onClick={handleCopyCode}
+                      className="p-1 text-slate-400 hover:text-white transition"
+                      title="Copy Code"
+                    >
+                      {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-1">
+                  {handshakeUrl && (
+                    <a
+                      href={handshakeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-2 px-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-emerald-500/30 transition"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open WhatsApp Again</span>
+                    </a>
+                  )}
                   <button
                     type="button"
-                    onClick={() => handleSendOtp()}
-                    disabled={otpLoading}
-                    className="text-emerald-400 hover:text-emerald-300 font-bold underline transition"
+                    onClick={() => { setIsHandshakeWaiting(false); }}
+                    className="py-2 px-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-xs font-medium hover:text-white transition"
                   >
-                    Resend Code
+                    Cancel
                   </button>
-                )}
+                </div>
               </div>
-            </div>
+            )}
+          </div>
+        )}
 
-            <button
-              type="submit"
-              disabled={otpLoading || otp.length !== 6}
-              className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-slate-950 font-black text-sm rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              {otpLoading ? (
-                <span className="flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
-                  <span>Verifying Code...</span>
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Verify &amp; Continue 🚀</span>
-                </span>
-              )}
-            </button>
-          </form>
+        {/* ------------------------------------------------------------- */}
+        {/* OPTION 2: Manual WhatsApp OTP Flow */}
+        {/* ------------------------------------------------------------- */}
+        {whatsappMode === 'manual_otp' && (
+          <div className="animate-in fade-in duration-150">
+            {step === 'PHONE' ? (
+              <form onSubmit={handleSendOtp} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                    WhatsApp / Mobile Number
+                  </label>
+                  <div className="flex rounded-xl overflow-hidden border border-slate-800 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition bg-slate-950">
+                    <div className="flex items-center gap-1.5 px-3.5 py-3 bg-slate-900/90 border-r border-slate-800 text-slate-200 text-xs font-bold select-none flex-shrink-0">
+                      <span className="text-sm">🇮🇳</span>
+                      <span className="text-emerald-400 font-mono">+91</span>
+                    </div>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                      placeholder="98765 43210"
+                      required
+                      disabled={loading || otpLoading}
+                      className="flex-1 px-4 py-3 bg-transparent text-white text-base font-mono tracking-wide placeholder:text-slate-600 placeholder:font-sans focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || otpLoading || phoneNumber.length < 10}
+                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-slate-950 font-black text-sm rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {otpLoading ? (
+                    <span className="flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
+                      <span>Sending WhatsApp Code...</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 fill-slate-950 text-slate-950" />
+                      <span>Send WhatsApp OTP</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </span>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} className="space-y-4 animate-in fade-in duration-200">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Enter 6-Digit WhatsApp Code
+                    </label>
+                    <span className="text-xs text-emerald-400 font-mono font-bold">
+                      +91 {phoneNumber}
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                      placeholder="123456"
+                      autoFocus
+                      required
+                      disabled={otpLoading}
+                      className="w-full py-3.5 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:outline-none text-white text-center text-2xl tracking-[0.5em] font-mono placeholder:text-slate-700 placeholder:tracking-normal transition"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => { setStep('PHONE'); setOtp(''); setError(''); }}
+                      className="text-slate-400 hover:text-white underline transition"
+                    >
+                      Change Number
+                    </button>
+
+                    {cooldown > 0 ? (
+                      <span className="text-slate-400 font-mono">Resend in {cooldown}s</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSendOtp()}
+                        disabled={otpLoading}
+                        className="text-emerald-400 hover:text-emerald-300 font-bold underline transition"
+                      >
+                        Resend Code
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={otpLoading || otp.length !== 6}
+                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-slate-950 font-black text-sm rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {otpLoading ? (
+                    <span className="flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
+                      <span>Verifying Code...</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Verify &amp; Continue 🚀</span>
+                    </span>
+                  )}
+                </button>
+              </form>
+            )}
+          </div>
         )}
 
         {/* Feature Highlights */}

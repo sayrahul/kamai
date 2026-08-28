@@ -423,6 +423,21 @@ const expiredSessionToken = signOtpSessionToken(testPhone, testOtp, Date.now() -
 const otpVerifyExpired = verifyStatelessOtp(testPhone, testOtp, expiredSessionToken);
 assert(otpVerifyExpired.valid === false, 'Stateless OTP verification rejects expired token');
 
+// 6. Zero-Cost WhatsApp Reverse Click-to-Chat Handshake Tests
+const { createHandshakeSession, verifyHandshakeSessionByMessage, getHandshakeStatus } = require('../src/lib/auth/reverseHandshakeService');
+const hsSession = createHandshakeSession('127.0.0.1');
+assert(hsSession.code.startsWith('KP-'), 'Reverse handshake creates valid KP- prefixed code');
+assert(hsSession.whatsappUrl.includes('wa.me'), 'Reverse handshake generates valid wa.me deep-link');
+
+const initialStatus = getHandshakeStatus(hsSession.code);
+assert(initialStatus.status === 'pending', 'New reverse handshake session begins in pending status');
+
+const hsVerified = verifyHandshakeSessionByMessage('919876543210', `Please verify my KamaiPlus POS login: ${hsSession.code}`);
+assert(hsVerified.verified === true && hsVerified.phone === '9876543210', 'Incoming WhatsApp message verifies handshake and extracts authentic phone number');
+
+const finalStatus = getHandshakeStatus(hsSession.code);
+assert(finalStatus.status === 'verified' && finalStatus.phone === '9876543210', 'Reverse handshake session reflects verified status with correct phone number');
+
 console.log('');
 console.log('================================================================');
 console.log(`📊 SIMULATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED (${failedTests} failures)`);

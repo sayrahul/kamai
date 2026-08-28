@@ -96,11 +96,27 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // 2. Incoming Messages from Customers
+          // 2. Incoming Messages from Customers & Reverse Handshake Verification
           if (value.messages && Array.isArray(value.messages)) {
             for (const msg of value.messages) {
-              const fromMasked = msg.from ? `+${msg.from.slice(0, 4)}****${msg.from.slice(-2)}` : 'Unknown';
-              console.log(`[Incoming WhatsApp Msg] From: ${fromMasked}, Type: ${msg.type}`);
+              const rawFrom = msg.from || '';
+              const fromMasked = rawFrom ? `+${rawFrom.slice(0, 4)}****${rawFrom.slice(-2)}` : 'Unknown';
+              const textBody = msg.text?.body || '';
+
+              console.log(`[Incoming WhatsApp Msg] From: ${fromMasked}, Type: ${msg.type}, Text: "${textBody}"`);
+
+              // Check Reverse Handshake Login
+              if (rawFrom && textBody) {
+                try {
+                  const { verifyHandshakeSessionByMessage } = await import('@/lib/auth/reverseHandshakeService');
+                  const handshakeRes = verifyHandshakeSessionByMessage(rawFrom, textBody);
+                  if (handshakeRes.verified) {
+                    console.log(`🎉 [Reverse Handshake Success] Verified login for ${fromMasked} with code ${handshakeRes.code}`);
+                  }
+                } catch (hErr) {
+                  console.warn('Reverse handshake processing error:', hErr);
+                }
+              }
             }
           }
         }
