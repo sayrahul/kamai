@@ -48,7 +48,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     requestPersistentStorage();
   }, []);
 
-  // --- AUTH, SESSION & BACKGROUND CLOUD SYNC LOGIC ---
+  // --- AUTH, SESSION, ROUTE GUARDING & BACKGROUND CLOUD SYNC ---
   useEffect(() => {
     setIsClient(true);
     initFirebaseAppCheck();
@@ -66,10 +66,39 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     window.addEventListener('auth_changed', handleAuthChange);
     window.addEventListener('storage', handleAuthChange);
 
+    // Route classifications
     const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
-    const isPublicRoute = pathname === '/admin' || pathname.startsWith('/admin') || pathname === '/auth' || pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || isCustomerInvoice;
+    const isLegalOrPublic = pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || pathname === '/admin' || pathname.startsWith('/admin');
+    const isAuthRoute = pathname === '/auth';
+    const isOnboardingRoute = pathname === '/onboarding';
+    const isPublicRoute = isCustomerInvoice || isLegalOrPublic || isAuthRoute || isOnboardingRoute;
 
-    // Verify session with server API (/api/auth/me)
+    // --- SMART ROUTE GUARDING TO PREVENT REDIRECT LOOPS ---
+    if (!cachedUser) {
+      // 1. If not authenticated and not on a public route, redirect to /auth
+      if (!isPublicRoute && pathname !== '/auth') {
+        router.replace('/auth');
+        return;
+      }
+    } else {
+      const hasBusinessId = Boolean(cachedUser.business_id && cachedUser.business_id !== 'biz_pending');
+
+      if (!hasBusinessId) {
+        // 2. If authenticated but lacks business_id (onboarding incomplete), redirect dashboard routes to /onboarding
+        if (!isOnboardingRoute && !isLegalOrPublic && !isCustomerInvoice && pathname !== '/auth') {
+          router.replace('/onboarding');
+          return;
+        }
+      } else {
+        // 3. If authenticated with complete business_id and visits /auth or /onboarding, redirect to /
+        if (isAuthRoute || isOnboardingRoute) {
+          router.replace('/');
+          return;
+        }
+      }
+    }
+
+    // Verify session with server API (/api/auth/me) in the background
     const checkServerSession = async () => {
       try {
         const res = await fetch('/api/auth/me');
@@ -81,9 +110,10 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               id: data.user.id,
               phone: data.user.phone,
               name: data.user.name,
-              role: data.user.role,
+              role: data.user.role || 'admin',
               business_id: data.user.business_id,
               business_name: data.business?.name || data.user.business_name || 'My Store',
+              shop_name: data.business?.name || data.user.business_name || 'My Store',
             };
             setStoredUser(verifiedUser);
             setCurrentUser(verifiedUser);
@@ -95,8 +125,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 data.business.subscription_valid_until || data.business.subscription_expires_at
               );
             }
-          } else if (!isPublicRoute && navigator.onLine && !cachedUser) {
-            router.replace('/auth');
           }
         }
       } catch (err) {
@@ -112,12 +140,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         if (!localDb.isOpen()) {
           await localDb.open();
         }
-        if (!isPublicRoute && !cachedUser) {
-          router.replace('/auth');
-          return;
-        }
 
-        // Auto-align cloud store if mobile local DB is empty or has a different store/type
+        // Auto-align cloud store if local DB has a different store/type
         if (cachedUser?.business_id && cachedUser.business_id !== 'biz_pending' && typeof navigator !== 'undefined' && navigator.onLine) {
           const localBiz = await localDb.businesses.toCollection().first();
           if (!localBiz || localBiz.id !== cachedUser.business_id) {
@@ -160,7 +184,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }
 
   // Protected routes check
-  if (!currentUser) {
+  if (!currentUser || !currentUser.business_id || currentUser.business_id === 'biz_pending') {
     return (
       <main className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400" />

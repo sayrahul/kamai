@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import { GoogleAuthCard } from '@/components/auth/GoogleAuthCard';
+import { AuthForm } from '@/components/auth/AuthForm';
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
 
@@ -11,7 +11,7 @@ export default function AuthPage() {
     <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
       {/* Subtle Background Glow Elements */}
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10 flex flex-col items-center">
         {/* Official Brand Logo & Header */}
@@ -37,8 +37,8 @@ export default function AuthPage() {
           </p>
         </div>
 
-        {/* The Google OAuth Sign-In Card */}
-        <GoogleAuthCard />
+        {/* Unified Authentication Card (Google OAuth + WhatsApp OTP) */}
+        <AuthForm />
 
         {/* Footer legal links */}
         <div className="mt-6 flex items-center justify-center gap-4 text-xs text-slate-500 font-medium">
