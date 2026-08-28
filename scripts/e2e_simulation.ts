@@ -464,6 +464,10 @@ assert(parseOwnerIntent('/sales') === 'SALES', 'Owner Bot recognizes Meta comman
 assert(parseOwnerIntent('/stock') === 'STOCK', 'Owner Bot recognizes Meta command "/stock"');
 assert(parseOwnerIntent('/khata') === 'KHATA', 'Owner Bot recognizes Meta command "/khata"');
 assert(parseOwnerIntent('/pdf') === 'PDF', 'Owner Bot recognizes Meta command "/pdf"');
+assert(parseOwnerIntent("Sales — Today's revenue & bills") === 'SALES', 'Owner Bot recognizes Icebreaker 1');
+assert(parseOwnerIntent("Stock — Low stock & reorder radar") === 'STOCK', 'Owner Bot recognizes Icebreaker 2');
+assert(parseOwnerIntent("Khata — Pending customer udhar") === 'KHATA', 'Owner Bot recognizes Icebreaker 3');
+assert(parseOwnerIntent("PDF — Day-End Closing PDF report") === 'PDF', 'Owner Bot recognizes Icebreaker 4');
 
 console.log('');
 console.log('================================================================');

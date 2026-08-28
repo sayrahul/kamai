@@ -27,12 +27,14 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     text === 'help' ||
     text === 'start' ||
     text === 'kamai' ||
-    text === 'kamaiplus'
+    text === 'kamaiplus' ||
+    text.startsWith('hi ') ||
+    text.startsWith('hello ')
   ) {
     return 'GREETING';
   }
 
-  // 2. Sales & Revenue
+  // 2. Sales & Revenue (matches "Sales — Today's revenue & bills", "1", "sales", "revenue", etc.)
   if (
     text === '1' ||
     text === 'sales' ||
@@ -40,15 +42,17 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     text === 'bikri' ||
     text === 'revenue' ||
     text === 'hisab' ||
-    text === 'todays sales' ||
-    text === "today's sales" ||
-    text === 'earning' ||
-    text === 'collection'
+    text.startsWith('sales') ||
+    text.includes('today') ||
+    text.includes('bikri') ||
+    text.includes('revenue') ||
+    text.includes('earning') ||
+    text.includes('collection')
   ) {
     return 'SALES';
   }
 
-  // 3. Stock & Inventory
+  // 3. Stock & Inventory (matches "Stock — Low stock & reorder radar", "2", "stock", etc.)
   if (
     text === '2' ||
     text === 'stock' ||
@@ -56,13 +60,15 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     text === 'low stock' ||
     text === 'low' ||
     text === 'reorder' ||
-    text === 'items' ||
-    text === 'mal'
+    text.startsWith('stock') ||
+    text.includes('inventory') ||
+    text.includes('reorder') ||
+    text.includes('mal')
   ) {
     return 'STOCK';
   }
 
-  // 4. Khata & Udhar
+  // 4. Khata & Udhar (matches "Khata — Pending customer udhar", "3", "khata", "udhar", etc.)
   if (
     text === '3' ||
     text === 'khata' ||
@@ -70,12 +76,15 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     text === 'credit' ||
     text === 'due' ||
     text === 'baki' ||
-    text === 'pending'
+    text.startsWith('khata') ||
+    text.includes('udhar') ||
+    text.includes('credit') ||
+    text.includes('pending')
   ) {
     return 'KHATA';
   }
 
-  // 5. PDF & Closing Report
+  // 5. PDF & Closing Report (matches "PDF — Day-End Closing PDF report", "4", "pdf", etc.)
   if (
     text === '4' ||
     text === 'pdf' ||
@@ -83,7 +92,10 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     text === 'closing' ||
     text === 'statement' ||
     text === 'z report' ||
-    text === 'download'
+    text.startsWith('pdf') ||
+    text.includes('closing') ||
+    text.includes('report') ||
+    text.includes('statement')
   ) {
     return 'PDF';
   }
