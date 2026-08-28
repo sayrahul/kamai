@@ -101,9 +101,9 @@ export async function POST(req: NextRequest) {
             for (const msg of value.messages) {
               const rawFrom = msg.from || '';
               const fromMasked = rawFrom ? `+${rawFrom.slice(0, 4)}****${rawFrom.slice(-2)}` : 'Unknown';
-              const textBody = msg.text?.body || '';
+              const textBody = msg.text?.body || msg.interactive?.button_reply?.id || msg.interactive?.button_reply?.title || '';
 
-              console.log(`[Incoming WhatsApp Msg] From: ${fromMasked}, Type: ${msg.type}, Text: "${textBody}"`);
+              console.log(`[Incoming WhatsApp Msg] From: ${fromMasked}, Type: ${msg.type}, Text/Action: "${textBody}"`);
 
               // 2. Process Handshake Login OR Store Owner Bot Commands
               if (rawFrom && textBody) {

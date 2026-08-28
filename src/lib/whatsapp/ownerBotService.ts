@@ -2,6 +2,7 @@ import { getFirestoreDb } from '@/lib/firebase/config';
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { 
   sendWhatsAppFreeformTextMessage, 
+  sendWhatsAppInteractiveButtons,
   formatRecipientPhone 
 } from '@/lib/whatsapp/cloudApi';
 import { formatINR } from '@/lib/utils';
@@ -34,7 +35,7 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     return 'GREETING';
   }
 
-  // 2. Sales & Revenue (matches "Sales — Today's revenue & bills", "1", "sales", "revenue", etc.)
+  // 2. Sales & Revenue (matches "Sales — Today's revenue & bills", "btn_sales", "1", "sales", "revenue", etc.)
   if (
     text === '1' ||
     text === 'sales' ||
@@ -42,6 +43,7 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     text === 'bikri' ||
     text === 'revenue' ||
     text === 'hisab' ||
+    text === 'btn_sales' ||
     text.startsWith('sales') ||
     text.includes('today') ||
     text.includes('bikri') ||
@@ -52,7 +54,7 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     return 'SALES';
   }
 
-  // 3. Stock & Inventory (matches "Stock — Low stock & reorder radar", "2", "stock", etc.)
+  // 3. Stock & Inventory (matches "Stock — Low stock & reorder radar", "btn_stock", "2", "stock", etc.)
   if (
     text === '2' ||
     text === 'stock' ||
@@ -60,6 +62,7 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     text === 'low stock' ||
     text === 'low' ||
     text === 'reorder' ||
+    text === 'btn_stock' ||
     text.startsWith('stock') ||
     text.includes('inventory') ||
     text.includes('reorder') ||
@@ -68,7 +71,7 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     return 'STOCK';
   }
 
-  // 4. Khata & Udhar (matches "Khata — Pending customer udhar", "3", "khata", "udhar", etc.)
+  // 4. Khata & Udhar (matches "Khata — Pending customer udhar", "btn_khata", "3", "khata", "udhar", etc.)
   if (
     text === '3' ||
     text === 'khata' ||
@@ -76,6 +79,7 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     text === 'credit' ||
     text === 'due' ||
     text === 'baki' ||
+    text === 'btn_khata' ||
     text.startsWith('khata') ||
     text.includes('udhar') ||
     text.includes('credit') ||
@@ -84,7 +88,7 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     return 'KHATA';
   }
 
-  // 5. PDF & Closing Report (matches "PDF — Day-End Closing PDF report", "4", "pdf", etc.)
+  // 5. PDF & Closing Report (matches "PDF — Day-End Closing PDF report", "btn_pdf", "4", "pdf", etc.)
   if (
     text === '4' ||
     text === 'pdf' ||
@@ -92,6 +96,7 @@ export function parseOwnerIntent(rawText: string): OwnerIntent {
     text === 'closing' ||
     text === 'statement' ||
     text === 'z report' ||
+    text === 'btn_pdf' ||
     text.startsWith('pdf') ||
     text.includes('closing') ||
     text.includes('report') ||
@@ -170,21 +175,21 @@ export async function handleOwnerBotMessage(fromPhone: string, messageBody: stri
     // INTENT 1: GREETINGS / MAIN MENU
     // =========================================================================
     if (intent === 'GREETING') {
-      let menuText = `🙏 *Namaste ${ownerName} ji!*\n`;
-      menuText += `Welcome to *${storeName}* WhatsApp Assistant 🏪\n`;
-      menuText += `📅 ${dateFormatted} | ⏰ ${timeFormatted}\n`;
-      menuText += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+      let bodyText = `Welcome to *${storeName}* Assistant 🏪\n`;
+      bodyText += `📅 ${dateFormatted} | ⏰ ${timeFormatted}\n\n`;
+      bodyText += `Tap a quick action button below or reply *1* (Sales), *2* (Stock), *3* (Khata), *4* (PDF):`;
 
-      menuText += `Reply with a *number* or *keyword* to get instant data:\n\n`;
-      menuText += `1️⃣ *Sales* — Today's revenue & bills\n`;
-      menuText += `2️⃣ *Stock* — Low stock & reorder radar\n`;
-      menuText += `3️⃣ *Khata* — Pending customer udhar\n`;
-      menuText += `4️⃣ *PDF*   — Day-End Closing PDF report\n\n`;
-
-      menuText += `━━━━━━━━━━━━━━━━━━━━\n`;
-      menuText += `_KamaiPlus Store Bot • Zero Meta Fees_ ⚡`;
-
-      await sendWhatsAppFreeformTextMessage(fromPhone, menuText);
+      await sendWhatsAppInteractiveButtons({
+        toPhone: fromPhone,
+        headerText: `🙏 Namaste ${ownerName.slice(0, 45)} ji!`,
+        bodyText,
+        footerText: 'KamaiPlus Store Assistant • Free ⚡',
+        buttons: [
+          { id: 'btn_sales', title: "📊 Today's Sales" },
+          { id: 'btn_stock', title: '📦 Stock Radar' },
+          { id: 'btn_khata', title: '📒 Pending Khata' },
+        ],
+      });
       return { success: true, intent };
     }
 

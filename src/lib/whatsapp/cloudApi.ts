@@ -8,7 +8,7 @@ export interface WhatsAppSendResult {
   error?: string;
   errorCode?: number;
   isAccessDenied?: boolean;
-  method?: 'cloud-api' | 'cloud-api-media' | 'cloud-api-text';
+  method?: 'cloud-api' | 'cloud-api-media' | 'cloud-api-text' | 'cloud-api-interactive';
 }
 
 export interface WhatsAppInvoicePayload {
@@ -575,6 +575,94 @@ export async function sendWhatsAppFreeformTextMessage(
       success: false,
       error: err?.message || 'Network error while contacting WhatsApp API.',
     };
+  }
+}
+
+/**
+ * Sends interactive Quick-Reply Buttons (tappable button pills) via Meta WhatsApp Cloud API
+ */
+export async function sendWhatsAppInteractiveButtons(params: {
+  toPhone: string;
+  bodyText: string;
+  headerText?: string;
+  footerText?: string;
+  buttons: { id: string; title: string }[];
+}): Promise<WhatsAppSendResult> {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN?.trim() || '';
+  const { phoneId, error: phoneIdError } = getWhatsAppPhoneId();
+
+  if (phoneIdError || !phoneId) {
+    return {
+      success: false,
+      error: phoneIdError || 'WhatsApp Phone Number ID is not configured.',
+    };
+  }
+
+  const cleanPhone = formatRecipientPhone(params.toPhone);
+  if (!cleanPhone) {
+    return { success: false, error: 'Invalid recipient phone number.' };
+  }
+
+  // Meta allows max 3 buttons for quick reply
+  const formattedButtons = params.buttons.slice(0, 3).map((btn) => ({
+    type: 'reply',
+    reply: {
+      id: btn.id.slice(0, 256),
+      title: btn.title.slice(0, 20), // Meta max 20 chars for button title
+    },
+  }));
+
+  const payload: any = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: cleanPhone,
+    type: 'interactive',
+    interactive: {
+      type: 'button',
+      body: { text: params.bodyText.slice(0, 1024) },
+      action: { buttons: formattedButtons },
+    },
+  };
+
+  if (params.headerText) {
+    payload.interactive.header = {
+      type: 'text',
+      text: params.headerText.slice(0, 60),
+    };
+  }
+
+  if (params.footerText) {
+    payload.interactive.footer = {
+      text: params.footerText.slice(0, 60),
+    };
+  }
+
+  try {
+    const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${phoneId}/messages`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.messages?.[0]?.id) {
+      return {
+        success: true,
+        messageId: data.messages[0].id,
+        method: 'cloud-api-interactive',
+      };
+    }
+
+    console.warn('Interactive button fallback notice:', data.error?.message);
+    return sendWhatsAppFreeformTextMessage(params.toPhone, params.bodyText);
+  } catch (err: any) {
+    console.error('Interactive button exception:', err);
+    return sendWhatsAppFreeformTextMessage(params.toPhone, params.bodyText);
   }
 }
 
