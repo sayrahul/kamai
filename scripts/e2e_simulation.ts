@@ -34,7 +34,14 @@ import { formatINR } from '../src/lib/utils';
 import { parsePaymentNotification } from '../src/lib/payments/notificationParser';
 import { numberToHindiWords, numberToEnglishWords, soundboxEngine } from '../src/lib/payments/soundboxEngine';
 import { paymentBridge } from '../src/lib/payments/paymentBridge';
-import { formatRecipientPhone, isValidPdfBuffer, sendWhatsAppWelcomeMessage, sendWhatsAppLoginAlert } from '../src/lib/whatsapp/cloudApi';
+import { 
+  formatRecipientPhone, 
+  isValidPdfBuffer, 
+  sendWhatsAppWelcomeMessage, 
+  sendWhatsAppLoginAlert,
+  sendWhatsAppKhataReminderMessage,
+  sendWhatsAppCustomNotification
+} from '../src/lib/whatsapp/cloudApi';
 import { signOtpSessionToken, verifyStatelessOtp } from '../src/lib/auth/otpService';
 import { createHandshakeSession, verifyHandshakeSessionByMessage, getHandshakeStatus } from '../src/lib/auth/reverseHandshakeService';
 import { parseOwnerIntent } from '../src/lib/whatsapp/ownerBotService';
@@ -438,11 +445,13 @@ assert(hsVerified.verified === true && hsVerified.phone === '9876543210', 'Incom
 const finalStatus = getHandshakeStatus(hsSession.code);
 assert(finalStatus.status === 'verified' && finalStatus.phone === '9876543210', 'Reverse handshake session reflects verified status with correct phone number');
 
-// 7. English Welcome & Login Confirmation WhatsApp Templates
+// 7. English Welcome & Customer WhatsApp Templates
 assert(formatRecipientPhone('9876543210') === '919876543210', 'Recipient phone format handles 10-digit number');
 assert(formatRecipientPhone('09876543210') === '919876543210', 'Recipient phone format strips leading zero');
 assert(typeof sendWhatsAppWelcomeMessage === 'function', 'sendWhatsAppWelcomeMessage helper function exported');
 assert(typeof sendWhatsAppLoginAlert === 'function', 'sendWhatsAppLoginAlert helper function exported');
+assert(typeof sendWhatsAppKhataReminderMessage === 'function', 'sendWhatsAppKhataReminderMessage helper function exported');
+assert(typeof sendWhatsAppCustomNotification === 'function', 'sendWhatsAppCustomNotification helper function exported');
 
 // 8. Shop Owner Daily Sales Summary & PDF Report Tests
 const samplePdfBuffer = Buffer.from('%PDF-1.4 Daily Report Sample Content');

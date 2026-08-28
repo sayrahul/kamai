@@ -31,7 +31,8 @@ import {
   Pill,
   Wrench,
   ShieldCheck,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -57,6 +58,13 @@ export default function InventoryPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const [isExcelImporterOpen, setIsExcelImporterOpen] = useState(false);
   const [isRapidInwardOpen, setIsRapidInwardOpen] = useState(false);
+
+  const [invToast, setInvToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
+
+  const showInvToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setInvToast({ message, type });
+    setTimeout(() => setInvToast(null), 4000);
+  };
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const storeProfile = getStoreProfile(business?.business_type);
   const products = useLiveQuery(async () => {
@@ -239,8 +247,8 @@ export default function InventoryPage() {
     );
   };
 
-  // 1-Click WhatsApp Purchase Order Dispatch
-  const handleSendWhatsAppPO = (supplier: Supplier | null, items: Product[]) => {
+  // 1-Click WhatsApp Purchase Order Dispatch (Direct Cloud API)
+  const handleSendWhatsAppPO = async (supplier: Supplier | null, items: Product[]) => {
     const storeName = business?.name || 'My Store';
     const storePhone = business?.phone || '';
     const storeAddress = business?.address || '';
@@ -271,13 +279,37 @@ export default function InventoryPage() {
     message += `Please confirm order availability and dispatch timing. Thank you!`;
 
     const phone = supplier?.phone?.replace(/[^0-9]/g, '') || '';
-    const targetPhone = phone.length === 10 ? `91${phone}` : phone;
-    const url = `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    if (!phone) {
+      showInvToast('⚠️ Supplier has no phone number attached.', 'error');
+      return;
+    }
+    const cleanPhone = phone.slice(-10);
+    showInvToast(`📲 Dispatching Purchase Order to +91${cleanPhone}...`, 'info');
+
+    try {
+      const response = await fetch('/api/whatsapp/send-campaign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: supplier?.phone,
+          customerName: supplier?.name,
+          message,
+          campaignTitle: 'Supplier Purchase Order',
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        showInvToast(`✅ Purchase Order sent to +91${cleanPhone}!`, 'success');
+      } else {
+        showInvToast(`⚠️ ${data.error || 'Failed to dispatch PO'}`, 'error');
+      }
+    } catch (err: any) {
+      showInvToast(`⚠️ ${err?.message || 'Network error'}`, 'error');
+    }
   };
 
-  // 1-Click WhatsApp Return Request for Expired Items
-  const handleSendReturnRequest = (product: Product) => {
+  // 1-Click WhatsApp Return Request for Expired Items (Direct Cloud API)
+  const handleSendReturnRequest = async (product: Product) => {
     const sup = product.supplier_id ? supplierMap.get(product.supplier_id) : null;
     const storeName = business?.name || 'My Store';
     let msg = `⚠️ *STOCK RETURN / REPLACEMENT REQUEST*\n\n`;
@@ -289,8 +321,33 @@ export default function InventoryPage() {
     msg += `This batch is expiring / expired. Please arrange a return credit note or fresh batch replacement during next delivery. Thank you!`;
 
     const phone = sup?.phone?.replace(/[^0-9]/g, '') || '';
-    const targetPhone = phone.length === 10 ? `91${phone}` : phone;
-    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+    if (!phone) {
+      showInvToast('⚠️ No supplier phone found for this product.', 'error');
+      return;
+    }
+    const cleanPhone = phone.slice(-10);
+    showInvToast(`📲 Dispatching return request to +91${cleanPhone}...`, 'info');
+
+    try {
+      const response = await fetch('/api/whatsapp/send-campaign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: sup?.phone,
+          customerName: sup?.name,
+          message: msg,
+          campaignTitle: 'Stock Return Request',
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        showInvToast(`✅ Return request sent to +91${cleanPhone}!`, 'success');
+      } else {
+        showInvToast(`⚠️ ${data.error || 'Failed to dispatch return request'}`, 'error');
+      }
+    } catch (err: any) {
+      showInvToast(`⚠️ ${err?.message || 'Network error'}`, 'error');
+    }
   };
 
   // Open Batch / Variant Editor Modal
@@ -1281,11 +1338,21 @@ export default function InventoryPage() {
         businessName={business?.name || 'Your Store'}
       />
 
-      {/* Rapid Barcode Stock Inward (Stock In / Mal Aavya) Modal */}
-      <RapidBarcodeInwardModal
-        isOpen={isRapidInwardOpen}
-        onClose={() => setIsRapidInwardOpen(false)}
-      />
+      {/* Floating In-App Toast Notification */}
+      {invToast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200 ${
+          invToast.type === 'success'
+            ? 'bg-emerald-950/95 border-emerald-500/50 text-emerald-100 shadow-emerald-950/40'
+            : invToast.type === 'info'
+            ? 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/40'
+            : 'bg-rose-950/95 border-rose-500/50 text-rose-100 shadow-rose-950/40'
+        }`}>
+          {invToast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+          {invToast.type === 'info' && <Sparkles className="w-4 h-4 text-sky-400 shrink-0 animate-pulse" />}
+          {invToast.type === 'error' && <span className="text-sm shrink-0">⚠️</span>}
+          <span>{invToast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

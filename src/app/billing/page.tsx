@@ -5,7 +5,8 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { Product, Customer, CartItem, PaymentMethod, ProductUnit } from '@/types';
-import { formatINR, generateWhatsAppReceiptLink, parseRupeesToPaise, generateUPILink, cn } from '@/lib/utils';
+import { formatINR, parseRupeesToPaise, generateUPILink, cn } from '@/lib/utils';
+import { sendInvoiceViaOfficialCloudApi } from '@/lib/invoices/whatsappInvoice';
 import QRCode from 'qrcode';
 import { playBeepSound } from '@/lib/voice/speechParser';
 import { PlatformAnalytics } from '@/lib/firebase/analytics';
@@ -330,6 +331,12 @@ export default function BillingPage() {
   const { language, t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [billingToast, setBillingToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
+
+  const showBillingToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setBillingToast({ message, type });
+    setTimeout(() => setBillingToast(null), 4000);
+  };
 
   // Multi-Bill Tabs State
   const [tabs, setTabs] = useState<BillTab[]>(() => getInitialTabs().tabs);
@@ -2551,11 +2558,26 @@ export default function BillingPage() {
               setIsInvoiceModalOpen(true);
             }
           }}
-          onShareWhatsApp={() => {
-            if (activeSaleForInvoice && activeSaleForInvoice.customer_phone) {
-              const msg = `Namaste! Receipt for your purchase at ${business?.name}: Bill #${activeSaleForInvoice.invoice_number}, Total: ${formatINR(activeSaleForInvoice.grand_total)}. Thank you!`;
-              const waUrl = generateWhatsAppReceiptLink(activeSaleForInvoice.customer_phone, msg);
-              window.open(waUrl, '_blank');
+          onShareWhatsApp={async () => {
+            if (activeSaleForInvoice && activeSaleForInvoice.customer_phone && business) {
+              const cleanPhone = activeSaleForInvoice.customer_phone.replace(/\D/g, '').slice(-10);
+              showBillingToast(`📲 Dispatching WhatsApp bill to +91${cleanPhone}...`, 'info');
+              try {
+                const res = await sendInvoiceViaOfficialCloudApi(
+                  activeSaleForInvoice.customer_phone,
+                  activeSaleForInvoice,
+                  business
+                );
+                if (res.sent) {
+                  showBillingToast(`✅ WhatsApp bill sent to +91${cleanPhone}!`, 'success');
+                } else {
+                  showBillingToast(`⚠️ ${res.error || 'WhatsApp delivery failed'}`, 'error');
+                }
+              } catch (err: any) {
+                showBillingToast(`⚠️ ${err?.message || 'Failed to dispatch WhatsApp bill'}`, 'error');
+              }
+            } else if (!activeSaleForInvoice?.customer_phone) {
+              showBillingToast('⚠️ No customer phone number attached to this bill.', 'error');
             }
           }}
         />
@@ -2567,6 +2589,22 @@ export default function BillingPage() {
         onClose={() => setIsUpgradeModalOpen(false)}
         businessName={business?.name || 'Your Store'}
       />
+
+      {/* Floating In-App Toast Notification */}
+      {billingToast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200 ${
+          billingToast.type === 'success'
+            ? 'bg-emerald-950/95 border-emerald-500/50 text-emerald-100 shadow-emerald-950/40'
+            : billingToast.type === 'info'
+            ? 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/40'
+            : 'bg-rose-950/95 border-rose-500/50 text-rose-100 shadow-rose-950/40'
+        }`}>
+          {billingToast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+          {billingToast.type === 'info' && <Sparkles className="w-4 h-4 text-sky-400 shrink-0 animate-pulse" />}
+          {billingToast.type === 'error' && <span className="text-sm shrink-0">⚠️</span>}
+          <span>{billingToast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

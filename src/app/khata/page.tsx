@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
-import { formatINR, generateWhatsAppReceiptLink, generateUPILink } from '@/lib/utils';
+import { formatINR, generateUPILink } from '@/lib/utils';
 import { LedgerTransaction, Customer } from '@/types';
 import { 
   BookOpen, 
@@ -30,7 +30,8 @@ import {
   Check,
   TrendingDown,
   TrendingUp,
-  FileText
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -343,25 +344,48 @@ function KhataContent() {
     showToast(`Cleared Khata history for ${selectedCustomer.name}`);
   };
 
-  // WhatsApp Payment Reminder Message Builder
-  const getWhatsAppReminderUrl = () => {
-    if (!selectedCustomer || !selectedCustomer.phone) return '#';
+  // WhatsApp Payment Reminder State & Dispatcher
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
 
-    const storeName = business?.name || 'our store';
-    const dueAmount = formatINR(selectedCustomer.current_balance || 0);
-    const upiLink = business?.upi_id 
-      ? generateUPILink(business.upi_id, storeName, selectedCustomer.current_balance)
-      : '';
-
-    let message = `नमस्ते ${selectedCustomer.name} जी,\n\n`;
-    message += `आपके ${storeName} के खाते का कुल बकाया ₹${dueAmount} है।\n`;
-    message += `कृपया सुविधानुसार भुगतान करें।\n`;
-    if (business?.upi_id) {
-      message += `\n📲 UPI से भुगतान करने के लिए यहाँ क्लिक करें:\n${upiLink}\nUPI ID: ${business.upi_id}\n`;
+  const handleSendWhatsAppReminder = async () => {
+    if (!selectedCustomer || !selectedCustomer.phone) {
+      showToast('⚠️ No phone number saved for this customer');
+      return;
     }
-    message += `\nधन्यवाद!\n- ${storeName}`;
+    if ((selectedCustomer.current_balance || 0) <= 0) {
+      showToast('✅ Customer has zero pending balance (Udhar)');
+      return;
+    }
 
-    return generateWhatsAppReceiptLink(selectedCustomer.phone, message);
+    const cleanPhone = selectedCustomer.phone.replace(/\D/g, '').slice(-10);
+    setIsSendingReminder(true);
+    showToast(`📲 Dispatching WhatsApp reminder to +91${cleanPhone}...`);
+
+    try {
+      const response = await fetch('/api/whatsapp/send-khata-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: selectedCustomer.phone,
+          customerName: selectedCustomer.name,
+          balanceDue: selectedCustomer.current_balance,
+          businessName: business?.name || 'Our Store',
+          storePhone: business?.phone,
+          upiId: business?.upi_id,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showToast(`✅ WhatsApp reminder sent to +91${cleanPhone}!`);
+      } else {
+        showToast(`⚠️ ${data.error || 'Failed to dispatch WhatsApp reminder'}`);
+      }
+    } catch (err: any) {
+      showToast(`⚠️ ${err?.message || 'Network error sending reminder'}`);
+    } finally {
+      setIsSendingReminder(false);
+    }
   };
 
   return (
@@ -708,15 +732,19 @@ function KhataContent() {
                 {/* Secondary Actions Strip: WhatsApp & Settle */}
                 <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
                   {selectedCustomer.phone ? (
-                    <a
-                      href={getWhatsAppReminderUrl()}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 font-bold flex items-center gap-1.5 border border-emerald-200 transition-colors"
+                    <button
+                      type="button"
+                      onClick={handleSendWhatsAppReminder}
+                      disabled={isSendingReminder}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 font-bold flex items-center gap-1.5 border border-emerald-200 transition-colors cursor-pointer disabled:opacity-50"
                     >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      <span>Send WhatsApp Reminder</span>
-                    </a>
+                      {isSendingReminder ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                      ) : (
+                        <MessageCircle className="w-3.5 h-3.5" />
+                      )}
+                      <span>{isSendingReminder ? 'Sending...' : 'Send WhatsApp Reminder'}</span>
+                    </button>
                   ) : <div />}
 
                   <button

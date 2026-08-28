@@ -728,3 +728,61 @@ _If you did not initiate this login, please contact support immediately._`;
   return sendWhatsAppFreeformTextMessage(phone, textBody);
 }
 
+/**
+ * Sends an official WhatsApp Khata (Udhar) Payment Reminder to customers
+ */
+export async function sendWhatsAppKhataReminderMessage(params: {
+  phone: string;
+  customerName: string;
+  storeName: string;
+  balanceDueFormatted: string;
+  storePhone?: string;
+  upiId?: string;
+  upiLink?: string;
+  customNote?: string;
+}): Promise<WhatsAppSendResult> {
+  const {
+    phone,
+    customerName,
+    storeName,
+    balanceDueFormatted,
+    storePhone,
+    upiId,
+    upiLink,
+    customNote,
+  } = params;
+
+  let textBody = `🙏 *नमस्ते ${customerName} जी,*\n━━━━━━━━━━━━━━━━━━━━\n`;
+  textBody += `आपके *${storeName}* के खाते का कुल बकाया राशि:\n`;
+  textBody += `💰 *कुल बकाया: ${balanceDueFormatted}*\n\n`;
+  textBody += `कृपया सुविधानुसार बकाया राशि का भुगतान करें।`;
+
+  if (upiLink && upiId) {
+    textBody += `\n\n📲 *UPI से 1-क्लिक भुगतान करें:*\n${upiLink}\n*UPI ID:* \`${upiId}\``;
+  } else if (upiId) {
+    textBody += `\n\n📲 *UPI ID:* \`${upiId}\``;
+  }
+
+  if (customNote) {
+    textBody += `\n\n📝 *नोट:* ${customNote}`;
+  }
+
+  if (storePhone) {
+    textBody += `\n📞 *संपर्क:* ${storePhone}`;
+  }
+
+  textBody += `\n━━━━━━━━━━━━━━━━━━━━\n_धन्यवाद! — ${storeName}_`;
+
+  return sendWhatsAppFreeformTextMessage(phone, textBody);
+}
+
+/**
+ * Sends a customized WhatsApp marketing or general notification to customers or suppliers
+ */
+export async function sendWhatsAppCustomNotification(params: {
+  phone: string;
+  message: string;
+}): Promise<WhatsAppSendResult> {
+  return sendWhatsAppFreeformTextMessage(params.phone, params.message);
+}
+

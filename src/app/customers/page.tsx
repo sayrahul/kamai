@@ -25,7 +25,8 @@ import {
   Calendar,
   Building2,
   ArrowUpRight,
-  UserCheck
+  UserCheck,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -38,10 +39,52 @@ export default function CustomersPage() {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'credit' | 'vip' | 'regular'>('all');
-  
-  // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [sendingWhatsAppCustId, setSendingWhatsAppCustId] = useState<string | null>(null);
+  const [custToast, setCustToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
+
+  const showCustToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setCustToast({ message, type });
+    setTimeout(() => setCustToast(null), 4000);
+  };
+
+  const handleSendCustomerGreeting = async (c: Customer) => {
+    if (!c.phone) {
+      showCustToast('⚠️ No phone number saved for this customer', 'error');
+      return;
+    }
+    const cleanPhone = c.phone.replace(/\D/g, '').slice(-10);
+    setSendingWhatsAppCustId(c.id);
+    showCustToast(`📲 Dispatching WhatsApp greeting to +91${cleanPhone}...`, 'info');
+
+    try {
+      const storeName = business?.name || 'Our Store';
+      const greetingMsg = `🙏 *नमस्ते ${c.name} जी,*\n━━━━━━━━━━━━━━━━━━━━\n*${storeName}* की तरफ से आपको हार्दिक शुभकामनाएं! ✨\n\nहमारी दुकान पर आने के लिए धन्यवाद। यदि आपको किसी भी उत्पाद की आवश्यकता है, तो बेझिझक संपर्क करें।\n\n📞 *संपर्क:* ${business?.phone || ''}\n━━━━━━━━━━━━━━━━━━━━\n_${storeName} — Smart Billing_`;
+
+      const response = await fetch('/api/whatsapp/send-campaign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: c.phone,
+          customerName: c.name,
+          message: greetingMsg,
+          campaignTitle: 'Customer Greeting',
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showCustToast(`✅ WhatsApp greeting delivered to +91${cleanPhone}!`, 'success');
+      } else {
+        showCustToast(`⚠️ ${data.error || 'Failed to dispatch WhatsApp message'}`, 'error');
+      }
+    } catch (err: any) {
+      showCustToast(`⚠️ ${err?.message || 'Network error'}`, 'error');
+    } finally {
+      setSendingWhatsAppCustId(null);
+    }
+  };
 
   // Form states
   const [name, setName] = useState('');
@@ -501,17 +544,19 @@ export default function CustomersPage() {
 
               <div className="flex items-center gap-1.5">
                 {c.phone && (
-                  <a
-                    href={`https://wa.me/91${c.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
-                      `Hello ${c.name}, greeting from ${business?.name || 'our store'}!`
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 transition-colors"
-                    title="Send WhatsApp Message"
+                  <button
+                    type="button"
+                    onClick={() => handleSendCustomerGreeting(c)}
+                    disabled={sendingWhatsAppCustId === c.id}
+                    className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 transition-colors cursor-pointer disabled:opacity-50"
+                    title="Send WhatsApp Greeting (Direct Cloud API)"
                   >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                  </a>
+                    {sendingWhatsAppCustId === c.id ? (
+                      <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
+                    ) : (
+                      <MessageCircle className="w-3.5 h-3.5" />
+                    )}
+                  </button>
                 )}
 
                 <Link href={`/khata?search=${encodeURIComponent(c.phone || c.name)}`}>
@@ -685,6 +730,21 @@ export default function CustomersPage() {
           </div>
         </form>
       </Modal>
+      {/* Floating In-App Toast Notification */}
+      {custToast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200 ${
+          custToast.type === 'success'
+            ? 'bg-emerald-950/95 border-emerald-500/50 text-emerald-100 shadow-emerald-950/40'
+            : custToast.type === 'info'
+            ? 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/40'
+            : 'bg-rose-950/95 border-rose-500/50 text-rose-100 shadow-rose-950/40'
+        }`}>
+          {custToast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+          {custToast.type === 'info' && <Sparkles className="w-4 h-4 text-sky-400 shrink-0 animate-pulse" />}
+          {custToast.type === 'error' && <span className="text-sm shrink-0">⚠️</span>}
+          <span>{custToast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

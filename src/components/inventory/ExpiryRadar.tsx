@@ -87,18 +87,50 @@ export function ExpiryRadar() {
     setTimeout(() => setDiscountAppliedMsg(null), 3500);
   };
 
-  // Generate WhatsApp return note for distributor / supplier
-  const handleSendSupplierReturnNote = (item: typeof analyzedItems[0]) => {
-    const text = encodeURIComponent(
-      `*⚠️ Expiry Return Request - Store Notice*\n\n` +
+  // Generate and dispatch WhatsApp return note for distributor / supplier
+  const handleSendSupplierReturnNote = async (item: typeof analyzedItems[0]) => {
+    let targetPhone = '';
+    if (item.product.supplier_id) {
+      const sup = await db.suppliers.get(item.product.supplier_id);
+      if (sup?.phone) targetPhone = sup.phone;
+    }
+
+    const note = `*⚠️ Expiry Return Request - Store Notice*\n\n` +
       `*Product:* ${item.product.name}\n` +
       `*Batch No:* ${item.product.batch_number || 'N/A'}\n` +
       `*Expiry Date:* ${item.product.expiry_date}\n` +
       `*Available Units:* ${item.product.current_stock} ${item.product.unit || 'pcs'}\n` +
       `*Estimated Value:* ${formatINR(item.totalRiskPaise)}\n\n` +
-      `Please arrange replacement or credit note for these near-expiry/expired items.`
-    );
-    window.open(`https://wa.me/?text=${text}`, '_blank');
+      `Please arrange replacement or credit note for these near-expiry/expired items.`;
+
+    if (targetPhone) {
+      const cleanPhone = targetPhone.replace(/\D/g, '').slice(-10);
+      setDiscountAppliedMsg(`Dispatching WhatsApp return request to +91${cleanPhone}...`);
+      try {
+        const response = await fetch('/api/whatsapp/send-campaign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: targetPhone,
+            customerName: 'Supplier',
+            message: note,
+            campaignTitle: 'Expiry Return Request',
+          }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          setDiscountAppliedMsg(`✅ WhatsApp return request dispatched to +91${cleanPhone}!`);
+        } else {
+          setDiscountAppliedMsg(`⚠️ ${data.error || 'Failed to dispatch WhatsApp note'}`);
+        }
+      } catch {
+        setDiscountAppliedMsg('⚠️ Could not connect to WhatsApp API.');
+      }
+    } else {
+      navigator.clipboard.writeText(note);
+      setDiscountAppliedMsg('📋 No supplier phone attached. Copied return note to clipboard!');
+    }
+    setTimeout(() => setDiscountAppliedMsg(null), 4000);
   };
 
   return (

@@ -4,9 +4,9 @@ import React, { useState } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
-import { formatINR, generateWhatsAppReceiptLink, cn } from '@/lib/utils';
+import { formatINR, cn } from '@/lib/utils';
 import { Sale, Customer, CartItem, PaymentMethod } from '@/types';
-import { sendInvoiceViaWhatsApp } from '@/lib/invoices/whatsappInvoice';
+import { sendInvoiceViaOfficialCloudApi } from '@/lib/invoices/whatsappInvoice';
 import { generateTallyPrimeXML } from '@/lib/tally/tallyXmlGenerator';
 import { 
   Receipt, 
@@ -28,7 +28,9 @@ import {
   ChevronRight,
   RotateCcw,
   Edit3,
-  Trash2
+  Trash2,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -201,15 +203,41 @@ export default function TransactionsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const [sendingWhatsAppSaleId, setSendingWhatsAppSaleId] = useState<string | null>(null);
+  const [txToast, setTxToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
+
+  const showTxToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setTxToast({ message, type });
+    setTimeout(() => setTxToast(null), 4000);
+  };
+
   const handleOpenInvoice = (sale: Sale) => {
     setActiveSaleForInvoice(sale);
     setIsInvoiceModalOpen(true);
   };
 
-  const handleSendWhatsApp = (sale: Sale, e: React.MouseEvent) => {
+  const handleSendWhatsApp = async (sale: Sale, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!business) return;
-    sendInvoiceViaWhatsApp(sale.customer_phone || '', sale, business);
+    if (!sale.customer_phone) {
+      showTxToast('⚠️ No customer phone number attached to this bill.', 'error');
+      return;
+    }
+    const cleanPhone = sale.customer_phone.replace(/\D/g, '').slice(-10);
+    setSendingWhatsAppSaleId(sale.id);
+    showTxToast(`📲 Sending WhatsApp bill to +91${cleanPhone}...`, 'info');
+    try {
+      const res = await sendInvoiceViaOfficialCloudApi(sale.customer_phone, sale, business);
+      if (res.sent) {
+        showTxToast(`✅ WhatsApp bill sent to +91${cleanPhone}!`, 'success');
+      } else {
+        showTxToast(`⚠️ ${res.error || 'WhatsApp delivery failed'}`, 'error');
+      }
+    } catch (err: any) {
+      showTxToast(`⚠️ ${err?.message || 'Failed to dispatch WhatsApp bill'}`, 'error');
+    } finally {
+      setSendingWhatsAppSaleId(null);
+    }
   };
 
   const clearAllFilters = () => {
@@ -765,10 +793,15 @@ export default function TransactionsPage() {
                       <button
                         type="button"
                         onClick={(e) => handleSendWhatsApp(sale, e)}
+                        disabled={sendingWhatsAppSaleId === sale.id}
                         title="Send WhatsApp Invoice"
-                        className="p-1 rounded-md border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-700 cursor-pointer shadow-2xs transition"
+                        className="p-1 rounded-md border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-700 cursor-pointer shadow-2xs transition disabled:opacity-50"
                       >
-                        <MessageCircle className="w-3 h-3 text-emerald-600" />
+                        {sendingWhatsAppSaleId === sale.id ? (
+                          <Loader2 className="w-3 h-3 text-emerald-600 animate-spin" />
+                        ) : (
+                          <MessageCircle className="w-3 h-3 text-emerald-600" />
+                        )}
                       </button>
 
                       {/* Print */}
@@ -867,6 +900,21 @@ export default function TransactionsPage() {
         onClose={() => setIsUpgradeModalOpen(false)}
         businessName={business?.name || 'Your Store'}
       />
+      {/* Floating In-App Toast Notification */}
+      {txToast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200 ${
+          txToast.type === 'success'
+            ? 'bg-emerald-950/95 border-emerald-500/50 text-emerald-100 shadow-emerald-950/40'
+            : txToast.type === 'info'
+            ? 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/40'
+            : 'bg-rose-950/95 border-rose-500/50 text-rose-100 shadow-rose-950/40'
+        }`}>
+          {txToast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+          {txToast.type === 'info' && <Sparkles className="w-4 h-4 text-sky-400 shrink-0 animate-pulse" />}
+          {txToast.type === 'error' && <span className="text-sm shrink-0">⚠️</span>}
+          <span>{txToast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

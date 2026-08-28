@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
-import { formatINR, generateWhatsAppReceiptLink } from '@/lib/utils';
+import { formatINR } from '@/lib/utils';
 import { Customer, BusinessType } from '@/types';
 import { getStoreProfile } from '@/lib/constants/storeProfiles';
 import { 
@@ -31,7 +31,8 @@ import {
   ChevronRight,
   Filter,
   Crown,
-  Lock
+  Lock,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -452,13 +453,49 @@ export default function GrowthPage() {
       .replace(/{{validity_days}}/g, String(validityDaysVal));
   };
 
-  // Trigger Individual WhatsApp Greeting (Pro Gated)
+  const [sendingCustId, setSendingCustId] = useState<string | null>(null);
+  const [growthToast, setGrowthToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
+
+  const showGrowthToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setGrowthToast({ message, type });
+    setTimeout(() => setGrowthToast(null), 4000);
+  };
+
+  // Trigger Individual WhatsApp Greeting (Pro Gated via Meta Cloud API)
   const handleSendToCustomer = (customer: Customer) => {
-    requirePro(() => {
+    requirePro(async () => {
+      if (!customer.phone) {
+        showGrowthToast('⚠️ Customer has no phone number attached.', 'error');
+        return;
+      }
       const message = getCompiledMessage(customer.name);
-      const cleanPhone = (customer.phone || '').replace(/[^0-9]/g, '');
-      const targetPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-      window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, '_blank');
+      const cleanPhone = customer.phone.replace(/\D/g, '').slice(-10);
+      setSendingCustId(customer.id);
+      showGrowthToast(`📲 Dispatching campaign offer to +91${cleanPhone}...`, 'info');
+
+      try {
+        const response = await fetch('/api/whatsapp/send-campaign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: customer.phone,
+            customerName: customer.name,
+            message,
+            campaignTitle: selectedCampaign.name,
+          }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          showGrowthToast(`✅ Campaign offer delivered to +91${cleanPhone}!`, 'success');
+        } else {
+          showGrowthToast(`⚠️ ${data.error || 'Failed to dispatch campaign message'}`, 'error');
+        }
+      } catch (err: any) {
+        showGrowthToast(`⚠️ ${err?.message || 'Network error'}`, 'error');
+      } finally {
+        setSendingCustId(null);
+      }
     });
   };
 
@@ -849,10 +886,15 @@ export default function GrowthPage() {
                 <Button
                   size="sm"
                   onClick={() => handleSendToCustomer(cust)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 shadow-xs"
+                  disabled={sendingCustId === cust.id}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send WhatsApp</span>
+                  {sendingCustId === cust.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Send className="w-3.5 h-3.5" />
+                  )}
+                  <span>{sendingCustId === cust.id ? 'Sending...' : 'Send WhatsApp'}</span>
                 </Button>
               </div>
             ))
@@ -866,6 +908,22 @@ export default function GrowthPage() {
         onClose={() => setIsUpgradeModalOpen(false)}
         businessName={business?.name || 'Your Store'}
       />
+
+      {/* Floating In-App Toast Notification */}
+      {growthToast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200 ${
+          growthToast.type === 'success'
+            ? 'bg-emerald-950/95 border-emerald-500/50 text-emerald-100 shadow-emerald-950/40'
+            : growthToast.type === 'info'
+            ? 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/40'
+            : 'bg-rose-950/95 border-rose-500/50 text-rose-100 shadow-rose-950/40'
+        }`}>
+          {growthToast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+          {growthToast.type === 'info' && <Sparkles className="w-4 h-4 text-sky-400 shrink-0 animate-pulse" />}
+          {growthToast.type === 'error' && <span className="text-sm shrink-0">⚠️</span>}
+          <span>{growthToast.message}</span>
+        </div>
+      )}
     </div>
   );
 }
