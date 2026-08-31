@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Platform Settings & Broadcast Announcements (Public read, Authenticated write)
+    match /platform_settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 2. WhatsApp Reverse Handshake sessions (Used for instant QR/wa.me auto-login)
+    match /reverse_handshakes/{handshakeId} {
+      allow read, write: if true;
+    }
+
+    // 3. Merchants profile lookup
+    match /merchants/{merchantId} {
+      allow read, write: if true;
+    }
+
+    // 4. Business Stores and all nested sub-collections (products, sales, customers, categories, etc.)
+    match /businesses/{businessId} {
+      allow read, write: if true;
+
+      match /{subcollection}/{docId} {
+        allow read, write: if true;
+      }
+    }
+
+    // 5. Fallback root collections for POS cloud synchronization
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

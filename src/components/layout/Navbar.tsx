@@ -156,13 +156,24 @@ export const Navbar: React.FC = () => {
             href="https://wa.me/message/TNIXVEOIXK4PH1"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold cursor-pointer transition shadow-2xs"
-            title="Chat with KamaiPlus Store Bot on WhatsApp"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100/90 text-emerald-950 text-xs font-bold cursor-pointer transition shadow-2xs hover:shadow-xs active:scale-95"
+            title="Chat with Official KamaiPlus WhatsApp Assistant"
           >
-            <svg className="w-3.5 h-3.5 fill-[#25D366] shrink-0" viewBox="0 0 24 24">
-              <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.04 14.69 2 12.04 2Z" />
+            {/* Official Meta WhatsApp 2-Color Vector Logo */}
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M20.52 3.48A11.93 11.93 0 0 0 12.04 0C5.45 0 .09 5.36.09 11.95c0 2.1.55 4.16 1.6 5.97L0 24l6.23-1.63a11.9 11.9 0 0 0 5.8 1.5h.01c6.59 0 11.95-5.36 11.95-11.95 0-3.19-1.24-6.19-3.47-8.44z"
+                fill="#25D366"
+              />
+              <path
+                d="M17.47 14.38c-.29-.15-1.75-.87-2.02-.97-.27-.1-.47-.15-.67.15-.2.29-.76.97-.93 1.17-.17.2-.34.22-.63.07-.29-.15-1.23-.45-2.35-1.45-.87-.78-1.46-1.74-1.63-2.03-.17-.29-.02-.45.13-.6.13-.13.29-.34.44-.51.15-.17.2-.29.3-.49.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51-.17-.01-.37-.01-.57-.01-.2 0-.52.08-.79.37-.27.29-1.02 1-1.02 2.44 0 1.44 1.05 2.83 1.2 3.02.15.2 2.06 3.14 5 4.41.7.3 1.25.48 1.68.62.7.22 1.33.19 1.84.11.56-.08 1.73-.71 1.97-1.39.25-.68.25-1.27.17-1.39-.07-.13-.2-.2-.49-.35z"
+                fill="#FFFFFF"
+              />
             </svg>
-            <span className="hidden md:inline">WhatsApp Bot</span>
+            <span className="hidden sm:inline font-black text-emerald-950">WhatsApp</span>
+            <span className="hidden lg:inline-block px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-200 text-emerald-900 uppercase">
+              Official
+            </span>
           </a>
 
           {/* Network Status Badge */}

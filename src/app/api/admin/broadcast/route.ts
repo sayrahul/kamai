@@ -44,8 +44,11 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({ success: true, announcement: data });
         }
       }
-    } catch (fsErr) {
-      console.warn('Firestore broadcast fetch warning:', fsErr);
+    } catch (fsErr: any) {
+      // Suppress noisy stack trace in terminal when Firestore security rules are pending publication
+      if (fsErr?.code !== 'permission-denied') {
+        console.warn('Firestore broadcast fetch notice:', fsErr?.message || fsErr);
+      }
     }
 
     // 2. Try Supabase
