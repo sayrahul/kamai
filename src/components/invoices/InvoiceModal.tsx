@@ -43,6 +43,7 @@ export type InvoiceFormat = 'thermal-58' | 'thermal-80' | 'a4';
 interface InvoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onNewBill?: () => void;
   sale: Sale | null;
   business?: Business | null;
   format?: 'a4' | 'thermal-80' | 'thermal-58';
@@ -53,6 +54,7 @@ interface InvoiceModalProps {
 export function InvoiceModal({
   isOpen,
   onClose,
+  onNewBill,
   sale: initialSale,
   business,
   format: initialFormat = 'a4',
@@ -479,6 +481,22 @@ export function InvoiceModal({
                     <span>WhatsApp</span>
                   </>
                 )}
+              </Button>
+
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (onNewBill) {
+                    onNewBill();
+                  } else {
+                    onClose();
+                  }
+                }}
+                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs gap-1.5 rounded-xl h-8 shadow-sm cursor-pointer border-amber-400"
+                title="Finish invoice and start a new bill"
+              >
+                <Receipt className="w-3.5 h-3.5" />
+                <span>+ New Bill</span>
               </Button>
             </div>
           </div>

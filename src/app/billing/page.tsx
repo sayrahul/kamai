@@ -98,6 +98,8 @@ export interface BillTab {
   splitUpi: string;
   splitCard: string;
   splitCredit: string;
+  billDiscountType?: 'flat' | 'percentage';
+  billDiscountValue?: string;
   tableNo?: string;
   orderType?: 'dine_in' | 'takeaway' | 'delivery';
   doctorName?: string;
@@ -132,6 +134,8 @@ function getInitialTabs(): { tabs: BillTab[]; activeTabId: string } {
     splitUpi: '',
     splitCard: '',
     splitCredit: '',
+    billDiscountType: 'flat',
+    billDiscountValue: '',
     orderType: 'dine_in',
     isHeld: false,
   };
@@ -352,6 +356,8 @@ export default function BillingPage() {
   const splitUpi = activeTab.splitUpi;
   const splitCard = activeTab.splitCard;
   const splitCredit = activeTab.splitCredit;
+  const billDiscountType = activeTab.billDiscountType || 'flat';
+  const billDiscountValue = activeTab.billDiscountValue || '';
   const tableNo = activeTab.tableNo || '';
   const orderType = activeTab.orderType;
   const doctorName = activeTab.doctorName || '';
@@ -403,6 +409,14 @@ export default function BillingPage() {
 
   const setSplitCredit = (val: string | ((p: string) => string)) => {
     updateActiveTab((tab) => ({ ...tab, splitCredit: typeof val === 'function' ? val(tab.splitCredit) : val }));
+  };
+
+  const setBillDiscountType = (val: 'flat' | 'percentage') => {
+    updateActiveTab((tab) => ({ ...tab, billDiscountType: val }));
+  };
+
+  const setBillDiscountValue = (val: string) => {
+    updateActiveTab((tab) => ({ ...tab, billDiscountValue: val }));
   };
 
   const setTableNo = (val: string) => {
@@ -508,6 +522,7 @@ export default function BillingPage() {
   const [editItemQty, setEditItemQty] = useState<string>('');
   const [editItemPrice, setEditItemPrice] = useState<string>('');
   const [editItemDiscount, setEditItemDiscount] = useState<string>('0');
+  const [editItemDiscountType, setEditItemDiscountType] = useState<'flat' | 'percentage'>('flat');
   const [pharmacySellMode, setPharmacySellMode] = useState<'tablets' | 'strips'>('tablets');
   const [selectedPackSize, setSelectedPackSize] = useState<number>(10);
   const [looseTabsInput, setLooseTabsInput] = useState<string>('1');
@@ -592,9 +607,6 @@ export default function BillingPage() {
       return (matchesId || matchesName) ? sum + item.quantity : sum;
     }, 0);
 
-  // Pricing Mode State (Retail vs Wholesale / Thok)
-  const [pricingMode, setPricingMode] = useState<'retail' | 'wholesale'>('retail');
-
   // Whether GST is added on top of prices (Exclusive) vs included in prices (Inclusive)
   const isBusinessGstExclusive = 
     business?.gst_pricing_mode === 'exclusive' || 
@@ -606,40 +618,6 @@ export default function BillingPage() {
     return isExclusive
       ? Math.round((lineTotal * taxRate) / 100)
       : Math.round(lineTotal - lineTotal / (1 + taxRate / 100));
-  };
-
-  // Calculates effective unit price based on active mode, wholesale price, and quantity
-  const calculateEffectiveUnitPrice = (product: Product, quantity: number, mode: 'retail' | 'wholesale') => {
-    if (mode === 'wholesale' && product.wholesale_price && product.wholesale_price > 0) {
-      return { price: product.wholesale_price, tier: 'wholesale' as const };
-    }
-    if (product.wholesale_price && product.wholesale_price > 0 && quantity >= (product.wholesale_min_qty || 5)) {
-      return { price: product.wholesale_price, tier: 'wholesale' as const };
-    }
-    return { price: product.selling_price, tier: 'retail' as const };
-  };
-
-  const handleTogglePricingMode = (mode: 'retail' | 'wholesale') => {
-    setPricingMode(mode);
-    setCart((prev) =>
-      prev.map((item) => {
-        const prod = products.find((p) => p.id === item.product_id);
-        if (!prod) return item;
-        const { price, tier } = calculateEffectiveUnitPrice(prod, item.quantity, mode);
-        const lineTotal = Math.max(0, item.quantity * price - (item.discount_amount || 0));
-        const taxRate = item.tax_rate || 0;
-        const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive ?? prod.is_tax_inclusive);
-        return {
-          ...item,
-          unit_price: price,
-          retail_price: prod.selling_price,
-          wholesale_price: prod.wholesale_price,
-          pricing_tier: tier,
-          total_amount: lineTotal,
-          tax_amount: taxAmt,
-        };
-      })
-    );
   };
 
   const getAvailableStockForProduct = (product: Product) => {
@@ -728,7 +706,7 @@ export default function BillingPage() {
 
       if (existing) {
         const newQty = existing.quantity + allowedQty;
-        const { price, tier } = calculateEffectiveUnitPrice(product, newQty, pricingMode);
+        const price = product.selling_price;
         const lineTotal = Math.max(0, newQty * price - (existing.discount_amount || 0));
         const taxRate = existing.tax_rate || 0;
         const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
@@ -738,7 +716,6 @@ export default function BillingPage() {
                 ...item, 
                 quantity: newQty, 
                 unit_price: price, 
-                pricing_tier: tier, 
                 total_amount: lineTotal, 
                 tax_amount: taxAmt,
                 is_tax_inclusive: product.is_tax_inclusive,
@@ -746,7 +723,7 @@ export default function BillingPage() {
             : item
         );
       } else {
-        const { price, tier } = calculateEffectiveUnitPrice(product, allowedQty, pricingMode);
+        const price = product.selling_price;
         const lineTotal = price * allowedQty;
         const taxRate = product.tax_rate || 0;
         const taxAmt = calculateItemTax(lineTotal, taxRate, product.is_tax_inclusive);
@@ -760,9 +737,6 @@ export default function BillingPage() {
             quantity: allowedQty,
             unit: product.unit,
             unit_price: price,
-            retail_price: product.selling_price,
-            wholesale_price: product.wholesale_price,
-            pricing_tier: tier,
             mrp: product.mrp,
             discount_amount: 0,
             tax_rate: taxRate,
@@ -801,7 +775,7 @@ export default function BillingPage() {
           if (item.product_id === productId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
-            const { price, tier } = calculateEffectiveUnitPrice(product, newQty, pricingMode);
+            const price = product.selling_price;
             const lineTotal = Math.max(0, newQty * price - (item.discount_amount || 0));
             const taxRate = item.tax_rate || 0;
             const taxAmt = calculateItemTax(lineTotal, taxRate, item.is_tax_inclusive ?? product.is_tax_inclusive);
@@ -809,7 +783,6 @@ export default function BillingPage() {
               ...item, 
               quantity: newQty, 
               unit_price: price, 
-              pricing_tier: tier, 
               total_amount: lineTotal, 
               tax_amount: taxAmt 
             };
@@ -829,6 +802,7 @@ export default function BillingPage() {
     setEditItemQty(item.quantity.toString());
     setEditItemPrice((item.unit_price / 100).toString());
     setEditItemDiscount(((item.discount_amount || 0) / 100).toString());
+    setEditItemDiscountType('flat');
 
     // Detect packaging size for pharmacy tablets / strips
     const pack = extractTabletsPerStrip(item.product_name);
@@ -843,11 +817,20 @@ export default function BillingPage() {
 
     const qty = parseFloat(editItemQty);
     const unitPricePaise = Math.round((parseFloat(editItemPrice) || 0) * 100);
-    const discountPaise = Math.round((parseFloat(editItemDiscount) || 0) * 100);
 
     if (isNaN(qty) || qty <= 0 || isNaN(unitPricePaise) || unitPricePaise < 0) {
       alert('Please enter valid numeric values.');
       return;
+    }
+
+    const rawTotal = qty * unitPricePaise;
+    let discountPaise = 0;
+    const discountVal = parseFloat(editItemDiscount) || 0;
+    if (editItemDiscountType === 'percentage') {
+      const pct = Math.min(100, Math.max(0, discountVal));
+      discountPaise = Math.round((rawTotal * pct) / 100);
+    } else {
+      discountPaise = Math.min(rawTotal, Math.round(Math.max(0, discountVal) * 100));
     }
 
     const product = products.find((p) => p.id === editingCartItem.product_id);
@@ -856,7 +839,6 @@ export default function BillingPage() {
       return;
     }
 
-    const rawTotal = qty * unitPricePaise;
     const lineTotal = Math.max(0, rawTotal - discountPaise);
     const taxRate = editingCartItem.tax_rate || 0;
     const taxAmt = calculateItemTax(lineTotal, taxRate, editingCartItem.is_tax_inclusive);
@@ -991,12 +973,11 @@ export default function BillingPage() {
 
   // Calculations
   const totalItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const discountTotalPaise = cart.reduce((acc, item) => acc + (item.discount_amount || 0), 0);
-  const taxTotalPaise = cart.reduce((acc, item) => acc + (item.tax_amount || 0), 0);
+  const lineItemsDiscountPaise = cart.reduce((acc, item) => acc + (item.discount_amount || 0), 0);
 
   // In exclusive mode (standard for restaurants & services), line total is base price and GST is added on top.
   // In inclusive mode (standard for MRP retail), line total includes tax, so taxable base is (total_amount - tax_amount).
-  const subtotalPaise = cart.reduce((acc, item) => {
+  const rawBaseSubtotalPaise = cart.reduce((acc, item) => {
     const itemIsInclusive = item.is_tax_inclusive !== undefined ? item.is_tax_inclusive : !isBusinessGstExclusive;
     if (itemIsInclusive && item.tax_rate > 0) {
       return acc + (item.total_amount - (item.tax_amount || 0));
@@ -1004,6 +985,21 @@ export default function BillingPage() {
     return acc + item.total_amount;
   }, 0);
 
+  // Bill-Level Discount calculation
+  let billDiscountPaise = 0;
+  if (billDiscountValue && parseFloat(billDiscountValue) > 0) {
+    if (billDiscountType === 'percentage') {
+      const pct = Math.min(100, Math.max(0, parseFloat(billDiscountValue) || 0));
+      billDiscountPaise = Math.round((rawBaseSubtotalPaise * pct) / 100);
+    } else {
+      const flat = Math.max(0, parseFloat(billDiscountValue) || 0);
+      billDiscountPaise = Math.min(rawBaseSubtotalPaise, Math.round(flat * 100));
+    }
+  }
+
+  const discountTotalPaise = lineItemsDiscountPaise + billDiscountPaise;
+  const subtotalPaise = Math.max(0, rawBaseSubtotalPaise - billDiscountPaise);
+  const taxTotalPaise = cart.reduce((acc, item) => acc + (item.tax_amount || 0), 0);
   const grandTotalPaise = subtotalPaise + taxTotalPaise;
 
   // Real-Time Dynamic Amount UPI QR Generation (e.g. ₹848.00 auto-fills in GPay / PhonePe / Paytm)
@@ -1844,15 +1840,108 @@ export default function BillingPage() {
         </div>
       )}
 
+      {/* Bill-Level Discount Field */}
+      {cart.length > 0 && (
+        <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+              <Tag className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Bill Discount</span>
+            </span>
+            <div className="flex items-center p-0.5 bg-slate-200/80 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setBillDiscountType('flat')}
+                className={cn(
+                  'px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer',
+                  billDiscountType === 'flat'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                ₹ Flat
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillDiscountType('percentage')}
+                className={cn(
+                  'px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer',
+                  billDiscountType === 'percentage'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                % Percent
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type="number"
+                step="any"
+                min="0"
+                max={billDiscountType === 'percentage' ? 100 : undefined}
+                placeholder={billDiscountType === 'percentage' ? 'e.g. 5 or 10%' : 'e.g. 50'}
+                value={billDiscountValue}
+                onChange={(e) => setBillDiscountValue(e.target.value)}
+                className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-lg pl-6 pr-2 py-1.5 focus:outline-none focus:border-slate-900 font-mono font-bold"
+              />
+              <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">
+                {billDiscountType === 'percentage' ? '%' : '₹'}
+              </span>
+            </div>
+            {billDiscountValue && (
+              <button
+                type="button"
+                onClick={() => setBillDiscountValue('')}
+                className="text-[11px] text-rose-600 font-bold hover:text-rose-700 px-1.5 py-1 cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Quick Percent Chips */}
+          {billDiscountType === 'percentage' && (
+            <div className="flex items-center gap-1 pt-0.5">
+              {['5', '10', '15', '20'].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => setBillDiscountValue(pct)}
+                  className={cn(
+                    'px-2 py-0.5 rounded text-[10px] font-bold transition-all border cursor-pointer',
+                    billDiscountValue === pct
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                  )}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Bottom Total & Checkout Button */}
       <div className="pt-2.5 border-t border-slate-200 space-y-1.5">
         <div className="flex items-center justify-between text-xs text-slate-600">
           <span>Subtotal</span>
-          <span className="font-semibold text-slate-800 font-mono">{formatINR(subtotalPaise)}</span>
+          <span className="font-semibold text-slate-800 font-mono">{formatINR(rawBaseSubtotalPaise)}</span>
         </div>
         {discountTotalPaise > 0 && (
           <div className="flex items-center justify-between text-xs text-emerald-700">
-            <span>Discount</span>
+            <span>
+              Total Discount
+              {billDiscountPaise > 0 && (
+                <span className="text-[10px] ml-1 font-mono text-emerald-600">
+                  (Bill: -{formatINR(billDiscountPaise)})
+                </span>
+              )}
+            </span>
             <span className="font-semibold font-mono">-{formatINR(discountTotalPaise)}</span>
           </div>
         )}
@@ -1911,36 +2000,6 @@ export default function BillingPage() {
                   <Camera className="w-4 h-4 text-slate-800" />
                 </button>
               )}
-
-              {/* Pricing Mode Toggle: Retail vs Wholesale */}
-              <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-300 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleTogglePricingMode('retail')}
-                  className={cn(
-                    'px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
-                    pricingMode === 'retail'
-                      ? 'bg-white text-slate-950 shadow-xs font-black'
-                      : 'text-slate-500 hover:text-slate-900'
-                  )}
-                  title="Retail Rate (MRP / Standard Price)"
-                >
-                  <span>🛒 Retail</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleTogglePricingMode('wholesale')}
-                  className={cn(
-                    'px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
-                    pricingMode === 'wholesale'
-                      ? 'bg-amber-400 text-slate-950 shadow-xs font-black'
-                      : 'text-slate-500 hover:text-slate-900'
-                  )}
-                  title="Wholesale Rate (Thok Bhav)"
-                >
-                  <span>📦 Wholesale</span>
-                </button>
-              </div>
 
               {/* Hardware Manager Button */}
               <button
@@ -2016,8 +2075,6 @@ export default function BillingPage() {
                   const stockNum = Number(p.current_stock ?? 0);
                   const isOutOfStock = !p.is_unlimited_stock && (stockNum <= 0 || availableStock <= 0);
                   const isLowStock = !p.is_unlimited_stock && !isOutOfStock && availableStock <= (p.min_stock_level || 5);
-                  const isWholesaleApplied = pricingMode === 'wholesale' && p.wholesale_price && p.wholesale_price > 0;
-                  const displayPrice = isWholesaleApplied ? p.wholesale_price! : p.selling_price;
 
                   return (
                     <button
@@ -2052,10 +2109,7 @@ export default function BillingPage() {
                       ) : null}
 
                       <div className="pr-12">
-                        <span className={cn(
-                          "text-[9px] uppercase font-extrabold tracking-wider block leading-tight",
-                          isOutOfStock ? "text-slate-400" : "text-slate-400"
-                        )}>
+                        <span className="text-[9px] uppercase font-extrabold tracking-wider block leading-tight text-slate-400">
                           {p.category_name || 'Item'}
                         </span>
                         <h4 className={cn(
@@ -2070,16 +2124,11 @@ export default function BillingPage() {
                         <div className="truncate">
                           <span className={cn(
                             "text-xs sm:text-sm font-black font-mono",
-                            isOutOfStock ? "text-slate-400 line-through" : isWholesaleApplied ? "text-amber-700" : "text-slate-900"
+                            isOutOfStock ? "text-slate-400 line-through" : "text-slate-900"
                           )}>
-                            {formatINR(displayPrice)}
+                            {formatINR(p.selling_price)}
                           </span>
                           <span className="text-[10px] text-slate-500 font-medium ml-0.5">/{p.unit}</span>
-                          {isWholesaleApplied && !isOutOfStock && (
-                            <span className="ml-1 text-[9px] font-black uppercase text-amber-700 bg-amber-100 px-1 py-0.2 rounded">
-                              Thok
-                            </span>
-                          )}
                         </div>
                         <span className={cn(
                           "text-[10px] font-bold flex-shrink-0 px-1 py-0.2 rounded",
@@ -2395,14 +2444,91 @@ export default function BillingPage() {
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Flat Discount (₹)</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={editItemDiscount}
-                  onChange={(e) => setEditItemDiscount(e.target.value)}
-                />
+              {/* Line Item Discount Section */}
+              <div className="space-y-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Line Item Discount</label>
+                  <div className="flex items-center p-0.5 bg-slate-200/80 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setEditItemDiscountType('flat')}
+                      className={cn(
+                        'px-2 py-0.5 rounded text-[10.5px] font-bold transition-all cursor-pointer',
+                        editItemDiscountType === 'flat'
+                          ? 'bg-white text-slate-900 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      )}
+                    >
+                      ₹ Flat
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditItemDiscountType('percentage')}
+                      className={cn(
+                        'px-2 py-0.5 rounded text-[10.5px] font-bold transition-all cursor-pointer',
+                        editItemDiscountType === 'percentage'
+                          ? 'bg-white text-slate-900 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      )}
+                    >
+                      % Percent
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <Input
+                    type="number"
+                    step={editItemDiscountType === 'percentage' ? '1' : '0.01'}
+                    min="0"
+                    max={editItemDiscountType === 'percentage' ? 100 : undefined}
+                    placeholder={editItemDiscountType === 'percentage' ? 'e.g. 10 for 10%' : '0.00'}
+                    value={editItemDiscount}
+                    onChange={(e) => setEditItemDiscount(e.target.value)}
+                    leftIcon={<span className="text-xs font-bold text-slate-500">{editItemDiscountType === 'percentage' ? '%' : '₹'}</span>}
+                  />
+                </div>
+
+                {/* Quick Chips for Percentage */}
+                {editItemDiscountType === 'percentage' && (
+                  <div className="flex items-center gap-1.5 pt-1">
+                    {['5', '10', '15', '20', '50'].map((chipPct) => (
+                      <button
+                        key={chipPct}
+                        type="button"
+                        onClick={() => setEditItemDiscount(chipPct)}
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[10.5px] font-bold transition-all border cursor-pointer',
+                          editItemDiscount === chipPct
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                        )}
+                      >
+                        {chipPct}%
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Dynamic Calculated Discount Feedback */}
+                {(() => {
+                  const qty = parseFloat(editItemQty) || 0;
+                  const unitPrice = parseFloat(editItemPrice) || 0;
+                  const val = parseFloat(editItemDiscount) || 0;
+                  if (val > 0 && qty > 0 && unitPrice > 0) {
+                    const discountRupees = editItemDiscountType === 'percentage'
+                      ? ((qty * unitPrice) * Math.min(100, val)) / 100
+                      : Math.min(qty * unitPrice, val);
+                    const netRupees = Math.max(0, qty * unitPrice - discountRupees);
+                    return (
+                      <div className="flex items-center justify-between text-[11px] font-bold text-emerald-800 pt-1">
+                        <span>Savings: -₹{discountRupees.toFixed(2)}</span>
+                        <span>Net Total: ₹{netRupees.toFixed(2)}</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -2529,6 +2655,13 @@ export default function BillingPage() {
           onClose={() => {
             setIsInvoiceModalOpen(false);
             setActiveSaleForInvoice(null);
+          }}
+          onNewBill={() => {
+            setIsInvoiceModalOpen(false);
+            setActiveSaleForInvoice(null);
+            setCart([]);
+            setAmountReceivedInput('');
+            setSelectedCustomerId('');
           }}
           sale={activeSaleForInvoice}
           business={business || null}

@@ -2,8 +2,8 @@ import jwt from 'jsonwebtoken';
 
 export const SESSION_COOKIE_NAME = 'kamai_session';
 
-// 30 days in seconds
-export const SESSION_MAX_AGE = 30 * 24 * 60 * 60;
+// 24 hours in seconds
+export const SESSION_MAX_AGE = 24 * 60 * 60;
 
 export interface SessionPayload {
   staff_id: string;
@@ -34,11 +34,11 @@ export function getUserJwtSecret(): string {
 }
 
 /**
- * Signs a 30-day JWT session token containing staff & business identity
+ * Signs a 24-hour JWT session token containing staff & business identity
  */
 export function signSessionToken(payload: SessionPayload): string {
   return jwt.sign(payload, getUserJwtSecret(), {
-    expiresIn: '30d',
+    expiresIn: '24h',
   });
 }
 

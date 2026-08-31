@@ -86,8 +86,6 @@ export default function ProductsPage() {
   const [formUnit, setFormUnit] = useState<ProductUnit>('packet');
   const [formPurchasePrice, setFormPurchasePrice] = useState('');
   const [formSellingPrice, setFormSellingPrice] = useState('');
-  const [formWholesalePrice, setFormWholesalePrice] = useState('');
-  const [formWholesaleMinQty, setFormWholesaleMinQty] = useState('5');
   const [formIsLooseItem, setFormIsLooseItem] = useState(false);
   const [formIsUnlimitedStock, setFormIsUnlimitedStock] = useState(false);
   const [formMrp, setFormMrp] = useState('');
@@ -205,8 +203,6 @@ export default function ProductsPage() {
     setFormUnit((storeProfile.defaultUnit as ProductUnit) || 'packet');
     setFormPurchasePrice('');
     setFormSellingPrice('');
-    setFormWholesalePrice('');
-    setFormWholesaleMinQty('5');
     setFormIsLooseItem(false);
     setFormIsUnlimitedStock(business?.business_type === 'restaurant');
     setFormMrp('');
@@ -227,14 +223,12 @@ export default function ProductsPage() {
 
   const handleOpenEditModal = (p: Product) => {
     setEditingProduct(p);
-    setShowAdvancedSettings(Boolean(p.wholesale_price || p.purchase_price || p.is_unlimited_stock || p.is_favorite));
+    setShowAdvancedSettings(Boolean(p.purchase_price || p.is_unlimited_stock || p.is_favorite));
     setFormName(p.name);
     setFormCategory(p.category_id);
     setFormUnit(p.unit);
     setFormPurchasePrice((p.purchase_price / 100).toString());
     setFormSellingPrice((p.selling_price / 100).toString());
-    setFormWholesalePrice(p.wholesale_price ? (p.wholesale_price / 100).toString() : '');
-    setFormWholesaleMinQty(p.wholesale_min_qty ? p.wholesale_min_qty.toString() : '5');
     setFormIsLooseItem(Boolean(p.is_loose_item));
     setFormIsUnlimitedStock(Boolean(p.is_unlimited_stock));
     setFormMrp((p.mrp / 100).toString());
@@ -258,8 +252,6 @@ export default function ProductsPage() {
     if (!formName.trim()) return;
 
     const sellingPaise = parseRupeesToPaise(formSellingPrice);
-    const wholesalePaise = formWholesalePrice.trim() ? parseRupeesToPaise(formWholesalePrice) : undefined;
-    const wholesaleMinQtyNum = formWholesaleMinQty.trim() ? parseInt(formWholesaleMinQty) : undefined;
     const purchasePaise = parseRupeesToPaise(formPurchasePrice || formSellingPrice);
     const mrpPaise = parseRupeesToPaise(formMrp || formSellingPrice);
     const stockNum = parseFloat(formStock) || 0;
@@ -276,8 +268,6 @@ export default function ProductsPage() {
       unit: formUnit,
       purchase_price: purchasePaise,
       selling_price: sellingPaise,
-      wholesale_price: wholesalePaise,
-      wholesale_min_qty: wholesaleMinQtyNum,
       is_loose_item: formIsLooseItem,
       allow_decimal: formIsLooseItem || ['kg', 'gram', 'litre', 'ml', 'meter'].includes(formUnit),
       is_unlimited_stock: formIsUnlimitedStock,
@@ -713,12 +703,6 @@ export default function ProductsPage() {
                         </span>
                       )}
                     </div>
-
-                    {p.wholesale_price && (
-                      <div className="text-[8px] text-indigo-700 font-bold bg-indigo-50/70 px-1 py-0.2 rounded border border-indigo-100 mt-0.5 truncate max-w-full">
-                        Thok: {formatINR(p.wholesale_price)} (Min {p.wholesale_min_qty || 5})
-                      </div>
-                    )}
                   </div>
 
                   {/* Stock Status & Quick Actions Footer */}
@@ -1143,7 +1127,7 @@ export default function ProductsPage() {
             )}
           </div>
 
-          {/* 5. Collapsible Advanced & Wholesale Settings Drawer */}
+          {/* 5. Collapsible Advanced Settings Drawer */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <button
               type="button"
@@ -1152,7 +1136,7 @@ export default function ProductsPage() {
             >
               <span className="flex items-center gap-1.5">
                 <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
-                <span>Advanced Settings (Wholesale Rates, Purchase Cost &amp; Reorder Level)</span>
+                <span>Advanced Settings (Purchase Cost &amp; Reorder Level)</span>
               </span>
               {showAdvancedSettings ? (
                 <ChevronUp className="w-4 h-4 text-slate-500" />
@@ -1183,27 +1167,6 @@ export default function ProductsPage() {
                     value={formMinStock}
                     onChange={(e) => setFormMinStock(e.target.value)}
                     helperText="Alerts when stock falls to or below this"
-                  />
-                </div>
-
-                {/* Wholesale / Thok Bhav */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-100">
-                  <Input
-                    label="Wholesale Price (Thok Rate ₹)"
-                    placeholder="Optional bulk rate (e.g. 45.00)"
-                    type="number"
-                    step="0.01"
-                    value={formWholesalePrice}
-                    onChange={(e) => setFormWholesalePrice(e.target.value)}
-                    leftIcon={<span className="text-xs font-bold text-amber-600">₹</span>}
-                  />
-
-                  <Input
-                    label="Min Wholesale Qty (Threshold)"
-                    placeholder="e.g. 5 or 10"
-                    type="number"
-                    value={formWholesaleMinQty}
-                    onChange={(e) => setFormWholesaleMinQty(e.target.value)}
                   />
                 </div>
 

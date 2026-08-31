@@ -8,19 +8,15 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const queryBusinessId = searchParams.get('business_id');
-    const queryPhone = searchParams.get('phone');
-
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
     const payload = sessionCookie ? verifySessionToken(sessionCookie) : null;
 
-    const targetBusinessId = payload?.business_id || queryBusinessId;
-    const targetPhone = payload?.phone || queryPhone;
-
-    if (!targetBusinessId && !targetPhone) {
+    if (!payload || (!payload.business_id && !payload.phone)) {
       return NextResponse.json({ authenticated: false });
     }
+
+    const targetBusinessId = payload.business_id;
+    const targetPhone = payload.phone;
 
     let isFound = false;
     let isStoreActive = true;

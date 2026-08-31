@@ -102,12 +102,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     // Verify session with server API (/api/auth/me) in the background with 30s heartbeat
     const checkServerSession = async () => {
       try {
-        const currentStored = getStoredUser();
-        const params = new URLSearchParams();
-        if (currentStored?.business_id) params.set('business_id', currentStored.business_id);
-        if (currentStored?.phone) params.set('phone', currentStored.phone);
-
-        const res = await fetch(`/api/auth/me?${params.toString()}`);
+        const res = await fetch('/api/auth/me');
         if (res.status === 403 || res.status === 401) {
           const data = await res.json().catch(() => ({}));
           if (data.isFrozen || data.isDeleted) {
