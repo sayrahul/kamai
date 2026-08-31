@@ -40,7 +40,10 @@ import {
   Tag,
   Scale,
   Clock,
-  Sparkle
+  Sparkle,
+  ShoppingBag,
+  HardDrive,
+  Palette
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { getStoreProfile, hasModule } from '@/lib/constants/storeProfiles';
@@ -677,9 +680,10 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ---------------- PRIMARY DAILY OPERATIONS (COMPACT, HIGH CONTRAST LIGHT CARDS) ---------------- */}
+      {/* ---------------- 1. DAILY SHOP OPERATIONS ---------------- */}
       <div>
-        <div className="flex items-center justify-between mb-2 px-1">
+        <div className="flex items-center gap-1.5 mb-2 px-1">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
             Daily Shop Operations
           </h2>
@@ -699,15 +703,15 @@ export default function HomePage() {
             </div>
           </Link>
 
-          {/* Tile 2: Products Master */}
-          <Link href="/products" className="group">
+          {/* Tile 2: Cash Register */}
+          <Link href="/cash-register" className="group">
             <div className="bg-white border border-amber-300 hover:border-amber-500 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-amber-50/50 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-950 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Package className="w-4.5 h-4.5 text-amber-700" />
+              <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Calculator className="w-4.5 h-4.5 text-amber-700" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Products Master</div>
-                <div className="text-[11px] text-amber-800 font-medium truncate">{products.length} items catalog</div>
+                <div className="text-xs font-bold text-slate-900 truncate">Cash Register</div>
+                <div className="text-[11px] text-amber-800 font-medium truncate">Shift &amp; Till</div>
               </div>
             </div>
           </Link>
@@ -725,46 +729,7 @@ export default function HomePage() {
             </div>
           </Link>
 
-          {/* Tile 4: Cash Register */}
-          <Link href="/cash-register" className="group">
-            <div className="bg-white border border-sky-200 hover:border-sky-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-sky-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-sky-100 text-sky-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Calculator className="w-4.5 h-4.5 text-sky-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Cash Register</div>
-                <div className="text-[11px] text-sky-800 font-medium truncate">Shift & Till</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 5: Inventory & Expiry */}
-          <Link href="/inventory" className="group">
-            <div className="bg-white border border-cyan-200 hover:border-cyan-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-cyan-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-cyan-100 text-cyan-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Boxes className="w-4.5 h-4.5 text-cyan-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Inventory & Expiry</div>
-                <div className="text-[11px] text-cyan-800 font-medium truncate">Batches & Alerts</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 6: Barcode Studio */}
-          <Link href="/barcode-generator" className="group">
-            <div className="bg-white border border-purple-200 hover:border-purple-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-purple-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Barcode className="w-4.5 h-4.5 text-purple-700" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Barcode Studio</div>
-                <div className="text-[11px] text-purple-800 font-medium truncate">Price Stickers & QR</div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Tile 7: Transactions & Audit */}
+          {/* Tile 4: Transactions & Audit */}
           <Link href="/transactions" className="group">
             <div className="bg-white border border-teal-200 hover:border-teal-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-teal-50/40 active:scale-[0.98] transition-all">
               <div className="w-9 h-9 rounded-lg bg-teal-100 text-teal-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
@@ -772,12 +737,88 @@ export default function HomePage() {
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">Transactions</div>
-                <div className="text-[11px] text-teal-800 font-medium truncate">Bills & Returns</div>
+                <div className="text-[11px] text-teal-800 font-medium truncate">Bills &amp; Returns</div>
+              </div>
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      {/* ---------------- 2. CATALOG & STOCK MANAGEMENT ---------------- */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-2 px-1">
+          <span className="w-2 h-2 rounded-full bg-blue-500" />
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+            Catalog &amp; Stock Management
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          {/* Tile 5: Products Master */}
+          <Link href="/products" className="group">
+            <div className="bg-white border border-blue-200 hover:border-blue-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-blue-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Package className="w-4.5 h-4.5 text-blue-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Products Master</div>
+                <div className="text-[11px] text-blue-800 font-medium truncate">{products.length} items catalog</div>
               </div>
             </div>
           </Link>
 
-          {/* Tile 8: WhatsApp Growth */}
+          {/* Tile 6: Inventory & Expiry */}
+          <Link href="/inventory" className="group">
+            <div className="bg-white border border-cyan-200 hover:border-cyan-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-cyan-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-cyan-100 text-cyan-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Boxes className="w-4.5 h-4.5 text-cyan-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Inventory &amp; Expiry</div>
+                <div className="text-[11px] text-cyan-800 font-medium truncate">Batches &amp; Alerts</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 7: Purchases & Bills */}
+          <Link href="/purchases" className="group">
+            <div className="bg-white border border-amber-200 hover:border-amber-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-amber-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <ShoppingBag className="w-4.5 h-4.5 text-amber-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Purchases &amp; Sourcing</div>
+                <div className="text-[11px] text-amber-800 font-medium truncate">Vendor Invoices</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 8: Barcode Studio */}
+          <Link href="/barcode-generator" className="group">
+            <div className="bg-white border border-purple-200 hover:border-purple-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-purple-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Barcode className="w-4.5 h-4.5 text-purple-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Barcode Studio</div>
+                <div className="text-[11px] text-purple-800 font-medium truncate">Price Stickers &amp; QR</div>
+              </div>
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      {/* ---------------- 3. GROWTH, TAX & CLOUD ---------------- */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-2 px-1">
+          <span className="w-2 h-2 rounded-full bg-purple-500" />
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+            Growth, Tax &amp; Cloud
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          {/* Tile 9: WhatsApp Growth */}
           <Link href="/growth" className="group">
             <div className="bg-white border border-emerald-200 hover:border-emerald-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-emerald-50/40 active:scale-[0.98] transition-all">
               <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
@@ -785,7 +826,46 @@ export default function HomePage() {
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">WhatsApp Growth</div>
-                <div className="text-[11px] text-emerald-800 font-medium truncate">Offers & Festivals</div>
+                <div className="text-[11px] text-emerald-800 font-medium truncate">Offers &amp; Festivals</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 10: GST & Accounting */}
+          <Link href="/gst-reports" className="group">
+            <div className="bg-white border border-indigo-200 hover:border-indigo-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-indigo-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <FileSpreadsheet className="w-4.5 h-4.5 text-indigo-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">GST &amp; Accounting</div>
+                <div className="text-[11px] text-indigo-800 font-medium truncate">GSTR-1 &amp; Reports</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 11: Invoice Themes */}
+          <Link href="/invoice-designer" className="group">
+            <div className="bg-white border border-amber-200 hover:border-amber-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-amber-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <Palette className="w-4.5 h-4.5 text-amber-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Invoice Themes</div>
+                <div className="text-[11px] text-amber-800 font-medium truncate">Design &amp; Header</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Tile 12: Backup & Cloud */}
+          <Link href="/cloud-backup" className="group">
+            <div className="bg-white border border-sky-200 hover:border-sky-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-sky-50/40 active:scale-[0.98] transition-all">
+              <div className="w-9 h-9 rounded-lg bg-sky-100 text-sky-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                <HardDrive className="w-4.5 h-4.5 text-sky-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-slate-900 truncate">Backup &amp; Restore</div>
+                <div className="text-[11px] text-sky-800 font-medium truncate">JSON &amp; Excel</div>
               </div>
             </div>
           </Link>
