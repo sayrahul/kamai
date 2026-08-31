@@ -6,7 +6,7 @@ import { signInWithGoogle } from '@/lib/firebase/googleAuth';
 import { setStoredUser, AuthUser } from '@/lib/auth';
 import { db as localDb } from '@/lib/db';
 import { getFirestoreDb } from '@/lib/firebase/config';
-import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, limit, deleteDoc } from 'firebase/firestore';
 import { syncProfileToCloud, restoreDataFromCloud } from '@/lib/sync/syncEngine';
 import { 
   CheckCircle2, 
@@ -120,6 +120,26 @@ export const AuthForm: React.FC = () => {
             }
           } catch (bErr) {
             console.warn('businesses lookup fallback notice:', bErr);
+          }
+        }
+
+        // 3. Strict Verification: Check if the business document actually exists in `businesses`
+        if (merchantData) {
+          const targetBizId = merchantData.business_id || merchantData.id;
+          if (targetBizId) {
+            try {
+              const bizDocRef = doc(firestore, 'businesses', targetBizId);
+              const bizSnap = await getDoc(bizDocRef);
+              if (!bizSnap.exists() || bizSnap.data()?.is_active === false) {
+                // The store was deleted or frozen by platform admin!
+                await deleteDoc(doc(firestore, 'merchants', uid)).catch(() => {});
+                merchantData = null;
+              } else {
+                merchantData = { ...merchantData, ...bizSnap.data() };
+              }
+            } catch (vErr) {
+              console.warn('Verify business existence notice:', vErr);
+            }
           }
         }
       }

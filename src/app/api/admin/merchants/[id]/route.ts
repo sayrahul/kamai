@@ -126,28 +126,47 @@ export async function DELETE(
   try {
     const { id } = await context.params;
 
-    // 1. Delete from Cloud Firestore (businesses & merchants collections)
+    // 1. Delete from Cloud Firestore (businesses, merchants, subcollections & reverse_handshakes)
     try {
       const firestore = getFirestoreDb();
       if (firestore) {
         const bizDocRef = doc(firestore, 'businesses', id);
         const bizSnap = await getDoc(bizDocRef);
         const bizData = bizSnap.exists() ? bizSnap.data() : null;
+        const cleanPhone = bizData?.phone ? bizData.phone.replace(/\D/g, '').slice(-10) : '';
 
         // Delete primary business record
-        await deleteDoc(bizDocRef);
+        await deleteDoc(bizDocRef).catch(() => {});
 
-        // Delete linked merchant documents
+        // Delete linked merchant documents by user_uid
         if (bizData?.user_uid) {
           await deleteDoc(doc(firestore, 'merchants', bizData.user_uid)).catch(() => {});
         }
-        if (bizData?.phone) {
-          const mQ = query(collection(firestore, 'merchants'), where('phone', '==', bizData.phone));
+
+        // Delete linked merchant documents by phone
+        if (cleanPhone) {
+          const mQ = query(collection(firestore, 'merchants'), where('phone', '==', cleanPhone));
           const mSnap = await getDocs(mQ);
           for (const mDoc of mSnap.docs) {
             await deleteDoc(mDoc.ref).catch(() => {});
           }
+
+          // Delete any extra business documents matching this phone
+          const bPhoneQ = query(collection(firestore, 'businesses'), where('phone', '==', cleanPhone));
+          const bPhoneSnap = await getDocs(bPhoneQ);
+          for (const bDoc of bPhoneSnap.docs) {
+            await deleteDoc(bDoc.ref).catch(() => {});
+          }
+
+          // Delete pending reverse handshakes
+          const rhQ = query(collection(firestore, 'reverse_handshakes'), where('phone', '==', cleanPhone));
+          const rhSnap = await getDocs(rhQ);
+          for (const rhDoc of rhSnap.docs) {
+            await deleteDoc(rhDoc.ref).catch(() => {});
+          }
         }
+
+        // Delete all merchants pointing to this business_id
         const mBizQ = query(collection(firestore, 'merchants'), where('business_id', '==', id));
         const mBizSnap = await getDocs(mBizQ);
         for (const mDoc of mBizSnap.docs) {
@@ -162,15 +181,11 @@ export async function DELETE(
     try {
       const supabase = getSupabaseServerClient();
       if (supabase) {
-        await supabase
-          .from('business_staff')
-          .delete()
-          .eq('business_id', id);
-
-        await supabase
-          .from('businesses')
-          .delete()
-          .eq('id', id);
+        await supabase.from('products').delete().eq('business_id', id);
+        await supabase.from('sales').delete().eq('business_id', id);
+        await supabase.from('customers').delete().eq('business_id', id);
+        await supabase.from('business_staff').delete().eq('business_id', id);
+        await supabase.from('businesses').delete().eq('id', id);
       }
     } catch (supabaseErr) {
       console.warn('Supabase delete warning:', supabaseErr);
@@ -178,7 +193,7 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: `Store ${id} and associated merchant profiles permanently deleted.`,
+      message: `Store ${id} and all associated merchant profiles permanently deleted.`,
     });
   } catch (error: any) {
     return NextResponse.json(

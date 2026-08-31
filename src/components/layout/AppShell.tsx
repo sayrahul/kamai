@@ -127,9 +127,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             } catch (purgeErr) {
               console.error('Error purging local database on freeze:', purgeErr);
             }
+            setStoredUser(null);
+            setCurrentUser(null);
             setAccountLockout({
               isFrozen: Boolean(data.isFrozen),
-              message: data.error || (data.isFrozen ? 'Your merchant account has been frozen by the platform administrator.' : 'Your merchant account has been deleted.'),
+              message: data.error || (data.isFrozen ? 'Your merchant account has been frozen by the platform administrator.' : 'Your merchant account has been deleted by administrator.'),
             });
             return;
           }
