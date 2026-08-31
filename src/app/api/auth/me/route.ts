@@ -79,20 +79,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // If business was targeted but deleted
-    if (targetBusinessId && targetBusinessId !== 'biz_pending' && targetBusinessId !== 'biz_default' && !isFound) {
-      return NextResponse.json(
-        {
-          authenticated: false,
-          isDeleted: true,
-          error: 'Store record not found or deleted by administrator. Contact info@proventure.in.',
-        },
-        { status: 403 }
-      );
-    }
-
     return NextResponse.json({
       authenticated: true,
+      offline: !isFound,
       user: {
         id: payload?.staff_id || targetPhone || targetBusinessId,
         phone: targetPhone,

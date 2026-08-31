@@ -178,9 +178,29 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           await localDb.open();
         }
 
+        const localBiz = await localDb.businesses.toCollection().first();
+
+        // If local storage user is missing business_id but Dexie has a valid store, restore it immediately
+        if (localBiz && localBiz.id) {
+          const u = getStoredUser();
+          if (!u || !u.business_id || u.business_id === 'biz_pending') {
+            const restoredUser: AuthUser = {
+              uid: localBiz.id,
+              id: localBiz.id,
+              phone: localBiz.phone,
+              name: localBiz.owner_name || 'Store Owner',
+              role: 'admin',
+              business_id: localBiz.id,
+              business_name: localBiz.name,
+              shop_name: localBiz.name,
+            };
+            setStoredUser(restoredUser);
+            setCurrentUser(restoredUser);
+          }
+        }
+
         // Auto-align cloud store if local DB has a different store/type
         if (cachedUser?.business_id && cachedUser.business_id !== 'biz_pending' && typeof navigator !== 'undefined' && navigator.onLine) {
-          const localBiz = await localDb.businesses.toCollection().first();
           if (!localBiz || localBiz.id !== cachedUser.business_id) {
             console.log('🔄 Aligning local device store with Cloud profile:', cachedUser.business_id);
             await restoreFirestoreToLocalDexie(cachedUser.business_id);
