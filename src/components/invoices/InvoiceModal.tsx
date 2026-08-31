@@ -87,20 +87,32 @@ export function InvoiceModal({
   useEffect(() => {
     const calculateScale = () => {
       if (previewContainerRef.current) {
-        const containerWidth = previewContainerRef.current.clientWidth - 20;
-        const targetWidth = format === 'a4' ? 660 : format === 'thermal-80' ? 320 : 260;
-        if (containerWidth < targetWidth && viewMode === 'fit') {
-          setScaleFactor(Math.max(0.42, containerWidth / targetWidth));
-        } else {
-          setScaleFactor(1);
+        const containerWidth = previewContainerRef.current.clientWidth - 24;
+        const targetWidth = format === 'a4' ? 680 : format === 'thermal-80' ? 320 : 260;
+        if (containerWidth > 0) {
+          if (viewMode === 'fit') {
+            const factor = containerWidth < targetWidth ? containerWidth / targetWidth : 1;
+            setScaleFactor(factor);
+          } else {
+            setScaleFactor(1);
+          }
         }
       }
     };
 
     calculateScale();
+    const t1 = setTimeout(calculateScale, 60);
+    const t2 = setTimeout(calculateScale, 200);
+    const t3 = setTimeout(calculateScale, 400);
     window.addEventListener('resize', calculateScale);
-    return () => window.removeEventListener('resize', calculateScale);
-  }, [format, viewMode, isOpen]);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      window.removeEventListener('resize', calculateScale);
+    };
+  }, [format, viewMode, isOpen, isPdfPreviewExpanded]);
 
   useEffect(() => {
     setSale(initialSale);
@@ -338,30 +350,36 @@ export function InvoiceModal({
   };
 
   // Render Printable Invoice Elements (A4 & Thermal)
-  const renderPrintableCanvas = () => (
-    <div 
-      style={
-        scaleFactor < 1 && viewMode === 'fit'
-          ? {
-              transform: `scale(${scaleFactor})`,
-              transformOrigin: 'top center',
-              width: format === 'a4' ? '680px' : format === 'thermal-80' ? '320px' : '260px',
-              marginBottom: `-${Math.round((1 - scaleFactor) * (format === 'a4' ? 950 : 600))}px`,
-            }
-          : {
-              width: format === 'a4' ? '100%' : 'auto',
-            }
-      }
-      className="transition-all duration-150 flex justify-center"
-    >
-      {format === 'a4' ? (
-        /* A4 Full Invoice Format */
-        <div
-          id="modal-printable-invoice"
-          data-format="a4"
-          className="w-full min-w-[620px] max-w-[680px] mx-auto bg-white p-5 sm:p-6 pb-6 rounded-xl text-slate-900 text-xs space-y-4 border border-slate-200 shadow-md box-border"
-          style={{ fontFamily: "'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, sans-serif" }}
-        >
+  const renderPrintableCanvas = () => {
+    const targetWidth = format === 'a4' ? 680 : format === 'thermal-80' ? 320 : 260;
+    const isScaled = scaleFactor < 1 && viewMode === 'fit';
+    const estimatedHeight = format === 'a4' ? 950 : 620;
+
+    return (
+      <div 
+        style={
+          isScaled
+            ? {
+                transform: `scale(${scaleFactor})`,
+                transformOrigin: 'top center',
+                width: `${targetWidth}px`,
+                marginBottom: `-${Math.round((1 - scaleFactor) * estimatedHeight)}px`,
+              }
+            : {
+                width: `${targetWidth}px`,
+                maxWidth: '100%',
+              }
+        }
+        className="transition-all duration-150 flex justify-center shrink-0"
+      >
+        {format === 'a4' ? (
+          /* A4 Full Invoice Format */
+          <div
+            id="modal-printable-invoice"
+            data-format="a4"
+            className="w-full max-w-[680px] mx-auto bg-white p-5 sm:p-6 pb-6 rounded-xl text-slate-900 text-xs space-y-4 border border-slate-200 shadow-md box-border"
+            style={{ fontFamily: "'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, sans-serif" }}
+          >
           {/* Header Banner Styled with Theme Color */}
           <div 
             className="p-4 rounded-xl text-white flex justify-between items-start gap-4"
@@ -628,6 +646,7 @@ export function InvoiceModal({
       )}
     </div>
   );
+  };
 
   return (
     <>
@@ -864,9 +883,9 @@ export function InvoiceModal({
                         ? 'bg-white text-slate-950 shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
-                    title="Auto-fit complete invoice onto screen (Zero horizontal scroll)"
+                    title="Auto-fit complete invoice onto screen (100% visible, zero horizontal scroll)"
                   >
-                    <span>📱 Fit</span>
+                    <span>📱 Fit to Page</span>
                   </button>
                   <button
                     type="button"
@@ -878,7 +897,7 @@ export function InvoiceModal({
                     }`}
                     title="100% full-resolution actual size view"
                   >
-                    <span>🔍 100%</span>
+                    <span>🔍 100% Actual</span>
                   </button>
                 </div>
               </div>
@@ -1032,37 +1051,67 @@ export function InvoiceModal({
                 <div className="p-3 sm:p-4 border-t border-slate-200 space-y-3 animate-in fade-in">
                   {/* Format Tabs & Zoom View Modes inside dropdown */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                      <button
-                        onClick={() => setFormat('a4')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          format === 'a4'
-                            ? 'bg-slate-900 text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        A4 Bill
-                      </button>
-                      <button
-                        onClick={() => setFormat('thermal-80')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          format === 'thermal-80'
-                            ? 'bg-slate-900 text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        80mm Thermal
-                      </button>
-                      <button
-                        onClick={() => setFormat('thermal-58')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          format === 'thermal-58'
-                            ? 'bg-slate-900 text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        58mm
-                      </button>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <div className="flex items-center p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                        <button
+                          onClick={() => setFormat('a4')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            format === 'a4'
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          A4 Bill
+                        </button>
+                        <button
+                          onClick={() => setFormat('thermal-80')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            format === 'thermal-80'
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          80mm Thermal
+                        </button>
+                        <button
+                          onClick={() => setFormat('thermal-58')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            format === 'thermal-58'
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          58mm
+                        </button>
+                      </div>
+
+                      {/* Zoom View Mode Pill */}
+                      <div className="flex items-center p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                        <button
+                          type="button"
+                          onClick={() => setViewMode('fit')}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                            viewMode === 'fit'
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                          title="Auto-fit complete invoice onto screen (100% visible, zero horizontal scroll)"
+                        >
+                          <span>📱 Fit to Page</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setViewMode('full')}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                            viewMode === 'full'
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                          title="100% full-resolution actual size view"
+                        >
+                          <span>🔍 100% Actual</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1.5">
