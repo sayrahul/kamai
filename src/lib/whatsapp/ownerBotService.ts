@@ -171,6 +171,20 @@ export async function handleOwnerBotMessage(fromPhone: string, messageBody: stri
   });
 
   try {
+    // 1. Account is Frozen
+    if (business && business.is_active === false) {
+      const frozenMsg = `🛑 *Account Suspended*\n\nNamaste ${ownerName} ji, your store account (*${storeName}*) has been frozen by the platform administrator.\n\n📧 To reactivate your account, please contact:\n*info@proventure.in*`;
+      await sendWhatsAppFreeformTextMessage(fromPhone, frozenMsg);
+      return { success: true, intent };
+    }
+
+    // 2. Account Not Found / Deleted
+    if (!business) {
+      const newSignupMsg = `👋 *Namaste!*\n\nWelcome to *KamaiPlus POS* — your all-in-one digital billing & khata platform 🏪\n\nNo active store is linked to this WhatsApp number (+91 ${cleanPhone}).\n\n👉 *To setup your store & create bills in 1 minute:*\n🔗 https://kamaiplus.proventure.in/onboarding\n\n_Official Support: info@proventure.in_`;
+      await sendWhatsAppFreeformTextMessage(fromPhone, newSignupMsg);
+      return { success: true, intent };
+    }
+
     // =========================================================================
     // INTENT 1: GREETINGS / MAIN MENU
     // =========================================================================

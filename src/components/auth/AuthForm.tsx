@@ -790,6 +790,29 @@ export const AuthForm: React.FC = () => {
           )}
         </button>
 
+        {/* ============================================================= */}
+        {/* 4. Reset Device Storage / Fresh Signup Mode */}
+        {/* ============================================================= */}
+        <div className="pt-2 border-t border-slate-800/80 text-center">
+          <button
+            type="button"
+            onClick={async () => {
+              const { purgeLocalDeviceData } = await import('@/lib/auth');
+              await purgeLocalDeviceData();
+              setWelcomeMessage(null);
+              setError('');
+              setPhoneNumber('');
+              setOtp('');
+              setStep('PHONE');
+              router.push('/onboarding');
+            }}
+            className="text-[11.5px] text-slate-400 hover:text-amber-400 font-semibold inline-flex items-center gap-1.5 transition cursor-pointer py-1.5 px-3 rounded-xl hover:bg-slate-800/50"
+            title="Wipe IndexedDB & local cache on this device to create a fresh store"
+          >
+            <span>🧹 Reset Device Data (Start Fresh Signup)</span>
+          </button>
+        </div>
+
         {/* Feature Highlights */}
         <div className="pt-2 grid grid-cols-2 gap-2 text-center">
           <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2 justify-center">
