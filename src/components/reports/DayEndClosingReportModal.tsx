@@ -5,7 +5,6 @@ import {
   FileDown, 
   Copy, 
   Check, 
-  MessageCircle, 
   Banknote, 
   QrCode, 
   BookOpen, 
@@ -17,6 +16,7 @@ import {
 import { Business, Sale, CashExpense } from '@/types';
 import { formatINR } from '@/lib/utils';
 import { generateDailyClosingPDF } from '@/lib/reports/dailyClosingPdf';
+import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 
 interface DayEndClosingReportModalProps {
   isOpen: boolean;
@@ -392,7 +392,7 @@ export const DayEndClosingReportModal: React.FC<DayEndClosingReportModalProps> =
               </>
             ) : (
               <>
-                <MessageCircle className="w-3.5 h-3.5 text-slate-950 fill-slate-950" />
+                <WhatsAppLogo className="w-4 h-4" />
                 <span>Send to WhatsApp</span>
               </>
             )}

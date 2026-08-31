@@ -30,9 +30,10 @@ import {
   TrendingUp, 
   TrendingDown,
   Sliders,
-  MessageCircle,
-  FileText
+  FileText,
+  History
 } from 'lucide-react';
+import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
@@ -334,7 +335,7 @@ export default function CashRegisterPage() {
             }}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-sm cursor-pointer"
           >
-            <MessageCircle className="w-3.5 h-3.5 text-white" />
+            <WhatsAppLogo className="w-3.5 h-3.5" />
             <span>WhatsApp Day Summary</span>
             {!isPro && <Lock className="w-3 h-3 text-amber-300" />}
           </Button>
@@ -347,9 +348,7 @@ export default function CashRegisterPage() {
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs shadow-2xs transition"
             title="Chat with WhatsApp Store Bot"
           >
-            <svg className="w-3.5 h-3.5 fill-[#25D366] shrink-0" viewBox="0 0 24 24">
-              <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.04 14.69 2 12.04 2Z" />
-            </svg>
+            <WhatsAppLogo className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Store Bot</span>
           </a>
 
@@ -619,9 +618,9 @@ export default function CashRegisterPage() {
                     handleSendZReportWhatsApp();
                   }
                 }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 shadow-sm cursor-pointer"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-sm cursor-pointer"
               >
-                <MessageCircle className="w-3.5 h-3.5" />
+                <WhatsAppLogo className="w-3.5 h-3.5" />
                 <span>WhatsApp Owner</span>
                 {!isPro && <Lock className="w-3 h-3 text-amber-300" />}
               </Button>

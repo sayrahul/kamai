@@ -15,11 +15,11 @@ import {
   Sparkles, 
   Lock,
   ArrowRight,
-  MessageCircle,
   CreditCard,
   RefreshCw,
   AlertCircle
 } from 'lucide-react';
+import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 
 interface UPIPaymentModalProps {
   isOpen: boolean;
@@ -433,7 +433,7 @@ export const UPIPaymentModal: React.FC<UPIPaymentModalProps> = ({
                 rel="noreferrer"
                 className="text-slate-800 font-bold hover:underline flex items-center gap-1"
               >
-                <MessageCircle className="w-3.5 h-3.5 text-slate-700" />
+                <WhatsAppLogo className="w-3.5 h-3.5" />
                 <span>WhatsApp Support</span>
               </a>
             </div>

@@ -24,7 +24,6 @@ import {
   ChevronDown, 
   Printer,
   X,
-  MessageCircle,
   Copy,
   Send,
   ExternalLink,
@@ -36,6 +35,7 @@ import {
   Eye,
   Save
 } from 'lucide-react';
+import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -1016,7 +1016,7 @@ export default function SettingsPage() {
           { id: 'profile', label: 'Shop Profile & Logo', icon: Store, category: 'profile' },
           { id: 'upi', label: 'Multiple UPI QRs & Banking', icon: QrCode, category: 'upi' },
           { id: 'invoicing', label: 'Invoice Prefix & Sequence', icon: Receipt, category: 'invoicing' },
-          { id: 'whatsapp', label: 'Meta WhatsApp Cloud API', icon: MessageCircle, category: 'whatsapp' },
+          { id: 'whatsapp', label: 'Meta WhatsApp Cloud API', icon: WhatsAppLogo, category: 'whatsapp' },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -1845,8 +1845,8 @@ export default function SettingsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
-                    <MessageCircle className="w-5 h-5" />
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center p-1.5">
+                    <WhatsAppLogo className="w-full h-full" />
                   </div>
                   <div>
                     <h2 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">

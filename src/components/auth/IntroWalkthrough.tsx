@@ -13,10 +13,10 @@ import {
   Zap,
   Volume2,
   Printer,
-  MessageCircle,
   QrCode,
   CheckCircle2
 } from 'lucide-react';
+import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 
 interface IntroWalkthroughProps {
   onComplete: () => void;
@@ -68,7 +68,7 @@ export const IntroWalkthrough: React.FC<IntroWalkthroughProps> = ({
       iconColor: 'text-sky-400 bg-sky-950/60 border-sky-800',
       highlights: [
         { icon: BookOpen, title: 'Zero-Loss Credit Ledger', desc: 'Track customer balances and payment history.' },
-        { icon: MessageCircle, title: 'WhatsApp PDF Invoices', desc: 'Send paperless bills directly to WhatsApp.' },
+        { icon: WhatsAppLogo, title: 'WhatsApp PDF Invoices', desc: 'Send paperless bills directly to WhatsApp.' },
         { icon: QrCode, title: 'Instant UPI QR Collection', desc: 'Direct bank payments with zero commissions.' },
       ]
     }

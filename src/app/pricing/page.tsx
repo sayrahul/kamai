@@ -16,7 +16,6 @@ import {
   Palette, 
   Mic, 
   Boxes,
-  MessageCircle,
   HelpCircle,
   ArrowRight,
   Info,

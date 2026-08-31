@@ -10,7 +10,6 @@ import {
   TrendingUp, 
   Search, 
   Download, 
-  MessageCircle, 
   Zap, 
   CheckCircle2, 
   AlertCircle, 
@@ -67,8 +66,11 @@ import {
   ChevronDown,
   Wrench,
   FileText,
-  IndianRupee
+  IndianRupee,
+  KeyRound,
+  ShieldAlert
 } from 'lucide-react';
+import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -998,7 +1000,7 @@ export default function MasterSuperAdminPage() {
               { id: 'merchants', label: `Merchants (${merchants.length})`, icon: Store },
               { id: 'broadcast', label: 'Broadcasts', icon: BellRing },
               { id: 'coupons', label: `Coupons (${coupons.length})`, icon: Tag },
-              { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
+              { id: 'whatsapp', label: 'WhatsApp', icon: WhatsAppLogo },
               { id: 'revenue', label: 'Revenue', icon: CreditCard },
               { id: 'config', label: 'Config', icon: Sliders },
             ].map((tab) => {
@@ -1241,7 +1243,7 @@ export default function MasterSuperAdminPage() {
                         className="p-1.5 sm:p-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 cursor-pointer transition-colors"
                         title="Chat with merchant on WhatsApp"
                       >
-                        <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <WhatsAppLogo className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                     </div>
                   </div>
@@ -1418,7 +1420,7 @@ export default function MasterSuperAdminPage() {
                                 className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 cursor-pointer"
                                 title="Open WhatsApp Chat"
                               >
-                                <MessageCircle className="w-3.5 h-3.5" />
+                                <WhatsAppLogo className="w-3.5 h-3.5" />
                               </button>
 
                               {/* Edit Profile & Plan */}
@@ -1854,7 +1856,7 @@ export default function MasterSuperAdminPage() {
             <div className="bg-[#0D121F] border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-5 shadow-xl">
               <div>
                 <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
-                  <MessageCircle className="w-4 h-4 text-emerald-400" />
+                  <WhatsAppLogo className="w-4 h-4" />
                   <span>WhatsApp Merchant Outreach &amp; Campaign Center</span>
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
@@ -2127,7 +2129,7 @@ export default function MasterSuperAdminPage() {
                 <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      <WhatsAppLogo className="w-3.5 h-3.5" />
                       <span>Growth Marketing Tools</span>
                     </span>
                     <button
@@ -2682,7 +2684,7 @@ export default function MasterSuperAdminPage() {
                 { id: 'merchants', label: `Merchants Hub (${merchants.length})`, icon: Store },
                 { id: 'broadcast', label: 'Broadcasts & Alerts', icon: BellRing },
                 { id: 'coupons', label: `Coupons (${coupons.length})`, icon: Tag },
-                { id: 'whatsapp', label: 'WhatsApp Campaigns', icon: MessageCircle },
+                { id: 'whatsapp', label: 'WhatsApp Campaigns', icon: WhatsAppLogo },
                 { id: 'revenue', label: 'Revenue Intelligence', icon: CreditCard },
                 { id: 'config', label: 'Platform Config', icon: Sliders },
               ].map((tab) => {

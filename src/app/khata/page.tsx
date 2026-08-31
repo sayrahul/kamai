@@ -13,7 +13,6 @@ import {
   ArrowUpRight, 
   ArrowDownLeft, 
   Plus, 
-  MessageCircle,
   Edit2,
   Trash2,
   AlertTriangle,
@@ -31,8 +30,13 @@ import {
   TrendingDown,
   TrendingUp,
   FileText,
-  Loader2
+  Loader2,
+  Zap,
+  Lock,
+  ArrowRight,
+  ChevronDown
 } from 'lucide-react';
+import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -741,7 +745,7 @@ function KhataContent() {
                       {isSendingReminder ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
                       ) : (
-                        <MessageCircle className="w-3.5 h-3.5" />
+                        <WhatsAppLogo className="w-4 h-4" />
                       )}
                       <span>{isSendingReminder ? 'Sending...' : 'Send WhatsApp Reminder'}</span>
                     </button>

@@ -57,7 +57,7 @@ import { DayEndClosingReportModal } from '@/components/reports/DayEndClosingRepo
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
 import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
 import { Sale, Product } from '@/types';
-import { MessageCircle } from 'lucide-react';
+import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 
 const RapidBarcodeInwardModal = dynamic(
   () => import('@/components/products/RapidBarcodeInwardModal').then((m) => m.RapidBarcodeInwardModal),
@@ -446,8 +446,8 @@ export default function HomePage() {
           className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between gap-2 sm:gap-3 shadow-md shadow-emerald-600/15 cursor-pointer active:scale-[0.99] transition-all border border-emerald-500/30 group"
         >
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-              <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform p-1.5 sm:p-2">
+              <WhatsAppLogo className="w-full h-full" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-xs sm:text-sm font-black flex items-center gap-1.5 flex-wrap">

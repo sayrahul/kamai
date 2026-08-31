@@ -18,7 +18,6 @@ import {
   QrCode, 
   BookOpen, 
   Printer, 
-  MessageCircle, 
   Download, 
   ArrowUpDown, 
   X,
@@ -29,9 +28,11 @@ import {
   RotateCcw,
   Edit3,
   Trash2,
+  CalendarRange,
   Loader2,
   Sparkles
 } from 'lucide-react';
+import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -798,9 +799,9 @@ export default function TransactionsPage() {
                         className="p-1 rounded-md border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-700 cursor-pointer shadow-2xs transition disabled:opacity-50"
                       >
                         {sendingWhatsAppSaleId === sale.id ? (
-                          <Loader2 className="w-3 h-3 text-emerald-600 animate-spin" />
+                          <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
                         ) : (
-                          <MessageCircle className="w-3 h-3 text-emerald-600" />
+                          <WhatsAppLogo className="w-3.5 h-3.5" />
                         )}
                       </button>
 

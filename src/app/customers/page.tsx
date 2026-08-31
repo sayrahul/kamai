@@ -17,7 +17,6 @@ import {
   BookOpen, 
   Trash2, 
   Edit3, 
-  MessageCircle, 
   Star, 
   Sparkles, 
   Filter, 
@@ -28,6 +27,7 @@ import {
   UserCheck,
   Loader2
 } from 'lucide-react';
+import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -554,7 +554,7 @@ export default function CustomersPage() {
                     {sendingWhatsAppCustId === c.id ? (
                       <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
                     ) : (
-                      <MessageCircle className="w-3.5 h-3.5" />
+                      <WhatsAppLogo className="w-3.5 h-3.5" />
                     )}
                   </button>
                 )}
