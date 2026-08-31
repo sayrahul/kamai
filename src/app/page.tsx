@@ -472,60 +472,81 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ---------------- SPECIALIZED NICHE RADAR & ADAPTIVE HUB ---------------- */}
+      {/* ---------------- SPECIALIZED NICHE RADAR & ADAPTIVE HUB (PHARMACY) ---------------- */}
       {businessType === 'pharmacy' && (
-        <div className="bg-gradient-to-br from-teal-900 to-emerald-950 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-teal-700/40">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center font-bold flex-shrink-0">
-                <Pill className="w-4 h-4 text-teal-300" />
-              </div>
-              <div>
-                <h3 className="text-xs sm:text-sm font-black tracking-tight text-white flex items-center gap-1.5">
-                  <span>Pharmacy Expiry Watchdog &amp; Rx Desk</span>
-                  <span className="px-1.5 py-0.5 rounded-full bg-teal-500/30 text-teal-200 text-[9px] font-black uppercase">
-                    Live Radar
-                  </span>
-                </h3>
-                <p className="text-[10.5px] text-teal-200/80">Batch-wise compliance &amp; supplier return tracking</p>
-              </div>
+        <div className="bg-white border border-teal-200/90 rounded-2xl p-3 sm:p-3.5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-2.5 animate-in fade-in">
+          {/* Left: Brand Pill & Title */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 flex items-center justify-center font-bold flex-shrink-0 shadow-2xs">
+              <Pill className="w-4 h-4 text-teal-600" />
             </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="text-xs sm:text-sm font-black text-slate-900 truncate">Pharmacy Expiry &amp; Rx Desk</h3>
+                <span className="px-1.5 py-0.2 rounded-md bg-teal-100 text-teal-900 text-[9px] font-black uppercase">
+                  Compliance
+                </span>
+              </div>
+              <p className="text-[10.5px] text-slate-500 truncate">Batch tracking &amp; Doctor Rx prescription billing</p>
+            </div>
+          </div>
+
+          {/* Center & Right: Compact Pill Metrics & Actions */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Expired Batches Pill */}
+            <Link
+              href="/inventory?filter=expired"
+              className={cn(
+                "px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer",
+                expiredMedicines.length > 0
+                  ? "bg-rose-50 border-rose-300 text-rose-800 animate-pulse"
+                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+              )}
+              title="Expired Batches (Remove from shelf)"
+            >
+              <span className={cn("w-2 h-2 rounded-full", expiredMedicines.length > 0 ? "bg-rose-600" : "bg-emerald-500")} />
+              <span>Expired: <b className="font-mono">{expiredMedicines.length}</b></span>
+            </Link>
+
+            {/* Expiring Soon Pill */}
+            <Link
+              href="/inventory?filter=expiring_soon"
+              className={cn(
+                "px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer",
+                expiringSoonMedicines.length > 0
+                  ? "bg-amber-50 border-amber-300 text-amber-900"
+                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+              )}
+              title="Expiring within 30 Days (Supplier return)"
+            >
+              <span className={cn("w-2 h-2 rounded-full", expiringSoonMedicines.length > 0 ? "bg-amber-500" : "bg-slate-300")} />
+              <span>Expiring 30D: <b className="font-mono">{expiringSoonMedicines.length}</b></span>
+            </Link>
+
+            {/* Doctor Rx Bill Quick Link */}
+            <Link
+              href="/billing"
+              className="px-2.5 py-1.5 rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-900 text-xs font-bold flex items-center gap-1 transition active:scale-95 shadow-2xs cursor-pointer"
+            >
+              <Stethoscope className="w-3 h-3 text-teal-700" />
+              <span>Rx Billing</span>
+            </Link>
+
+            {/* Strip/Tab Formulations Link */}
+            <Link
+              href="/products"
+              className="hidden lg:inline-flex px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold items-center gap-1 transition cursor-pointer"
+            >
+              <span>{products.length} Drugs</span>
+            </Link>
+
+            {/* Expiry Radar Button */}
             <Link
               href="/inventory"
-              className="px-2.5 py-1 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-200 font-bold text-[11px] flex items-center gap-1 transition flex-shrink-0"
+              className="px-3 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-xs active:scale-95"
             >
               <span>Expiry Radar</span>
               <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-            <div className={`p-2.5 rounded-xl border ${expiredMedicines.length > 0 ? 'bg-rose-950/60 border-rose-500/40 text-rose-200' : 'bg-white/5 border-white/10 text-slate-300'}`}>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Expired Batches</div>
-              <div className="text-lg font-black font-mono mt-0.5">{expiredMedicines.length}</div>
-              <div className="text-[9.5px] text-rose-300/70">Remove from shelf</div>
-            </div>
-
-            <div className={`p-2.5 rounded-xl border ${expiringSoonMedicines.length > 0 ? 'bg-amber-950/60 border-amber-500/40 text-amber-200' : 'bg-white/5 border-white/10 text-slate-300'}`}>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Expiring in 30 Days</div>
-              <div className="text-lg font-black font-mono mt-0.5">{expiringSoonMedicines.length}</div>
-              <div className="text-[9.5px] text-amber-300/70">Return to supplier</div>
-            </div>
-
-            <Link href="/billing" className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white flex flex-col justify-between transition group">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-teal-300 flex items-center justify-between">
-                <span>Doctor Rx Billing</span>
-                <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-              </div>
-              <div className="text-[11px] font-bold text-teal-100 mt-1">Patient &amp; Batch on Slip</div>
-            </Link>
-
-            <Link href="/products" className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white flex flex-col justify-between transition group">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-teal-300 flex items-center justify-between">
-                <span>Strip / Tab Master</span>
-                <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-              </div>
-              <div className="text-[11px] font-bold text-teal-100 mt-1">{products.length} Formulations</div>
             </Link>
           </div>
         </div>
