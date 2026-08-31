@@ -1023,15 +1023,13 @@ export default function HomePage() {
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
         {/* Top Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsRecentCollapsed(!isRecentCollapsed)}
-              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors flex items-center justify-center"
-              title={isRecentCollapsed ? 'Expand Transactions List' : 'Collapse Transactions List'}
-            >
-              {isRecentCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-            </button>
+          <div 
+            onClick={() => setIsRecentCollapsed(!isRecentCollapsed)}
+            className="flex items-center gap-2.5 cursor-pointer select-none flex-1"
+          >
+            <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center flex-shrink-0">
+              <Receipt className="w-4 h-4 text-slate-700" />
+            </div>
 
             <div>
               <div className="flex items-center gap-2">
@@ -1041,23 +1039,35 @@ export default function HomePage() {
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                {isRecentCollapsed ? 'Click dropdown arrow to expand and filter list' : 'Click any invoice to view, print, or WhatsApp bill'}
+                {isRecentCollapsed ? 'Click to expand and filter list' : 'Click any invoice to view, print, or WhatsApp bill'}
               </p>
             </div>
           </div>
 
-          {/* Quick Action: Open Dedicated Filter Page */}
-          <Link href="/transactions">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs font-bold gap-1.5 border-slate-300 hover:border-slate-900 w-full sm:w-auto justify-center"
+          {/* Right Action Cluster: Full Ledger Link + Collapse/Expand Toggle Button */}
+          <div className="flex items-center gap-2 self-start sm:self-center">
+            <Link href="/transactions">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs font-bold gap-1.5 border-slate-300 hover:border-slate-900 w-full sm:w-auto justify-center"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-700" />
+                <span>Full Ledger & Returns Page</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-0.5 text-slate-500" />
+              </Button>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setIsRecentCollapsed(!isRecentCollapsed)}
+              className="p-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1 transition cursor-pointer border border-slate-200"
+              title={isRecentCollapsed ? 'Expand Transactions List' : 'Collapse Transactions List'}
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-700" />
-              <span>Full Ledger & Returns Page</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-0.5 text-slate-500" />
-            </Button>
-          </Link>
+              <span>{isRecentCollapsed ? 'Show' : 'Hide'}</span>
+              {isRecentCollapsed ? <ChevronDown className="w-3.5 h-3.5 text-slate-700" /> : <ChevronUp className="w-3.5 h-3.5 text-slate-700" />}
+            </button>
+          </div>
         </div>
 
         {/* Collapsible Content Section */}
