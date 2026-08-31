@@ -2648,7 +2648,7 @@ export default function BillingPage() {
         onClose={() => setIsHardwareModalOpen(false)}
       />
 
-      {/* Invoice Modal for Completed Sale */}
+      {/* Invoice Modal for Completed Sale (Success Modal Mode with Dropdown PDF) */}
       {activeSaleForInvoice && (
         <InvoiceModal
           isOpen={isInvoiceModalOpen}
@@ -2665,6 +2665,8 @@ export default function BillingPage() {
           }}
           sale={activeSaleForInvoice}
           business={business || null}
+          initialPhone={completedSaleDetails?.customerPhone || activeSaleForInvoice.customer_phone || ''}
+          isPostSaleSuccess={true}
         />
       )}
 
