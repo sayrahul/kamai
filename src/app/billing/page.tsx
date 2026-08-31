@@ -700,6 +700,23 @@ export default function BillingPage() {
   const addToCart = (product: Product, quantityToAdd: number = 1) => {
     if (product.is_active === false) return;
 
+    // Out-of-Stock and Maximum Stock Enforcement
+    if (!product.is_unlimited_stock) {
+      const currentStock = Number(product.current_stock ?? 0);
+      if (currentStock <= 0) {
+        playBeepSound('alert');
+        showBillingToast(`Out of Stock: "${product.name}" has 0 stock remaining.`, 'error');
+        return;
+      }
+
+      const currentInCart = getCartQuantityForProduct(product.id, product.name);
+      if (currentInCart + quantityToAdd > currentStock) {
+        playBeepSound('alert');
+        showBillingToast(`Insufficient Stock: Only ${currentStock} ${product.unit || 'units'} available for "${product.name}".`, 'error');
+        return;
+      }
+    }
+
     playBeepSound('success');
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
@@ -765,8 +782,18 @@ export default function BillingPage() {
   };
 
   const updateQuantity = (productId: string, delta: number) => {
-    const product = products.find((p) => p.id === productId);
+    const product = products.find((p) => p.id === productId) || allProducts.find((p) => p.id === productId);
     if (!product) return;
+
+    if (delta > 0 && !product.is_unlimited_stock) {
+      const currentStock = Number(product.current_stock ?? 0);
+      const currentInCart = getCartQuantityForProduct(productId, product.name);
+      if (currentInCart + delta > currentStock) {
+        playBeepSound('alert');
+        showBillingToast(`Max stock reached (${currentStock} ${product.unit || 'units'}) for "${product.name}".`, 'error');
+        return;
+      }
+    }
 
     setCart((prev) =>
       prev
@@ -1996,28 +2023,45 @@ export default function BillingPage() {
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => addToCart(p, 1)}
+                      onClick={() => {
+                        if (isOutOfStock) {
+                          playBeepSound('alert');
+                          showBillingToast(`Out of Stock: "${p.name}" has 0 stock remaining.`, 'error');
+                          return;
+                        }
+                        addToCart(p, 1);
+                      }}
                       className={cn(
-                        'p-2 sm:p-2.5 rounded-xl border text-left flex flex-col justify-between relative overflow-hidden transition-all active:scale-[0.98] min-h-[76px] sm:min-h-[82px] cursor-pointer',
+                        'p-2 sm:p-2.5 rounded-xl border text-left flex flex-col justify-between relative overflow-hidden transition-all min-h-[76px] sm:min-h-[82px]',
                         isOutOfStock
-                          ? 'border-rose-300/80 bg-rose-50/50 hover:border-rose-400'
-                          : 'cursor-pointer bg-white hover:border-slate-400 shadow-2xs',
+                          ? 'border-rose-300/80 bg-rose-50/40 opacity-70 hover:border-rose-400 cursor-not-allowed select-none'
+                          : 'cursor-pointer bg-white hover:border-slate-400 shadow-2xs active:scale-[0.98]',
                         inCart && !isOutOfStock
                           ? 'border-amber-400 ring-1.5 ring-amber-400/50 bg-amber-50/35'
-                          : 'border-slate-200'
+                          : !isOutOfStock && 'border-slate-200'
                       )}
                     >
-                      {inCart && (
+                      {isOutOfStock ? (
+                        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider shadow-xs">
+                          Out of Stock
+                        </div>
+                      ) : inCart ? (
                         <div className="absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-md bg-amber-400 text-slate-950 text-[9px] font-black shadow-xs">
                           {inCart.quantity} in cart
                         </div>
-                      )}
+                      ) : null}
 
                       <div className="pr-12">
-                        <span className="text-[9px] uppercase font-extrabold tracking-wider text-slate-400 block leading-tight">
+                        <span className={cn(
+                          "text-[9px] uppercase font-extrabold tracking-wider block leading-tight",
+                          isOutOfStock ? "text-slate-400" : "text-slate-400"
+                        )}>
                           {p.category_name || 'Item'}
                         </span>
-                        <h4 className="text-xs font-bold text-slate-900 line-clamp-1 mt-0.5 leading-snug">
+                        <h4 className={cn(
+                          "text-xs font-bold line-clamp-1 mt-0.5 leading-snug",
+                          isOutOfStock ? "text-slate-500 line-through" : "text-slate-900"
+                        )}>
                           {p.name}
                         </h4>
                       </div>
@@ -2026,12 +2070,12 @@ export default function BillingPage() {
                         <div className="truncate">
                           <span className={cn(
                             "text-xs sm:text-sm font-black font-mono",
-                            isWholesaleApplied ? "text-amber-700" : "text-slate-900"
+                            isOutOfStock ? "text-slate-400 line-through" : isWholesaleApplied ? "text-amber-700" : "text-slate-900"
                           )}>
                             {formatINR(displayPrice)}
                           </span>
                           <span className="text-[10px] text-slate-500 font-medium ml-0.5">/{p.unit}</span>
-                          {isWholesaleApplied && (
+                          {isWholesaleApplied && !isOutOfStock && (
                             <span className="ml-1 text-[9px] font-black uppercase text-amber-700 bg-amber-100 px-1 py-0.2 rounded">
                               Thok
                             </span>
@@ -2039,9 +2083,13 @@ export default function BillingPage() {
                         </div>
                         <span className={cn(
                           "text-[10px] font-bold flex-shrink-0 px-1 py-0.2 rounded",
-                          isOutOfStock ? "text-rose-700 bg-rose-100 font-extrabold uppercase" : isLowStock ? "text-amber-800 bg-amber-100" : "text-slate-400"
+                          isOutOfStock
+                            ? "text-rose-700 bg-rose-100 font-black uppercase"
+                            : isLowStock
+                            ? "text-amber-800 bg-amber-100 font-bold"
+                            : "text-slate-500"
                         )}>
-                          {isOutOfStock ? 'Out of stock' : `${availableStock} left`}
+                          {isOutOfStock ? '0 left' : `${availableStock} left`}
                         </span>
                       </div>
                     </button>
