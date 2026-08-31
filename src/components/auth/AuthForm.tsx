@@ -124,19 +124,8 @@ export const AuthForm: React.FC = () => {
         }
       }
 
-      // Check local Dexie if already initialized
-      if (!merchantData) {
-        try {
-          if (!localDb.isOpen()) await localDb.open();
-          const localBiz = await localDb.businesses.toCollection().first();
-          if (localBiz && (localBiz.phone === cleanPhone || (localBiz as any).user_uid === uid)) {
-            merchantData = localBiz;
-          }
-        } catch (lErr) {}
-      }
-
-      // CASE A: Returning User (Merchant document or business exists)
-      if (merchantData && (merchantData.business_id || merchantData.id)) {
+      // CASE A: Returning User (Active Merchant document or business verified in Cloud)
+      if (merchantData && (merchantData.business_id || merchantData.id) && merchantData.is_active !== false) {
         const businessId = merchantData.business_id || merchantData.id;
         const shopName = merchantData.shop_name || merchantData.name || merchantData.business_name || 'My Store';
         const ownerName = merchantData.owner_name || name || 'Merchant';
@@ -146,14 +135,17 @@ export const AuthForm: React.FC = () => {
 
         // Clean local Dexie tables before restoring latest cloud snapshot
         try {
-          await localDb.sales.clear();
-          await localDb.customers.clear();
-          await localDb.products.clear();
-          await localDb.categories.clear();
-          await localDb.ledger_transactions.clear();
-          await localDb.cash_expenses.clear();
-          await localDb.cash_registers.clear();
-          await localDb.businesses.clear();
+          if (!localDb.isOpen()) await localDb.open();
+          await Promise.all([
+            localDb.sales.clear(),
+            localDb.customers.clear(),
+            localDb.products.clear(),
+            localDb.categories.clear(),
+            localDb.ledger_transactions.clear(),
+            localDb.cash_expenses.clear(),
+            localDb.cash_registers.clear(),
+            localDb.businesses.clear(),
+          ]);
         } catch (clearErr) {
           console.warn('Wipe local tables on returning login:', clearErr);
         }
@@ -209,7 +201,24 @@ export const AuthForm: React.FC = () => {
           router.replace('/');
         }, 1000);
       } else {
-        // CASE B: First-Time User (Document Does NOT Exist)
+        // CASE B: First-Time User OR Deleted Merchant (Document Does NOT Exist in Cloud)
+        // Complete purge of any stale device data
+        try {
+          if (!localDb.isOpen()) await localDb.open();
+          await Promise.all([
+            localDb.sales.clear(),
+            localDb.customers.clear(),
+            localDb.products.clear(),
+            localDb.categories.clear(),
+            localDb.ledger_transactions.clear(),
+            localDb.cash_expenses.clear(),
+            localDb.cash_registers.clear(),
+            localDb.businesses.clear(),
+          ]);
+        } catch (purgeErr) {
+          console.warn('Wipe local device tables on first-time signup:', purgeErr);
+        }
+
         const partialUser: AuthUser = {
           uid,
           id: uid,
@@ -218,11 +227,11 @@ export const AuthForm: React.FC = () => {
           photoURL: photoURL || null,
           name: name || 'Store Owner',
           role: 'admin',
-          business_id: undefined, // Incomplete onboarding flag
+          business_id: undefined, // Mandatory onboarding flag
         };
         setStoredUser(partialUser);
 
-        // Navigate immediately to onboarding page
+        // Navigate immediately to onboarding page for fresh store creation
         router.replace('/onboarding');
       }
     } catch (err: any) {

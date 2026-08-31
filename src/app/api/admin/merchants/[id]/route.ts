@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminRequest } from '@/lib/admin/adminAuth';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getFirestoreDb } from '@/lib/firebase/config';
-import { doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export async function PATCH(
   req: NextRequest,
@@ -126,12 +126,33 @@ export async function DELETE(
   try {
     const { id } = await context.params;
 
-    // 1. Delete from Cloud Firestore
+    // 1. Delete from Cloud Firestore (businesses & merchants collections)
     try {
       const firestore = getFirestoreDb();
       if (firestore) {
         const bizDocRef = doc(firestore, 'businesses', id);
+        const bizSnap = await getDoc(bizDocRef);
+        const bizData = bizSnap.exists() ? bizSnap.data() : null;
+
+        // Delete primary business record
         await deleteDoc(bizDocRef);
+
+        // Delete linked merchant documents
+        if (bizData?.user_uid) {
+          await deleteDoc(doc(firestore, 'merchants', bizData.user_uid)).catch(() => {});
+        }
+        if (bizData?.phone) {
+          const mQ = query(collection(firestore, 'merchants'), where('phone', '==', bizData.phone));
+          const mSnap = await getDocs(mQ);
+          for (const mDoc of mSnap.docs) {
+            await deleteDoc(mDoc.ref).catch(() => {});
+          }
+        }
+        const mBizQ = query(collection(firestore, 'merchants'), where('business_id', '==', id));
+        const mBizSnap = await getDocs(mBizQ);
+        for (const mDoc of mBizSnap.docs) {
+          await deleteDoc(mDoc.ref).catch(() => {});
+        }
       }
     } catch (firestoreErr) {
       console.warn('Firestore delete warning:', firestoreErr);
@@ -157,7 +178,7 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: `Store ${id} permanently removed from platform.`,
+      message: `Store ${id} and associated merchant profiles permanently deleted.`,
     });
   } catch (error: any) {
     return NextResponse.json(
