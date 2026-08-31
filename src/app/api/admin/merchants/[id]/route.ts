@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminRequest } from '@/lib/admin/adminAuth';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { getFirestoreDb } from '@/lib/firebase/config';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 
 export async function PATCH(
   req: NextRequest,
@@ -76,7 +76,7 @@ export async function PATCH(
       const firestore = getFirestoreDb();
       if (firestore) {
         const bizDocRef = doc(firestore, 'businesses', id);
-        await updateDoc(bizDocRef, updates);
+        await setDoc(bizDocRef, updates, { merge: true });
       }
     } catch (firestoreErr) {
       console.warn('Firestore update warning:', firestoreErr);
@@ -90,6 +90,13 @@ export async function PATCH(
           .from('businesses')
           .update(updates)
           .eq('id', id);
+
+        if (is_active !== undefined) {
+          await supabase
+            .from('business_staff')
+            .update({ is_active, updated_at: new Date().toISOString() })
+            .eq('business_id', id);
+        }
       }
     } catch (supabaseErr) {
       console.warn('Supabase update warning:', supabaseErr);
@@ -134,6 +141,11 @@ export async function DELETE(
     try {
       const supabase = getSupabaseServerClient();
       if (supabase) {
+        await supabase
+          .from('business_staff')
+          .delete()
+          .eq('business_id', id);
+
         await supabase
           .from('businesses')
           .delete()

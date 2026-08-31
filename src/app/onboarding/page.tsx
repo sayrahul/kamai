@@ -24,7 +24,8 @@ import {
   Building2, 
   AlertCircle,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  QrCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -38,6 +39,7 @@ export default function OnboardingPage() {
   const [businessName, setBusinessName] = useState<string>('');
   const [ownerName, setOwnerName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
+  const [upiId, setUpiId] = useState<string>('');
   const [businessType, setBusinessType] = useState<BusinessType>('grocery');
   const [seedStarterCatalog, setSeedStarterCatalog] = useState<boolean>(true);
 
@@ -79,6 +81,7 @@ export default function OnboardingPage() {
     const cleanPhone = phone.replace(/\D/g, '').slice(-10);
     const cleanStoreName = businessName.trim();
     const cleanOwnerName = ownerName.trim() || 'Store Owner';
+    const cleanUpiId = upiId.trim();
 
     if (!cleanStoreName) {
       setError('Please enter your Store / Business Name.');
@@ -87,6 +90,17 @@ export default function OnboardingPage() {
 
     if (!cleanPhone || cleanPhone.length !== 10) {
       setError('Please enter a valid 10-digit WhatsApp / Contact Number.');
+      return;
+    }
+
+    if (!cleanUpiId) {
+      setError('Please enter your UPI ID (VPA). It is compulsory for generating payment QR codes on invoices.');
+      return;
+    }
+
+    const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+    if (!upiRegex.test(cleanUpiId)) {
+      setError('Please enter a valid UPI ID (e.g. yourname@upi, 9876543210@paytm, store@okaxis).');
       return;
     }
 
@@ -106,6 +120,7 @@ export default function OnboardingPage() {
         business_type: businessType,
         owner_name: cleanOwnerName,
         phone: cleanPhone,
+        upi_id: cleanUpiId,
         email: user?.email || undefined,
         user_email: user?.email || undefined,
         user_uid: rawUid,
@@ -312,7 +327,31 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            {/* 4. Business Category Selector */}
+            {/* 4. UPI ID (Compulsory for instant QR & Payments) */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+                <span>UPI ID / VPA *</span>
+                <span className="text-[10px] text-amber-400 font-semibold normal-case">Required for Bill QR Codes</span>
+              </label>
+              <div className="relative flex items-center">
+                <span className="absolute left-3.5 text-cyan-400 pointer-events-none">
+                  <QrCode className="w-4 h-4" />
+                </span>
+                <input
+                  type="text"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value.trim())}
+                  placeholder="e.g. 9876543210@paytm or store@okaxis"
+                  required
+                  className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-amber-400 focus:outline-none text-white text-sm font-mono placeholder:font-sans placeholder:text-slate-600 transition"
+                />
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Printed as dynamic NPCI UPI QR code on all bills &amp; WhatsApp payment links.
+              </p>
+            </div>
+
+            {/* 5. Business Category Selector */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                 Business Category *

@@ -19,6 +19,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const router = useRouter();
   const [isClient, setIsClient] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [accountLockout, setAccountLockout] = useState<{ isFrozen: boolean; message: string } | null>(null);
 
   // Auto Page View Analytics for Platform Owner
   useFirebasePageTracking();
@@ -98,10 +99,42 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       }
     }
 
-    // Verify session with server API (/api/auth/me) in the background
+    // Verify session with server API (/api/auth/me) in the background with 30s heartbeat
     const checkServerSession = async () => {
       try {
-        const res = await fetch('/api/auth/me');
+        const currentStored = getStoredUser();
+        const params = new URLSearchParams();
+        if (currentStored?.business_id) params.set('business_id', currentStored.business_id);
+        if (currentStored?.phone) params.set('phone', currentStored.phone);
+
+        const res = await fetch(`/api/auth/me?${params.toString()}`);
+        if (res.status === 403 || res.status === 401) {
+          const data = await res.json().catch(() => ({}));
+          if (data.isFrozen || data.isDeleted) {
+            // Instant data purge from local IndexedDB and localStorage
+            try {
+              await Promise.all([
+                localDb.businesses.clear(),
+                localDb.products.clear(),
+                localDb.sales.clear(),
+                localDb.customers.clear(),
+                localDb.categories.clear(),
+                localDb.inventory_movements.clear(),
+                localDb.suppliers.clear(),
+              ]);
+              localStorage.clear();
+              sessionStorage.clear();
+            } catch (purgeErr) {
+              console.error('Error purging local database on freeze:', purgeErr);
+            }
+            setAccountLockout({
+              isFrozen: Boolean(data.isFrozen),
+              message: data.error || (data.isFrozen ? 'Your merchant account has been frozen by the platform administrator.' : 'Your merchant account has been deleted.'),
+            });
+            return;
+          }
+        }
+
         if (res.ok) {
           const data = await res.json();
           if (data.authenticated && data.user) {
@@ -133,6 +166,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     };
 
     checkServerSession();
+    const heartbeatTimer = setInterval(checkServerSession, 30000);
+    window.addEventListener('focus', checkServerSession);
 
     // Ensure DB is open & auto-align cloud business if mismatched on this device
     const initDb = async () => {
@@ -162,6 +197,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     initDb();
 
     return () => {
+      clearInterval(heartbeatTimer);
+      window.removeEventListener('focus', checkServerSession);
       cleanupSync();
       window.removeEventListener('auth_changed', handleAuthChange);
       window.removeEventListener('storage', handleAuthChange);
@@ -194,6 +231,38 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col text-slate-900">
+      {/* Account Freeze / Delete Lockout Modal */}
+      {accountLockout && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-rose-200 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-xs">
+              <span className="text-2xl">🛑</span>
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-lg font-black text-slate-900">
+                {accountLockout.isFrozen ? 'Account Suspended' : 'Account Deactivated'}
+              </h2>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                {accountLockout.message}
+              </p>
+            </div>
+            <div className="p-3.5 bg-rose-50 rounded-2xl border border-rose-100 text-xs text-rose-950 space-y-1">
+              <div className="font-bold">Official Platform Support Email:</div>
+              <div className="font-mono font-bold text-rose-700 text-sm select-all">info@proventure.in</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = '/auth';
+              }}
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition cursor-pointer"
+            >
+              Return to Login
+            </button>
+          </div>
+        </div>
+      )}
+
       <GlobalBroadcastBanner />
       <Navbar />
       <div className="flex-1 flex w-full max-w-7xl mx-auto">
