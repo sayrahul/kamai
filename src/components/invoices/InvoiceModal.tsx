@@ -872,34 +872,6 @@ export function InvoiceModal({
                     58mm
                   </button>
                 </div>
-
-                {/* Responsive Zoom View Mode Pill */}
-                <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('fit')}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                      viewMode === 'fit'
-                        ? 'bg-white text-slate-950 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                    title="Auto-fit complete invoice onto screen (100% visible, zero horizontal scroll)"
-                  >
-                    <span>📱 Fit to Page</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('full')}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                      viewMode === 'full'
-                        ? 'bg-white text-slate-950 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                    title="100% full-resolution actual size view"
-                  >
-                    <span>🔍 100% Actual</span>
-                  </button>
-                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5 justify-end">
@@ -1049,69 +1021,39 @@ export function InvoiceModal({
               {/* Expanded Dropdown Content */}
               {isPdfPreviewExpanded && (
                 <div className="p-3 sm:p-4 border-t border-slate-200 space-y-3 animate-in fade-in">
-                  {/* Format Tabs & Zoom View Modes inside dropdown */}
+                  {/* Format Tabs inside dropdown */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <div className="flex items-center p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                        <button
-                          onClick={() => setFormat('a4')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                            format === 'a4'
-                              ? 'bg-slate-900 text-white shadow-xs'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          A4 Bill
-                        </button>
-                        <button
-                          onClick={() => setFormat('thermal-80')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                            format === 'thermal-80'
-                              ? 'bg-slate-900 text-white shadow-xs'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          80mm Thermal
-                        </button>
-                        <button
-                          onClick={() => setFormat('thermal-58')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                            format === 'thermal-58'
-                              ? 'bg-slate-900 text-white shadow-xs'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          58mm
-                        </button>
-                      </div>
-
-                      {/* Zoom View Mode Pill */}
-                      <div className="flex items-center p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                        <button
-                          type="button"
-                          onClick={() => setViewMode('fit')}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                            viewMode === 'fit'
-                              ? 'bg-slate-900 text-white shadow-xs'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                          title="Auto-fit complete invoice onto screen (100% visible, zero horizontal scroll)"
-                        >
-                          <span>📱 Fit to Page</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setViewMode('full')}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                            viewMode === 'full'
-                              ? 'bg-slate-900 text-white shadow-xs'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                          title="100% full-resolution actual size view"
-                        >
-                          <span>🔍 100% Actual</span>
-                        </button>
-                      </div>
+                    <div className="flex items-center p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                      <button
+                        onClick={() => setFormat('a4')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          format === 'a4'
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        A4 Bill
+                      </button>
+                      <button
+                        onClick={() => setFormat('thermal-80')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          format === 'thermal-80'
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        80mm Thermal
+                      </button>
+                      <button
+                        onClick={() => setFormat('thermal-58')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          format === 'thermal-58'
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        58mm
+                      </button>
                     </div>
 
                     <div className="flex items-center gap-1.5">
