@@ -837,15 +837,33 @@ export default function ProductsPage() {
         size="lg"
       >
         <form onSubmit={handleSaveProduct} className="space-y-3.5">
-          {/* 1. Core Primary Name Input */}
-          <Input
-            label={business?.business_type === 'restaurant' ? 'Item / Dish Name' : t('products.name')}
-            placeholder={storeProfile.placeholders.newProductName || 'e.g. Parle-G Gold Biscuits 100g'}
-            value={formName}
-            onChange={(e) => setFormName(e.target.value)}
-            required
-            autoFocus
-          />
+          {/* 1. Core Primary Name Input with Quick-Add Favorite Star Toggle */}
+          <div className="relative">
+            <Input
+              label={business?.business_type === 'restaurant' ? 'Item / Dish Name' : t('products.name')}
+              placeholder={storeProfile.placeholders.newProductName || 'e.g. Parle-G Gold Biscuits 100g'}
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              required
+              autoFocus
+              rightIcon={
+                <button
+                  type="button"
+                  onClick={() => setFormIsFavorite(!formIsFavorite)}
+                  className="p-1 -mr-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+                  title={formIsFavorite ? 'Pinned to Quick-Add Favorites (Click to unpin)' : 'Pin to Quick-Add Favorites on POS counter'}
+                >
+                  <Star
+                    className={`w-4 h-4 transition-transform active:scale-125 ${
+                      formIsFavorite
+                        ? 'fill-amber-400 text-amber-500 drop-shadow-xs'
+                        : 'text-slate-300 hover:text-amber-400'
+                    }`}
+                  />
+                </button>
+              }
+            />
+          </div>
 
           {/* 2. Category & Unit Selection Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -912,17 +930,17 @@ export default function ProductsPage() {
           
           {/* A. Batch & Expiry (Pharmacy / Medical / FMCG) */}
           {(hasModule(business?.business_type, 'BATCH_EXPIRY') || hasModule(business?.business_type, 'PHARMACY')) && (
-            <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2">
+            <div className="p-2.5 sm:p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
                   <span>💊</span>
-                  <span>Batch Number &amp; Expiry Date ({storeProfile.shortName})</span>
+                  <span>Batch No. &amp; Expiry Date ({storeProfile.shortName})</span>
                 </span>
-                <span className="text-[9.5px] text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded font-semibold">
-                  Compliance Tracking
+                <span className="text-[9px] sm:text-[9.5px] text-amber-800 bg-amber-200/60 px-1.5 py-0.5 rounded font-semibold">
+                  Compliance
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-2 gap-2">
                 <Input
                   label="Batch Number"
                   placeholder="e.g. BATCH-9942"
@@ -1170,8 +1188,8 @@ export default function ProductsPage() {
                   />
                 </div>
 
-                {/* Unlimited Stock & Favorite Toggles */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-100 text-xs">
+                {/* Unlimited Stock Toggle */}
+                <div className="pt-2 border-t border-slate-100 text-xs">
                   <label className="flex items-start gap-2 cursor-pointer p-2 rounded-lg border border-slate-200 bg-slate-50">
                     <input
                       type="checkbox"
@@ -1183,19 +1201,6 @@ export default function ProductsPage() {
                       <span className="font-bold text-slate-900 block">♾️ Unlimited Stock</span>
                       <span className="text-[10px] text-slate-500 block leading-tight">
                         Bypasses out-of-stock check during checkout.
-                      </span>
-                    </div>
-                  </label>
-
-                  <label 
-                    onClick={() => setFormIsFavorite(!formIsFavorite)}
-                    className="flex items-start gap-2 cursor-pointer p-2 rounded-lg border border-slate-200 bg-slate-50"
-                  >
-                    <Star className={`w-4 h-4 mt-0.5 shrink-0 ${formIsFavorite ? 'fill-amber-400 text-amber-500' : 'text-slate-400'}`} />
-                    <div>
-                      <span className="font-bold text-slate-900 block">{t('products.isFavorite')}</span>
-                      <span className="text-[10px] text-slate-500 block leading-tight">
-                        Pinned to top quick billing POS counter.
                       </span>
                     </div>
                   </label>
