@@ -75,27 +75,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // If cloud database is configured and business was deleted by admin
-    const hasCloudDb = Boolean(getFirestoreDb() || isSupabaseServerConfigured());
-    if (hasCloudDb && targetBusinessId && !isFound) {
-      return NextResponse.json(
-        {
-          authenticated: false,
-          isDeleted: true,
-          error: 'Your merchant store has been deleted by administrator. Please sign up to create a fresh store.',
-        },
-        { status: 401 }
-      );
-    }
-
     return NextResponse.json({
       authenticated: true,
       offline: !isFound,
+      needsOnboarding: !isFound,
       user: {
         id: payload?.staff_id || targetPhone || targetBusinessId,
         phone: targetPhone,
         role: payload?.role || 'admin',
-        business_id: targetBusinessId,
+        business_id: isFound ? targetBusinessId : undefined,
         business_name: businessData?.name || '',
       },
       business: businessData || null,

@@ -135,18 +135,25 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         if (res.ok) {
           const data = await res.json();
           if (data.authenticated && data.user) {
+            const currentStored = getStoredUser();
             const verifiedUser: AuthUser = {
-              uid: data.user.id,
-              id: data.user.id,
-              phone: data.user.phone,
-              name: data.user.name,
+              uid: data.user.id || currentStored?.uid || data.user.phone,
+              id: data.user.id || currentStored?.id || data.user.phone,
+              phone: data.user.phone || currentStored?.phone,
+              name: data.user.name || currentStored?.name || 'Store Owner',
+              email: currentStored?.email || null,
+              photoURL: currentStored?.photoURL || null,
               role: data.user.role || 'admin',
-              business_id: data.user.business_id,
-              business_name: data.business?.name || data.user.business_name || 'My Store',
-              shop_name: data.business?.name || data.user.business_name || 'My Store',
+              business_id: data.user.business_id || undefined,
+              business_name: data.business?.name || data.user.business_name || currentStored?.business_name || '',
+              shop_name: data.business?.name || data.user.business_name || currentStored?.shop_name || '',
             };
             setStoredUser(verifiedUser);
             setCurrentUser(verifiedUser);
+
+            if (!verifiedUser.business_id && pathname !== '/onboarding' && !isPublicRoute) {
+              router.replace('/onboarding');
+            }
 
             // Instant sync of subscription tier from Cloud DB
             if (data.business?.subscription_tier) {

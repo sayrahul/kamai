@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
 
     const sessionToken = signSessionToken({
       staff_id: staffId,
-      business_id: businessId,
+      business_id: isReturning ? businessId : '',
       phone: clean10Digit,
       role: 'owner',
     });
