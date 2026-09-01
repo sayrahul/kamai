@@ -540,239 +540,15 @@ export const AuthForm: React.FC = () => {
 
       <div className="space-y-4">
         {/* ============================================================= */}
-        {/* 1. TOP: Continue with WhatsApp (Primary 1-Tap Handshake) */}
-        {/* ============================================================= */}
-        {!isHandshakeWaiting ? (
-          <div>
-            <button
-              type="button"
-              onClick={handleContinueWithWhatsApp}
-              disabled={loading || otpLoading || !!welcomeMessage}
-              className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-slate-950 font-black text-sm shadow-xl hover:shadow-2xl transition-all duration-200 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
-            >
-              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none">
-                <path
-                  fillRule="evenodd"
-                  clipRule="evenodd"
-                  d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.04 14.69 2 12.04 2ZM12.04 3.73C16.55 3.73 20.22 7.4 20.22 11.91C20.22 16.42 16.55 20.09 12.04 20.09C10.63 20.09 9.27 19.72 8.08 19.02L7.79 18.85L4.68 19.67L5.51 16.63L5.33 16.34C4.57 15.13 4.16 13.73 4.16 12.28C4.16 7.77 7.83 4.1 12.34 4.1L12.04 3.73ZM17.51 14.34C17.21 14.19 15.74 13.47 15.47 13.37C15.2 13.27 15.01 13.22 14.81 13.52C14.62 13.82 14.06 14.47 13.89 14.67C13.72 14.87 13.55 14.89 13.25 14.74C12.95 14.59 11.99 14.28 10.86 13.27C9.98 12.48 9.38 11.51 9.21 11.21C9.04 10.91 9.19 10.75 9.34 10.6C9.48 10.46 9.65 10.23 9.8 10.06C9.95 9.89 10 9.77 10.1 9.57C10.2 9.37 10.15 9.19 10.08 9.04C10 8.89 9.42 7.46 9.18 6.87C8.94 6.3 8.7 6.38 8.52 6.37C8.35 6.36 8.16 6.36 7.96 6.36C7.76 6.36 7.44 6.43 7.17 6.73C6.9 7.02 6.13 7.74 6.13 9.21C6.13 10.68 7.2 12.1 7.35 12.3C7.5 12.5 9.45 15.5 12.43 16.79C13.14 17.1 13.69 17.28 14.12 17.42C14.83 17.65 15.48 17.61 15.99 17.54C16.56 17.45 17.74 16.82 17.99 16.12C18.24 15.42 18.24 14.82 18.16 14.69C18.09 14.57 17.81 14.49 17.51 14.34Z"
-                  fill="#FFFFFF"
-                />
-              </svg>
-              <span>Continue with WhatsApp</span>
-            </button>
-
-            {/* Sub-Toggle: Or Get WhatsApp OTP */}
-            <div className="text-center mt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowOtpForm(!showOtpForm);
-                  setError('');
-                }}
-                className="text-xs text-slate-400 hover:text-emerald-400 font-medium inline-flex items-center gap-1 transition cursor-pointer py-1"
-              >
-                <span>{showOtpForm ? 'Hide WhatsApp OTP' : 'or get WhatsApp OTP'}</span>
-                {showOtpForm ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-500/40 text-center space-y-3 animate-in zoom-in-95 duration-200">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto">
-              <RefreshCw className="w-5 h-5 text-emerald-400 animate-spin" />
-            </div>
-
-            <div>
-              <h4 className="text-sm font-bold text-white">Waiting for WhatsApp message...</h4>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Tap &quot;Send&quot; in WhatsApp. Your screen will unlock automatically!
-              </p>
-            </div>
-
-            {handshakeCode && (
-              <div className="flex items-center justify-center gap-2 p-2 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-amber-400">
-                <span>Code: <strong>{handshakeCode}</strong></span>
-                <button
-                  type="button"
-                  onClick={handleCopyCode}
-                  className="p-1 text-slate-400 hover:text-white transition"
-                  title="Copy Code"
-                >
-                  {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            )}
-
-            <div className="flex items-center gap-2 pt-1">
-              {handshakeUrl && (
-                <a
-                  href={handshakeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 py-2 px-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-emerald-500/30 transition"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Open WhatsApp Again</span>
-                </a>
-              )}
-              <button
-                type="button"
-                onClick={() => { setIsHandshakeWaiting(false); }}
-                className="py-2 px-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-xs font-medium hover:text-white transition cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Collapsible / Active WhatsApp OTP Form */}
-        {(showOtpForm || step === 'OTP') && (
-          <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/90 border border-slate-800 animate-in fade-in duration-200">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <Phone className="w-4 h-4 text-emerald-400" />
-              </div>
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-white">
-                  Enter Mobile for WhatsApp OTP
-                </h3>
-              </div>
-            </div>
-
-            {step === 'PHONE' ? (
-              <form onSubmit={handleSendOtp} className="space-y-3">
-                <div className="flex rounded-xl overflow-hidden border border-slate-800 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition bg-slate-900">
-                  <div className="flex items-center gap-1.5 px-3 py-3 bg-slate-800/80 border-r border-slate-800 text-slate-200 text-xs font-bold select-none flex-shrink-0">
-                    <span className="text-sm">🇮🇳</span>
-                    <span className="text-emerald-400 font-mono">+91</span>
-                  </div>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    maxLength={10}
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                    placeholder="98765 43210"
-                    required
-                    disabled={loading || otpLoading}
-                    className="flex-1 px-3.5 py-3 bg-transparent text-white text-base font-mono tracking-wide placeholder:text-slate-600 placeholder:font-sans focus:outline-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || otpLoading || isHandshakeWaiting || phoneNumber.length < 10}
-                  className="w-full py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-slate-950 font-black text-xs rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  {otpLoading ? (
-                    <span className="flex items-center gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
-                      <span>Sending OTP...</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 24 24">
-                        <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.04 14.69 2 12.04 2Z" />
-                      </svg>
-                      <span>Send 6-Digit OTP</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </span>
-                  )}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-3 animate-in fade-in duration-200">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    Enter 6-Digit Code
-                  </label>
-                  <span className="text-xs text-emerald-400 font-mono font-bold">
-                    +91 {phoneNumber}
-                  </span>
-                </div>
-
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="123456"
-                    autoFocus
-                    required
-                    disabled={otpLoading}
-                    className="w-full py-3 px-4 bg-slate-900 border border-slate-800 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:outline-none text-white text-center text-xl tracking-[0.5em] font-mono placeholder:text-slate-700 placeholder:tracking-normal transition"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-xs">
-                  <button
-                    type="button"
-                    onClick={() => { setStep('PHONE'); setOtp(''); setError(''); }}
-                    className="text-slate-400 hover:text-white underline transition"
-                  >
-                    Change Number
-                  </button>
-
-                  {cooldown > 0 ? (
-                    <span className="text-slate-400 font-mono">Resend in {cooldown}s</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleSendOtp()}
-                      disabled={otpLoading}
-                      className="text-emerald-400 hover:text-emerald-300 font-bold underline transition"
-                    >
-                      Resend Code
-                    </button>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={otpLoading || otp.length !== 6}
-                  className="w-full py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-slate-950 font-black text-xs rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  {otpLoading ? (
-                    <span className="flex items-center gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
-                      <span>Verifying...</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Verify &amp; Continue 🚀</span>
-                    </span>
-                  )}
-                </button>
-              </form>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================= */}
-        {/* 2. OR DIVIDER */}
-        {/* ============================================================= */}
-        <div className="relative flex py-1 items-center">
-          <div className="flex-grow border-t border-slate-800" />
-          <span className="flex-shrink mx-3 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
-            Or
-          </span>
-          <div className="flex-grow border-t border-slate-800" />
-        </div>
-
-        {/* ============================================================= */}
-        {/* 3. Continue with Google */}
+        {/* 1. PRIMARY: Continue with Google (Instant 1-Tap Sign-In) */}
         {/* ============================================================= */}
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          disabled={loading || otpLoading || isHandshakeWaiting || !!welcomeMessage}
+          disabled={loading || otpLoading || !!welcomeMessage}
           className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm shadow-xl hover:shadow-2xl transition-all duration-200 border border-slate-200 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
         >
-          {loading && !isHandshakeWaiting ? (
+          {loading ? (
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
               <span>Authenticating with Google...</span>
@@ -789,6 +565,14 @@ export const AuthForm: React.FC = () => {
             </>
           )}
         </button>
+
+        {/* Notice: WhatsApp OTP Paused */}
+        <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 text-center space-y-1">
+          <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 font-medium">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span>WhatsApp OTP is paused. Use Google Sign-In for instant access.</span>
+          </div>
+        </div>
 
         {/* ============================================================= */}
         {/* 4. Reset Device Storage / Fresh Signup Mode */}

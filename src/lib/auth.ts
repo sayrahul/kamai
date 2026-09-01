@@ -1,4 +1,4 @@
-// src/lib/auth.ts
+export const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24-Hour Auto-Session Expiry
 
 export interface AuthUser {
     uid: string;
@@ -11,6 +11,7 @@ export interface AuthUser {
     business_name?: string;
     shop_name?: string;
     role?: string;
+    login_timestamp?: number;
 }
 
 export const getStoredUser = (): AuthUser | null => {
@@ -20,6 +21,14 @@ export const getStoredUser = (): AuthUser | null => {
         if (!item) return null;
         const parsed = JSON.parse(item);
         if (parsed && (parsed.uid || parsed.phone || parsed.id)) {
+            // Check 24-Hour Session Expiration
+            const timestamp = parsed.login_timestamp || parseInt(localStorage.getItem('kamai_session_timestamp') || '0', 10);
+            if (timestamp > 0 && Date.now() - timestamp > SESSION_MAX_AGE_MS) {
+                console.warn('🔒 24-hour session expired. Logging out.');
+                localStorage.removeItem('kamai_user');
+                localStorage.removeItem('kamai_session_timestamp');
+                return null;
+            }
             return parsed;
         }
         return null;
@@ -33,8 +42,15 @@ export const setStoredUser = (user: AuthUser | null) => {
     if (typeof window === 'undefined') return;
     if (!user) {
         localStorage.removeItem('kamai_user');
+        localStorage.removeItem('kamai_session_timestamp');
     } else {
-        localStorage.setItem('kamai_user', JSON.stringify(user));
+        const now = Date.now();
+        const userWithTimestamp = {
+            ...user,
+            login_timestamp: user.login_timestamp || now,
+        };
+        localStorage.setItem('kamai_user', JSON.stringify(userWithTimestamp));
+        localStorage.setItem('kamai_session_timestamp', String(now));
     }
     window.dispatchEvent(new Event('auth_changed'));
     window.dispatchEvent(new Event('storage'));
