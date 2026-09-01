@@ -64,6 +64,14 @@ const RapidBarcodeInwardModal = dynamic(
   { ssr: false }
 );
 
+const getTodayISORange = () => {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  return { start: start.toISOString(), end: end.toISOString() };
+};
+
 export default function HomePage() {
   const { t, language } = useTranslation();
   const { isPro, isUpgradeModalOpen: isUpgradeOpen, setIsUpgradeModalOpen: setIsUpgradeOpen } = useProSubscription();
@@ -71,6 +79,7 @@ export default function HomePage() {
   const [isClosingReportOpen, setIsClosingReportOpen] = useState<boolean>(false);
   const [isRapidInwardOpen, setIsRapidInwardOpen] = useState<boolean>(false);
   const [isStockAlertExpanded, setIsStockAlertExpanded] = useState<boolean>(false);
+  const [restockToast, setRestockToast] = useState<string | null>(null);
 
   // Recent Transactions Filter & Collapse States
   const [isRecentCollapsed, setIsRecentCollapsed] = useState<boolean>(false);
@@ -78,25 +87,13 @@ export default function HomePage() {
   const [recentPaymentFilter, setRecentPaymentFilter] = useState<'all' | 'cash' | 'upi' | 'credit' | 'split'>('all');
   const [recentSearchQuery, setRecentSearchQuery] = useState<string>('');
 
-  // Memoized date boundary strings for today
-  const { todayStartISO, todayEndISO } = useMemo(() => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    return {
-      todayStartISO: start.toISOString(),
-      todayEndISO: end.toISOString(),
-    };
-  }, []);
-
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
 
-  // High-performance indexed today's expenses seek
-  const todaysExpenses = useLiveQuery(
-    async () => db.cash_expenses.where('created_at').between(todayStartISO, todayEndISO, true, true).toArray(),
-    [todayStartISO, todayEndISO]
-  ) || [];
+  // High-performance dynamic today's expenses seek
+  const todaysExpenses = useLiveQuery(async () => {
+    const { start, end } = getTodayISORange();
+    return db.cash_expenses.where('created_at').between(start, end, true, true).toArray();
+  }) || [];
 
   // Metrics Queries & Robust Stock Filtering
   const products = useLiveQuery(async () => db.products.toArray()) || [];
@@ -125,12 +122,13 @@ export default function HomePage() {
     });
   }, [lowStockProducts]);
 
-  // 1-Tap Quick Restock directly from dashboard
+  // 1-Tap Quick Restock directly from dashboard with feedback toast
   const handleQuickRestock = async (product: Product, quantityToAdd: number = 10) => {
     try {
       const now = new Date().toISOString();
       const current = Number(product.current_stock ?? 0);
       const newStock = current + quantityToAdd;
+      const activeBizId = business?.id || product.business_id || 'biz_default';
 
       await db.products.update(product.id, {
         current_stock: newStock,
@@ -139,7 +137,7 @@ export default function HomePage() {
 
       await db.inventory_movements.put({
         id: `mov_dash_restock_${Date.now()}_${product.id}`,
-        business_id: product.business_id || 'biz_default',
+        business_id: activeBizId,
         product_id: product.id,
         product_name: product.name,
         movement_type: 'PURCHASE',
@@ -153,8 +151,11 @@ export default function HomePage() {
 
       // Background cloud sync
       try {
-        triggerBackgroundSync(product.business_id);
+        triggerBackgroundSync(activeBizId);
       } catch {}
+
+      setRestockToast(`✅ Added +${quantityToAdd} ${product.unit || 'units'} to ${product.name}!`);
+      setTimeout(() => setRestockToast(null), 3500);
     } catch (err) {
       console.error('Failed to quick restock item:', err);
     }
@@ -162,30 +163,44 @@ export default function HomePage() {
 
   // Niche Metric Computations
   const businessType = business?.business_type || 'grocery';
-  const nowMs = new Date().getTime();
   const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
   
   // Pharmacy: Expiry alerts
-  const expiredMedicines = products.filter((p) => p.expiry_date && new Date(p.expiry_date).getTime() <= nowMs);
-  const expiringSoonMedicines = products.filter((p) => {
-    if (!p.expiry_date) return false;
-    const diff = new Date(p.expiry_date).getTime() - nowMs;
-    return diff > 0 && diff <= thirtyDaysMs;
-  });
+  const expiredMedicines = useMemo(() => {
+    const now = Date.now();
+    return products.filter((p) => p.expiry_date && new Date(p.expiry_date).getTime() <= now);
+  }, [products]);
+
+  const expiringSoonMedicines = useMemo(() => {
+    const now = Date.now();
+    return products.filter((p) => {
+      if (!p.expiry_date) return false;
+      const diff = new Date(p.expiry_date).getTime() - now;
+      return diff > 0 && diff <= thirtyDaysMs;
+    });
+  }, [products]);
 
   // Loose Items (Kirana)
-  const looseItemsCount = products.filter((p) => p.is_loose_item || ['kg', 'gram', 'litre'].includes(p.unit)).length;
+  const looseItemsCount = useMemo(() => {
+    return products.filter((p) => p.is_loose_item || ['kg', 'gram', 'litre'].includes(p.unit)).length;
+  }, [products]);
 
-  const customers = useLiveQuery(async () => db.customers.toArray()) || [];
-  const customersWithCredit = customers.filter((c) => c.current_balance > 0);
-  const totalOutstandingCredit = customers.reduce((acc, c) => acc + (c.current_balance > 0 ? c.current_balance : 0), 0);
+  // Optimized indexed customer credit seek (only debtors)
+  const customersWithCredit = useLiveQuery(async () => {
+    return db.customers.where('current_balance').above(0).toArray();
+  }) || [];
+  const totalOutstandingCredit = useMemo(() => {
+    return customersWithCredit.reduce((acc, c) => acc + (c.current_balance > 0 ? c.current_balance : 0), 0);
+  }, [customersWithCredit]);
 
-  // High-performance indexed today's sales seek
-  const todaysSales = useLiveQuery(
-    async () => db.sales.where('created_at').between(todayStartISO, todayEndISO, true, true).toArray(),
-    [todayStartISO, todayEndISO]
-  ) || [];
-  const todaysSalesTotal = todaysSales.reduce((acc, s) => acc + s.grand_total, 0);
+  // High-performance dynamic today's sales seek
+  const todaysSales = useLiveQuery(async () => {
+    const { start, end } = getTodayISORange();
+    return db.sales.where('created_at').between(start, end, true, true).toArray();
+  }) || [];
+  const todaysSalesTotal = useMemo(() => {
+    return todaysSales.reduce((acc, s) => acc + s.grand_total, 0);
+  }, [todaysSales]);
 
   const isFree = !isPro;
 
@@ -817,14 +832,17 @@ export default function HomePage() {
 
           {/* Tile 8: Barcode Studio */}
           <Link href="/barcode-generator" className="group">
-            <div className="bg-white border border-purple-200 hover:border-purple-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-purple-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Barcode className="w-4.5 h-4.5 text-purple-700" />
+            <div className="bg-white border border-purple-200 hover:border-purple-400 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-2 shadow-xs bg-gradient-to-r from-white to-purple-50/40 active:scale-[0.98] transition-all">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <Barcode className="w-4.5 h-4.5 text-purple-700" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900 truncate">Barcode Studio</div>
+                  <div className="text-[11px] text-purple-800 font-medium truncate">Price Stickers &amp; QR</div>
+                </div>
               </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Barcode Studio</div>
-                <div className="text-[11px] text-purple-800 font-medium truncate">Price Stickers &amp; QR</div>
-              </div>
+              <span className="px-1.5 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-900 text-[9px] font-black uppercase shrink-0">PRO</span>
             </div>
           </Link>
         </div>
@@ -842,27 +860,33 @@ export default function HomePage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
           {/* Tile 9: WhatsApp Growth */}
           <Link href="/growth" className="group">
-            <div className="bg-white border border-emerald-200 hover:border-emerald-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-emerald-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <TrendingUp className="w-4.5 h-4.5 text-emerald-700" />
+            <div className="bg-white border border-emerald-200 hover:border-emerald-400 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-2 shadow-xs bg-gradient-to-r from-white to-emerald-50/40 active:scale-[0.98] transition-all">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <TrendingUp className="w-4.5 h-4.5 text-emerald-700" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900 truncate">WhatsApp Growth</div>
+                  <div className="text-[11px] text-emerald-800 font-medium truncate">Offers &amp; Festivals</div>
+                </div>
               </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">WhatsApp Growth</div>
-                <div className="text-[11px] text-emerald-800 font-medium truncate">Offers &amp; Festivals</div>
-              </div>
+              <span className="px-1.5 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-900 text-[9px] font-black uppercase shrink-0">PRO</span>
             </div>
           </Link>
 
           {/* Tile 10: GST & Accounting */}
           <Link href="/gst-reports" className="group">
-            <div className="bg-white border border-indigo-200 hover:border-indigo-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-indigo-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <FileSpreadsheet className="w-4.5 h-4.5 text-indigo-700" />
+            <div className="bg-white border border-indigo-200 hover:border-indigo-400 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-2 shadow-xs bg-gradient-to-r from-white to-indigo-50/40 active:scale-[0.98] transition-all">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <FileSpreadsheet className="w-4.5 h-4.5 text-indigo-700" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900 truncate">GST &amp; Accounting</div>
+                  <div className="text-[11px] text-indigo-800 font-medium truncate">GSTR-1 &amp; Reports</div>
+                </div>
               </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">GST &amp; Accounting</div>
-                <div className="text-[11px] text-indigo-800 font-medium truncate">GSTR-1 &amp; Reports</div>
-              </div>
+              <span className="px-1.5 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-900 text-[9px] font-black uppercase shrink-0">PRO</span>
             </div>
           </Link>
 
@@ -881,14 +905,17 @@ export default function HomePage() {
 
           {/* Tile 12: Backup & Cloud */}
           <Link href="/cloud-backup" className="group">
-            <div className="bg-white border border-sky-200 hover:border-sky-400 rounded-xl p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 shadow-xs bg-gradient-to-r from-white to-sky-50/40 active:scale-[0.98] transition-all">
-              <div className="w-9 h-9 rounded-lg bg-sky-100 text-sky-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
-                <HardDrive className="w-4.5 h-4.5 text-sky-700" />
+            <div className="bg-white border border-sky-200 hover:border-sky-400 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-2 shadow-xs bg-gradient-to-r from-white to-sky-50/40 active:scale-[0.98] transition-all">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-sky-100 text-sky-900 flex items-center justify-center font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <HardDrive className="w-4.5 h-4.5 text-sky-700" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-900 truncate">Backup &amp; Restore</div>
+                  <div className="text-[11px] text-sky-800 font-medium truncate">JSON &amp; Excel</div>
+                </div>
               </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-slate-900 truncate">Backup &amp; Restore</div>
-                <div className="text-[11px] text-sky-800 font-medium truncate">JSON &amp; Excel</div>
-              </div>
+              <span className="px-1.5 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-900 text-[9px] font-black uppercase shrink-0">PRO</span>
             </div>
           </Link>
         </div>
@@ -1163,10 +1190,16 @@ export default function HomePage() {
 
             {/* Transactions List */}
             {filteredRecentSales.length === 0 ? (
-              <div className="py-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+              <div className="py-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200 p-4">
                 <Receipt className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50" />
                 <p className="text-xs font-bold text-slate-700">No matching transactions found</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Try adjusting your date or payment filters</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {recentSearchQuery.trim() ? (
+                    <span>Looking for an older bill? <Link href="/transactions" className="text-emerald-700 font-bold underline hover:text-emerald-800">Search full ledger database →</Link></span>
+                  ) : (
+                    'Try adjusting your date or payment filters'
+                  )}
+                </p>
                 <Link href="/billing" className="mt-3 inline-block">
                   <Button size="sm" className="text-xs bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold">
                     <Plus className="w-3.5 h-3.5 mr-1" />
@@ -1260,6 +1293,14 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Floating Restock Feedback Toast */}
+      {restockToast && (
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl bg-emerald-950/95 border border-emerald-500/50 text-emerald-100 shadow-2xl text-xs font-bold flex items-center gap-2.5 animate-in slide-in-from-bottom-3 duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{restockToast}</span>
+        </div>
+      )}
 
       {/* Invoice Modal for click-to-view */}
       {selectedSaleForInvoice && (

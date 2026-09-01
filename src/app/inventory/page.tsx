@@ -94,7 +94,7 @@ export default function InventoryPage() {
   const [expiryFilter, setExpiryFilter] = useState<'all' | '15days' | '30days' | 'expired'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Auto-handle incoming URL parameters (?action=inward, ?tab=reorder, etc.)
+  // Auto-handle incoming URL parameters (?action=inward, ?tab=reorder, ?filter=expired, etc.)
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -104,6 +104,17 @@ export default function InventoryPage() {
       const tabParam = params.get('tab');
       if (tabParam && ['expiry', 'variants', 'serials', 'reorder', 'batches', 'movements'].includes(tabParam)) {
         setActiveTab(tabParam as any);
+      }
+      const filterParam = params.get('filter');
+      if (filterParam === 'expired') {
+        setActiveTab('expiry');
+        setExpiryFilter('expired');
+      } else if (filterParam === 'expiring_soon' || filterParam === '30days') {
+        setActiveTab('expiry');
+        setExpiryFilter('30days');
+      } else if (filterParam === '15days') {
+        setActiveTab('expiry');
+        setExpiryFilter('15days');
       }
     }
   }, []);
@@ -411,41 +422,60 @@ export default function InventoryPage() {
   };
 
   const inventoryTabs = useMemo(() => {
-    const tabs: Array<{ id: 'expiry' | 'variants' | 'serials' | 'reorder' | 'batches' | 'movements'; label: string; icon: any }> = [];
+    const tabs: Array<{
+      id: 'expiry' | 'variants' | 'serials' | 'reorder' | 'batches' | 'movements';
+      label: string;
+      count?: number;
+      badgeColor?: 'rose' | 'amber' | 'slate' | 'emerald';
+      icon: any;
+    }> = [];
     
-    if (storeProfile.featureToggles.showBatchExpiry || (expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length + expiryAnalysis.expiredList.length > 0)) {
+    const expiryTotal = expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length + expiryAnalysis.expiredList.length;
+    if (storeProfile.featureToggles.showBatchExpiry || expiryTotal > 0) {
       tabs.push({
         id: 'expiry',
-        label: `Expiry Radar (${expiryAnalysis.expiring15Days.length + expiryAnalysis.expiring30Days.length + expiryAnalysis.expiredList.length})`,
+        label: 'Expiry Radar',
+        count: expiryTotal,
+        badgeColor: expiryTotal > 0 ? 'rose' : 'slate',
         icon: AlertTriangle,
       });
     }
 
     if (storeProfile.featureToggles.showSizeVariants) {
+      const variantCount = products.filter((p) => p.size || p.color).length;
       tabs.push({
         id: 'variants',
-        label: `Variants (${products.filter(p => p.size || p.color).length})`,
+        label: 'Variants',
+        count: variantCount,
+        badgeColor: 'slate',
         icon: Shirt,
       });
     }
 
     if (storeProfile.featureToggles.showImeiWarranty) {
+      const serialCount = products.filter((p) => p.imei_serial || p.warranty_period_months).length;
       tabs.push({
         id: 'serials',
-        label: `IMEI & Warranty (${products.filter(p => p.imei_serial || p.warranty_period_months).length})`,
+        label: 'IMEI & Warranty',
+        count: serialCount,
+        badgeColor: 'slate',
         icon: Smartphone,
       });
     }
 
     tabs.push({
       id: 'reorder',
-      label: `Reorder List (${lowStockProducts.length})`,
+      label: 'Reorder List',
+      count: lowStockProducts.length,
+      badgeColor: lowStockProducts.length > 0 ? 'rose' : 'slate',
       icon: Send,
     });
 
     tabs.push({
       id: 'batches',
-      label: `Stock Master (${products.length})`,
+      label: 'Stock Master',
+      count: products.length,
+      badgeColor: 'slate',
       icon: Boxes,
     });
 
@@ -461,7 +491,7 @@ export default function InventoryPage() {
   return (
     <div className="space-y-5 pb-16">
       {/* ---------------- TOP HEADER & ACTIONS (Single Row Compact) ---------------- */}
-      <div className="flex items-center justify-between gap-2 bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs">
+      <div className="flex items-center justify-between gap-2 bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-2xl border border-slate-200/90 shadow-2xs">
         <div className="min-w-0 flex-1">
           <h1 className="text-sm xs:text-base sm:text-lg font-black text-slate-900 whitespace-nowrap">
             Inventory & Expiry
@@ -479,7 +509,7 @@ export default function InventoryPage() {
             size="sm"
             variant="outline"
             onClick={() => setIsExcelImporterOpen(true)}
-            className="text-xs font-bold gap-1 bg-white border-slate-300 hover:bg-slate-50 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs"
+            className="text-xs font-bold gap-1 bg-white border-slate-300 hover:bg-slate-50 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs rounded-xl"
             title="Import Excel / CSV"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -487,7 +517,7 @@ export default function InventoryPage() {
           </Button>
 
           <Link href="/purchases">
-            <Button size="sm" variant="outline" className="text-xs font-bold gap-1 bg-slate-50 hover:bg-slate-100 border-slate-300 p-1.5 sm:px-2.5 sm:py-1.5 shadow-2xs" title="Purchases Log">
+            <Button size="sm" variant="outline" className="text-xs font-bold gap-1 bg-slate-50 hover:bg-slate-100 border-slate-300 p-1.5 sm:px-2.5 sm:py-1.5 shadow-2xs rounded-xl" title="Purchases Log">
               <ShoppingBag className="w-3.5 h-3.5 text-slate-700 shrink-0" />
               <span className="hidden md:inline">Purchases</span>
             </Button>
@@ -496,7 +526,7 @@ export default function InventoryPage() {
           <Button
             size="sm"
             onClick={() => setIsRapidInwardOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs gap-1 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs gap-1 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs rounded-xl"
             title="Rapid Barcode Stock Inward (Stock In / Mal Aavya)"
           >
             <Boxes className="w-3.5 h-3.5 shrink-0" />
@@ -504,7 +534,7 @@ export default function InventoryPage() {
           </Button>
 
           <Link href="/products?action=new">
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs" title="Add New Product">
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs rounded-xl" title="Add New Product">
               <Plus className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden sm:inline">Add Item</span>
             </Button>
@@ -519,7 +549,7 @@ export default function InventoryPage() {
                 window.location.href = '/barcode-generator';
               }
             }}
-            className="bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs gap-1 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs"
+            className="bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs gap-1 p-1.5 sm:px-2.5 sm:py-1.5 cursor-pointer shadow-2xs rounded-xl"
             title="Print Barcode Labels & Price Tags"
           >
             <Barcode className="w-3.5 h-3.5 shrink-0" />
@@ -537,7 +567,7 @@ export default function InventoryPage() {
       )}
 
       {/* ---------------- LIVE INVENTORY METRICS RIBBON (Space-Saving & Unified) ---------------- */}
-      <Card className="p-2 sm:p-2.5 bg-white border border-slate-200 shadow-2xs">
+      <Card className="p-2 sm:p-2.5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
           {/* 1. Total Stock Valuation */}
           <div className="px-2 py-1 sm:py-0 sm:first:pl-1">
@@ -604,28 +634,47 @@ export default function InventoryPage() {
       </Card>
 
       {/* ---------------- MAIN TABS CONTAINER ---------------- */}
-      <Card className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-        {/* TAB HEADERS — Compact Segmented Control */}
-        <div className="flex border-b border-slate-200 bg-slate-50/80 overflow-x-auto text-xs font-bold no-scrollbar p-1 gap-1">
-          {inventoryTabs.map((tab) => {
-            const isSelected = activeTab === tab.id;
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`py-1.5 px-3 sm:px-3.5 flex items-center gap-1.5 rounded-lg whitespace-nowrap transition-all text-xs font-bold cursor-pointer ${
-                  isSelected
-                    ? 'text-slate-950 bg-white shadow-2xs border border-slate-200/90'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+      <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs">
+        {/* TAB HEADERS — Sleek Modern Segmented Control */}
+        <div className="p-2 border-b border-slate-100 bg-slate-50/70">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            {inventoryTabs.map((tab) => {
+              const isSelected = activeTab === tab.id;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={cn(
+                    'py-2 px-3.5 sm:px-4 flex items-center gap-2 rounded-xl whitespace-nowrap text-xs font-semibold transition-all cursor-pointer',
+                    isSelected
+                      ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 ring-1 ring-slate-900/5'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
+                  )}
+                >
+                  <Icon className={cn('w-3.5 h-3.5 shrink-0 transition-colors', isSelected ? 'text-slate-900' : 'text-slate-400')} />
+                  <span>{tab.label}</span>
+                  {tab.count !== undefined && (
+                    <span
+                      className={cn(
+                        'px-1.5 py-0.5 rounded-full text-[10px] font-bold font-mono leading-none tracking-tight',
+                        isSelected
+                          ? tab.badgeColor === 'rose' && tab.count > 0
+                            ? 'bg-rose-100 text-rose-700'
+                            : 'bg-slate-100 text-slate-700'
+                          : tab.badgeColor === 'rose' && tab.count > 0
+                          ? 'bg-rose-50 text-rose-600 border border-rose-200/60'
+                          : 'bg-slate-200/70 text-slate-600'
+                      )}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="p-4 sm:p-5">
@@ -848,118 +897,200 @@ export default function InventoryPage() {
           {/* =================================================================== */}
           {activeTab === 'reorder' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              {/* Section Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
                 <div>
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Low Stock Replenishment
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span>Low Stock Replenishment</span>
+                    {lowStockProducts.length > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/60">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                        {lowStockProducts.length} {lowStockProducts.length === 1 ? 'item' : 'items'} to reorder
+                      </span>
+                    )}
                   </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Grouped by supplier • 1-tap WhatsApp purchase orders
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Grouped by wholesale supplier for instant 1-tap WhatsApp purchase orders.
                   </p>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                  {lowStockProducts.length} to reorder
-                </span>
+
+                {lowStockProducts.length > 0 && (
+                  <div className="text-xs text-slate-500 font-medium hidden sm:block">
+                    Total Items: <b className="text-slate-900 font-mono">{lowStockProducts.length}</b>
+                  </div>
+                )}
               </div>
 
               {lowStockBySupplier.length === 0 ? (
-                <div className="p-5 sm:p-6 text-center bg-slate-50/60 border border-slate-200/80 rounded-xl space-y-1">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto" />
-                  <div className="text-xs sm:text-sm font-black text-slate-900">All Stock Levels are Healthy!</div>
-                  <div className="text-[11px] text-slate-500">No items are currently below their minimum threshold level.</div>
+                <div className="py-12 px-4 text-center bg-slate-50/50 border border-slate-200/60 rounded-2xl space-y-2">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto ring-1 ring-emerald-100 shadow-2xs">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <div className="text-sm font-bold text-slate-900">All Stock Levels are Healthy!</div>
+                  <div className="text-xs text-slate-500 max-w-sm mx-auto">
+                    No items in your catalog are currently below their minimum threshold.
+                  </div>
                 </div>
               ) : (
-                lowStockBySupplier.map((group, groupIdx) => {
-                  const supName = group.supplier?.name || 'General / Unassigned Wholesale Supplier';
-                  const supPhone = group.supplier?.phone || '';
-                  
-                  // Calculate total suggested PO value
-                  let totalGroupCost = 0;
-                  group.items.forEach((item) => {
-                    const q = reorderQtys[item.id] || Math.max(item.min_stock_level * 2 - item.current_stock, 10);
-                    totalGroupCost += q * item.purchase_price;
-                  });
+                <div className="space-y-4">
+                  {lowStockBySupplier.map((group, groupIdx) => {
+                    const supName = group.supplier?.name || 'General / Unassigned Wholesale Supplier';
+                    const supPhone = group.supplier?.phone || '';
+                    
+                    // Calculate total suggested PO value
+                    let totalGroupCost = 0;
+                    group.items.forEach((item) => {
+                      const q = reorderQtys[item.id] !== undefined
+                        ? reorderQtys[item.id]
+                        : Math.max(item.min_stock_level * 2 - item.current_stock, 10);
+                      totalGroupCost += q * item.purchase_price;
+                    });
 
-                  return (
-                    <Card key={groupIdx} className="p-4 border border-slate-200 bg-white rounded-xl shadow-xs space-y-3.5">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold">
-                            <Truck className="w-4 h-4 text-indigo-700" />
-                          </div>
-                          <div>
-                            <div className="font-extrabold text-sm text-slate-900">{supName}</div>
-                            <div className="text-[11px] text-slate-500">
-                              {supPhone ? `📞 ${supPhone}` : 'No phone linked'} • {group.items.length} items to reorder
+                    return (
+                      <div
+                        key={groupIdx}
+                        className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs hover:shadow-sm transition duration-200"
+                      >
+                        {/* Supplier Card Header */}
+                        <div className="bg-gradient-to-r from-slate-50 via-slate-50/60 to-white p-3.5 sm:p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold border border-indigo-100 shrink-0 shadow-2xs">
+                              <Truck className="w-5 h-5 text-indigo-600" />
                             </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-sm text-slate-900 truncate">{supName}</div>
+                              <div className="text-xs text-slate-500 flex items-center gap-2 flex-wrap mt-0.5">
+                                {supPhone ? (
+                                  <span className="font-mono text-slate-600 font-medium">📞 {supPhone}</span>
+                                ) : (
+                                  <span className="text-slate-400">No phone linked</span>
+                                )}
+                                <span className="text-slate-300">•</span>
+                                <span>
+                                  <b className="font-semibold text-slate-700 font-mono">{group.items.length}</b> {group.items.length === 1 ? 'item' : 'items'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                            <div className="text-left sm:text-right">
+                              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Est. PO Total</div>
+                              <div className="text-sm sm:text-base font-bold font-mono text-slate-900">
+                                {formatINR(totalGroupCost)}
+                              </div>
+                            </div>
+
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                if (!isPro) {
+                                  setIsUpgradeModalOpen(true);
+                                } else {
+                                  handleSendWhatsAppPO(group.supplier, group.items);
+                                }
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-semibold text-xs px-3.5 py-2 h-9 rounded-xl flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                            >
+                              <Send className="w-3.5 h-3.5 shrink-0" />
+                              <span>Send PO via WhatsApp</span>
+                              {!isPro && <Lock className="w-3 h-3 text-amber-300 ml-0.5 shrink-0" />}
+                            </Button>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono font-bold text-slate-700 hidden sm:inline">
-                            Est: {formatINR(totalGroupCost)}
-                          </span>
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              if (!isPro) {
-                                setIsUpgradeModalOpen(true);
-                              } else {
-                                handleSendWhatsAppPO(group.supplier, group.items);
-                              }
-                            }}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-xs cursor-pointer"
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                            <span>Send Purchase Order on WhatsApp</span>
-                            {!isPro && <Lock className="w-3 h-3 text-amber-300" />}
-                          </Button>
+                        {/* Items List in this Purchase Order */}
+                        <div className="divide-y divide-slate-100">
+                          {group.items.map((item) => {
+                            const currentOrderQty = reorderQtys[item.id] !== undefined 
+                              ? reorderQtys[item.id] 
+                              : Math.max(item.min_stock_level * 2 - item.current_stock, 10);
+                            
+                            const isZeroStock = item.current_stock <= 0;
+
+                            return (
+                              <div
+                                key={item.id}
+                                className="p-3.5 sm:px-4 sm:py-3.5 hover:bg-slate-50/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-semibold text-slate-900 text-xs sm:text-sm">
+                                    {item.name}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-slate-500">
+                                    <span
+                                      className={cn(
+                                        'px-2 py-0.5 rounded-md text-[11px] font-bold font-mono',
+                                        isZeroStock
+                                          ? 'bg-rose-100 text-rose-800'
+                                          : 'bg-amber-100 text-amber-900'
+                                      )}
+                                    >
+                                      Stock: {item.current_stock} / {item.min_stock_level} {item.unit}s
+                                    </span>
+                                    <span className="text-slate-300">•</span>
+                                    <span>
+                                      Cost: <b className="text-slate-700 font-mono">{formatINR(item.purchase_price)}</b>/{item.unit}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                                  {/* Stepper Input */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[11px] font-medium text-slate-500">Reorder Qty:</span>
+                                    <div className="flex items-center border border-slate-200 rounded-lg bg-white overflow-hidden shadow-2xs">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const nextVal = Math.max(1, currentOrderQty - 1);
+                                          setReorderQtys((prev) => ({ ...prev, [item.id]: nextVal }));
+                                        }}
+                                        className="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200 transition font-bold text-xs"
+                                        title="Decrease quantity"
+                                      >
+                                        -
+                                      </button>
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        value={currentOrderQty}
+                                        onChange={(e) => {
+                                          const val = parseInt(e.target.value, 10);
+                                          setReorderQtys((prev) => ({ ...prev, [item.id]: isNaN(val) ? 1 : val }));
+                                        }}
+                                        className="w-12 py-1 font-mono font-bold text-center text-xs text-slate-900 focus:outline-none bg-transparent"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const nextVal = currentOrderQty + 1;
+                                          setReorderQtys((prev) => ({ ...prev, [item.id]: nextVal }));
+                                        }}
+                                        className="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200 transition font-bold text-xs"
+                                        title="Increase quantity"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                    <span className="text-[11px] text-slate-500 font-medium">{item.unit}</span>
+                                  </div>
+
+                                  {/* Line Total */}
+                                  <div className="text-right min-w-[80px]">
+                                    <div className="text-xs sm:text-sm font-bold font-mono text-slate-900">
+                                      {formatINR(currentOrderQty * item.purchase_price)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-
-                      {/* Items List in this Purchase Order */}
-                      <div className="divide-y divide-slate-100 text-xs">
-                        {group.items.map((item) => {
-                          const currentOrderQty = reorderQtys[item.id] !== undefined 
-                            ? reorderQtys[item.id] 
-                            : Math.max(item.min_stock_level * 2 - item.current_stock, 10);
-                          
-                          return (
-                            <div key={item.id} className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                              <div className="min-w-0">
-                                <div className="font-bold text-slate-900">{item.name}</div>
-                                <div className="text-[11px] text-slate-500">
-                                  Current Stock: <span className="font-bold text-rose-600">{item.current_stock} {item.unit}</span> (Min: {item.min_stock_level}) • Cost: {formatINR(item.purchase_price)}/{item.unit}
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-3 self-end sm:self-auto">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[11px] font-bold text-slate-600">Reorder Qty:</span>
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    value={currentOrderQty}
-                                    onChange={(e) => {
-                                      const val = parseInt(e.target.value, 10);
-                                      setReorderQtys((prev) => ({ ...prev, [item.id]: isNaN(val) ? 1 : val }));
-                                    }}
-                                    className="w-16 p-1 border border-slate-300 rounded font-mono font-bold text-center text-xs focus:outline-none focus:border-slate-900 bg-slate-50"
-                                  />
-                                  <span className="text-[11px] text-slate-500 font-medium">{item.unit}</span>
-                                </div>
-
-                                <div className="text-right font-mono font-bold text-slate-900 w-24">
-                                  {formatINR(currentOrderQty * item.purchase_price)}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </Card>
-                  );
-                })
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
@@ -1210,7 +1341,7 @@ export default function InventoryPage() {
             </div>
           )}
         </div>
-      </Card>
+      </div>
 
       {/* =================================================================== */}
       {/* QUICK BATCH / VARIANT / STOCK EDIT MODAL */}
