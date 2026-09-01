@@ -98,7 +98,7 @@ export const Navbar: React.FC = () => {
     setSoundEnabled(next);
     setSoundboxEnabled(next);
     if (next) {
-      announcePayment(10000, language);
+      announcePayment(10000, language, business?.name);
     }
   };
 
@@ -293,7 +293,7 @@ export const Navbar: React.FC = () => {
                     )}
                     <div>
                       <div className="text-xs font-bold text-slate-900">
-                        Paytm Voice Soundbox
+                        Voice Soundbox
                       </div>
                       <div className="text-[10px] text-slate-500">
                         {soundEnabled ? 'Live voice announcements active' : 'Voice muted'}
@@ -313,30 +313,6 @@ export const Navbar: React.FC = () => {
                 <button
                   onClick={() => {
                     setShowStoreMenu(false);
-                    setIsQrModalOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2.5 font-semibold cursor-pointer"
-                >
-                  <QrCode className="w-4 h-4 text-slate-500" />
-                  <span>Show Store Payment QR</span>
-                </button>
-
-                <a
-                  href="https://wa.me/message/TNIXVEOIXK4PH1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setShowStoreMenu(false)}
-                  className="w-full text-left px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-2.5 font-bold cursor-pointer transition"
-                >
-                  <svg className="w-4 h-4 fill-[#25D366] shrink-0" viewBox="0 0 24 24">
-                    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.04 14.69 2 12.04 2Z" />
-                  </svg>
-                  <span>WhatsApp Store Bot (Chat)</span>
-                </a>
-
-                <button
-                  onClick={() => {
-                    setShowStoreMenu(false);
                     router.push('/settings');
                   }}
                   className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2.5 font-semibold cursor-pointer"
@@ -344,30 +320,6 @@ export const Navbar: React.FC = () => {
                   <Settings className="w-4 h-4 text-slate-500" />
                   <span>Store Profile &amp; Print Settings</span>
                 </button>
-
-                {subscriptionTier === 'pro' || subscriptionTier === 'enterprise' ? (
-                  <button
-                    onClick={() => {
-                      setShowStoreMenu(false);
-                      setIsUpgradeModalOpen(true);
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-2.5 font-bold cursor-pointer"
-                  >
-                    <Crown className="w-4 h-4 text-amber-500 fill-amber-500" />
-                    <span>Pro Subscription (Active)</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setShowStoreMenu(false);
-                      router.push('/pricing');
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs text-amber-700 hover:bg-amber-50 rounded-lg flex items-center gap-2.5 font-bold cursor-pointer"
-                  >
-                    <Crown className="w-4 h-4 text-amber-600" />
-                    <span>Upgrade to Kamai+ Pro</span>
-                  </button>
-                )}
 
                 <button
                   onClick={handleLogout}

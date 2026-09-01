@@ -71,7 +71,8 @@ export function playSoundboxChime(): Promise<void> {
  */
 export async function announcePayment(
   amountPaise: number,
-  lang: SupportedLanguage = 'hi'
+  lang: SupportedLanguage = 'hi',
+  storeName = 'कमाई प्लस'
 ): Promise<void> {
   if (typeof window === 'undefined' || !isSoundboxEnabled()) return;
 
@@ -82,38 +83,42 @@ export async function announcePayment(
 
   if (!('speechSynthesis' in window)) return;
 
-  window.speechSynthesis.cancel(); // Clear any ongoing speech
+  try {
+    window.speechSynthesis.cancel(); // Clear any ongoing speech
 
-  let text = '';
-  let speechLang = 'hi-IN';
+    let text = '';
+    let speechLang = 'hi-IN';
 
-  if (lang === 'hi') {
-    text = `कमाई प्लस पर ₹${rupees} प्राप्त हुए`;
-    speechLang = 'hi-IN';
-  } else if (lang === 'mr') {
-    text = `कमाई प्लस वर ₹${rupees} मिळाले`;
-    speechLang = 'mr-IN';
-  } else {
-    text = `Received ₹${rupees} on KamaiPlus`;
-    speechLang = 'en-IN';
+    if (lang === 'hi') {
+      text = `${storeName} पर ₹${rupees} प्राप्त हुए`;
+      speechLang = 'hi-IN';
+    } else if (lang === 'mr') {
+      text = `${storeName} वर ₹${rupees} मिळाले`;
+      speechLang = 'mr-IN';
+    } else {
+      text = `Received ₹${rupees} on ${storeName}`;
+      speechLang = 'en-IN';
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = speechLang;
+    utterance.rate = 1.0;
+    utterance.pitch = 1.05;
+
+    // Try to find a high-quality Indian regional voice
+    const voices = window.speechSynthesis.getVoices();
+    const indianVoice = voices.find(
+      (v) =>
+        v.lang.startsWith(speechLang.slice(0, 2)) ||
+        v.lang.includes('IN') ||
+        v.name.includes('India')
+    );
+    if (indianVoice) {
+      utterance.voice = indianVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.warn('Voice announcement playback notice:', err);
   }
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = speechLang;
-  utterance.rate = 1.0;
-  utterance.pitch = 1.05;
-
-  // Try to find a high-quality Indian regional voice
-  const voices = window.speechSynthesis.getVoices();
-  const indianVoice = voices.find(
-    (v) =>
-      v.lang.startsWith(speechLang.slice(0, 2)) ||
-      v.lang.includes('IN') ||
-      v.name.includes('India')
-  );
-  if (indianVoice) {
-    utterance.voice = indianVoice;
-  }
-
-  window.speechSynthesis.speak(utterance);
 }

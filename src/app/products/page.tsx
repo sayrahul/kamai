@@ -861,26 +861,27 @@ export default function ProductsPage() {
             />
           </div>
 
-          {/* 2. Category & Unit Selection Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {/* 2. Category & Unit Selection (Single Row for Mobile & Desktop) */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-900 block">
+              <div className="flex items-center justify-between mb-1 gap-1">
+                <label className="text-xs font-bold text-slate-900 block truncate">
                   {t('products.category')}
                 </label>
                 <button
                   type="button"
                   onClick={() => setIsAddCategoryModalOpen(true)}
-                  className="text-[11px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-0.5 cursor-pointer"
+                  className="text-[10.5px] sm:text-[11px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-0.5 cursor-pointer shrink-0"
                 >
                   <Plus className="w-3 h-3" />
-                  <span>New Category</span>
+                  <span className="hidden sm:inline">New Category</span>
+                  <span className="sm:hidden">New</span>
                 </button>
               </div>
               <select
                 value={formCategory}
                 onChange={(e) => setFormCategory(e.target.value)}
-                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
+                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2 sm:px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px] truncate"
               >
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -892,17 +893,14 @@ export default function ProductsPage() {
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-900 block">
+                <label className="text-xs font-bold text-slate-900 block truncate">
                   {t('products.unit')}
                 </label>
-                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
-                  {storeProfile.shortName} Recommended
-                </span>
               </div>
               <select
                 value={formUnit}
                 onChange={(e) => setFormUnit(e.target.value as ProductUnit)}
-                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px]"
+                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2 sm:px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px] truncate"
               >
                 <optgroup label={`✨ Recommended for ${storeProfile.name}`}>
                   {MASTER_UNITS.filter(u => storeProfile.recommendedUnits.includes(u.id)).map(u => (
@@ -1075,19 +1073,20 @@ export default function ProductsPage() {
               />
             </div>
 
-            {/* GST Tax Slabs */}
-            <div className="space-y-2 pt-1 border-t border-slate-200">
+            {/* Row 3: GST Tax Rate & Barcode / EAN (Single Row) */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-2.5 pt-1 border-t border-slate-200">
+              {/* Left Column: GST Slabs */}
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                <label className="text-[11px] font-bold text-slate-700 block mb-1 truncate">
                   {t('products.taxRate')} (GST)
                 </label>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   {[0, 5, 12, 18, 28].map((rate) => (
                     <button
                       key={rate}
                       type="button"
                       onClick={() => setFormTaxRate(rate)}
-                      className={`flex-1 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer ${
+                      className={`flex-1 py-1.5 sm:py-2 rounded-lg border text-[10.5px] sm:text-xs font-bold transition-colors cursor-pointer min-h-[38px] ${
                         formTaxRate === rate
                           ? 'bg-slate-900 border-slate-900 text-white shadow-2xs'
                           : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
@@ -1099,47 +1098,15 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {formTaxRate > 0 && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2 rounded-lg bg-white border border-slate-200 text-xs">
-                  <span className="font-bold text-slate-700">GST Billing Mode:</span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setFormIsTaxInclusive(false)}
-                      className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition ${
-                        !formIsTaxInclusive
-                          ? 'bg-emerald-600 text-white shadow-2xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      + Add on Total (Exclusive)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormIsTaxInclusive(true)}
-                      className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition ${
-                        formIsTaxInclusive
-                          ? 'bg-emerald-600 text-white shadow-2xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      Included in Price (Inclusive)
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Barcode & Loose Weight Row (if module enabled) */}
-            {(hasModule(business?.business_type, 'BARCODE') || hasModule(business?.business_type, 'WEIGHT')) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-200">
-                {hasModule(business?.business_type, 'BARCODE') && (
+              {/* Right Column: Barcode / EAN */}
+              <div>
+                {hasModule(business?.business_type, 'BARCODE') ? (
                   <Input
                     label={t('products.barcode')}
                     placeholder="Scan or enter barcode"
                     value={formBarcode}
                     onChange={(e) => setFormBarcode(e.target.value)}
-                    leftIcon={<Barcode className="w-4 h-4 text-slate-400" />}
+                    leftIcon={<Barcode className="w-3.5 h-3.5 text-slate-400" />}
                     rightIcon={
                       <button
                         type="button"
@@ -1147,29 +1114,63 @@ export default function ProductsPage() {
                         className="text-slate-700 hover:text-slate-900 p-1 cursor-pointer"
                         title="Scan Barcode via Camera"
                       >
-                        <Camera className="w-4 h-4" />
+                        <Camera className="w-3.5 h-3.5" />
                       </button>
                     }
                   />
-                )}
-
-                {hasModule(business?.business_type, 'WEIGHT') && (
-                  <label className="flex items-start gap-2 p-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
-                    <input
-                      type="checkbox"
-                      checked={formIsLooseItem}
-                      onChange={(e) => setFormIsLooseItem(e.target.checked)}
-                      className="mt-0.5 rounded text-slate-900 focus:ring-0 cursor-pointer"
-                    />
-                    <div>
-                      <span className="font-bold text-slate-900 text-xs block">⚖️ Loose / Sold by Weight</span>
-                      <span className="text-[10px] text-slate-500 block leading-tight">
-                        Allows custom fractional weights (50g, 250g, 0.5 kg) in billing.
-                      </span>
-                    </div>
-                  </label>
+                ) : (
+                  <div></div>
                 )}
               </div>
+            </div>
+
+            {/* GST Billing Mode (if tax > 0) */}
+            {formTaxRate > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2 rounded-lg bg-white border border-slate-200 text-xs">
+                <span className="font-bold text-slate-700">GST Billing Mode:</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormIsTaxInclusive(false)}
+                    className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition ${
+                      !formIsTaxInclusive
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    + Add on Total (Exclusive)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormIsTaxInclusive(true)}
+                    className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition ${
+                      formIsTaxInclusive
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    Included in Price (Inclusive)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Loose Weight Item Toggle (Grocery / FMCG) */}
+            {hasModule(business?.business_type, 'WEIGHT') && (
+              <label className="flex items-start gap-2 p-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={formIsLooseItem}
+                  onChange={(e) => setFormIsLooseItem(e.target.checked)}
+                  className="mt-0.5 rounded text-slate-900 focus:ring-0 cursor-pointer"
+                />
+                <div>
+                  <span className="font-bold text-slate-900 text-xs block">⚖️ Loose / Sold by Weight</span>
+                  <span className="text-[10px] text-slate-500 block leading-tight">
+                    Allows custom fractional weights (50g, 250g, 0.5 kg) in billing.
+                  </span>
+                </div>
+              </label>
             )}
           </div>
 
