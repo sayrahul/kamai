@@ -1036,7 +1036,7 @@ export default function ProductsPage() {
               />
             </div>
 
-            {/* Row 2: Purchase Price (Cost) & Opening Stock with Unlimited Toggle (Single Row) */}
+            {/* Row 2: Purchase Price (Cost) & Opening Stock (Single Row with In-Field Unlimited Toggle) */}
             <div className="grid grid-cols-2 gap-2.5">
               <Input
                 label={t('products.purchasePrice')}
@@ -1049,30 +1049,30 @@ export default function ProductsPage() {
                 helperText={estMargin() ? `Margin: ~${estMargin()}%` : undefined}
               />
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-900 block truncate">
-                    {business?.business_type === 'restaurant' ? 'Servings' : t('products.currentStock')}
-                  </label>
-                  <label className="flex items-center gap-1 cursor-pointer select-none text-[10px] font-bold text-slate-600 hover:text-slate-900">
-                    <input
-                      type="checkbox"
-                      checked={formIsUnlimitedStock}
-                      onChange={(e) => setFormIsUnlimitedStock(e.target.checked)}
-                      className="w-3 h-3 rounded text-slate-900 focus:ring-0 cursor-pointer"
-                    />
-                    <span>♾️ Unlimited</span>
-                  </label>
-                </div>
-                <Input
-                  placeholder={formIsUnlimitedStock ? 'Unlimited' : (business?.business_type === 'restaurant' ? '999' : '10')}
-                  type="number"
-                  value={formIsUnlimitedStock ? '' : formStock}
-                  onChange={(e) => setFormStock(e.target.value)}
-                  disabled={formIsUnlimitedStock}
-                  className={formIsUnlimitedStock ? 'bg-slate-100 text-slate-400 font-normal italic' : ''}
-                />
-              </div>
+              <Input
+                label={business?.business_type === 'restaurant' ? 'Available Servings' : t('products.currentStock')}
+                placeholder={formIsUnlimitedStock ? '♾️ Unlimited' : (business?.business_type === 'restaurant' ? '999' : '10')}
+                type={formIsUnlimitedStock ? 'text' : 'number'}
+                value={formIsUnlimitedStock ? '' : formStock}
+                onChange={(e) => setFormStock(e.target.value)}
+                disabled={formIsUnlimitedStock}
+                className={formIsUnlimitedStock ? 'bg-slate-100/90 text-slate-400 font-normal italic pr-20' : 'pr-20'}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setFormIsUnlimitedStock(!formIsUnlimitedStock)}
+                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer select-none flex items-center gap-0.5 shrink-0 ${
+                      formIsUnlimitedStock
+                        ? 'bg-amber-400 border-amber-500 text-slate-950 shadow-2xs font-black'
+                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-600'
+                    }`}
+                    title={formIsUnlimitedStock ? 'Unlimited Stock active (Click to specify quantity)' : 'Click to set Unlimited Stock'}
+                  >
+                    <span>♾️</span>
+                    <span>{formIsUnlimitedStock ? 'Unlimited' : 'Max'}</span>
+                  </button>
+                }
+              />
             </div>
 
             {/* GST Tax Slabs */}
