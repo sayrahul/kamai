@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
-import { Product, Customer, CartItem, PaymentMethod, ProductUnit } from '@/types';
+import { Product, Customer, CartItem, PaymentMethod, ProductUnit, LedgerTransaction } from '@/types';
 import { formatINR, parseRupeesToPaise, generateUPILink, cn } from '@/lib/utils';
 import { sendInvoiceViaOfficialCloudApi } from '@/lib/invoices/whatsappInvoice';
 import QRCode from 'qrcode';
@@ -1079,9 +1079,15 @@ export default function BillingPage() {
   const handleCompleteSale = async (explicitPayment?: ParsedPaymentEvent) => {
     if (cart.length === 0) return;
 
+    // Resolve target customer reliably from state or Dexie
+    let targetCustomer = selectedCustomer;
+    if (!targetCustomer && selectedCustomerId) {
+      targetCustomer = await db.customers.get(selectedCustomerId);
+    }
+
     // MANDATORY CUSTOMER VALIDATION FOR CREDIT / UDHAR PAYMENT MODE
     const isCreditMode = paymentMethod === 'credit' || (paymentMethod === 'split' && parseFloat(splitCredit || '0') > 0);
-    if (isCreditMode && (!selectedCustomerId || !selectedCustomer)) {
+    if (isCreditMode && !targetCustomer) {
       playBeepSound('alert');
       showBillingToast('Customer name is mandatory for Credit (Udhar) sale. Please select or add a customer.', 'error');
       setIsAddCustomerModalOpen(true);
@@ -1113,8 +1119,8 @@ export default function BillingPage() {
         
         const allocatedP = cashP + upiP + cardP + creditP;
         const unassigned = Math.max(0, grandTotalPaise - allocatedP);
-        const finalCreditP = creditP + (selectedCustomer ? unassigned : 0);
-        const finalCashP = cashP + (!selectedCustomer ? unassigned : 0);
+        const finalCreditP = creditP + (targetCustomer ? unassigned : 0);
+        const finalCashP = cashP + (!targetCustomer ? unassigned : 0);
 
         receivedPaise = finalCashP + upiP + cardP;
         balanceDuePaise = finalCreditP;
@@ -1125,7 +1131,7 @@ export default function BillingPage() {
           credit_amount: finalCreditP,
         };
       } else {
-        receivedPaise = amountReceivedInput ? Math.round(parseFloat(amountReceivedInput) * 100) : grandTotalPaise;
+        receivedPaise = amountReceivedInput ? Math.round(parseFloat(amountReceivedInput) * 100) : (paymentMethod === 'credit' ? 0 : grandTotalPaise);
         const isCredit = paymentMethod === 'credit' || receivedPaise < grandTotalPaise;
         balanceDuePaise = isCredit ? Math.max(0, grandTotalPaise - receivedPaise) : 0;
         changeReturnedPaise = !isCredit && receivedPaise > grandTotalPaise ? receivedPaise - grandTotalPaise : 0;
@@ -1137,9 +1143,9 @@ export default function BillingPage() {
         id: saleId,
         business_id: businessId,
         invoice_number: invoiceNumber,
-        customer_id: selectedCustomer?.id,
-        customer_name: selectedCustomer?.name || 'Cash Customer',
-        customer_phone: selectedCustomer?.phone,
+        customer_id: targetCustomer?.id,
+        customer_name: targetCustomer?.name || 'Cash Customer',
+        customer_phone: targetCustomer?.phone,
         items: [...cart],
         subtotal: subtotalPaise,
         discount_total: discountTotalPaise,
@@ -1244,36 +1250,58 @@ export default function BillingPage() {
       } catch {}
 
       // 4. If Udhar / Credit, update customer balance & write ledger entry
-      if (selectedCustomer && balanceDuePaise > 0) {
-        const updatedBalance = selectedCustomer.current_balance + balanceDuePaise;
-        await db.customers.update(selectedCustomer.id, {
+      if (targetCustomer && balanceDuePaise > 0) {
+        const freshCust = (await db.customers.get(targetCustomer.id)) || targetCustomer;
+        const updatedBalance = (freshCust.current_balance || 0) + balanceDuePaise;
+        
+        await db.customers.update(targetCustomer.id, {
           current_balance: updatedBalance,
           updated_at: now,
         });
 
         const itemsSummary = cart.map((i) => `${i.quantity}x ${i.product_name}`).join(', ');
 
-        await db.ledger_transactions.put({
-          id: `ledg_${Date.now()}`,
+        const ledgerTxId = `ledg_${Date.now()}`;
+        const newLedgerTx: LedgerTransaction = {
+          id: ledgerTxId,
           business_id: businessId,
           party_type: 'customer',
-          party_id: selectedCustomer.id,
-          party_name: selectedCustomer.name,
+          party_id: targetCustomer.id,
+          party_name: targetCustomer.name,
           transaction_type: 'CREDIT_SALE',
           amount: balanceDuePaise,
           balance_after: updatedBalance,
           reference_id: saleId,
           notes: `Invoice #${invoiceNumber} • ${itemsSummary}`,
           created_at: now,
-        });
+          sync_status: 'synced',
+        };
+
+        await db.ledger_transactions.put(newLedgerTx);
+
+        // Direct cloud sync to Firestore for multi-device realtime Khata
+        try {
+          const firestore = getFirestoreDb();
+          if (firestore && businessId && businessId !== 'biz_default') {
+            await setDoc(doc(firestore, `businesses/${businessId}/customers/${targetCustomer.id}`), sanitizeForFirestore({
+              ...freshCust,
+              current_balance: updatedBalance,
+              updated_at: now,
+            }), { merge: true });
+
+            await setDoc(doc(firestore, `businesses/${businessId}/ledger_transactions/${ledgerTxId}`), sanitizeForFirestore(newLedgerTx), { merge: true });
+          }
+        } catch (cloudErr) {
+          console.warn('Non-blocking cloud ledger sync notice:', cloudErr);
+        }
       }
 
       // 5. Open detailed Invoice & thermal receipt modal
       setActiveSaleForInvoice(newSale);
       setCompletedSaleDetails({
         invoiceNumber,
-        customerName: selectedCustomer?.name,
-        customerPhone: selectedCustomer?.phone,
+        customerName: targetCustomer?.name,
+        customerPhone: targetCustomer?.phone,
         grandTotalPaise,
         balanceDuePaise,
         items: [...cart],
