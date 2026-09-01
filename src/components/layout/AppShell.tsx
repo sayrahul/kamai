@@ -174,24 +174,33 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         }
 
         const localBiz = await localDb.businesses.toCollection().first();
+        const u = getStoredUser();
 
-        // If local storage user is missing business_id but Dexie has a valid store, restore it immediately
-        if (localBiz && localBiz.id) {
-          const u = getStoredUser();
-          if (!u || !u.business_id || u.business_id === 'biz_pending') {
-            const restoredUser: AuthUser = {
-              uid: localBiz.id,
-              id: localBiz.id,
-              phone: localBiz.phone,
-              name: localBiz.owner_name || 'Store Owner',
-              role: 'admin',
-              business_id: localBiz.id,
-              business_name: localBiz.name,
-              shop_name: localBiz.name,
-            };
-            setStoredUser(restoredUser);
-            setCurrentUser(restoredUser);
+        // If user is authenticated but not onboarded (fresh signup or deleted profile), wipe any stale local store & enforce onboarding
+        if (u && (!u.business_id || u.business_id === 'biz_pending')) {
+          if (localBiz) {
+            await localDb.businesses.clear().catch(() => {});
           }
+          if (pathname !== '/onboarding' && pathname !== '/auth') {
+            router.replace('/onboarding');
+          }
+          return;
+        }
+
+        // If no user session is in localStorage but Dexie has an active offline store, restore it
+        if (!u && localBiz && localBiz.id) {
+          const restoredUser: AuthUser = {
+            uid: localBiz.id,
+            id: localBiz.id,
+            phone: localBiz.phone,
+            name: localBiz.owner_name || 'Store Owner',
+            role: 'admin',
+            business_id: localBiz.id,
+            business_name: localBiz.name,
+            shop_name: localBiz.name,
+          };
+          setStoredUser(restoredUser);
+          setCurrentUser(restoredUser);
         }
 
         // Auto-align cloud store if local DB has a different store/type
