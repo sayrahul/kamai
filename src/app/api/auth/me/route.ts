@@ -25,15 +25,41 @@ export async function GET(req: NextRequest) {
     // 1. Check Cloud Firestore
     try {
       const firestore = getFirestoreDb();
-      if (firestore && targetBusinessId) {
-        const docRef = doc(firestore, 'businesses', targetBusinessId);
-        const snapshot = await getDoc(docRef);
-        if (snapshot.exists()) {
-          isFound = true;
-          const data = snapshot.data();
-          businessData = { id: snapshot.id, ...data };
-          if (data.is_active === false) {
-            isStoreActive = false;
+      if (firestore) {
+        if (targetBusinessId) {
+          const docRef = doc(firestore, 'businesses', targetBusinessId);
+          const snapshot = await getDoc(docRef);
+          if (snapshot.exists()) {
+            isFound = true;
+            const data = snapshot.data();
+            businessData = { id: snapshot.id, ...data };
+            if (data.is_active === false) {
+              isStoreActive = false;
+            }
+          }
+        }
+
+        // Phone fallback in Firestore
+        if (!isFound && targetPhone) {
+          const clean10 = targetPhone.replace(/\D/g, '').slice(-10);
+          const candidateUids = [`user_${clean10}`, `staff_${clean10}`, `wa_${clean10}`, payload?.staff_id].filter(Boolean);
+          for (const cUid of candidateUids) {
+            if (isFound) break;
+            try {
+              const mSnap = await getDoc(doc(firestore, 'merchants', cUid));
+              if (mSnap.exists()) {
+                const mData = mSnap.data();
+                const bId = mData.business_id || mData.id;
+                if (bId) {
+                  const bSnap = await getDoc(doc(firestore, 'businesses', bId));
+                  if (bSnap.exists()) {
+                    isFound = true;
+                    businessData = { id: bSnap.id, ...bSnap.data() };
+                    if (businessData.is_active === false) isStoreActive = false;
+                  }
+                }
+              }
+            } catch (err) {}
           }
         }
       }
@@ -44,18 +70,44 @@ export async function GET(req: NextRequest) {
     // 2. Check Supabase
     try {
       const supabase = getSupabaseServerClient();
-      if (supabase && targetBusinessId) {
-        const { data: biz } = await supabase
-          .from('businesses')
-          .select('id, name, business_type, owner_name, phone, address, pincode, gstin, upi_id, invoice_prefix, next_invoice_number, subscription_tier, subscription_valid_until, is_active')
-          .eq('id', targetBusinessId)
-          .maybeSingle();
+      if (supabase) {
+        if (targetBusinessId) {
+          const { data: biz } = await supabase
+            .from('businesses')
+            .select('id, name, business_type, owner_name, phone, address, pincode, gstin, upi_id, invoice_prefix, next_invoice_number, subscription_tier, subscription_valid_until, is_active')
+            .eq('id', targetBusinessId)
+            .maybeSingle();
 
-        if (biz) {
-          isFound = true;
-          businessData = { ...(businessData || {}), ...biz };
-          if (biz.is_active === false) {
-            isStoreActive = false;
+          if (biz) {
+            isFound = true;
+            businessData = { ...(businessData || {}), ...biz };
+            if (biz.is_active === false) {
+              isStoreActive = false;
+            }
+          }
+        }
+
+        // Phone fallback in Supabase
+        if (!isFound && targetPhone) {
+          const clean10 = targetPhone.replace(/\D/g, '').slice(-10);
+          const { data: staff } = await supabase
+            .from('business_staff')
+            .select('id, business_id, name, phone, role, is_active')
+            .eq('phone', clean10)
+            .maybeSingle();
+
+          if (staff?.business_id) {
+            const { data: biz } = await supabase
+              .from('businesses')
+              .select('id, name, business_type, owner_name, phone, address, pincode, gstin, upi_id, invoice_prefix, next_invoice_number, subscription_tier, subscription_valid_until, is_active')
+              .eq('id', staff.business_id)
+              .maybeSingle();
+
+            if (biz) {
+              isFound = true;
+              businessData = { ...(businessData || {}), ...biz };
+              if (biz.is_active === false) isStoreActive = false;
+            }
           }
         }
       }

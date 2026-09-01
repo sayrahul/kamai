@@ -49,55 +49,56 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     requestPersistentStorage();
   }, []);
 
-  // --- AUTH, SESSION, ROUTE GUARDING & BACKGROUND CLOUD SYNC ---
+  // --- 1. MOUNT SETUP: DB HYDRATION, EVENT LISTENERS & CLOUD HEARTBEAT ---
   useEffect(() => {
     setIsClient(true);
     initFirebaseAppCheck();
-    const cachedUser = getStoredUser();
-    setCurrentUser(cachedUser);
-
-    // Initialize auto background sync & real-time multi-device cloud stream
-    const cleanupSync = initBackgroundCloudSync(cachedUser?.business_id);
+    
+    const initialUser = getStoredUser();
+    setCurrentUser(initialUser);
 
     const handleAuthChange = () => {
-      const user = getStoredUser();
-      setCurrentUser(user);
+      const u = getStoredUser();
+      setCurrentUser(u);
     };
 
     window.addEventListener('auth_changed', handleAuthChange);
     window.addEventListener('storage', handleAuthChange);
 
-    // Route classifications
-    const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
-    const isLegalOrPublic = pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || pathname === '/admin' || pathname.startsWith('/admin');
-    const isAuthRoute = pathname === '/auth';
-    const isOnboardingRoute = pathname === '/onboarding';
-    const isPublicRoute = isCustomerInvoice || isLegalOrPublic || isAuthRoute || isOnboardingRoute;
+    const cleanupSync = initBackgroundCloudSync(initialUser?.business_id);
 
-    // --- SMART ROUTE GUARDING TO PREVENT REDIRECT LOOPS ---
-    if (!cachedUser) {
-      // 1. If not authenticated and not on a public route, redirect to /auth
-      if (!isPublicRoute && pathname !== '/auth') {
-        router.replace('/auth');
-        return;
-      }
-    } else {
-      const hasBusinessId = Boolean(cachedUser.business_id && cachedUser.business_id !== 'biz_pending');
+    // Initial DB hydration: restore business from local Dexie if user session is missing business_id
+    const initDb = async () => {
+      try {
+        if (!localDb.isOpen()) {
+          await localDb.open();
+        }
 
-      if (!hasBusinessId) {
-        // 2. If authenticated but lacks business_id (onboarding incomplete), redirect dashboard routes to /onboarding
-        if (!isOnboardingRoute && !isLegalOrPublic && !isCustomerInvoice && pathname !== '/auth') {
-          router.replace('/onboarding');
-          return;
+        const localBiz = await localDb.businesses.toCollection().first();
+        const u = getStoredUser();
+
+        if (localBiz && localBiz.id && localBiz.is_onboarded) {
+          if (!u || !u.business_id || u.business_id === 'biz_pending') {
+            const restoredUser: AuthUser = {
+              uid: u?.uid || localBiz.id,
+              id: u?.id || localBiz.id,
+              phone: u?.phone || localBiz.phone,
+              name: u?.name || localBiz.owner_name || 'Store Owner',
+              role: u?.role || 'admin',
+              business_id: localBiz.id,
+              business_name: localBiz.name,
+              shop_name: localBiz.name,
+            };
+            setStoredUser(restoredUser);
+            setCurrentUser(restoredUser);
+          }
         }
-      } else {
-        // 3. If authenticated with complete business_id and visits /auth or /onboarding, redirect to /
-        if (isAuthRoute || isOnboardingRoute) {
-          router.replace('/');
-          return;
-        }
+      } catch (err) {
+        console.warn('Local DB hydration notice:', err);
       }
-    }
+    };
+
+    initDb();
 
     // Verify session with server API (/api/auth/me) in the background with 30s heartbeat
     const checkServerSession = async () => {
@@ -105,8 +106,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         const res = await fetch('/api/auth/me');
         if (res.status === 403 || res.status === 401) {
           const data = await res.json().catch(() => ({}));
-          if (data.isFrozen || data.isDeleted) {
-            // Instant data purge from local IndexedDB and localStorage
+          if (data.isFrozen) {
             try {
               await Promise.all([
                 localDb.businesses.clear(),
@@ -125,8 +125,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             setStoredUser(null);
             setCurrentUser(null);
             setAccountLockout({
-              isFrozen: Boolean(data.isFrozen),
-              message: data.error || (data.isFrozen ? 'Your merchant account has been frozen by the platform administrator.' : 'Your merchant account has been deleted by administrator.'),
+              isFrozen: true,
+              message: data.error || 'Your merchant account has been frozen by the platform administrator.',
             });
             return;
           }
@@ -136,26 +136,25 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           const data = await res.json();
           if (data.authenticated && data.user) {
             const currentStored = getStoredUser();
-            const verifiedUser: AuthUser = {
-              uid: data.user.id || currentStored?.uid || data.user.phone,
-              id: data.user.id || currentStored?.id || data.user.phone,
-              phone: data.user.phone || currentStored?.phone,
-              name: data.user.name || currentStored?.name || 'Store Owner',
-              email: currentStored?.email || null,
-              photoURL: currentStored?.photoURL || null,
-              role: data.user.role || 'admin',
-              business_id: data.user.business_id || undefined,
-              business_name: data.business?.name || data.user.business_name || currentStored?.business_name || '',
-              shop_name: data.business?.name || data.user.business_name || currentStored?.shop_name || '',
-            };
-            setStoredUser(verifiedUser);
-            setCurrentUser(verifiedUser);
-
-            if (!verifiedUser.business_id && pathname !== '/onboarding' && !isPublicRoute) {
-              router.replace('/onboarding');
+            // Only update stored user if cloud found a valid business_id that client didn't have
+            if (data.user.business_id && (!currentStored?.business_id || currentStored.business_id === 'biz_pending')) {
+              const updatedUser: AuthUser = {
+                uid: data.user.id || currentStored?.uid || data.user.phone,
+                id: data.user.id || currentStored?.id || data.user.phone,
+                phone: data.user.phone || currentStored?.phone,
+                name: data.user.name || currentStored?.name || 'Store Owner',
+                email: currentStored?.email || null,
+                photoURL: currentStored?.photoURL || null,
+                role: data.user.role || 'admin',
+                business_id: data.user.business_id,
+                business_name: data.business?.name || data.user.business_name || currentStored?.business_name || '',
+                shop_name: data.business?.name || data.user.business_name || currentStored?.shop_name || '',
+              };
+              setStoredUser(updatedUser);
+              setCurrentUser(updatedUser);
             }
 
-            // Instant sync of subscription tier from Cloud DB
+            // Sync subscription tier from Cloud DB
             if (data.business?.subscription_tier) {
               subscriptionService.setTierFromCloud(
                 data.business.subscription_tier,
@@ -173,75 +172,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const heartbeatTimer = setInterval(checkServerSession, 30000);
     window.addEventListener('focus', checkServerSession);
 
-    // Ensure DB is open & auto-align cloud business if mismatched on this device
-    const initDb = async () => {
-      try {
-        if (!localDb.isOpen()) {
-          await localDb.open();
-        }
-
-        const localBiz = await localDb.businesses.toCollection().first();
-        const u = getStoredUser();
-
-        // If user is authenticated but not onboarded in session, check if local store already exists and is onboarded
-        if (u && (!u.business_id || u.business_id === 'biz_pending')) {
-          if (localBiz && localBiz.id && localBiz.is_onboarded) {
-            const restoredUser: AuthUser = {
-              ...u,
-              business_id: localBiz.id,
-              business_name: localBiz.name,
-              shop_name: localBiz.name,
-            };
-            setStoredUser(restoredUser);
-            setCurrentUser(restoredUser);
-            if (pathname === '/onboarding' || pathname === '/auth') {
-              router.replace('/');
-            }
-            return;
-          }
-
-          // Genuinely fresh signup with no local store
-          if (pathname !== '/onboarding' && pathname !== '/auth') {
-            router.replace('/onboarding');
-          }
-          return;
-        }
-
-        // If no user session is in localStorage but Dexie has an active offline store, restore it
-        if (!u && localBiz && localBiz.id) {
-          const restoredUser: AuthUser = {
-            uid: localBiz.id,
-            id: localBiz.id,
-            phone: localBiz.phone,
-            name: localBiz.owner_name || 'Store Owner',
-            role: 'admin',
-            business_id: localBiz.id,
-            business_name: localBiz.name,
-            shop_name: localBiz.name,
-          };
-          setStoredUser(restoredUser);
-          setCurrentUser(restoredUser);
-        }
-
-        // Auto-align cloud store if local DB has a different store/type
-        if (cachedUser?.business_id && cachedUser.business_id !== 'biz_pending' && typeof navigator !== 'undefined' && navigator.onLine) {
-          if (!localBiz || localBiz.id !== cachedUser.business_id) {
-            console.log('🔄 Aligning local device store with Cloud profile:', cachedUser.business_id);
-            await restoreFirestoreToLocalDexie(cachedUser.business_id);
-          } else if (localBiz?.subscription_tier) {
-            subscriptionService.setTierFromCloud(
-              localBiz.subscription_tier,
-              localBiz.subscription_valid_until
-            );
-          }
-        }
-      } catch (err) {
-        console.warn('DB init & cloud alignment check:', err);
-      }
-    };
-
-    initDb();
-
     return () => {
       clearInterval(heartbeatTimer);
       window.removeEventListener('focus', checkServerSession);
@@ -249,7 +179,39 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       window.removeEventListener('auth_changed', handleAuthChange);
       window.removeEventListener('storage', handleAuthChange);
     };
-  }, [pathname, router]);
+  }, []);
+
+  // --- 2. DETERMINISTIC ROUTE GUARDING ---
+  useEffect(() => {
+    if (!isClient) return;
+
+    const user = currentUser || getStoredUser();
+    
+    // Route classifications
+    const isCustomerInvoice = pathname === '/invoice' || (pathname.startsWith('/invoice') && !pathname.startsWith('/invoice-designer'));
+    const isLegalOrPublic = pathname === '/terms-of-service' || pathname === '/privacy-policy' || pathname === '/refund-policy' || pathname === '/contact-us' || pathname === '/admin' || pathname.startsWith('/admin');
+    const isAuthRoute = pathname === '/auth';
+    const isOnboardingRoute = pathname === '/onboarding';
+    const isPublicRoute = isCustomerInvoice || isLegalOrPublic || isAuthRoute || isOnboardingRoute;
+
+    if (!user) {
+      if (!isPublicRoute && pathname !== '/auth') {
+        router.replace('/auth');
+      }
+    } else {
+      const hasBusinessId = Boolean(user.business_id && user.business_id !== 'biz_pending');
+
+      if (!hasBusinessId) {
+        if (!isOnboardingRoute && !isLegalOrPublic && !isCustomerInvoice && pathname !== '/auth') {
+          router.replace('/onboarding');
+        }
+      } else {
+        if (isAuthRoute || isOnboardingRoute) {
+          router.replace('/');
+        }
+      }
+    }
+  }, [pathname, currentUser, isClient, router]);
 
   if (!isClient) {
     return <main className="min-h-screen bg-[#F8FAFC]" />;
