@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { formatINR, generateUPILink } from '@/lib/utils';
-import { LedgerTransaction, Customer } from '@/types';
+import { LedgerTransaction, Customer, Sale } from '@/types';
 import { 
   BookOpen, 
   Search, 
@@ -13,28 +14,30 @@ import {
   ArrowUpRight, 
   ArrowDownLeft, 
   Plus, 
-  Edit2,
-  Trash2,
-  AlertTriangle,
-  UserPlus,
-  Calendar,
-  CheckCircle2,
-  HelpCircle,
-  Wallet,
-  Receipt,
-  Download,
-  Users,
-  ChevronRight,
-  Filter,
-  Check,
-  TrendingDown,
-  TrendingUp,
-  FileText,
-  Loader2,
-  Zap,
-  Lock,
-  ArrowRight,
-  ChevronDown
+  Edit2, 
+  Trash2, 
+  AlertTriangle, 
+  UserPlus, 
+  Calendar, 
+  CheckCircle2, 
+  HelpCircle, 
+  Wallet, 
+  Receipt, 
+  Download, 
+  Users, 
+  ChevronRight, 
+  Filter, 
+  Check, 
+  TrendingDown, 
+  TrendingUp, 
+  FileText, 
+  Loader2, 
+  Zap, 
+  Lock, 
+  ArrowRight, 
+  ChevronDown,
+  ShoppingBag,
+  Printer
 } from 'lucide-react';
 import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { Button } from '@/components/ui/Button';
@@ -43,6 +46,11 @@ import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+
+const InvoiceModal = dynamic(
+  () => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal),
+  { ssr: false }
+);
 
 function KhataContent() {
   const { t } = useTranslation();
@@ -79,9 +87,41 @@ function KhataContent() {
   const [clearConfirmationText, setClearConfirmationText] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Invoice Detailed Bill Viewer Modal
+  const [viewingSale, setViewingSale] = useState<Sale | null>(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleOpenSaleInvoice = async (referenceId?: string, notes?: string) => {
+    try {
+      if (referenceId) {
+        const sale = await db.sales.get(referenceId);
+        if (sale) {
+          setViewingSale(sale);
+          setIsInvoiceModalOpen(true);
+          return;
+        }
+      }
+      if (notes) {
+        const match = notes.match(/#([A-Z0-9-]+)/i);
+        if (match && match[1]) {
+          const invNum = match[1];
+          const sale = await db.sales.where('invoice_number').equalsIgnoreCase(invNum).first();
+          if (sale) {
+            setViewingSale(sale);
+            setIsInvoiceModalOpen(true);
+            return;
+          }
+        }
+      }
+      showToast('Full invoice bill not found for this entry.');
+    } catch (err) {
+      console.warn('Failed to lookup invoice:', err);
+    }
   };
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -801,10 +841,10 @@ function KhataContent() {
                     return (
                       <div
                         key={tx.id}
-                        className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between gap-3 hover:border-slate-300 transition-all"
+                        className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-300 transition-all shadow-2xs"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
                                 isDebit
@@ -819,28 +859,62 @@ function KhataContent() {
                                 {tx.payment_method}
                               </span>
                             )}
+                            {(tx.reference_id || (tx.notes && tx.notes.includes('Invoice #'))) && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenSaleInvoice(tx.reference_id, tx.notes)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[10px] font-bold cursor-pointer transition shadow-2xs"
+                                title="Click to view & reprint full tax invoice bill"
+                              >
+                                <Receipt className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                                <span>View Bill 📄</span>
+                              </button>
+                            )}
                           </div>
 
-                          <div className="text-xs font-medium text-slate-800 dark:text-slate-200 mt-1">
-                            {tx.notes || (isDebit ? 'Udhar Bill / Goods' : 'Payment Received')}
+                          {/* Notes and Items List Breakdown */}
+                          <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 mt-1.5 leading-snug">
+                            {tx.notes ? (
+                              tx.notes.includes('•') ? (
+                                <div className="space-y-1">
+                                  <div className="text-slate-900 dark:text-slate-100 font-bold flex items-center gap-1.5">
+                                    <span>🧾</span>
+                                    <span>{tx.notes.split('•')[0].trim()}</span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-600 dark:text-slate-300 font-mono bg-white/80 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-200/80 dark:border-slate-800 flex items-start gap-1.5">
+                                    <ShoppingBag className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                      <span className="font-bold text-slate-700 dark:text-slate-200">Items Purchased: </span>
+                                      <span>{tx.notes.split('•').slice(1).join('•').trim()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span>{tx.notes}</span>
+                              )
+                            ) : (
+                              <span>{isDebit ? 'Udhar Bill / Goods' : 'Payment Received'}</span>
+                            )}
                           </div>
 
-                          <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                          <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
                             <Calendar className="w-2.5 h-2.5" />
                             <span>{new Date(tx.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                           </div>
                         </div>
 
-                        <div className="text-right flex-shrink-0">
-                          <div
-                            className={`text-sm sm:text-base font-black ${
-                              isDebit ? 'text-rose-600' : 'text-emerald-600'
-                            }`}
-                          >
-                            {isDebit ? `+ ₹${(tx.amount / 100).toFixed(2)}` : `- ₹${(tx.amount / 100).toFixed(2)}`}
-                          </div>
-                          <div className="text-[10px] text-slate-400">
-                            Bal: ₹{(tx.balance_after / 100).toFixed(2)}
+                        <div className="text-left sm:text-right flex sm:flex-col items-center sm:items-end justify-between sm:justify-center flex-shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200/60 dark:border-slate-800">
+                          <div>
+                            <div
+                              className={`text-sm sm:text-base font-black font-mono leading-tight ${
+                                isDebit ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                              }`}
+                            >
+                              {isDebit ? `+ ₹${(tx.amount / 100).toFixed(2)}` : `- ₹${(tx.amount / 100).toFixed(2)}`}
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              Bal: ₹{(tx.balance_after / 100).toFixed(2)}
+                            </div>
                           </div>
 
                           <div className="flex items-center gap-1 justify-end mt-1">
@@ -851,17 +925,17 @@ function KhataContent() {
                                 setEditTxNotes(tx.notes || '');
                                 setEditTxType(isDebit ? 'CREDIT_SALE' : 'PAYMENT_RECEIVED');
                               }}
-                              className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                               title="Edit Entry"
                             >
-                              <Edit2 className="w-3 h-3" />
+                              <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteTx(tx.id)}
                               className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
                               title="Delete Entry"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
@@ -1150,6 +1224,19 @@ function KhataContent() {
           </div>
         </div>
       </Modal>
+
+      {/* ========================================================================= */}
+      {/* INVOICE BILL VIEWER / REPRINT / WHATSAPP MODAL */}
+      {/* ========================================================================= */}
+      <InvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => {
+          setIsInvoiceModalOpen(false);
+          setViewingSale(null);
+        }}
+        sale={viewingSale}
+        business={business}
+      />
     </div>
   );
 }

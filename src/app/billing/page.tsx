@@ -1079,6 +1079,15 @@ export default function BillingPage() {
   const handleCompleteSale = async (explicitPayment?: ParsedPaymentEvent) => {
     if (cart.length === 0) return;
 
+    // MANDATORY CUSTOMER VALIDATION FOR CREDIT / UDHAR PAYMENT MODE
+    const isCreditMode = paymentMethod === 'credit' || (paymentMethod === 'split' && parseFloat(splitCredit || '0') > 0);
+    if (isCreditMode && (!selectedCustomerId || !selectedCustomer)) {
+      playBeepSound('alert');
+      showBillingToast('Customer name is mandatory for Credit (Udhar) sale. Please select or add a customer.', 'error');
+      setIsAddCustomerModalOpen(true);
+      return;
+    }
+
     try {
       const businessId = business?.id || 'biz_default';
       const nextNum = business?.next_invoice_number || 1;
@@ -1242,6 +1251,8 @@ export default function BillingPage() {
           updated_at: now,
         });
 
+        const itemsSummary = cart.map((i) => `${i.quantity}x ${i.product_name}`).join(', ');
+
         await db.ledger_transactions.put({
           id: `ledg_${Date.now()}`,
           business_id: businessId,
@@ -1252,7 +1263,7 @@ export default function BillingPage() {
           amount: balanceDuePaise,
           balance_after: updatedBalance,
           reference_id: saleId,
-          notes: `Credit on Invoice #${invoiceNumber}`,
+          notes: `Invoice #${invoiceNumber} • ${itemsSummary}`,
           created_at: now,
         });
       }
@@ -1639,9 +1650,12 @@ export default function BillingPage() {
                     setSplitCash((grandTotalPaise / 200).toString());
                     setSplitUpi((grandTotalPaise / 200).toString());
                   }
+                  if (m.id === 'credit' && !selectedCustomerId) {
+                    setIsAddCustomerModalOpen(true);
+                  }
                 }}
                 className={cn(
-                  'py-2 px-1 rounded-lg border text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all text-center',
+                  'py-2 px-1 rounded-lg border text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all text-center cursor-pointer',
                   isSelected
                     ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
                     : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
@@ -1654,6 +1668,23 @@ export default function BillingPage() {
           })}
         </div>
       </div>
+
+      {/* Credit Mode Mandatory Customer Alert Banner */}
+      {paymentMethod === 'credit' && !selectedCustomerId && (
+        <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-950 flex items-center justify-between gap-2 shadow-2xs">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-base flex-shrink-0">⚠️</span>
+            <span className="font-bold truncate">Customer Name is compulsory for Credit (Udhar)</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsAddCustomerModalOpen(true)}
+            className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] cursor-pointer flex-shrink-0 transition shadow-xs"
+          >
+            + Add Customer
+          </button>
+        </div>
+      )}
 
       {/* If Split / Multi-Mode Payment: Render Breakdown Inputs */}
       {paymentMethod === 'split' && cart.length > 0 && (() => {
