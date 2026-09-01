@@ -183,11 +183,24 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         const localBiz = await localDb.businesses.toCollection().first();
         const u = getStoredUser();
 
-        // If user is authenticated but not onboarded (fresh signup or deleted profile), wipe any stale local store & enforce onboarding
+        // If user is authenticated but not onboarded in session, check if local store already exists and is onboarded
         if (u && (!u.business_id || u.business_id === 'biz_pending')) {
-          if (localBiz) {
-            await localDb.businesses.clear().catch(() => {});
+          if (localBiz && localBiz.id && localBiz.is_onboarded) {
+            const restoredUser: AuthUser = {
+              ...u,
+              business_id: localBiz.id,
+              business_name: localBiz.name,
+              shop_name: localBiz.name,
+            };
+            setStoredUser(restoredUser);
+            setCurrentUser(restoredUser);
+            if (pathname === '/onboarding' || pathname === '/auth') {
+              router.replace('/');
+            }
+            return;
           }
+
+          // Genuinely fresh signup with no local store
           if (pathname !== '/onboarding' && pathname !== '/auth') {
             router.replace('/onboarding');
           }

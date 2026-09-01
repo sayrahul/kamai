@@ -118,6 +118,20 @@ export const AuthForm: React.FC = () => {
                 merchantData = phoneSnap.docs[0].data();
               }
             }
+
+            // Also check alternate merchant doc IDs
+            if (!merchantData && cleanPhone) {
+              const possibleUids = [`user_${cleanPhone}`, `staff_${cleanPhone}`, `wa_${cleanPhone}`];
+              for (const pUid of possibleUids) {
+                if (merchantData) break;
+                try {
+                  const pSnap = await getDoc(doc(firestore, 'merchants', pUid));
+                  if (pSnap.exists()) {
+                    merchantData = pSnap.data();
+                  }
+                } catch (pErr) {}
+              }
+            }
           } catch (bErr) {
             console.warn('businesses lookup fallback notice:', bErr);
           }
@@ -144,7 +158,20 @@ export const AuthForm: React.FC = () => {
         }
       }
 
-      // CASE A: Returning User (Active Merchant document or business verified in Cloud)
+      // 4. Local Database Fallback: If cloud was offline or document matched locally
+      if (!merchantData) {
+        try {
+          if (!localDb.isOpen()) await localDb.open();
+          const localBiz = await localDb.businesses.toCollection().first();
+          if (localBiz && localBiz.id && localBiz.is_onboarded) {
+            merchantData = localBiz;
+          }
+        } catch (dexErr) {
+          console.warn('Local Dexie business fallback notice:', dexErr);
+        }
+      }
+
+      // CASE A: Returning User (Active Merchant document or business verified in Cloud / Local DB)
       if (merchantData && (merchantData.business_id || merchantData.id) && merchantData.is_active !== false) {
         const businessId = merchantData.business_id || merchantData.id;
         const shopName = merchantData.shop_name || merchantData.name || merchantData.business_name || 'My Store';
@@ -153,25 +180,9 @@ export const AuthForm: React.FC = () => {
 
         setWelcomeMessage(`Welcome back, ${shopName}!`);
 
-        // Clean local Dexie tables before restoring latest cloud snapshot
-        try {
-          if (!localDb.isOpen()) await localDb.open();
-          await Promise.all([
-            localDb.sales.clear(),
-            localDb.customers.clear(),
-            localDb.products.clear(),
-            localDb.categories.clear(),
-            localDb.ledger_transactions.clear(),
-            localDb.cash_expenses.clear(),
-            localDb.cash_registers.clear(),
-            localDb.businesses.clear(),
-          ]);
-        } catch (clearErr) {
-          console.warn('Wipe local tables on returning login:', clearErr);
-        }
-
         // Store business into local Dexie
         try {
+          if (!localDb.isOpen()) await localDb.open();
           await localDb.businesses.put({
             id: businessId,
             name: shopName,
