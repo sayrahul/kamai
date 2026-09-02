@@ -6,7 +6,8 @@ import { sendInvoiceViaOfficialCloudApi } from './whatsappInvoice';
 
 /**
  * Renders an HTML element to a full, un-cropped high-resolution PDF Blob
- * Fully normalized across Mobile, Tablet, and Desktop screens
+ * Uses an isolated off-screen DOM sandbox to completely eliminate modal transforms,
+ * viewport scale artifacts, and scroll offset clipping.
  */
 export async function generateInvoicePdfBlobFromElement(
   element: HTMLElement,
@@ -19,66 +20,95 @@ export async function generateInvoicePdfBlobFromElement(
   const isThermal = isThermal58 || isThermal80;
 
   // Master rendering width to normalize output across Mobile and Desktop
-  const targetRenderWidth = isThermal58 ? 260 : isThermal80 ? 320 : 760;
+  const targetRenderWidth = isThermal58 ? 280 : isThermal80 ? 350 : 760;
 
-  // 2. Capture un-clipped element using html2canvas in a virtual desktop viewport
-  const canvas = await html2canvas(element, {
-    scale: 2, // Sharp 2x scaling (exact pixel grid, zero baseline drift)
-    useCORS: true,
-    logging: false,
-    backgroundColor: '#ffffff',
-    scrollX: 0,
-    scrollY: 0,
-    windowWidth: 1200, // Always use a desktop viewport so mobile doesn't squeeze the layout
-    onclone: (clonedDoc, clonedElement) => {
-      // Ensure cloned document is scrolled to top-left
-      if (clonedDoc.defaultView) {
-        clonedDoc.defaultView.scrollTo(0, 0);
+  // 2. Clone the element cleanly into an isolated, visible off-screen rendering sandbox
+  const sandbox = document.createElement('div');
+  sandbox.id = `pdf-sandbox-${Date.now()}`;
+  sandbox.style.position = 'fixed';
+  sandbox.style.left = '0';
+  sandbox.style.top = '0';
+  sandbox.style.width = `${targetRenderWidth}px`;
+  sandbox.style.minWidth = `${targetRenderWidth}px`;
+  sandbox.style.maxWidth = `${targetRenderWidth}px`;
+  sandbox.style.background = '#ffffff';
+  sandbox.style.zIndex = '-99999';
+  sandbox.style.opacity = '1';
+  sandbox.style.pointerEvents = 'none';
+  sandbox.style.overflow = 'visible';
+  sandbox.style.transform = 'none';
+  sandbox.style.margin = '0';
+  sandbox.style.padding = '0';
+
+  // Deep clone element
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.style.transform = 'none';
+  clone.style.width = '100%';
+  clone.style.maxWidth = '100%';
+  clone.style.margin = '0';
+  clone.style.boxSizing = 'border-box';
+  clone.style.overflow = 'visible';
+  clone.style.display = 'block';
+  clone.style.visibility = 'visible';
+  clone.style.opacity = '1';
+
+  // Remove any responsive scaling classes or transforms from clone and its children
+  const allNodes = clone.querySelectorAll('*');
+  allNodes.forEach((node) => {
+    if (node instanceof HTMLElement) {
+      node.style.overflow = 'visible';
+      if (node.style.transform && node.style.transform.includes('scale')) {
+        node.style.transform = 'none';
       }
-
-      // Force master dimensions on cloned element regardless of device screen size
-      clonedElement.style.width = `${targetRenderWidth}px`;
-      clonedElement.style.minWidth = `${targetRenderWidth}px`;
-      clonedElement.style.maxWidth = `${targetRenderWidth}px`;
-      clonedElement.style.maxHeight = 'none';
-      clonedElement.style.height = 'auto';
-      clonedElement.style.overflow = 'visible';
-      clonedElement.style.position = 'relative';
-      clonedElement.style.transform = 'none';
-      clonedElement.style.boxShadow = 'none';
-      clonedElement.style.margin = '0 auto';
-      clonedElement.style.padding = '24px';
-      clonedElement.style.paddingBottom = '44px'; // Generous bottom padding
-      clonedElement.style.fontFamily = "'Mukta', 'Noto Sans Devanagari', 'Nirmala UI', 'Inter', system-ui, sans-serif";
-
-      // Ensure all text elements inside cloned doc have unclipped line heights and visible overflows
-      const allElements = clonedElement.querySelectorAll('*');
-      allElements.forEach((node) => {
-        if (node instanceof HTMLElement) {
-          node.style.boxSizing = 'border-box';
-          node.style.overflow = 'visible';
-        }
-      });
-
-      let parent = clonedElement.parentElement;
-      while (parent && parent !== clonedDoc.body) {
-        parent.style.maxHeight = 'none';
-        parent.style.height = 'auto';
-        parent.style.overflow = 'visible';
-        parent.style.width = 'auto';
-        parent.style.maxWidth = 'none';
-        parent.style.transform = 'none';
-        parent.style.transformOrigin = 'initial';
-        parent.style.marginBottom = '0px';
-        parent.style.marginTop = '0px';
-        parent = parent.parentElement;
-      }
-    },
+    }
   });
+
+  sandbox.appendChild(clone);
+  document.body.appendChild(sandbox);
+
+  let canvas: HTMLCanvasElement;
+  try {
+    // Wait for fonts & images to settle in clone
+    if (document.fonts) {
+      await document.fonts.ready;
+    }
+    const images = Array.from(clone.querySelectorAll('img'));
+    await Promise.all(
+      images.map((img) => {
+        if (img.complete) return Promise.resolve();
+        return new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      })
+    );
+
+    // Allow DOM reflow
+    await new Promise((r) => setTimeout(r, 80));
+
+    // 3. Capture un-clipped element using html2canvas on the sandbox clone
+    canvas = await html2canvas(clone, {
+      scale: 2, // Sharp 2x scaling (exact pixel grid, zero baseline drift)
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      scrollX: 0,
+      scrollY: 0,
+      width: clone.offsetWidth || targetRenderWidth,
+      height: clone.offsetHeight,
+      windowWidth: targetRenderWidth + 100,
+    });
+  } finally {
+    // Safely remove sandbox from DOM
+    if (sandbox.parentElement) {
+      sandbox.parentElement.removeChild(sandbox);
+    }
+  }
 
   const imgData = canvas.toDataURL('image/png', 1.0);
 
-  // 3. Create PDF tailored to the format
+  // 4. Create PDF tailored to the format
   let pdf: jsPDF;
 
   if (isThermal) {

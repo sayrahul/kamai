@@ -163,7 +163,7 @@ export default function InvoiceDesignerPage() {
     if (!el) return;
     setIsExporting(true);
     try {
-      await downloadInvoicePdfFromElement(el, 'SAMPLE-TEMPLATE');
+      await downloadInvoicePdfFromElement(el, 'Sample_Invoice_Template.pdf');
     } catch (err) {
       console.error('PDF error:', err);
     } finally {

@@ -143,7 +143,8 @@ function InvoiceContent() {
     if (!el || !data) return;
     setIsGeneratingPdf(true);
     try {
-      await downloadInvoicePdfFromElement(el, data.s_inv);
+      const fileName = data.s_inv.endsWith('.pdf') ? data.s_inv : `Invoice_${data.s_inv}.pdf`;
+      await downloadInvoicePdfFromElement(el, fileName);
     } catch (err) {
       console.error('PDF generation failed:', err);
       window.print();
