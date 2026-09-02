@@ -46,6 +46,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
   sale,
   onSaved,
 }) => {
+  const [invoiceNumber, setInvoiceNumber] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
@@ -77,6 +78,7 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
   // Initialize modal state when sale opens
   useEffect(() => {
     if (sale) {
+      setInvoiceNumber(sale.invoice_number || '');
       setCustomerName(sale.customer_name || '');
       setCustomerPhone(sale.customer_phone || '');
       setCustomerAddress(sale.customer_address || '');
@@ -296,8 +298,10 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
       }
 
       // 3. Update Sale Record in Dexie DB
+      const finalInvoiceNumber = invoiceNumber.trim() || sale.invoice_number;
       const updatedSale: Sale = {
         ...sale,
+        invoice_number: finalInvoiceNumber,
         customer_name: customerName.trim() || 'Cash Customer',
         customer_phone: customerPhone.trim() || undefined,
         customer_address: customerAddress.trim() || undefined,
@@ -350,12 +354,21 @@ export const EditInvoiceModal: React.FC<EditInvoiceModalProps> = ({
       size="xl"
     >
       <form onSubmit={handleSaveInvoice} className="space-y-4 p-1">
-        {/* Customer Information Edit */}
+        {/* Invoice & Customer Information Edit */}
         <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
-            Customer Information
+            Invoice &amp; Customer Information
           </span>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">Invoice Number *</label>
+              <Input
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+                placeholder="INV-001"
+                required
+              />
+            </div>
             <div>
               <label className="text-[11px] font-bold text-slate-600 block mb-1">Customer Name</label>
               <Input

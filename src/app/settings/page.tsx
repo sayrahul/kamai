@@ -1519,32 +1519,26 @@ export default function SettingsPage() {
             </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700">Invoice Prefix</label>
-                  {!isPro && <ProFeatureBadge />}
-                </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Invoice Prefix</label>
                 <Input
                   placeholder="INV-"
-                  value={isPro ? invoicePrefix : 'INV-'}
-                  onChange={(e) => {
-                    if (!isPro) {
-                      setIsUpgradeModalOpen(true);
-                    } else {
-                      setInvoicePrefix(e.target.value);
-                    }
-                  }}
-                  helperText={!isPro ? "Fixed to 'INV-' on Free plan. Upgrade to Pro for custom prefix (e.g. SHOP-, BIL-, 2026/)." : "Appears before invoice numbers (e.g. INV-001)"}
+                  value={invoicePrefix}
+                  onChange={(e) => setInvoicePrefix(e.target.value)}
+                  helperText="Appears before invoice numbers (e.g. INV-, BILL-, KP/2026/)"
                 />
               </div>
 
-              <Input
-                label="Next Invoice Sequence Number"
-                type="number"
-                value={nextInvoiceNumber}
-                onChange={(e) => setNextInvoiceNumber(e.target.value)}
-                helperText="Auto increments with each completed sale"
-              />
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Next Invoice Sequence Number</label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={nextInvoiceNumber}
+                  onChange={(e) => setNextInvoiceNumber(e.target.value)}
+                  helperText="Sequence number for the next bill (e.g. 1, 101, 1001). Auto-increments after each sale."
+                />
+              </div>
             </div>
 
             {/* GST / Tax Pricing Calculation Mode */}
