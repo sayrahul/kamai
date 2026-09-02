@@ -8,40 +8,57 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# 🛡️ MANDATORY ENGINEERING RULES FOR ALL AI AGENTS
+# 🛡️ IRONCLAD ENGINEERING CONSTITUTION FOR ALL AI AGENTS
 
-You are working on **KamaiPlus (Kamai+)**, an offline-first Billing POS and Retail Management Platform for Indian Small Businesses. Every AI agent MUST strictly adhere to the following rules without exception.
-
----
-
-## 🎯 RULE 1: SURGICAL EDITING & ZERO SIDE-EFFECTS
-1. **Targeted Modifications Only:** When the user asks for a change in a specific button, feature, or function, modify ONLY that exact code block.
-2. **Zero Unsolicited Rewrites:** NEVER re-architect, simplify, or overwrite unrelated functions, features, or styling in the same file.
-3. **No Silent Removals:** Never remove or disable an existing feature, button, badge, modal, or handler unless the user explicitly commands you to remove it.
+You are working on **KamaiPlus (Kamai+)**, an offline-first Billing POS and Retail Management Platform for Indian Small Businesses. Every AI agent MUST strictly adhere to the following rules without exception. Breaking these rules causes user frustration, regressions, and broken builds.
 
 ---
 
-## ⚠️ RULE 2: MANDATORY RIPPLE-EFFECT NOTIFICATION
-1. **Impact Analysis First:** If a requested change impacts shared types (`src/types/`), database tables (`src/lib/db/`), global state, or interconnected pages, you MUST clearly explain the side-effects to the user before modifying secondary files.
-2. **Clear Explanations for Non-Developers:** The user is a business owner, not a developer. Explain code dependencies in clear, simple terms (e.g., *"Changing this product tax field will also update how invoices calculate GST on the Billing page"*).
+## 🎯 RULE 1: ATOMIC TASK ISOLATION & SURGICAL MODIFICATION (ONE THING AT A TIME)
+1. **Strict Single-Scope Focus:** Work on ONLY the specific button, feature, modal, or page requested by the user. Do NOT attempt to refactor, "clean up", or redesign adjacent components in the same prompt.
+2. **Zero Unsolicited Rewrites:** NEVER re-architect, simplify, or rewrite working features, styling, or handlers in existing files.
+3. **No Silent Removals:** Never remove or disable an existing button, badge, modal, input, calculation, or handler unless the user explicitly commands you to delete it.
+4. **Preserve Solved Problems:** Once an issue is solved (e.g. PDF generation, invoice QR codes, modal spacing, form validation, logout authentication), NEVER touch or revert that logic during unrelated tasks.
 
 ---
 
-## 🧩 RULE 3: MODULAR DECOMPOSITION (NO MONOLITHIC PAGES)
-1. **Deconstruct Large Pages:** If a page or component exceeds 400 lines or handles multiple distinct jobs (e.g. modals, toolbars, tables, calculations), split it into modular sub-components inside `src/components/<feature>/` or custom hooks in `src/lib/`.
-2. **Single Responsibility:** Each component must have one clear purpose (e.g., `ProductTable.tsx`, `AddProductModal.tsx`, `BarcodeScannerSection.tsx`). This prevents edits to one UI widget from breaking the entire page.
+## 🚫 RULE 2: ZERO CROSS-PAGE REGRESSIONS & STYLE ISOLATION
+1. **Component-Level Scoping:** All Tailwind styling must be self-contained on the specific component. NEVER add sweeping global CSS rules in `src/app/globals.css` or layout wrappers that unintentionally break other pages.
+2. **Page Container Hygiene:** Standalone portal pages (e.g., `/admin`, `/onboarding`, `/auth`, `/invoice`) and standard POS shell pages (`/`, `/billing`, `/products`, `/khata`, `/settings`) have distinct layout requirements. Never mix their container styling.
+3. **Modal & Drawer Isolation:** Always encapsulate dialogs, drawers, and popups inside modular components in `src/components/<feature>/` so that modifying one modal never alters the parent page layout.
 
 ---
 
-## 💬 RULE 4: CONFIRMATION & CLARITY BEFORE BIG CHANGES
-1. **Ask When Ambiguous:** If the user's request has multiple possible implementation paths or potential tradeoffs, ask for clarification and present simple options before modifying code.
-2. **Full Transparency:** Always outline what will be created, what will be edited, and how each component connects.
+## 🔍 RULE 3: MANDATORY DEPENDENCY AUDIT BEFORE MODIFYING SHARED CODE
+Before editing ANY shared file in:
+- `src/types/` (Global TypeScript models)
+- `src/lib/` (Database, utilities, formatting, validation, math engines)
+- `src/components/ui/` or `src/components/common/` (Shared UI widgets)
+- `src/components/layout/` (AppShell, Navbar, Sidebar)
+
+**YOU MUST:**
+1. Run a `grep_search` to identify every single consumer page/component across the codebase.
+2. Verify that the change is 100% backward-compatible.
+3. Explain the side-effects in simple Hinglish to the user before proceeding.
 
 ---
 
-## 📌 RULE 5: MANDATORY APP VERSION INCREMENT & VERIFICATION
-Whenever committing or pushing to Git:
-1. **Always increment the application version by +0.1** (e.g. `3.73.0` -> `3.74.0` -> `3.75.0`).
-2. Run `npm run version:bump` or update `package.json` and `src/lib/constants/version.ts`.
-3. Include the new version in the commit message: `git commit -m "<type>(v<NEW_VERSION>): <description>"`.
-4. Always run `npx tsc --noEmit` and `npm run test:e2e` to verify zero regressions before pushing.
+## 🧪 RULE 4: TEST SUITE LOCK-IN (PREVENTING RECURRING BUGS)
+1. **Add Invariants for Every Fix:** Whenever a bug is fixed or a critical feature is added (e.g. invoice formatting, validation rules, math accuracy), you MUST add automated assertion checks to `scripts/e2e_simulation.ts`.
+2. **Never Break Existing Tests:** The simulation suite (`scripts/e2e_simulation.ts`) contains 238+ active financial, security, validation, and hardware tests. All tests MUST pass 100% with 0 failures before any commit.
+
+---
+
+## 🧩 RULE 5: MODULAR DECOMPOSITION (MAX 400 LINES PER FILE)
+1. **Deconstruct Monolithic Pages:** If a page or component exceeds 400 lines or manages multiple distinct tasks (e.g. toolbars, modals, tables, analytics), decompose it into focused sub-components inside `src/components/<feature>/`.
+2. **Single Responsibility Principle:** Each file must do one thing well (e.g., `InvoiceModal.tsx`, `AdminMerchantsTab.tsx`, `AddProductModal.tsx`). This completely isolates edits so that modifying one widget CANNOT break the rest of the application.
+
+---
+
+## 📌 RULE 6: MANDATORY VERIFICATION, VERSION BUMP & GIT COMMIT PROTOCOL
+Whenever completing work and committing to Git:
+1. **TypeScript Validation:** Run `npx tsc --noEmit` and verify **0 compile errors**.
+2. **Automated E2E Test Suite:** Run `npx tsx scripts/e2e_simulation.ts` and verify **100% tests pass**.
+3. **Application Version Increment:** Increment application version by **+0.1** in both `package.json` and `src/lib/constants/version.ts` (e.g. `4.00.0` -> `4.01.0`).
+4. **Clean Commit Message:** Commit with descriptive version tag: `git commit -m "<type>(v<NEW_VERSION>): <description>"`.
+5. **Push to Main:** Execute `git push origin main` and confirm clean deployment.
