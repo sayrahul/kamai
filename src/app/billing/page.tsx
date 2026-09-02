@@ -10,6 +10,7 @@ import { sendInvoiceViaOfficialCloudApi } from '@/lib/invoices/whatsappInvoice';
 import QRCode from 'qrcode';
 import { playBeepSound } from '@/lib/voice/speechParser';
 import { PlatformAnalytics } from '@/lib/firebase/analytics';
+import { getNextUniqueInvoiceNumber, commitNextInvoiceNumber, formatInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
 import { 
   Search, 
   Receipt, 
@@ -1125,9 +1126,7 @@ export default function BillingPage() {
     try {
       const currentBiz = business || (await ensureStarterBusinessIfEmpty());
       const businessId = currentBiz?.id || 'biz_default';
-      const nextNum = currentBiz?.next_invoice_number || 1;
-      const invPrefix = currentBiz?.invoice_prefix || 'INV-';
-      const invoiceNumber = `${invPrefix}${String(nextNum).padStart(3, '0')}`;
+      const { invoiceNumber, nextSeq } = await getNextUniqueInvoiceNumber(businessId);
       const now = new Date().toISOString();
 
       let finalMethod: PaymentMethod = explicitPayment ? 'upi' : paymentMethod;
@@ -1189,7 +1188,7 @@ export default function BillingPage() {
         status: 'completed',
         table_no: isRestaurant ? (tableNo || undefined) : undefined,
         order_type: isRestaurant ? (orderType || 'dine_in') : undefined,
-        token_number: isRestaurant ? Math.floor(100 + (nextNum % 900)) : undefined,
+        token_number: isRestaurant ? Math.floor(100 + (nextSeq % 900)) : undefined,
         doctor_name: isPharmacy ? (doctorName || undefined) : undefined,
         notes: explicitPayment?.referenceNumber ? `UPI Ref / UTR: ${explicitPayment.referenceNumber} (${explicitPayment.sourceApp})` : undefined,
         created_by: 'owner',
@@ -1220,10 +1219,7 @@ export default function BillingPage() {
 
       // 2. Increment business invoice number counter reliably
       if (currentBiz?.id) {
-        await db.businesses.update(currentBiz.id, {
-          next_invoice_number: nextNum + 1,
-          updated_at: now,
-        });
+        await commitNextInvoiceNumber(currentBiz.id, nextSeq);
       }
 
       // 3. Deduct product inventory stock & create movement logs with name/barcode resilience

@@ -13,6 +13,8 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { PWAInstallSettingsCard } from '@/components/pwa/PWAInstallSettingsCard';
 
+import { formatInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
+
 interface InvoiceSettingsTabProps {
   invoicePrefix: string;
   setInvoicePrefix: (val: string) => void;
@@ -38,6 +40,12 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
   footerMessage,
   setFooterMessage,
 }) => {
+  const currentSamplePreview = formatInvoiceNumber(
+    invoicePrefix || 'INV-',
+    parseInt(nextInvoiceNumber, 10) || 1,
+    3
+  );
+
   return (
     <div className="space-y-4 animate-in fade-in duration-150">
       {/* 1. Invoice Numbering & Pricing Mode */}
@@ -71,9 +79,21 @@ export const InvoiceSettingsTab: React.FC<InvoiceSettingsTabProps> = ({
             label="Next Invoice Sequence #"
             placeholder="e.g. 1"
             type="number"
+            min="1"
             value={nextInvoiceNumber}
             onChange={(e) => setNextInvoiceNumber(e.target.value)}
           />
+        </div>
+
+        {/* Live Preview Box */}
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Next Generated Bill Number Preview:</span>
+            <div className="text-[11px] text-slate-400">Zero-padded serial: e.g. INV-001, INV-002, INV-003, INV-010, INV-100</div>
+          </div>
+          <div className="px-3 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-950 border border-amber-300 dark:border-amber-700 font-mono font-black text-amber-950 dark:text-amber-300 text-sm shadow-2xs shrink-0 text-center">
+            {currentSamplePreview}
+          </div>
         </div>
 
         {/* GST Pricing Mode Selector */}
