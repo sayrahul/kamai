@@ -51,6 +51,18 @@ const InvoiceModal = dynamic(
   () => import('@/components/invoices/InvoiceModal').then((m) => m.InvoiceModal),
   { ssr: false }
 );
+const CustomerPendingInvoicesTab = dynamic(
+  () => import('@/components/khata/CustomerPendingInvoicesTab').then((m) => m.CustomerPendingInvoicesTab),
+  { ssr: false }
+);
+const SettleInvoicesModal = dynamic(
+  () => import('@/components/khata/SettleInvoicesModal').then((m) => m.SettleInvoicesModal),
+  { ssr: false }
+);
+const ConsolidatedStatementModal = dynamic(
+  () => import('@/components/khata/ConsolidatedStatementModal').then((m) => m.ConsolidatedStatementModal),
+  { ssr: false }
+);
 
 function KhataContent() {
   const { t } = useTranslation();
@@ -86,6 +98,22 @@ function KhataContent() {
   const [isClearAllModalOpen, setIsClearAllModalOpen] = useState(false);
   const [clearConfirmationText, setClearConfirmationText] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Customer Profile View Tabs: Timeline vs Pending Invoices (Bill-by-Bill)
+  const [profileTab, setProfileTab] = useState<'timeline' | 'invoices'>('timeline');
+
+  // Multi-Bill Settle Modal
+  const [settleModalSales, setSettleModalSales] = useState<Sale[]>([]);
+  const [isSettleModalOpen, setIsSettleModalOpen] = useState(false);
+
+  // Consolidated Multi-Bill Statement Modal
+  const [consolidatedModalSales, setConsolidatedModalSales] = useState<Sale[]>([]);
+  const [isConsolidatedModalOpen, setIsConsolidatedModalOpen] = useState(false);
+
+  // Live Query for all Sales
+  const allSales = useLiveQuery(async () => {
+    return await db.sales.orderBy('created_at').reverse().toArray();
+  }) || [];
 
   // Invoice Detailed Bill Viewer Modal
   const [viewingSale, setViewingSale] = useState<Sale | null>(null);
@@ -822,139 +850,209 @@ function KhataContent() {
                 </div>
               </div>
 
-              {/* Transactions Timeline */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Transaction Statement ({transactions.length})</span>
-                  </h3>
-                </div>
+              {/* Customer Profile Navigation Tabs: Timeline vs Pending Invoices */}
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl border border-slate-200 dark:border-slate-700/80">
+                <button
+                  type="button"
+                  onClick={() => setProfileTab('timeline')}
+                  className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    profileTab === 'timeline'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200 dark:border-slate-700'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5 text-amber-500" />
+                  <span>📜 Ledger Timeline</span>
+                  <span className="text-[10px] text-slate-400 font-mono">({transactions.length})</span>
+                </button>
 
-                <div className="space-y-2.5">
-                  {transactions.map((tx) => {
-                    const isDebit = 
-                      tx.transaction_type === 'CREDIT_SALE' || 
-                      tx.transaction_type === 'OPENING_BALANCE' || 
-                      tx.transaction_type === 'CREDIT_PURCHASE';
+                {(() => {
+                  const custSales = allSales.filter(
+                    (s) => s.customer_id === selectedCustomer.id || (s.customer_phone && selectedCustomer.phone && s.customer_phone === selectedCustomer.phone)
+                  );
+                  const pendingCount = custSales.filter(
+                    (s) => (s.balance_due && s.balance_due > 0) || s.payment_status === 'unpaid' || s.payment_status === 'partial'
+                  ).length;
 
-                    return (
-                      <div
-                        key={tx.id}
-                        className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-300 transition-all shadow-2xs"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                                isDebit
-                                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              }`}
-                            >
-                              {isDebit ? 'You Gave (Udhar)' : 'You Got (Payment)'}
-                            </span>
-                            {tx.payment_method && (
-                              <span className="text-[10px] font-bold text-slate-500 uppercase bg-white dark:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">
-                                {tx.payment_method}
-                              </span>
-                            )}
-                            {(tx.reference_id || (tx.notes && tx.notes.includes('Invoice #'))) && (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenSaleInvoice(tx.reference_id, tx.notes)}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[10px] font-bold cursor-pointer transition shadow-2xs"
-                                title="Click to view & reprint full tax invoice bill"
-                              >
-                                <Receipt className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                                <span>View Bill 📄</span>
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Notes and Items List Breakdown */}
-                          <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 mt-1.5 leading-snug">
-                            {tx.notes ? (
-                              tx.notes.includes('•') ? (
-                                <div className="space-y-1">
-                                  <div className="text-slate-900 dark:text-slate-100 font-bold flex items-center gap-1.5">
-                                    <span>🧾</span>
-                                    <span>{tx.notes.split('•')[0].trim()}</span>
-                                  </div>
-                                  <div className="text-[11px] text-slate-600 dark:text-slate-300 font-mono bg-white/80 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-200/80 dark:border-slate-800 flex items-start gap-1.5">
-                                    <ShoppingBag className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                                    <div>
-                                      <span className="font-bold text-slate-700 dark:text-slate-200">Items Purchased: </span>
-                                      <span>{tx.notes.split('•').slice(1).join('•').trim()}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ) : (
-                                <span>{tx.notes}</span>
-                              )
-                            ) : (
-                              <span>{isDebit ? 'Udhar Bill / Goods' : 'Payment Received'}</span>
-                            )}
-                          </div>
-
-                          <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                            <Calendar className="w-2.5 h-2.5" />
-                            <span>{new Date(tx.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                          </div>
-                        </div>
-
-                        <div className="text-left sm:text-right flex sm:flex-col items-center sm:items-end justify-between sm:justify-center flex-shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200/60 dark:border-slate-800">
-                          <div>
-                            <div
-                              className={`text-sm sm:text-base font-black font-mono leading-tight ${
-                                isDebit ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                              }`}
-                            >
-                              {isDebit ? `+ ₹${(tx.amount / 100).toFixed(2)}` : `- ₹${(tx.amount / 100).toFixed(2)}`}
-                            </div>
-                            <div className="text-[10px] text-slate-400 font-mono">
-                              Bal: ₹{(tx.balance_after / 100).toFixed(2)}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1 justify-end mt-1">
-                            <button
-                              onClick={() => {
-                                setEditingTx(tx);
-                                setEditTxAmount((tx.amount / 100).toFixed(2));
-                                setEditTxNotes(tx.notes || '');
-                                setEditTxType(isDebit ? 'CREDIT_SALE' : 'PAYMENT_RECEIVED');
-                              }}
-                              className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
-                              title="Edit Entry"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteTx(tx.id)}
-                              className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
-                              title="Delete Entry"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {transactions.length === 0 && (
-                    <div className="p-8 text-center text-slate-400 text-xs">
-                      <FileText className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                      <div>No transactions recorded yet for this customer.</div>
-                      <div className="text-[11px] text-slate-400 mt-1">
-                        Use the <span className="font-bold text-rose-600">You Gave</span> or <span className="font-bold text-emerald-600">You Got</span> buttons above.
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setProfileTab('invoices')}
+                      className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        profileTab === 'invoices'
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200 dark:border-slate-700'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <Receipt className="w-3.5 h-3.5 text-rose-500" />
+                      <span>🧾 Pending Bills</span>
+                      {pendingCount > 0 ? (
+                        <span className="px-1.5 py-0.2 bg-rose-600 text-white rounded-full text-[10px] font-mono font-black">
+                          {pendingCount}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-mono">({custSales.length})</span>
+                      )}
+                    </button>
+                  );
+                })()}
               </div>
 
+              {/* Tab 1 Content: Transactions Timeline */}
+              {profileTab === 'timeline' && (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Transaction Statement ({transactions.length})</span>
+                    </h3>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {transactions.map((tx) => {
+                      const isDebit = 
+                        tx.transaction_type === 'CREDIT_SALE' || 
+                        tx.transaction_type === 'OPENING_BALANCE' || 
+                        tx.transaction_type === 'CREDIT_PURCHASE';
+
+                      return (
+                        <div
+                          key={tx.id}
+                          className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-300 transition-all shadow-2xs"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                                  isDebit
+                                    ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                }`}
+                              >
+                                {isDebit ? 'You Gave (Udhar)' : 'You Got (Payment)'}
+                              </span>
+                              {tx.payment_method && (
+                                <span className="text-[10px] font-bold text-slate-500 uppercase bg-white dark:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">
+                                  {tx.payment_method}
+                                </span>
+                              )}
+                              {(tx.reference_id || (tx.notes && tx.notes.includes('Invoice #'))) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenSaleInvoice(tx.reference_id, tx.notes)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[10px] font-bold cursor-pointer transition shadow-2xs"
+                                  title="Click to view & reprint full tax invoice bill"
+                                >
+                                  <Receipt className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                                  <span>View Bill 📄</span>
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Notes and Items List Breakdown */}
+                            <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 mt-1.5 leading-snug">
+                              {tx.notes ? (
+                                tx.notes.includes('•') ? (
+                                  <div className="space-y-1">
+                                    <div className="text-slate-900 dark:text-slate-100 font-bold flex items-center gap-1.5">
+                                      <span>🧾</span>
+                                      <span>{tx.notes.split('•')[0].trim()}</span>
+                                    </div>
+                                    <div className="text-[11px] text-slate-600 dark:text-slate-300 font-mono bg-white/80 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-200/80 dark:border-slate-800 flex items-start gap-1.5">
+                                      <ShoppingBag className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                                      <div>
+                                        <span className="font-bold text-slate-700 dark:text-slate-200">Items Purchased: </span>
+                                        <span>{tx.notes.split('•').slice(1).join('•').trim()}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span>{tx.notes}</span>
+                                )
+                              ) : (
+                                <span>{isDebit ? 'Udhar Bill / Goods' : 'Payment Received'}</span>
+                              )}
+                            </div>
+
+                            <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                              <Calendar className="w-2.5 h-2.5" />
+                              <span>{new Date(tx.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            </div>
+                          </div>
+
+                          <div className="text-left sm:text-right flex sm:flex-col items-center sm:items-end justify-between sm:justify-center flex-shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200/60 dark:border-slate-800">
+                            <div>
+                              <div
+                                className={`text-sm sm:text-base font-black font-mono leading-tight ${
+                                  isDebit ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                                }`}
+                              >
+                                {isDebit ? `+ ₹${(tx.amount / 100).toFixed(2)}` : `- ₹${(tx.amount / 100).toFixed(2)}`}
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                Bal: ₹{(tx.balance_after / 100).toFixed(2)}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 justify-end mt-1">
+                              <button
+                                onClick={() => {
+                                  setEditingTx(tx);
+                                  setEditTxAmount((tx.amount / 100).toFixed(2));
+                                  setEditTxNotes(tx.notes || '');
+                                  setEditTxType(isDebit ? 'CREDIT_SALE' : 'PAYMENT_RECEIVED');
+                                }}
+                                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                                title="Edit Entry"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTx(tx.id)}
+                                className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                                title="Delete Entry"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {transactions.length === 0 && (
+                      <div className="p-8 text-center text-slate-400 text-xs">
+                        <FileText className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                        <div>No transactions recorded yet for this customer.</div>
+                        <div className="text-[11px] text-slate-400 mt-1">
+                          Use the <span className="font-bold text-rose-600">You Gave</span> or <span className="font-bold text-emerald-600">You Got</span> buttons above.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2 Content: Pending Invoices / Bill-by-Bill Settlement */}
+              {profileTab === 'invoices' && (
+                <CustomerPendingInvoicesTab
+                  customer={selectedCustomer}
+                  business={business}
+                  sales={allSales}
+                  onOpenInvoiceModal={(sale) => {
+                    setViewingSale(sale);
+                    setIsInvoiceModalOpen(true);
+                  }}
+                  onOpenSettleModal={(salesToSettle) => {
+                    setSettleModalSales(salesToSettle);
+                    setIsSettleModalOpen(true);
+                  }}
+                  onOpenConsolidatedModal={(salesForConsolidated) => {
+                    setConsolidatedModalSales(salesForConsolidated);
+                    setIsConsolidatedModalOpen(true);
+                  }}
+                />
+              )}
             </div>
           ) : (
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400">
@@ -1237,6 +1335,41 @@ function KhataContent() {
         sale={viewingSale}
         business={business}
       />
+
+      {/* ========================================================================= */}
+      {/* MULTI-INVOICE SETTLEMENT MODAL */}
+      {/* ========================================================================= */}
+      {selectedCustomer && (
+        <SettleInvoicesModal
+          isOpen={isSettleModalOpen}
+          onClose={() => {
+            setIsSettleModalOpen(false);
+            setSettleModalSales([]);
+          }}
+          selectedSales={settleModalSales}
+          customer={selectedCustomer}
+          business={business}
+          onSuccess={(newBal, count) => {
+            showToast(`✅ Successfully settled ${count} bill(s)! New balance: ${formatINR(newBal)}`);
+          }}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* CONSOLIDATED STATEMENT / MULTI-BILL MODAL */}
+      {/* ========================================================================= */}
+      {selectedCustomer && (
+        <ConsolidatedStatementModal
+          isOpen={isConsolidatedModalOpen}
+          onClose={() => {
+            setIsConsolidatedModalOpen(false);
+            setConsolidatedModalSales([]);
+          }}
+          selectedSales={consolidatedModalSales}
+          customer={selectedCustomer}
+          business={business}
+        />
+      )}
     </div>
   );
 }

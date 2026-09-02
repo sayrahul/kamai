@@ -1714,6 +1714,39 @@ export default function BillingPage() {
         </div>
       )}
 
+      {/* Credit Mode Live Customer Balance Insight */}
+      {paymentMethod === 'credit' && selectedCustomer && (
+        <div className="p-2.5 bg-amber-50/90 border border-amber-300 rounded-xl text-xs text-amber-950 space-y-1.5 shadow-2xs">
+          <div className="flex items-center justify-between font-bold">
+            <span className="flex items-center gap-1 text-amber-900">
+              <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+              <span>Khata Credit Preview ({selectedCustomer.name}):</span>
+            </span>
+            <span className="font-mono text-[11px] text-slate-500">Udhar Sale</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1 pt-1 border-t border-amber-200/80 text-center font-mono">
+            <div>
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Old Balance</span>
+              <span className="font-bold text-slate-800">
+                {formatINR(selectedCustomer.current_balance || 0)}
+              </span>
+            </div>
+            <div>
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">This Bill</span>
+              <span className="font-bold text-rose-600">
+                +{formatINR(grandTotalPaise)}
+              </span>
+            </div>
+            <div>
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">New Balance</span>
+              <span className="font-black text-rose-700">
+                ={formatINR((selectedCustomer.current_balance || 0) + grandTotalPaise)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* If Split / Multi-Mode Payment: Render Breakdown Inputs */}
       {paymentMethod === 'split' && cart.length > 0 && (() => {
         const cVal = parseFloat(splitCash || '0') || 0;
