@@ -36,6 +36,7 @@ export default function PurchasesPage() {
   const [quantity, setQuantity] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [supplierName, setSupplierName] = useState('');
+  const [modalError, setModalError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const products = useLiveQuery(async () => db.products.toArray()) || [];
@@ -57,15 +58,32 @@ export default function PurchasesPage() {
 
   const handleRecordPurchase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProductId || !quantity) return;
+    setModalError(null);
 
-    const prod = products.find(p => p.id === selectedProductId);
-    if (!prod) return;
+    if (!selectedProductId) {
+      setModalError('Please select a product to restock.');
+      return;
+    }
 
     const qtyNum = parseFloat(quantity);
-    const costPaise = parseRupeesToPaise(costPrice || (prod.purchase_price / 100).toString());
-    const now = new Date().toISOString();
+    if (isNaN(qtyNum) || qtyNum <= 0) {
+      setModalError('Quantity received must be greater than 0.');
+      return;
+    }
 
+    const prod = products.find(p => p.id === selectedProductId);
+    if (!prod) {
+      setModalError('Selected product not found in catalog.');
+      return;
+    }
+
+    const costPaise = costPrice ? parseRupeesToPaise(costPrice) : prod.purchase_price || 0;
+    if (costPaise < 0) {
+      setModalError('Cost price cannot be negative.');
+      return;
+    }
+
+    const now = new Date().toISOString();
     const previousStock = prod.current_stock;
     const newStock = previousStock + qtyNum;
 
@@ -96,6 +114,7 @@ export default function PurchasesPage() {
     setQuantity('');
     setCostPrice('');
     setSupplierName('');
+    setModalError(null);
     showToast(`Stock updated for ${prod.name} (+${qtyNum} ${prod.unit})`);
   };
 
@@ -283,6 +302,13 @@ export default function PurchasesPage() {
               }}
             />
           </div>
+
+          {modalError && (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold animate-in fade-in flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{modalError}</span>
+            </div>
+          )}
 
           <div className="pt-3 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800">
             <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>Cancel</Button>

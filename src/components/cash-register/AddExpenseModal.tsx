@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Minus } from 'lucide-react';
 
+import { validateExpenseData } from '@/lib/validation/validators';
+
 interface AddExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,26 +28,47 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('tea_snacks');
   const [paidTo, setPaidTo] = useState('');
+  const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || parseFloat(amount) <= 0) return;
+    setFormError('');
+
+    const amtNum = parseFloat(amount);
+    if (isNaN(amtNum) || amtNum <= 0) {
+      setFormError('Expense amount must be greater than ₹0.');
+      return;
+    }
+
+    const amountPaise = Math.round(amtNum * 100);
+    const validation = validateExpenseData({
+      amountPaise,
+      category,
+      description,
+    });
+
+    if (!validation.isValid) {
+      setFormError(validation.error || 'Invalid expense details');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       await onSaveExpense({
         category,
         description: description.trim() || category,
-        amountPaise: Math.round(parseFloat(amount) * 100),
+        amountPaise,
         paidTo: paidTo.trim() || undefined,
       });
       setDescription('');
       setAmount('');
       setPaidTo('');
+      setFormError('');
       onClose();
     } catch (err) {
       console.error('Failed to save expense:', err);
+      setFormError('Failed to record expense. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -107,6 +130,13 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+
+        {formError && (
+          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold animate-in fade-in flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{formError}</span>
+          </div>
+        )}
 
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>

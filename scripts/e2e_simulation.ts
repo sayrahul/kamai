@@ -45,6 +45,17 @@ import {
 import { signOtpSessionToken, verifyStatelessOtp } from '../src/lib/auth/otpService';
 import { createHandshakeSession, verifyHandshakeSessionByMessage, getHandshakeStatus } from '../src/lib/auth/reverseHandshakeService';
 import { parseOwnerIntent } from '../src/lib/whatsapp/ownerBotService';
+import { 
+  validateIndianPhone, 
+  validateGstin, 
+  validateUpiId, 
+  validatePincode, 
+  validateFssaiLicense, 
+  validateEmail, 
+  validateProductData, 
+  validateCustomerData, 
+  validateExpenseData 
+} from '../src/lib/validation/validators';
 import crypto from 'crypto';
 
 let totalTests = 0;
@@ -477,6 +488,95 @@ assert(parseOwnerIntent("Sales — Today's revenue & bills") === 'SALES', 'Owner
 assert(parseOwnerIntent("Stock — Low stock & reorder radar") === 'STOCK', 'Owner Bot recognizes Icebreaker 2');
 assert(parseOwnerIntent("Khata — Pending customer udhar") === 'KHATA', 'Owner Bot recognizes Icebreaker 3');
 assert(parseOwnerIntent("PDF — Day-End Closing PDF report") === 'PDF', 'Owner Bot recognizes Icebreaker 4');
+
+// -----------------------------------------------------------------------------
+// TEST SUITE 7: CENTRALIZED ENTERPRISE VALIDATION & DATA INTEGRITY
+// -----------------------------------------------------------------------------
+console.log('\n🛡️ SUITE 7: Centralized Enterprise Validation & Data Integrity');
+
+// 1. Phone Validation
+assert(validateIndianPhone('9876543210', true).isValid === true, 'Valid 10-digit Indian mobile number accepted');
+assert(validateIndianPhone('+91 98765 43210', true).isValid === true, 'Formatted mobile number normalized and accepted');
+assert(validateIndianPhone('1234567890', true).isValid === false, 'Mobile number starting with 1 rejected');
+assert(validateIndianPhone('98765', true).isValid === false, 'Short 5-digit mobile number rejected');
+assert(validateIndianPhone('', false).isValid === true, 'Empty phone accepted when optional');
+
+// 2. GSTIN Statutory Validation
+assert(validateGstin('27AAAAA0000A1Z5', false).isValid === true, 'Valid 15-character GSTIN structure accepted');
+assert(validateGstin('27aaaaa0000a1z5', false).isValid === true, 'Lowercase GSTIN automatically capitalized');
+assert(validateGstin('12345', false).isValid === false, 'Malformed GSTIN rejected');
+assert(validateGstin('', false).isValid === true, 'Empty GSTIN accepted when optional');
+
+// 3. UPI VPA Address Validation
+assert(validateUpiId('store@okaxis', true).isValid === true, 'Valid bank VPA accepted');
+assert(validateUpiId('9876543210@paytm', true).isValid === true, 'Valid phone VPA accepted');
+assert(validateUpiId('invalidupi', true).isValid === false, 'UPI missing @ symbol rejected');
+assert(validateUpiId('', true).isValid === false, 'Empty UPI rejected when required');
+
+// 4. Pincode & FSSAI
+assert(validatePincode('411001', false).isValid === true, 'Valid 6-digit Indian pincode accepted');
+assert(validatePincode('011001', false).isValid === false, 'Pincode starting with 0 rejected');
+assert(validatePincode('41100', false).isValid === false, 'Short 5-digit pincode rejected');
+assert(validateFssaiLicense('12345678901234', false).isValid === true, 'Valid 14-digit FSSAI license accepted');
+assert(validateFssaiLicense('12345', false).isValid === false, 'Short FSSAI license rejected');
+
+// 5. Product & Legal Metrology Pricing Validation
+const validProduct = validateProductData({
+  name: 'Basmati Rice 5kg',
+  sellingPricePaise: 45000,
+  mrpPaise: 50000,
+  purchasePricePaise: 40000,
+  currentStock: 20,
+  minStockLevel: 5,
+  taxRate: 5,
+});
+assert(validProduct.isValid === true, 'Compliant product details accepted');
+
+const zeroPriceProduct = validateProductData({
+  name: 'Free Item',
+  sellingPricePaise: 0,
+});
+assert(zeroPriceProduct.isValid === false, 'Product with zero selling price rejected');
+
+const illegalMrpProduct = validateProductData({
+  name: 'Overcharged Item',
+  sellingPricePaise: 50000,
+  mrpPaise: 40000, // MRP lower than selling price (Violation of Legal Metrology)
+});
+assert(illegalMrpProduct.isValid === false, 'Product with MRP < Selling Price strictly rejected');
+
+const negativeStockProduct = validateProductData({
+  name: 'Stock Item',
+  sellingPricePaise: 10000,
+  currentStock: -5,
+});
+assert(negativeStockProduct.isValid === false, 'Product with negative stock rejected');
+
+// 6. Customer & Khata Validation
+const validCustomer = validateCustomerData({
+  name: 'Ramesh Gupta',
+  phone: '9876543210',
+});
+assert(validCustomer.isValid === true, 'Valid customer profile accepted');
+
+const shortNameCustomer = validateCustomerData({
+  name: 'R',
+  phone: '9876543210',
+});
+assert(shortNameCustomer.isValid === false, 'Single letter customer name rejected');
+
+// 7. Expense Validation
+const validExpense = validateExpenseData({
+  amountPaise: 15000,
+  category: 'tea_snacks',
+});
+assert(validExpense.isValid === true, 'Valid expense entry accepted');
+
+const zeroExpense = validateExpenseData({
+  amountPaise: 0,
+  category: 'tea_snacks',
+});
+assert(zeroExpense.isValid === false, 'Zero amount expense rejected');
 
 console.log('');
 console.log('================================================================');

@@ -21,6 +21,7 @@ import { Modal } from '@/components/ui/Modal';
 import { AdminCoupon } from '@/app/api/admin/coupons/route';
 import { PlatformRemoteConfig } from '@/app/api/admin/config/route';
 import { clearLocalDexieAndFreshSync } from '@/lib/firebase/firestoreSync';
+import { validateIndianPhone, validateEmail, validateGstin } from '@/lib/validation/validators';
 
 // Modular Sub-components
 import { AdminAuthScreen } from '@/components/admin/AdminAuthScreen';
@@ -319,7 +320,23 @@ export default function MasterSuperAdminPage() {
   // Create Coupon
   const handleCreateCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCouponCode.trim()) return;
+    const cleanCode = newCouponCode.trim().toUpperCase();
+    if (!cleanCode || cleanCode.length < 3) {
+      showToast('⚠️ Coupon Code must be at least 3 characters.');
+      return;
+    }
+
+    const discountVal = Number(newCouponValue);
+    if (isNaN(discountVal) || discountVal <= 0) {
+      showToast('⚠️ Discount Value must be greater than 0.');
+      return;
+    }
+
+    if (newCouponType === 'percentage' && discountVal > 100) {
+      showToast('⚠️ Percentage discount cannot exceed 100%.');
+      return;
+    }
+
     setIsCreatingCoupon(true);
 
     try {
@@ -327,18 +344,18 @@ export default function MasterSuperAdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: newCouponCode.trim().toUpperCase(),
+          code: cleanCode,
           discount_type: newCouponType,
-          discount_value: Number(newCouponValue),
-          max_discount: Number(newCouponMaxDiscount),
-          min_order_amount: Number(newCouponMinOrder),
-          max_uses: Number(newCouponMaxUses),
+          discount_value: discountVal,
+          max_discount: Number(newCouponMaxDiscount) || undefined,
+          min_order_amount: Number(newCouponMinOrder) || undefined,
+          max_uses: Number(newCouponMaxUses) || undefined,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        showToast(`✅ Promo code "${newCouponCode.toUpperCase()}" created!`);
+        showToast(`✅ Promo code "${cleanCode}" created!`);
         setIsCouponModalOpen(false);
         setNewCouponCode('');
         fetchAdminData();
@@ -366,6 +383,13 @@ export default function MasterSuperAdminPage() {
   // WhatsApp Test Outreach
   const handleSendTestOutreach = async () => {
     if (!waTestPhone.trim()) return;
+
+    const phoneRes = validateIndianPhone(waTestPhone, true, 'Recipient WhatsApp');
+    if (!phoneRes.isValid) {
+      showToast(`⚠️ ${phoneRes.error}`);
+      return;
+    }
+
     setIsSendingOutreach(true);
 
     try {
@@ -373,7 +397,7 @@ export default function MasterSuperAdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: waTestPhone,
+          phone: phoneRes.cleanedValue,
           template: waTemplate,
           customText: waCustomText,
         }),
@@ -381,14 +405,15 @@ export default function MasterSuperAdminPage() {
 
       const data = await res.json();
       if (data.success) {
-        showToast(`✅ WhatsApp outreach delivered to +91${waTestPhone}!`);
+        showToast(`✅ WhatsApp outreach delivered to +91${phoneRes.cleanedValue}!`);
       } else {
         // Fallback wa.me
-        window.open(`https://wa.me/91${waTestPhone.replace(/\D/g, '')}?text=${encodeURIComponent(waCustomText)}`, '_blank');
+        window.open(`https://wa.me/91${phoneRes.cleanedValue}?text=${encodeURIComponent(waCustomText)}`, '_blank');
         showToast('📲 Opened WhatsApp chat!');
       }
     } catch (err) {
-      window.open(`https://wa.me/91${waTestPhone.replace(/\D/g, '')}?text=${encodeURIComponent(waCustomText)}`, '_blank');
+      const cleanDigits = waTestPhone.replace(/\D/g, '').slice(-10);
+      window.open(`https://wa.me/91${cleanDigits}?text=${encodeURIComponent(waCustomText)}`, '_blank');
       showToast('📲 Opened WhatsApp chat!');
     } finally {
       setIsSendingOutreach(false);
@@ -440,10 +465,34 @@ export default function MasterSuperAdminPage() {
   // Add Merchant
   const handleAddMerchant = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addName.trim() || !addPhone.trim()) {
-      showToast('⚠️ Store Name and Phone are required');
+
+    if (!addName.trim() || addName.trim().length < 2) {
+      showToast('⚠️ Store Name must be at least 2 characters.');
       return;
     }
+
+    const phoneRes = validateIndianPhone(addPhone, true, 'Merchant Mobile');
+    if (!phoneRes.isValid) {
+      showToast(`⚠️ ${phoneRes.error}`);
+      return;
+    }
+
+    if (addEmail && addEmail.trim()) {
+      const emailRes = validateEmail(addEmail, false);
+      if (!emailRes.isValid) {
+        showToast(`⚠️ ${emailRes.error}`);
+        return;
+      }
+    }
+
+    if (addGstin && addGstin.trim()) {
+      const gstinRes = validateGstin(addGstin, false);
+      if (!gstinRes.isValid) {
+        showToast(`⚠️ ${gstinRes.error}`);
+        return;
+      }
+    }
+
     setIsCreatingMerchant(true);
 
     try {
@@ -452,12 +501,12 @@ export default function MasterSuperAdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: addName.trim(),
-          owner_name: addOwnerName.trim(),
-          phone: addPhone.trim(),
-          email: addEmail.trim(),
-          city: addCity.trim(),
-          address: addAddress.trim(),
-          gstin: addGstin.trim(),
+          owner_name: addOwnerName.trim() || undefined,
+          phone: phoneRes.cleanedValue,
+          email: addEmail.trim() || undefined,
+          city: addCity.trim() || undefined,
+          address: addAddress.trim() || undefined,
+          gstin: addGstin.trim().toUpperCase() || undefined,
           business_type: addBusinessType,
           subscription_tier: addTier,
           days_validity: addDaysValidity,
@@ -490,6 +539,34 @@ export default function MasterSuperAdminPage() {
   const handleUpdateMerchant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMerchantForEdit) return;
+
+    if (!editName.trim() || editName.trim().length < 2) {
+      showToast('⚠️ Store Name must be at least 2 characters.');
+      return;
+    }
+
+    const phoneRes = validateIndianPhone(editPhone, true, 'Merchant Mobile');
+    if (!phoneRes.isValid) {
+      showToast(`⚠️ ${phoneRes.error}`);
+      return;
+    }
+
+    if (editEmail && editEmail.trim()) {
+      const emailRes = validateEmail(editEmail, false);
+      if (!emailRes.isValid) {
+        showToast(`⚠️ ${emailRes.error}`);
+        return;
+      }
+    }
+
+    if (editGstin && editGstin.trim()) {
+      const gstinRes = validateGstin(editGstin, false);
+      if (!gstinRes.isValid) {
+        showToast(`⚠️ ${gstinRes.error}`);
+        return;
+      }
+    }
+
     setIsUpdatingMerchant(true);
 
     try {
@@ -498,12 +575,12 @@ export default function MasterSuperAdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editName.trim(),
-          owner_name: editOwnerName.trim(),
-          phone: editPhone.trim(),
-          email: editEmail.trim(),
-          city: editCity.trim(),
-          address: editAddress.trim(),
-          gstin: editGstin.trim(),
+          owner_name: editOwnerName.trim() || undefined,
+          phone: phoneRes.cleanedValue,
+          email: editEmail.trim() || undefined,
+          city: editCity.trim() || undefined,
+          address: editAddress.trim() || undefined,
+          gstin: editGstin.trim().toUpperCase() || undefined,
           business_type: editBusinessType,
           subscription_tier: editTier,
           days_extension: editDaysExtension,

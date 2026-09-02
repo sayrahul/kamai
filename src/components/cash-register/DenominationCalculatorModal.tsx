@@ -71,9 +71,13 @@ export const DenominationCalculatorModal: React.FC<DenominationCalculatorModalPr
                 <input
                   type="number"
                   min="0"
+                  step="1"
                   placeholder="0"
                   value={count || ''}
-                  onChange={(e) => onDenominationChange(denom, parseInt(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10);
+                    onDenominationChange(denom, isNaN(parsed) || parsed < 0 ? 0 : parsed);
+                  }}
                   className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
                 />
               </div>

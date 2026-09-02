@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/Input';
 import { Customer, CustomerType } from '@/types';
 import { Plus, Edit3, Trash2 } from 'lucide-react';
 
+import { validateCustomerData } from '@/lib/validation/validators';
+
 interface AddEditCustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -47,9 +49,11 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
   const [openingBalance, setOpeningBalance] = useState('');
   const [currentBalance, setCurrentBalance] = useState('');
   const [notes, setNotes] = useState('');
+  const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    setFormError('');
     if (editingCustomer) {
       setName(editingCustomer.name || '');
       setPhone(editingCustomer.phone || '');
@@ -81,7 +85,19 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    setFormError('');
+
+    const validation = validateCustomerData({
+      name,
+      phone,
+      gstin,
+      email,
+    });
+
+    if (!validation.isValid) {
+      setFormError(validation.error || 'Please fill in valid customer details.');
+      return;
+    }
 
     const opBalPaise = openingBalance ? Math.round(parseFloat(openingBalance) * 100) : 0;
     const curBalPaise = currentBalance ? Math.round(parseFloat(currentBalance) * 100) : opBalPaise;
@@ -90,8 +106,8 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
     setIsSubmitting(true);
     try {
       await onSaveCustomer({
-        name: name.trim(),
-        phone: phone.trim(),
+        name: validation.cleanedValue?.name || name.trim(),
+        phone: validation.cleanedValue?.phone || phone.trim(),
         email: email.trim() || undefined,
         address: address.trim() || undefined,
         gstin: gstin.trim().toUpperCase() || undefined,
@@ -106,6 +122,7 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
       onClose();
     } catch (err) {
       console.error('Failed to save customer:', err);
+      setFormError('Failed to save customer. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -235,6 +252,13 @@ export const AddEditCustomerModal: React.FC<AddEditCustomerModalProps> = ({
             className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500"
           />
         </div>
+
+        {formError && (
+          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold animate-in fade-in flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{formError}</span>
+          </div>
+        )}
 
         <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
           {editingCustomer ? (

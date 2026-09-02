@@ -60,6 +60,7 @@ interface AddEditProductModalProps {
   onOpenAddCategoryModal: () => void;
   onSubmit: (e: React.FormEvent) => Promise<void>;
   onDeleteProduct?: (id: string, name: string) => Promise<void>;
+  formError?: string;
 }
 
 export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
@@ -104,6 +105,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   onOpenAddCategoryModal,
   onSubmit,
   onDeleteProduct,
+  formError,
 }) => {
   const isPharmacy = businessType === 'pharmacy';
   const isClothing = businessType === 'clothing';
@@ -309,6 +311,14 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
               value={formColor}
               onChange={(e) => setFormColor(e.target.value)}
             />
+          </div>
+        )}
+
+        {/* Validation Error Banner */}
+        {formError && (
+          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold animate-in fade-in flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{formError}</span>
           </div>
         )}
 

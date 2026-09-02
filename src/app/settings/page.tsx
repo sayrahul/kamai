@@ -17,6 +17,14 @@ import {
   SettingsUnsavedTabModal,
   ChangedField 
 } from '@/components/settings/SettingsChangeDialogue';
+import { 
+  validateIndianPhone, 
+  validateEmail, 
+  validateGstin, 
+  validateUpiId, 
+  validatePincode, 
+  validateFssaiLicense 
+} from '@/lib/validation/validators';
 
 // Modular Tab Components
 import { SettingsNavTabs, SettingsTabType } from '@/components/settings/SettingsNavTabs';
@@ -62,6 +70,7 @@ export default function SettingsPage() {
   const [gstPricingMode, setGstPricingMode] = useState<'exclusive' | 'inclusive'>('inclusive');
   const [terms, setTerms] = useState('');
   const [footerMessage, setFooterMessage] = useState('');
+  const [settingsError, setSettingsError] = useState<string | null>(null);
 
   // UI & Dialogue states
   const [isSaved, setIsSaved] = useState(false);
@@ -146,19 +155,15 @@ export default function SettingsPage() {
     generateQrPreview();
   }, [generateQrPreview]);
 
-  // Handle Logo Upload
+  // Logo Upload Handler
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
-      const { dataUrl } = await compressImageFile(file, { maxWidth: 300, maxHeight: 300, quality: 0.8 });
-      setLogoUrl(dataUrl);
-
-      if (business?.id) {
-        uploadStoreLogoToStorage(file, business.id).then((result) => {
-          if (result?.url) setLogoUrl(result.url);
-        }).catch(() => {});
+      const res = await uploadStoreLogoToStorage(file, business?.id || 'biz_default');
+      if (res?.url) {
+        setLogoUrl(res.url);
       }
     } catch (err) {
       console.error('Logo upload error:', err);
@@ -167,12 +172,20 @@ export default function SettingsPage() {
 
   // Add UPI Account
   const handleAddUpi = () => {
+    setSettingsError(null);
     if (!newUpiId.trim()) return;
+
+    const upiRes = validateUpiId(newUpiId, true);
+    if (!upiRes.isValid) {
+      setSettingsError(upiRes.error || 'Invalid UPI ID');
+      return;
+    }
+
     const isFirst = upiList.length === 0;
     const newItem: UpiAccount = {
       id: `upi_${Date.now()}`,
       label: newUpiLabel.trim() || `QR Account ${upiList.length + 1}`,
-      upi_id: newUpiId.trim(),
+      upi_id: upiRes.cleanedValue || newUpiId.trim(),
       is_default: isFirst,
     };
     setUpiList([...upiList, newItem]);
@@ -292,6 +305,69 @@ export default function SettingsPage() {
 
   const handleSaveAll = async () => {
     if (!business) return;
+    setSettingsError(null);
+
+    // 1. Validate Store Name
+    if (!name.trim() || name.trim().length < 2) {
+      setSettingsError('Store Name must be at least 2 characters long.');
+      setActiveTab('profile');
+      setIsReviewModalOpen(false);
+      return;
+    }
+
+    // 2. Validate Phone
+    const phoneRes = validateIndianPhone(phone, true, 'Store Mobile Phone');
+    if (!phoneRes.isValid) {
+      setSettingsError(phoneRes.error || 'Invalid store mobile phone number.');
+      setActiveTab('profile');
+      setIsReviewModalOpen(false);
+      return;
+    }
+
+    // 3. Validate Email (if provided)
+    if (email && email.trim()) {
+      const emailRes = validateEmail(email, false);
+      if (!emailRes.isValid) {
+        setSettingsError(emailRes.error || 'Invalid email address format.');
+        setActiveTab('profile');
+        setIsReviewModalOpen(false);
+        return;
+      }
+    }
+
+    // 4. Validate GSTIN (if provided)
+    if (gstin && gstin.trim()) {
+      const gstinRes = validateGstin(gstin, false);
+      if (!gstinRes.isValid) {
+        setSettingsError(gstinRes.error || 'Invalid GSTIN structure.');
+        setActiveTab('profile');
+        setIsReviewModalOpen(false);
+        return;
+      }
+    }
+
+    // 5. Validate Pincode (if provided)
+    if (pincode && pincode.trim()) {
+      const pinRes = validatePincode(pincode, false);
+      if (!pinRes.isValid) {
+        setSettingsError(pinRes.error || 'Invalid 6-digit postal pincode.');
+        setActiveTab('profile');
+        setIsReviewModalOpen(false);
+        return;
+      }
+    }
+
+    // 6. Validate FSSAI (if provided)
+    if (fssaiLicenseNo && fssaiLicenseNo.trim()) {
+      const fssaiRes = validateFssaiLicense(fssaiLicenseNo, false);
+      if (!fssaiRes.isValid) {
+        setSettingsError(fssaiRes.error || 'FSSAI License must be 14 digits.');
+        setActiveTab('profile');
+        setIsReviewModalOpen(false);
+        return;
+      }
+    }
+
     setIsSaving(true);
 
     try {
@@ -304,7 +380,7 @@ export default function SettingsPage() {
         business_type: businessType,
         logo_url: logoUrl || undefined,
         owner_name: ownerName.trim(),
-        phone: phone.trim(),
+        phone: phoneRes.cleanedValue || phone.trim(),
         email: email.trim() || undefined,
         address: address.trim() || undefined,
         pincode: pincode.trim() || undefined,
@@ -351,6 +427,23 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-4 pb-24 animate-in fade-in duration-150">
+      {/* Validation Error Alert */}
+      {settingsError && (
+        <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs font-bold animate-in fade-in flex items-center justify-between gap-2 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">⚠️</span>
+            <span>{settingsError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSettingsError(null)}
+            className="text-rose-400 hover:text-rose-600 dark:hover:text-rose-200 text-sm font-bold px-2 py-0.5"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* 1. Category Nav Tabs */}
       <SettingsNavTabs
         activeTab={activeTab}

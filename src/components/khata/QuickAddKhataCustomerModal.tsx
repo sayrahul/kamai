@@ -18,6 +18,7 @@ interface QuickAddKhataCustomerModalProps {
   newCustOpeningBalance: string;
   setNewCustOpeningBalance: (val: string) => void;
   onSubmit: (e: React.FormEvent) => void;
+  formError?: string;
 }
 
 export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProps> = ({
@@ -32,6 +33,7 @@ export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProp
   newCustOpeningBalance,
   setNewCustOpeningBalance,
   onSubmit,
+  formError,
 }) => {
   return (
     <Modal
@@ -96,6 +98,13 @@ export const QuickAddKhataCustomerModal: React.FC<QuickAddKhataCustomerModalProp
             helperText="Enter existing due balance if customer already owes money."
           />
         </div>
+
+        {formError && (
+          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold animate-in fade-in flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{formError}</span>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
           <Button

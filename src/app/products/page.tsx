@@ -7,6 +7,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { Product, ProductUnit } from '@/types';
 import { parseRupeesToPaise } from '@/lib/utils';
+import { validateProductData } from '@/lib/validation/validators';
 import { Package } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -80,6 +81,7 @@ export default function ProductsPage() {
   const [formExpiryDate, setFormExpiryDate] = useState('');
   const [formSize, setFormSize] = useState('');
   const [formColor, setFormColor] = useState('');
+  const [formError, setFormError] = useState('');
 
   // Dexie Queries
   const allProducts = useLiveQuery(async () => db.products.toArray()) || [];
@@ -140,6 +142,7 @@ export default function ProductsPage() {
   // Handlers
   const handleOpenAddModal = () => {
     setEditingProduct(null);
+    setFormError('');
     setFormName('');
     setFormCategory('');
     setFormUnit('packet');
@@ -162,6 +165,7 @@ export default function ProductsPage() {
 
   const handleOpenEditModal = (p: Product) => {
     setEditingProduct(p);
+    setFormError('');
     setFormName(p.name);
     setFormCategory(p.category_id || '');
     setFormUnit(p.unit || 'packet');
@@ -184,13 +188,31 @@ export default function ProductsPage() {
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim()) return;
+    setFormError('');
 
     const sellingPricePaise = parseRupeesToPaise(formSellingPrice);
     const purchasePricePaise = formPurchasePrice ? parseRupeesToPaise(formPurchasePrice) : 0;
     const mrpPaise = formMrp ? parseRupeesToPaise(formMrp) : sellingPricePaise;
     const stockNum = parseFloat(formStock) || 0;
     const minStockNum = parseInt(formMinStock) || 5;
+
+    // Strict validation check
+    const validation = validateProductData({
+      name: formName,
+      sellingPricePaise,
+      mrpPaise,
+      purchasePricePaise,
+      currentStock: stockNum,
+      minStockLevel: minStockNum,
+      isUnlimitedStock: formIsUnlimitedStock,
+      taxRate: formTaxRate,
+    });
+
+    if (!validation.isValid) {
+      setFormError(validation.error || 'Invalid product details');
+      return;
+    }
+
     const now = new Date().toISOString();
 
     const productPayload: Omit<Product, 'id'> = {
@@ -418,6 +440,7 @@ export default function ProductsPage() {
         onOpenAddCategoryModal={() => setIsAddCategoryModalOpen(true)}
         onSubmit={handleSaveProduct}
         onDeleteProduct={handleDeleteProduct}
+        formError={formError}
       />
 
       {/* Quick Add Category Modal */}

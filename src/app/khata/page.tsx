@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { formatINR } from '@/lib/utils';
+import { validateCustomerData } from '@/lib/validation/validators';
 import { LedgerTransaction, Customer, Sale } from '@/types';
 import { 
   BookOpen, 
@@ -79,6 +80,7 @@ function KhataContent() {
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCustAddress, setNewCustAddress] = useState('');
   const [newCustOpeningBalance, setNewCustOpeningBalance] = useState('');
+  const [addCustomerError, setAddCustomerError] = useState('');
 
   // Edit Entry Modal
   const [editingTx, setEditingTx] = useState<LedgerTransaction | null>(null);
@@ -286,7 +288,17 @@ function KhataContent() {
   // Quick Add Customer to Khata
   const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCustName.trim()) return;
+    setAddCustomerError('');
+
+    const validation = validateCustomerData({
+      name: newCustName,
+      phone: newCustPhone,
+    });
+
+    if (!validation.isValid) {
+      setAddCustomerError(validation.error || 'Please enter valid customer details.');
+      return;
+    }
 
     const opBalPaise = newCustOpeningBalance ? Math.round(parseFloat(newCustOpeningBalance) * 100) : 0;
     const now = new Date().toISOString();
@@ -295,8 +307,8 @@ function KhataContent() {
     const newCustomer: Customer = {
       id: custId,
       business_id: business?.id || 'biz_default',
-      name: newCustName.trim(),
-      phone: newCustPhone.trim(),
+      name: validation.cleanedValue?.name || newCustName.trim(),
+      phone: validation.cleanedValue?.phone || newCustPhone.trim(),
       address: newCustAddress.trim() || undefined,
       customer_type: opBalPaise > 0 ? 'credit' : 'regular',
       opening_balance: opBalPaise,
@@ -1022,6 +1034,7 @@ function KhataContent() {
         newCustOpeningBalance={newCustOpeningBalance}
         setNewCustOpeningBalance={setNewCustOpeningBalance}
         onSubmit={handleCreateCustomer}
+        formError={addCustomerError}
       />
 
       {/* ========================================================================= */}
