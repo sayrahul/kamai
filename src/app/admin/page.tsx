@@ -196,12 +196,14 @@ export default function MasterSuperAdminPage() {
 
   // Check existing session
   useEffect(() => {
-    const token = localStorage.getItem('kamai_admin_token');
-    if (token) {
-      setIsAuthenticated(true);
-    } else {
-      setIsAuthenticated(false);
-    }
+    fetch('/api/admin/session')
+      .then((r) => r.json())
+      .then((data) => {
+        setIsAuthenticated(Boolean(data?.authenticated));
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+      });
   }, []);
 
   // Fetch all Admin Data
@@ -258,28 +260,28 @@ export default function MasterSuperAdminPage() {
     setAuthError('');
 
     try {
-      const res = await fetch('/api/admin/auth', {
+      const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: passwordInput }),
       });
 
-      const data = await res.json();
-      if (data.success && data.token) {
-        localStorage.setItem('kamai_admin_token', data.token);
+      const data = await res.json().catch(() => ({ success: false, message: 'Invalid response from server' }));
+      if (res.ok && data.success) {
         setIsAuthenticated(true);
         showToast('🔓 SuperAdmin Access Granted');
       } else {
-        setAuthError(data.error || 'Invalid Admin Password');
+        setAuthError(data.message || data.error || 'Invalid Admin Password');
       }
     } catch (err: any) {
-      setAuthError('Connection failed: ' + err?.message);
+      setAuthError('Connection failed: ' + (err?.message || 'Server error'));
     } finally {
       setIsLoggingIn(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
     localStorage.removeItem('kamai_admin_token');
     setIsAuthenticated(false);
     setPasswordInput('');
