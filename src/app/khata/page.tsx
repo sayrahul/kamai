@@ -579,7 +579,7 @@ function KhataContent() {
           </div>
 
           {/* Customer Scrollable Cards List */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800/80 max-h-[600px] overflow-y-auto shadow-xs">
+          <div className="space-y-2 max-h-[640px] overflow-y-auto pr-0.5">
             {customers.map((c) => {
               const isSelected = selectedCustomer?.id === c.id;
               const isDue = (c.current_balance || 0) > 0;
@@ -593,25 +593,33 @@ function KhataContent() {
                     setSelectedCustomerId(c.id);
                     setIsMobileDetailOpen(true);
                   }}
-                  className={`w-full text-left p-3 sm:p-3.5 flex items-center justify-between transition-all cursor-pointer ${
+                  className={`w-full text-left p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 shadow-2xs ${
                     isSelected
-                      ? 'bg-amber-50/80 dark:bg-amber-950/30 border-l-4 border-amber-500'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                      ? 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-400 dark:border-amber-600 ring-1 ring-amber-400/60'
+                      : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/70'
                   }`}
                 >
-                  <div className="min-w-0 flex-1 pr-2 flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 flex items-center justify-center font-bold text-xs shrink-0 border border-slate-200 dark:border-slate-700">
+                  <div className="min-w-0 flex-1 flex items-center gap-2.5">
+                    <div className={`w-9 h-9 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 border ${
+                      isDue
+                        ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800'
+                        : isAdv
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+                        : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                    }`}>
                       {c.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="min-w-0">
-                      <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate block">
+                    <div className="min-w-0 flex-1">
+                      <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate block leading-snug">
                         {c.name}
                       </span>
-                      {c.phone && (
+                      {c.phone ? (
                         <div className="text-[11px] text-slate-400 flex items-center gap-1 font-mono mt-0.5">
-                          <Phone className="w-3 h-3 text-slate-400" />
-                          <span>{c.phone}</span>
+                          <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span className="truncate">{c.phone}</span>
                         </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-300 dark:text-slate-600 italic mt-0.5">No phone saved</div>
                       )}
                     </div>
                   </div>
@@ -619,12 +627,12 @@ function KhataContent() {
                   <div className="text-right flex-shrink-0 flex items-center gap-2">
                     <div>
                       <div
-                        className={`text-xs sm:text-sm font-black font-mono ${
+                        className={`text-xs sm:text-sm font-black font-mono leading-none ${
                           isDue
                             ? 'text-rose-600 dark:text-rose-400'
                             : isAdv
                             ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-slate-500'
+                            : 'text-slate-400'
                         }`}
                       >
                         {isDue 
@@ -633,11 +641,19 @@ function KhataContent() {
                           ? `₹${(Math.abs(c.current_balance) / 100).toFixed(2)}` 
                           : '₹0.00'}
                       </div>
-                      <div className="text-[9.5px] text-slate-400 font-bold uppercase">
-                        {isDue ? 'Due (उधार)' : isAdv ? 'Advance' : 'Cleared'}
+                      <div className="mt-1">
+                        <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-tight ${
+                          isDue
+                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                            : isAdv
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          {isDue ? 'Due (बाकी)' : isAdv ? 'Advance' : 'Cleared'}
+                        </span>
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 lg:hidden" />
+                    <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 lg:hidden shrink-0" />
                   </div>
                 </button>
               );
@@ -668,69 +684,104 @@ function KhataContent() {
             <div className="space-y-3.5">
               
               {/* Active Customer Profile & Quick Action Header */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4 shadow-xs space-y-3">
-                {/* Mobile Back Button + Profile Info Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div className="min-w-0">
-                    {/* Mobile Back Navigation */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMobileDetailOpen(false);
-                      }}
-                      className="lg:hidden flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-400 mb-1.5 hover:underline cursor-pointer"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      <span>Back to Customer List</span>
-                    </button>
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 sm:p-4 shadow-xs space-y-3">
+                {/* Mobile Back Navigation Bar */}
+                <div className="lg:hidden flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileDetailOpen(false);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-300 font-bold text-xs border border-amber-200 dark:border-amber-800/60 cursor-pointer active:scale-95 transition-transform"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Back to List</span>
+                  </button>
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="w-8 h-8 rounded-xl bg-slate-900 text-amber-400 flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+                  <div className="flex items-center gap-1.5">
+                    {selectedCustomer.phone && (
+                      <a
+                        href={`tel:${selectedCustomer.phone}`}
+                        className="p-1.5 px-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 text-xs font-bold flex items-center gap-1 active:scale-95 shadow-2xs"
+                        title="Call Customer"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>Call</span>
+                      </a>
+                    )}
+                    {selectedCustomer.phone && (
+                      <button
+                        type="button"
+                        onClick={handleSendWhatsAppReminder}
+                        disabled={isSendingReminder}
+                        className="p-1.5 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center gap-1 active:scale-95 shadow-2xs disabled:opacity-50"
+                        title="WhatsApp Reminder"
+                      >
+                        {isSendingReminder ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <WhatsAppLogo className="w-3.5 h-3.5" />
+                        )}
+                        <span>Reminder</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Profile Info Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <div className="w-9 h-9 rounded-2xl bg-slate-900 text-amber-400 flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
                         {selectedCustomer.name.charAt(0).toUpperCase()}
                       </div>
-                      <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100 truncate">
-                        {selectedCustomer.name}
-                      </h2>
-                      <Link href={`/customers?search=${encodeURIComponent(selectedCustomer.phone || selectedCustomer.name)}`}>
-                        <span className="text-[10px] font-bold text-sky-600 bg-sky-50 dark:bg-sky-950/60 dark:text-sky-400 px-2 py-0.5 rounded-md hover:underline cursor-pointer border border-sky-200/60 dark:border-sky-800">
-                          360° Profile
-                        </span>
-                      </Link>
-                    </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 truncate leading-tight">
+                            {selectedCustomer.name}
+                          </h2>
+                          <Link href={`/customers?search=${encodeURIComponent(selectedCustomer.phone || selectedCustomer.name)}`}>
+                            <span className="text-[10px] font-bold text-sky-600 bg-sky-50 dark:bg-sky-950/60 dark:text-sky-400 px-2 py-0.5 rounded-md hover:underline cursor-pointer border border-sky-200/60 dark:border-sky-800">
+                              360° Profile
+                            </span>
+                          </Link>
+                        </div>
 
-                    <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
-                      {selectedCustomer.phone && (
-                        <a
-                          href={`tel:${selectedCustomer.phone}`}
-                          className="flex items-center gap-1 font-mono text-[11.5px] hover:text-slate-900 dark:hover:text-slate-100 transition"
-                          title="Click to call customer"
-                        >
-                          <Phone className="w-3 h-3 text-slate-400" />
-                          <span>{selectedCustomer.phone}</span>
-                        </a>
-                      )}
-                      {selectedCustomer.phone && selectedCustomer.address && <span className="text-slate-300 dark:text-slate-700">•</span>}
-                      {selectedCustomer.address && (
-                        <span className="truncate max-w-[200px] text-[11px] text-slate-400">
-                          {selectedCustomer.address}
-                        </span>
-                      )}
+                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">
+                          {selectedCustomer.phone && (
+                            <a
+                              href={`tel:${selectedCustomer.phone}`}
+                              className="flex items-center gap-1 font-mono text-[11.5px] hover:text-slate-900 dark:hover:text-slate-100 transition"
+                              title="Click to call customer"
+                            >
+                              <Phone className="w-3 h-3 text-slate-400" />
+                              <span>{selectedCustomer.phone}</span>
+                            </a>
+                          )}
+                          {selectedCustomer.phone && selectedCustomer.address && <span className="text-slate-300 dark:text-slate-700">•</span>}
+                          {selectedCustomer.address && (
+                            <span className="truncate max-w-[200px] text-[11px] text-slate-400">
+                              {selectedCustomer.address}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Integrated Balance Due Banner */}
-                  <div className={`px-3 py-2 rounded-xl border flex items-center gap-2.5 self-start sm:self-auto shrink-0 shadow-2xs ${
+                  <div className={`p-3 rounded-2xl border flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto shrink-0 shadow-2xs ${
                     (selectedCustomer.current_balance || 0) > 0
-                      ? 'bg-rose-50/80 border-rose-200 text-rose-950 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-200'
+                      ? 'bg-rose-50/90 border-rose-200 text-rose-950 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-200'
                       : (selectedCustomer.current_balance || 0) < 0
-                      ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200'
+                      ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200'
                       : 'bg-slate-50 border-slate-200 text-slate-900 dark:bg-slate-800/80 dark:border-slate-700 dark:text-slate-200'
                   }`}>
-                    <div className="text-right">
-                      <div className="text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-none mb-0.5">
-                        Balance Due
+                    <div className="text-left sm:text-right">
+                      <div className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-none mb-1">
+                        Current Outstanding Balance
                       </div>
-                      <div className={`text-base sm:text-lg font-black font-mono leading-none ${
+                      <div className={`text-lg sm:text-xl font-black font-mono leading-none ${
                         (selectedCustomer.current_balance || 0) > 0
                           ? 'text-rose-600 dark:text-rose-400'
                           : (selectedCustomer.current_balance || 0) < 0
@@ -744,8 +795,8 @@ function KhataContent() {
                           : '₹0.00'}
                       </div>
                     </div>
-                    <div className="border-l border-slate-200 dark:border-slate-700 pl-2">
-                      <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase ${
+                    <div className="border-l border-slate-200 dark:border-slate-700 pl-3">
+                      <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tight block ${
                         (selectedCustomer.current_balance || 0) > 0
                           ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300'
                           : (selectedCustomer.current_balance || 0) < 0
@@ -753,17 +804,17 @@ function KhataContent() {
                           : 'bg-slate-200/80 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
                       }`}>
                         {(selectedCustomer.current_balance || 0) > 0
-                          ? 'Udhar'
+                          ? 'Udhar (बाकी)'
                           : (selectedCustomer.current_balance || 0) < 0
-                          ? 'Advance'
-                          : 'Cleared'}
+                          ? 'Advance (जमा)'
+                          : 'Settled (₹0)'}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Action Buttons Row on Desktop / Detail Header */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                {/* Desktop Action Buttons Row */}
+                <div className="hidden lg:flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100 dark:border-slate-800">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
@@ -798,8 +849,7 @@ function KhataContent() {
                         ) : (
                           <WhatsAppLogo className="w-3.5 h-3.5" />
                         )}
-                        <span className="hidden sm:inline">WhatsApp Reminder</span>
-                        <span className="sm:hidden">Reminder</span>
+                        <span>WhatsApp Reminder</span>
                       </button>
                     )}
                   </div>
@@ -811,7 +861,7 @@ function KhataContent() {
                     title="Wipe transaction statement history"
                   >
                     <Trash2 className="w-3 h-3" />
-                    <span className="hidden sm:inline">Wipe History</span>
+                    <span>Wipe History</span>
                   </button>
                 </div>
               </div>

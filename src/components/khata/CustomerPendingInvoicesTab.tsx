@@ -78,24 +78,24 @@ export function CustomerPendingInvoicesTab({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {/* ---------------- Filter & Batch Action Bar ---------------- */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-700/80">
-        <div className="flex items-center gap-1.5 flex-wrap text-xs font-bold">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-800/60 p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs font-bold">
           <button
             type="button"
             onClick={() => {
               setFilterMode('pending');
               setSelectedSaleIds([]);
             }}
-            className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
               filterMode === 'pending'
                 ? 'bg-rose-600 text-white shadow-xs'
                 : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>Pending Bills ({pendingSales.length})</span>
+            <span>Pending ({pendingSales.length})</span>
           </button>
 
           <button
@@ -104,14 +104,14 @@ export function CustomerPendingInvoicesTab({
               setFilterMode('all');
               setSelectedSaleIds([]);
             }}
-            className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
               filterMode === 'all'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>All Invoices ({customerSales.length})</span>
+            <span>All Bills ({customerSales.length})</span>
           </button>
 
           <button
@@ -120,7 +120,7 @@ export function CustomerPendingInvoicesTab({
               setFilterMode('settled');
               setSelectedSaleIds([]);
             }}
-            className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
               filterMode === 'settled'
                 ? 'bg-emerald-600 text-white shadow-xs'
                 : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
@@ -135,16 +135,16 @@ export function CustomerPendingInvoicesTab({
           <button
             type="button"
             onClick={handleSelectAll}
-            className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer self-end sm:self-auto"
+            className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer self-end sm:self-auto py-1 px-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs"
           >
             {selectedSaleIds.length === displayedSales.length ? (
               <>
-                <CheckSquare className="w-4 h-4 text-amber-500" />
+                <CheckSquare className="w-3.5 h-3.5 text-amber-500" />
                 <span>Deselect All</span>
               </>
             ) : (
               <>
-                <Square className="w-4 h-4 text-slate-400" />
+                <Square className="w-3.5 h-3.5 text-slate-400" />
                 <span>Select All ({displayedSales.length})</span>
               </>
             )}
