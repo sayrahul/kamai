@@ -77,39 +77,49 @@ export class VyaparSetuDatabase extends Dexie {
 
 export const db = new VyaparSetuDatabase();
 
-// Ensure clean starter business exists if DB is empty
+// Ensure clean starter business & default products exist if DB is empty
 export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
-  const existing = await db.businesses.toCollection().first();
-  if (existing) {
-    return existing;
-  }
-
-  const businessId = `biz_${Date.now()}`;
+  let existing = await db.businesses.toCollection().first();
   const now = new Date().toISOString();
 
-  const starterBiz: Business = {
-    id: businessId,
-    name: 'My Retail Store',
-    business_type: 'grocery',
-    owner_name: 'Store Owner',
-    phone: '',
-    address: 'Main Market',
-    pincode: '400001',
-    currency: 'INR',
-    language: 'hi',
-    invoice_prefix: 'INV-',
-    next_invoice_number: 1,
-    terms_conditions: 'Thank you for your business! Goods once sold will be exchanged within 7 days.',
-    footer_message: 'Powered by KamaiPlus (Kamai+)',
-    is_onboarded: true,
-    created_at: now,
-    updated_at: now,
-    sync_status: 'synced',
-  };
+  if (!existing) {
+    const businessId = `biz_${Date.now()}`;
+    const starterBiz: Business = {
+      id: businessId,
+      name: 'My Retail Store',
+      business_type: 'grocery',
+      owner_name: 'Store Owner',
+      phone: '',
+      address: 'Main Market',
+      pincode: '400001',
+      currency: 'INR',
+      language: 'hi',
+      invoice_prefix: 'INV-',
+      next_invoice_number: 1,
+      terms_conditions: 'Thank you for your business! Goods once sold will be exchanged within 7 days.',
+      footer_message: 'Powered by KamaiPlus (Kamai+)',
+      is_onboarded: true,
+      created_at: now,
+      updated_at: now,
+      sync_status: 'synced',
+    };
 
-  await db.businesses.put(starterBiz);
-  await seedBusinessStarterData(businessId, 'grocery');
-  return starterBiz;
+    await db.businesses.put(starterBiz);
+    await seedBusinessStarterData(businessId, 'grocery');
+    return starterBiz;
+  }
+
+  // If business exists but products table is empty, auto-seed default products
+  try {
+    const prodCount = await db.products.count();
+    if (prodCount === 0) {
+      await seedBusinessStarterData(existing.id, existing.business_type || 'grocery');
+    }
+  } catch (err) {
+    console.warn('Auto-seed products check notice:', err);
+  }
+
+  return existing;
 }
 
 // Default Category & Sample Product Seeder per business type

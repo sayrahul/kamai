@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { db, ensureStarterBusinessIfEmpty } from '@/lib/db';
+import { db, ensureStarterBusinessIfEmpty, seedBusinessStarterData } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { Product, Customer, CartItem, PaymentMethod, ProductUnit, LedgerTransaction } from '@/types';
@@ -556,6 +556,32 @@ export default function BillingPage() {
   // Real-Time Payment Bridge & Celebration States
   const [celebrationPayment, setCelebrationPayment] = useState<ParsedPaymentEvent | null>(null);
   const [isCelebrationOpen, setIsCelebrationOpen] = useState<boolean>(false);
+
+  const [isSeedingProducts, setIsSeedingProducts] = useState(false);
+
+  useEffect(() => {
+    const ensureInitialData = async () => {
+      try {
+        await ensureStarterBusinessIfEmpty();
+      } catch (err) {
+        console.warn('Billing initial data check warning:', err);
+      }
+    };
+    ensureInitialData();
+  }, []);
+
+  const handleLoadSampleProducts = async () => {
+    setIsSeedingProducts(true);
+    try {
+      const biz = business || (await ensureStarterBusinessIfEmpty());
+      await seedBusinessStarterData(biz.id, biz.business_type || 'grocery');
+      showBillingToast('✅ Loaded default catalog products!', 'success');
+    } catch (err: any) {
+      showBillingToast(`Failed to load sample products: ${err?.message}`, 'error');
+    } finally {
+      setIsSeedingProducts(false);
+    }
+  };
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
   const isRestaurant = business?.business_type === 'restaurant';
@@ -2162,8 +2188,27 @@ export default function BillingPage() {
             {/* Products Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
               {products.length === 0 ? (
-                <div className="col-span-full py-10 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
-                  No items found. Adjust your search or add new products in the Products catalog.
+                <div className="col-span-full py-8 text-center text-xs text-slate-500 border border-dashed border-slate-300 rounded-2xl bg-white p-6 space-y-2.5">
+                  <div className="font-bold text-slate-800">
+                    {allProducts.length === 0 ? 'No products in store catalog' : 'No items match your search'}
+                  </div>
+                  <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                    {allProducts.length === 0
+                      ? 'Your inventory is currently empty. Click below to load pre-configured starter items.'
+                      : 'Try clearing your search query or selecting "All Items".'}
+                  </p>
+                  {allProducts.length === 0 && (
+                    <Button
+                      type="button"
+                      onClick={handleLoadSampleProducts}
+                      disabled={isSeedingProducts}
+                      size="sm"
+                      className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs gap-1.5 shadow-xs cursor-pointer border-none mt-1"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{isSeedingProducts ? 'Loading Default Items...' : '✨ Load Default Products'}</span>
+                    </Button>
+                  )}
                 </div>
               ) : (
                 products.map((p) => {

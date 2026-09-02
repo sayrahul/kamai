@@ -67,14 +67,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     const cleanupSync = initBackgroundCloudSync(initialUser?.business_id);
 
-    // Initial DB hydration: restore business from local Dexie if user session is missing business_id
+    // Initial DB hydration: restore business and default products from local Dexie
     const initDb = async () => {
       try {
         if (!localDb.isOpen()) {
           await localDb.open();
         }
 
-        const localBiz = await localDb.businesses.toCollection().first();
+        const localBiz = await ensureStarterBusinessIfEmpty();
         const u = getStoredUser();
 
         if (localBiz && localBiz.id && localBiz.is_onboarded) {

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { db } from '@/lib/db';
+import { db, ensureStarterBusinessIfEmpty, seedBusinessStarterData } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { Product, Category, ProductUnit } from '@/types';
@@ -118,6 +118,32 @@ export default function ProductsPage() {
     }
     return counts;
   }, [allProducts]);
+
+  const [isSeedingProducts, setIsSeedingProducts] = useState(false);
+
+  // Auto-ensure default products exist if catalog is empty on load
+  React.useEffect(() => {
+    const ensureInitialData = async () => {
+      try {
+        await ensureStarterBusinessIfEmpty();
+      } catch (err) {
+        console.warn('Initial products check warning:', err);
+      }
+    };
+    ensureInitialData();
+  }, []);
+
+  const handleLoadSampleProducts = async () => {
+    setIsSeedingProducts(true);
+    try {
+      const biz = business || (await ensureStarterBusinessIfEmpty());
+      await seedBusinessStarterData(biz.id, biz.business_type || 'grocery');
+    } catch (err) {
+      console.error('Failed to seed sample products:', err);
+    } finally {
+      setIsSeedingProducts(false);
+    }
+  };
 
   // Auto-handle incoming URL parameters (?action=new, ?action=inward, ?filter=low_stock)
   React.useEffect(() => {
@@ -593,18 +619,38 @@ export default function ProductsPage() {
 
       {/* Products Grid */}
       {filteredProducts.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-xl p-12 text-center">
-          <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
-            <Package className="w-6 h-6" />
+        <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-8 sm:p-12 text-center space-y-3 shadow-2xs">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
+            <Package className="w-7 h-7" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900">No items found</h3>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            Try adjusting your search query or add a new product to your inventory catalog.
+          <h3 className="text-base font-bold text-slate-900">
+            {allProducts.length === 0 ? 'No Products in Inventory Catalog' : 'No matching products found'}
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            {allProducts.length === 0
+              ? `Your ${business?.business_type || 'store'} inventory is currently empty. You can instantly load pre-filled starter items for ${business?.business_type || 'retail'} or add custom products.`
+              : 'Try adjusting your search query or category filter to find products.'}
           </p>
-          <Button onClick={handleOpenAddModal} size="md" className="mt-3 text-xs">
-            <Plus className="w-4 h-4 mr-1.5" />
-            <span>{business?.business_type === 'restaurant' ? '+ Add Menu Item' : t('products.addProduct')}</span>
-          </Button>
+
+          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+            {allProducts.length === 0 && (
+              <Button
+                type="button"
+                onClick={handleLoadSampleProducts}
+                disabled={isSeedingProducts}
+                size="md"
+                className="text-xs font-bold bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-xs cursor-pointer gap-1.5 border-none"
+              >
+                <Sparkles className="w-4 h-4 text-slate-950" />
+                <span>{isSeedingProducts ? 'Loading Default Items...' : '✨ Load Default Products (1-Click)'}</span>
+              </Button>
+            )}
+
+            <Button onClick={handleOpenAddModal} variant={allProducts.length === 0 ? 'outline' : 'primary'} size="md" className="text-xs font-bold">
+              <Plus className="w-4 h-4 mr-1.5" />
+              <span>{business?.business_type === 'restaurant' ? '+ Add Menu Item' : t('products.addProduct')}</span>
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
