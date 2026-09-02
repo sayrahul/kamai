@@ -36,7 +36,8 @@ import {
   Trash2,
   Megaphone,
   CreditCard,
-  Lock
+  Lock,
+  Store
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -561,28 +562,35 @@ export default function InvoiceDesignerPage() {
             >
               {/* THEME HEADER BANNER */}
               <div
-                className="p-3 rounded-xl text-white flex justify-between items-start gap-3"
+                className="p-3 sm:p-3.5 rounded-xl text-white flex justify-between items-start gap-3 shadow-2xs"
                 style={{ backgroundColor: config.primary_color }}
               >
                 <div className="flex items-start gap-2.5 min-w-0">
-                  {config.show_logo && business?.logo_url && (
-                    <img
-                      src={business.logo_url}
-                      alt="Logo"
-                      className="w-10 h-10 rounded object-contain bg-white p-0.5 shrink-0"
-                    />
+                  {config.show_logo && (
+                    business?.logo_url ? (
+                      <img
+                        src={business.logo_url}
+                        alt="Logo"
+                        className="w-11 h-11 rounded-lg object-contain bg-white p-0.5 border border-white/20 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-lg bg-white/20 backdrop-blur-xs border border-white/30 flex flex-col items-center justify-center text-white shrink-0">
+                        <Store className="w-5 h-5 text-white" />
+                        <span className="text-[8.5px] font-black uppercase tracking-wider mt-0.5">{business?.name?.slice(0, 2) || 'MS'}</span>
+                      </div>
+                    )
                   )}
-                  <div>
+                  <div className="min-w-0 space-y-0.5">
                     <h3 className="font-black text-base tracking-tight text-white leading-snug">
                       {business?.name || 'Mahadev Super Mart'}
                     </h3>
                     {config.show_tagline && (
-                      <p className="text-[10px] text-white/80 italic mt-0.5 leading-normal">
+                      <p className="text-[10px] text-white/80 italic leading-normal">
                         {business?.tagline || 'Complete Kirana & FMCG Store'}
                       </p>
                     )}
                     {config.show_owner && (
-                      <div className="text-[10px] text-white/90 mt-0.5 leading-normal">
+                      <div className="text-[10px] text-white/90 leading-normal">
                         <span>{business?.owner_name || 'Ramesh Patel'}</span> • <span>{business?.phone || '9876543210'}</span>
                       </div>
                     )}
