@@ -2,44 +2,26 @@
 
 import React, { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { db, ensureStarterBusinessIfEmpty, seedBusinessStarterData } from '@/lib/db';
+import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
-import { Product, Category, ProductUnit } from '@/types';
-import { formatINR, parseRupeesToPaise, cn } from '@/lib/utils';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Package, 
-  Barcode, 
-  Star, 
-  AlertTriangle, 
-  Edit3, 
-  Trash2, 
-  CheckCircle2, 
-  Sparkles, 
-  ArrowUpDown, 
-  Tag, 
-  Camera, 
-  Zap, 
-  FileSpreadsheet,
-  Lock,
-  ChevronDown,
-  ChevronUp,
-  Info
-} from 'lucide-react';
+import { Product, ProductUnit } from '@/types';
+import { parseRupeesToPaise } from '@/lib/utils';
+import { Package } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Card } from '@/components/ui/Card';
-import { Modal } from '@/components/ui/Modal';
-import { CashierPrivacyToggleButton, ProfitMask } from '@/components/privacy/ProfitMask';
+import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 import { lookupCategoryBarcode } from '@/lib/barcode/categoryBarcodeLoader';
-import { getStoreProfile, hasModule, MASTER_UNITS } from '@/lib/constants/storeProfiles';
-import { useProSubscription, ProFeatureBadge } from '@/components/subscription/ProFeatureGate';
-import { triggerBackgroundSync } from '@/lib/firebase/backgroundSync';
 
-// Lazy-load heavy modals & external libraries (xlsx, zxing, qr scanner)
+// Modular Sub-components
+import { ProductHeaderActions } from '@/components/products/ProductHeaderActions';
+import { ProductMetricsRibbon } from '@/components/products/ProductMetricsRibbon';
+import { ProductFilterToolbar } from '@/components/products/ProductFilterToolbar';
+import { ProductCard } from '@/components/products/ProductCard';
+import { AddEditProductModal } from '@/components/products/AddEditProductModal';
+
+// Lazy-load heavy sheets & modals
 const PurchaseInwardOptionsSheet = dynamic(
   () => import('@/components/purchases/PurchaseInwardOptionsSheet').then((m) => m.PurchaseInwardOptionsSheet),
   { ssr: false }
@@ -88,150 +70,86 @@ export default function ProductsPage() {
   const [formIsUnlimitedStock, setFormIsUnlimitedStock] = useState(false);
   const [formMrp, setFormMrp] = useState('');
   const [formTaxRate, setFormTaxRate] = useState<number>(0);
-  const [formIsTaxInclusive, setFormIsTaxInclusive] = useState(false);
   const [formStock, setFormStock] = useState('');
   const [formMinStock, setFormMinStock] = useState('5');
   const [formBarcode, setFormBarcode] = useState('');
   const [formIsFavorite, setFormIsFavorite] = useState(false);
 
-  // Dynamic Store Profile Specific Attributes
+  // Dynamic Store Specific Attributes
   const [formBatchNumber, setFormBatchNumber] = useState('');
   const [formExpiryDate, setFormExpiryDate] = useState('');
   const [formSize, setFormSize] = useState('');
   const [formColor, setFormColor] = useState('');
-  const [formImeiSerial, setFormImeiSerial] = useState('');
-  const [formWarrantyMonths, setFormWarrantyMonths] = useState('');
 
-  // Live queries
-  const business = useLiveQuery(async () => db.businesses.toCollection().first());
-  const categories = useLiveQuery(async () => db.categories.toArray()) || [];
+  // Dexie Queries
   const allProducts = useLiveQuery(async () => db.products.toArray()) || [];
+  const categories = useLiveQuery(async () => db.categories.toArray()) || [];
+  const business = useLiveQuery(async () => db.businesses.toCollection().first());
 
-  // O(N) pre-computed category counts (avoids O(N*M) lag in render loops)
-  const categoryCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (let i = 0; i < allProducts.length; i++) {
-      const catId = allProducts[i].category_id;
-      if (catId) {
-        counts.set(catId, (counts.get(catId) || 0) + 1);
-      }
-    }
-    return counts;
-  }, [allProducts]);
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach((c) => map.set(c.id, c.name));
+    return map;
+  }, [categories]);
 
-  const [isSeedingProducts, setIsSeedingProducts] = useState(false);
-
-  // Auto-ensure default products exist if catalog is empty on load
-  React.useEffect(() => {
-    const ensureInitialData = async () => {
-      try {
-        await ensureStarterBusinessIfEmpty();
-      } catch (err) {
-        console.warn('Initial products check warning:', err);
-      }
-    };
-    ensureInitialData();
-  }, []);
-
-  const handleLoadSampleProducts = async () => {
-    setIsSeedingProducts(true);
-    try {
-      const biz = business || (await ensureStarterBusinessIfEmpty());
-      await seedBusinessStarterData(biz.id, biz.business_type || 'grocery');
-    } catch (err) {
-      console.error('Failed to seed sample products:', err);
-    } finally {
-      setIsSeedingProducts(false);
-    }
-  };
-
-  // Auto-handle incoming URL parameters (?action=new, ?action=inward, ?filter=low_stock)
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('action') === 'new') {
-        setIsModalOpen(true);
-      } else if (params.get('action') === 'inward' || params.get('action') === 'stock_in') {
-        setIsRapidInwardOpen(true);
-      }
-
-      if (params.get('filter') === 'low_stock') {
-        setShowLowStockOnly(true);
-      }
-    }
-  }, []);
-
-  // Memoized filtered product list
+  // Filtered Products List
   const filteredProducts = useMemo(() => {
-    let prods = allProducts;
+    return allProducts.filter((p) => {
+      // 1. Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName = p.name.toLowerCase().includes(q);
+        const matchBarcode = p.barcode ? p.barcode.toLowerCase().includes(q) : false;
+        const matchBatch = p.batch_number ? p.batch_number.toLowerCase().includes(q) : false;
+        if (!matchName && !matchBarcode && !matchBatch) return false;
+      }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      prods = prods.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.barcode && p.barcode.includes(q)) ||
-          (p.category_name && p.category_name.toLowerCase().includes(q))
-      );
-    }
+      // 2. Category Filter
+      if (selectedCategory !== 'all' && p.category_id !== selectedCategory) {
+        return false;
+      }
 
-    if (selectedCategory !== 'all') {
-      prods = prods.filter((p) => p.category_id === selectedCategory);
-    }
+      // 3. Low Stock Filter
+      if (showLowStockOnly) {
+        if (p.is_unlimited_stock) return false;
+        const minAlert = p.min_stock_level || 5;
+        if (p.current_stock > minAlert) return false;
+      }
 
-    if (showLowStockOnly) {
-      prods = prods.filter((p) => !p.is_unlimited_stock && (Number(p.current_stock ?? 0) <= Number(p.min_stock_level ?? 5) || Number(p.current_stock ?? 0) <= 0));
-    }
-
-    return prods;
+      return true;
+    }).sort((a, b) => {
+      if (a.is_favorite && !b.is_favorite) return -1;
+      if (!a.is_favorite && b.is_favorite) return 1;
+      return a.name.localeCompare(b.name);
+    });
   }, [allProducts, searchQuery, selectedCategory, showLowStockOnly]);
 
-  // Pre-computed live inventory metrics (O(N) single pass)
-  const stockMetrics = useMemo(() => {
-    let lowStockCount = 0;
-    let inStockCount = 0;
-    let totalStockValuePaise = 0;
-
-    for (let i = 0; i < allProducts.length; i++) {
-      const p = allProducts[i];
-      if (p.is_active === false) continue;
-      const stock = Number(p.current_stock ?? 0);
-      const minLevel = Number(p.min_stock_level ?? 5);
-      if (!p.is_unlimited_stock && (stock <= minLevel || stock <= 0)) {
-        lowStockCount++;
-      } else {
-        inStockCount++;
-      }
-      if (!p.is_unlimited_stock && stock > 0) {
-        totalStockValuePaise += (p.purchase_price || p.selling_price) * stock;
-      }
-    }
-
-    return { lowStockCount, inStockCount, totalStockValuePaise };
+  // Financial & Inventory Metrics
+  const lowStockCount = useMemo(() => {
+    return allProducts.filter((p) => !p.is_unlimited_stock && p.current_stock <= (p.min_stock_level || 5)).length;
   }, [allProducts]);
 
-  // Client-side batch rendering (prevents initial DOM lag)
-  const [displayLimit, setDisplayLimit] = useState<number>(36);
-  const visibleProducts = useMemo(() => {
-    return filteredProducts.slice(0, displayLimit);
-  }, [filteredProducts, displayLimit]);
+  const totalStockValuePaise = useMemo(() => {
+    return allProducts.reduce((acc, p) => {
+      if (p.is_unlimited_stock) return acc;
+      const cost = p.purchase_price || p.selling_price || 0;
+      return acc + (cost * Math.max(0, p.current_stock));
+    }, 0);
+  }, [allProducts]);
 
-  const storeProfile = getStoreProfile(business?.business_type);
-  const canInwardBill = business?.business_type !== 'restaurant' && storeProfile.featureToggles.hasBillScan;
-
+  // Handlers
   const handleOpenAddModal = () => {
     setEditingProduct(null);
     setFormName('');
-    setFormCategory(categories[0]?.id || '');
-    setFormUnit((storeProfile.defaultUnit as ProductUnit) || 'packet');
+    setFormCategory('');
+    setFormUnit('packet');
     setFormPurchasePrice('');
     setFormSellingPrice('');
     setFormIsLooseItem(false);
-    setFormIsUnlimitedStock(business?.business_type === 'restaurant');
+    setFormIsUnlimitedStock(false);
     setFormMrp('');
     setFormTaxRate(0);
-    setFormIsTaxInclusive(business?.business_type === 'restaurant' ? false : (business?.gst_pricing_mode === 'inclusive'));
-    setFormStock(business?.business_type === 'restaurant' ? '999' : '10');
+    setFormStock('0');
     setFormMinStock('5');
     setFormBarcode('');
     setFormIsFavorite(false);
@@ -239,33 +157,28 @@ export default function ProductsPage() {
     setFormExpiryDate('');
     setFormSize('');
     setFormColor('');
-    setFormImeiSerial('');
-    setFormWarrantyMonths('');
     setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (p: Product) => {
     setEditingProduct(p);
     setFormName(p.name);
-    setFormCategory(p.category_id);
-    setFormUnit(p.unit);
-    setFormPurchasePrice((p.purchase_price / 100).toString());
-    setFormSellingPrice((p.selling_price / 100).toString());
+    setFormCategory(p.category_id || '');
+    setFormUnit(p.unit || 'packet');
+    setFormPurchasePrice(p.purchase_price ? (p.purchase_price / 100).toFixed(2) : '');
+    setFormSellingPrice((p.selling_price / 100).toFixed(2));
     setFormIsLooseItem(Boolean(p.is_loose_item));
     setFormIsUnlimitedStock(Boolean(p.is_unlimited_stock));
-    setFormMrp((p.mrp / 100).toString());
-    setFormTaxRate(p.tax_rate);
-    setFormIsTaxInclusive(p.is_tax_inclusive !== undefined ? p.is_tax_inclusive : (business?.business_type === 'restaurant' ? false : true));
+    setFormMrp(p.mrp ? (p.mrp / 100).toFixed(2) : '');
+    setFormTaxRate(p.tax_rate || 0);
     setFormStock(p.current_stock.toString());
-    setFormMinStock(p.min_stock_level.toString());
+    setFormMinStock((p.min_stock_level || 5).toString());
     setFormBarcode(p.barcode || '');
-    setFormIsFavorite(p.is_favorite);
+    setFormIsFavorite(Boolean(p.is_favorite));
     setFormBatchNumber(p.batch_number || '');
     setFormExpiryDate(p.expiry_date || '');
     setFormSize(p.size || '');
     setFormColor(p.color || '');
-    setFormImeiSerial(p.imei_serial || '');
-    setFormWarrantyMonths(p.warranty_period_months ? p.warranty_period_months.toString() : '');
     setIsModalOpen(true);
   };
 
@@ -273,43 +186,37 @@ export default function ProductsPage() {
     e.preventDefault();
     if (!formName.trim()) return;
 
-    const sellingPaise = parseRupeesToPaise(formSellingPrice);
-    const purchasePaise = parseRupeesToPaise(formPurchasePrice || formSellingPrice);
-    const mrpPaise = parseRupeesToPaise(formMrp || formSellingPrice);
+    const sellingPricePaise = parseRupeesToPaise(formSellingPrice);
+    const purchasePricePaise = formPurchasePrice ? parseRupeesToPaise(formPurchasePrice) : 0;
+    const mrpPaise = formMrp ? parseRupeesToPaise(formMrp) : sellingPricePaise;
     const stockNum = parseFloat(formStock) || 0;
-    const minStockNum = parseFloat(formMinStock) || 5;
-
-    const catObj = categories.find((c) => c.id === formCategory);
+    const minStockNum = parseInt(formMinStock) || 5;
     const now = new Date().toISOString();
 
     const productPayload: Omit<Product, 'id'> = {
       business_id: business?.id || 'biz_default',
       name: formName.trim(),
-      category_id: formCategory,
-      category_name: catObj?.name || 'General',
+      category_id: formCategory || 'cat_general',
       unit: formUnit,
-      purchase_price: purchasePaise,
-      selling_price: sellingPaise,
-      is_loose_item: formIsLooseItem,
-      allow_decimal: formIsLooseItem || ['kg', 'gram', 'litre', 'ml', 'meter'].includes(formUnit),
-      is_unlimited_stock: formIsUnlimitedStock,
+      selling_price: sellingPricePaise,
+      purchase_price: purchasePricePaise,
       mrp: mrpPaise,
       tax_rate: formTaxRate,
-      is_tax_inclusive: formIsTaxInclusive,
-      current_stock: formIsUnlimitedStock ? 999999 : stockNum,
+      is_tax_inclusive: true,
+      is_loose_item: formIsLooseItem,
+      is_unlimited_stock: formIsUnlimitedStock,
+      current_stock: stockNum,
       min_stock_level: minStockNum,
       barcode: formBarcode.trim() || undefined,
       batch_number: formBatchNumber.trim() || undefined,
       expiry_date: formExpiryDate.trim() || undefined,
       size: formSize.trim() || undefined,
       color: formColor.trim() || undefined,
-      imei_serial: formImeiSerial.trim() || undefined,
-      warranty_period_months: formWarrantyMonths.trim() ? parseInt(formWarrantyMonths) : undefined,
       is_favorite: formIsFavorite,
       is_active: true,
       created_at: editingProduct ? editingProduct.created_at : now,
       updated_at: now,
-      sync_status: 'pending',
+      sync_status: 'synced',
     };
 
     try {
@@ -325,7 +232,7 @@ export default function ProductsPage() {
           id: newId,
         });
 
-        // Add initial inventory movement log
+        // Add inventory movement log
         await db.inventory_movements.put({
           id: `mov_${Date.now()}`,
           business_id: business?.id || 'biz_default',
@@ -344,21 +251,42 @@ export default function ProductsPage() {
       setIsModalOpen(false);
     } catch (err) {
       console.error('Failed to save product:', err);
-      alert('Error saving product. Please try again.');
     }
   };
 
   const handleDeleteProduct = async (id: string, name: string) => {
     if (confirm(`Are you sure you want to delete "${name}"?`)) {
       await db.products.delete(id);
+      setIsModalOpen(false);
     }
   };
 
-  const handleToggleFavorite = async (p: Product, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleToggleFavorite = async (p: Product) => {
     await db.products.update(p.id, {
       is_favorite: !p.is_favorite,
       updated_at: new Date().toISOString(),
+    });
+  };
+
+  const handleQuickStockChange = async (p: Product, delta: number) => {
+    const newStock = Math.max(0, p.current_stock + delta);
+    await db.products.update(p.id, {
+      current_stock: newStock,
+      updated_at: new Date().toISOString(),
+    });
+
+    await db.inventory_movements.put({
+      id: `mov_${Date.now()}`,
+      business_id: business?.id || 'biz_default',
+      product_id: p.id,
+      product_name: p.name,
+      movement_type: delta > 0 ? 'PURCHASE' : 'SALE',
+      quantity: Math.abs(delta),
+      previous_stock: p.current_stock,
+      new_stock: newStock,
+      reason: delta > 0 ? 'Quick stock restock' : 'Stock deduction',
+      created_by: 'owner',
+      created_at: new Date().toISOString(),
     });
   };
 
@@ -366,7 +294,6 @@ export default function ProductsPage() {
     setIsScannerOpen(false);
     setFormBarcode(code);
 
-    // If adding a new product, attempt local category offline dictionary lookup (0ms)
     if (!formName) {
       const match = await lookupCategoryBarcode(code, business?.business_type);
       if (match && match.name) {
@@ -395,907 +322,160 @@ export default function ProductsPage() {
     setIsAddCategoryModalOpen(false);
   };
 
-  const estMargin = () => {
-    const sp = parseFloat(formSellingPrice);
-    const pp = parseFloat(formPurchasePrice);
-    if (!sp || !pp || sp <= 0) return null;
-    const margin = ((sp - pp) / sp) * 100;
-    return margin.toFixed(1);
-  };
-
   return (
-    <div className="space-y-4">
-      {/* Top Header — Single Row Compact */}
-      <div className="flex items-center justify-between gap-2 bg-white px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-slate-200 shadow-2xs">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-1.5 truncate">
-            <Package className="w-4 h-4 sm:w-5 sm:h-5 text-slate-800 flex-shrink-0" />
-            <span className="truncate">{t('products.title')}</span>
-          </h1>
-          <p className="text-[11px] sm:text-xs text-slate-500 truncate">
-            {allProducts.length} {allProducts.length === 1 ? 'item' : 'items'} in catalog
-          </p>
-        </div>
+    <div className="space-y-3.5 pb-20 sm:pb-8 animate-in fade-in duration-150">
+      {/* 1. Header Actions */}
+      <ProductHeaderActions
+        totalProducts={allProducts.length}
+        onOpenAddModal={handleOpenAddModal}
+        onOpenExcelImporter={() => setIsExcelImporterOpen(true)}
+        onOpenRapidInward={() => setIsRapidInwardOpen(true)}
+      />
 
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <CashierPrivacyToggleButton />
+      {/* 2. Metrics Ribbon */}
+      <ProductMetricsRibbon
+        totalProducts={allProducts.length}
+        lowStockCount={lowStockCount}
+        totalStockValuePaise={totalStockValuePaise}
+        totalCategories={categories.length}
+      />
 
-          {canInwardBill && (
-            <Button
-              type="button"
-              onClick={() => setIsPurchaseSheetOpen(true)}
-              size="sm"
-              className="gap-1 text-xs font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs cursor-pointer border-none px-2.5 py-1.5 justify-center whitespace-nowrap"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse shrink-0" />
-              <span className="hidden sm:inline">Inward Stock</span>
-              <span className="sm:hidden">Inward</span>
-            </Button>
-          )}
+      {/* 3. Filter & Category Toolbar */}
+      <ProductFilterToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        showLowStockOnly={showLowStockOnly}
+        onToggleLowStock={setShowLowStockOnly}
+        onOpenScanner={() => setIsScannerOpen(true)}
+      />
 
-          <Button 
-            onClick={handleOpenAddModal} 
-            size="sm" 
-            className="gap-1 text-xs font-bold px-2.5 py-1.5 justify-center whitespace-nowrap shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">{business?.business_type === 'restaurant' ? 'Add Menu Item' : 'Add Product'}</span>
-            <span className="sm:hidden">Add Item</span>
-          </Button>
-        </div>
+      {/* 4. Products Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {filteredProducts.map((p) => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            categoryName={p.category_id ? categoryMap.get(p.category_id) : undefined}
+            onEdit={handleOpenEditModal}
+            onDelete={(prod) => handleDeleteProduct(prod.id, prod.name)}
+            onToggleFavorite={handleToggleFavorite}
+            onQuickStockChange={handleQuickStockChange}
+          />
+        ))}
+
+        {filteredProducts.length === 0 && (
+          <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+            <Package className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+            <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No products found</div>
+            <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or click "Add Product".</p>
+          </div>
+        )}
       </div>
 
-      {/* ---------------- LIVE INVENTORY METRICS RIBBON (Space-Saving & Unified) ---------------- */}
-      <Card className="p-2 sm:p-2.5 bg-white border border-slate-200 shadow-2xs">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
-          {/* 1. Total Products */}
-          <div className="px-2 py-1 sm:py-0 sm:first:pl-1">
-            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              <span>{business?.business_type === 'restaurant' ? 'Menu Items' : 'Total Items'}</span>
-              <Package className="w-3 h-3 text-slate-400" />
-            </div>
-            <div className="text-base sm:text-lg font-black text-slate-900 font-mono mt-0.5 leading-tight">
-              {allProducts.length} <span className="text-[11px] font-sans font-medium text-slate-400">SKUs</span>
-            </div>
-          </div>
+      {/* ---------------- MODALS ---------------- */}
+      <AddEditProductModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        editingProduct={editingProduct}
+        categories={categories}
+        businessType={business?.business_type}
+        formName={formName}
+        setFormName={setFormName}
+        formCategory={formCategory}
+        setFormCategory={setFormCategory}
+        formUnit={formUnit}
+        setFormUnit={setFormUnit}
+        formPurchasePrice={formPurchasePrice}
+        setFormPurchasePrice={setFormPurchasePrice}
+        formSellingPrice={formSellingPrice}
+        setFormSellingPrice={setFormSellingPrice}
+        formIsLooseItem={formIsLooseItem}
+        setFormIsLooseItem={setFormIsLooseItem}
+        formIsUnlimitedStock={formIsUnlimitedStock}
+        setFormIsUnlimitedStock={setFormIsUnlimitedStock}
+        formMrp={formMrp}
+        setFormMrp={setFormMrp}
+        formTaxRate={formTaxRate}
+        setFormTaxRate={setFormTaxRate}
+        formStock={formStock}
+        setFormStock={setFormStock}
+        formMinStock={formMinStock}
+        setFormMinStock={setFormMinStock}
+        formBarcode={formBarcode}
+        setFormBarcode={setFormBarcode}
+        formBatchNumber={formBatchNumber}
+        setFormBatchNumber={setFormBatchNumber}
+        formExpiryDate={formExpiryDate}
+        setFormExpiryDate={setFormExpiryDate}
+        formSize={formSize}
+        setFormSize={setFormSize}
+        formColor={formColor}
+        setFormColor={setFormColor}
+        onOpenScanner={() => setIsScannerOpen(true)}
+        onOpenAddCategoryModal={() => setIsAddCategoryModalOpen(true)}
+        onSubmit={handleSaveProduct}
+        onDeleteProduct={handleDeleteProduct}
+      />
 
-          {/* 2. In Stock */}
-          <div className="px-2 py-1 sm:py-0">
-            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
-              <span className="flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                <span>In Stock</span>
-              </span>
-            </div>
-            <div className="text-base sm:text-lg font-black text-emerald-800 font-mono mt-0.5 leading-tight">
-              {stockMetrics.inStockCount} <span className="text-[11px] font-sans font-medium text-emerald-600">Active</span>
-            </div>
-          </div>
-
-          {/* 3. Low / Out of Stock (Interactive Filter Toggle) */}
-          <div className="px-2 py-1 sm:py-0 pt-1.5 sm:pt-0">
-            <button
-              type="button"
-              onClick={() => setShowLowStockOnly(!showLowStockOnly)}
-              className="w-full text-left cursor-pointer group"
-              title="Click to filter low stock items"
-            >
-              <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-amber-800 uppercase tracking-wider">
-                <span className="flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3 text-amber-600" />
-                  <span>Low Stock</span>
-                </span>
-                {showLowStockOnly && (
-                  <span className="text-[9px] bg-amber-200 text-amber-900 px-1 rounded font-black">ACTIVE</span>
-                )}
-              </div>
-              <div className={cn(
-                "text-base sm:text-lg font-black font-mono mt-0.5 leading-tight",
-                stockMetrics.lowStockCount > 0 ? "text-amber-800" : "text-slate-400"
-              )}>
-                {stockMetrics.lowStockCount} <span className="text-[11px] font-sans font-medium text-amber-700">Need Reorder</span>
-              </div>
-            </button>
-          </div>
-
-          {/* 4. Stock Valuation */}
-          <div className="px-2 py-1 sm:py-0 pt-1.5 sm:pt-0">
-            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              <span>Stock Value</span>
-              <Tag className="w-3 h-3 text-slate-400" />
-            </div>
-            <div className="text-base sm:text-lg font-black text-slate-900 font-mono mt-0.5 leading-tight">
-              <ProfitMask valuePaise={stockMetrics.totalStockValuePaise} isPurchasePrice />
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Filter & Search Bar — Space Saving */}
-      <Card className="p-2.5 sm:p-3 bg-white border border-slate-200 shadow-2xs space-y-2.5">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 min-w-0">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              placeholder={t('products.searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-slate-800 rounded-lg pl-8 pr-7 py-1.5 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none transition shadow-2xs"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIsScannerOpen(true)}
-            title="Scan Barcode to Search"
-            className="p-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center cursor-pointer shadow-2xs transition flex-shrink-0"
-          >
-            <Camera className="w-4 h-4 text-slate-800" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowLowStockOnly(!showLowStockOnly)}
-            className={cn(
-              'flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-bold whitespace-nowrap cursor-pointer shadow-2xs transition flex-shrink-0',
-              showLowStockOnly
-                ? 'bg-amber-400 border-amber-400 text-slate-950 font-extrabold'
-                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-            )}
-          >
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-            <span className="hidden sm:inline">{t('products.lowStockOnly')}</span>
-            <span className="sm:hidden">Low Stock</span>
-          </button>
-        </div>
-
-        {/* Category Pills Bar */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('all')}
-            className={cn(
-              'px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer transition-all flex items-center gap-1.5 flex-shrink-0',
-              selectedCategory === 'all'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            )}
-          >
-            <span>{t('products.allCategories')}</span>
-            <span className={cn(
-              "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
-              selectedCategory === 'all' ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
-            )}>
-              {allProducts.length}
-            </span>
-          </button>
-          {categories.map((cat) => {
-            const count = categoryCounts.get(cat.id) || 0;
-            return (
-              <button
-                type="button"
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={cn(
-                  'px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 cursor-pointer transition-all flex-shrink-0',
-                  selectedCategory === cat.id
-                    ? 'bg-slate-900 text-white font-bold shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                )}
-              >
-                <Tag className="w-3 h-3 text-slate-400" />
-                <span>{cat.name}</span>
-                <span className={cn(
-                  "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
-                  selectedCategory === cat.id ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
-                )}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-
-          <button
-            type="button"
-            onClick={() => setIsAddCategoryModalOpen(true)}
-            className="px-2.5 py-1 rounded-lg text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 flex items-center gap-1 whitespace-nowrap flex-shrink-0 cursor-pointer transition-colors"
-            title="Create New Custom Category"
-          >
-            <Plus className="w-3.5 h-3.5 text-amber-700" />
-            <span>+ Category</span>
-          </button>
-        </div>
-      </Card>
-
-      {/* Products Grid */}
-      {filteredProducts.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-8 sm:p-12 text-center space-y-3 shadow-2xs">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
-            <Package className="w-7 h-7" />
-          </div>
-          <h3 className="text-base font-bold text-slate-900">
-            {allProducts.length === 0 ? 'No Products in Inventory Catalog' : 'No matching products found'}
-          </h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-            {allProducts.length === 0
-              ? `Your ${business?.business_type || 'store'} inventory is currently empty. You can instantly load pre-filled starter items for ${business?.business_type || 'retail'} or add custom products.`
-              : 'Try adjusting your search query or category filter to find products.'}
-          </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
-            {allProducts.length === 0 && (
-              <Button
-                type="button"
-                onClick={handleLoadSampleProducts}
-                disabled={isSeedingProducts}
-                size="md"
-                className="text-xs font-bold bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-xs cursor-pointer gap-1.5 border-none"
-              >
-                <Sparkles className="w-4 h-4 text-slate-950" />
-                <span>{isSeedingProducts ? 'Loading Default Items...' : '✨ Load Default Products (1-Click)'}</span>
-              </Button>
-            )}
-
-            <Button onClick={handleOpenAddModal} variant={allProducts.length === 0 ? 'outline' : 'primary'} size="md" className="text-xs font-bold">
-              <Plus className="w-4 h-4 mr-1.5" />
-              <span>{business?.business_type === 'restaurant' ? '+ Add Menu Item' : t('products.addProduct')}</span>
+      {/* Quick Add Category Modal */}
+      <Modal
+        isOpen={isAddCategoryModalOpen}
+        onClose={() => setIsAddCategoryModalOpen(false)}
+        title="Add New Category"
+        description="Create a product category to organize your catalog."
+      >
+        <form onSubmit={handleCreateCategory} className="space-y-3.5">
+          <Input
+            label="Category Name *"
+            placeholder="e.g. Edible Oils, Dairy, Spices"
+            value={newCatName}
+            onChange={(e) => setNewCatName(e.target.value)}
+            required
+            autoFocus
+          />
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsAddCategoryModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" className="font-black bg-slate-900 text-white">
+              Create Category
             </Button>
           </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-2.5">
-            {visibleProducts.map((p) => {
-              const isLowStock = !p.is_unlimited_stock && p.current_stock <= p.min_stock_level;
-              const isOutOfStock = !p.is_unlimited_stock && p.current_stock <= 0;
+        </form>
+      </Modal>
 
-              return (
-                <div
-                  key={p.id}
-                  onClick={() => handleOpenEditModal(p)}
-                  className="bg-white border border-slate-200 hover:border-slate-400 hover:shadow-xs rounded-xl p-2 sm:p-2.5 cursor-pointer flex flex-col justify-between transition-all group relative text-left shadow-2xs"
-                >
-                  <div>
-                    {/* Top Tag & Favorite */}
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <div className="flex items-center gap-1 min-w-0 flex-1">
-                        <span className="text-[8.5px] sm:text-[9px] font-extrabold text-slate-700 bg-slate-100/90 px-1.5 py-0.5 rounded border border-slate-200 uppercase tracking-tight truncate max-w-[80px] sm:max-w-[100px]">
-                          {p.category_name || 'General'}
-                        </span>
-                        {p.barcode && (
-                          <span className="text-[8px] bg-slate-50 text-slate-500 font-mono px-1 py-0.5 rounded flex items-center gap-0.5 border border-slate-200 truncate max-w-[55px] sm:max-w-[70px]">
-                            <Barcode className="w-2.5 h-2.5 shrink-0 text-slate-400" />
-                            <span className="truncate">{p.barcode}</span>
-                          </span>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={(e) => handleToggleFavorite(p, e)}
-                        className={`p-0.5 rounded shrink-0 transition-colors ${
-                          p.is_favorite
-                            ? 'text-amber-500 hover:text-amber-600'
-                            : 'text-slate-300 hover:text-slate-400'
-                        }`}
-                        title={p.is_favorite ? "Remove Favorite" : "Mark as Favorite"}
-                      >
-                        <Star className={`w-3.5 h-3.5 ${p.is_favorite ? 'fill-current' : ''}`} />
-                      </button>
-                    </div>
-
-                    {/* Product Name */}
-                    <h3 className="text-xs sm:text-[13px] font-extrabold text-slate-900 group-hover:text-indigo-950 truncate leading-snug transition-colors">
-                      {p.name}
-                    </h3>
-
-                    {/* Dynamic Category Attributes (Batch / Exp / Size / IMEI) */}
-                    {(p.batch_number || p.expiry_date || p.size || p.color || p.imei_serial) && (
-                      <div className="flex flex-wrap gap-1 mt-0.5">
-                        {(p.batch_number || p.expiry_date) && (
-                          <span className={cn(
-                            "text-[8px] px-1 py-0.2 rounded font-mono font-medium border flex items-center gap-0.5",
-                            p.expiry_date && new Date(p.expiry_date).getTime() < Date.now()
-                              ? "bg-rose-50 text-rose-800 border-rose-200 font-bold"
-                              : "bg-amber-50 text-amber-900 border-amber-200"
-                          )}>
-                            {p.batch_number && <span>B:{p.batch_number}</span>}
-                            {p.expiry_date && (
-                              <span>{p.batch_number ? '•' : ''}Exp:{p.expiry_date.slice(2)}</span>
-                            )}
-                          </span>
-                        )}
-
-                        {(p.size || p.color) && (
-                          <span className="text-[8px] bg-slate-50 text-slate-700 border border-slate-200 px-1 py-0.2 rounded font-medium">
-                            {p.size && <span>{p.size} </span>}
-                            {p.color && <span>• {p.color}</span>}
-                          </span>
-                        )}
-
-                        {p.imei_serial && (
-                          <span className="text-[8px] bg-cyan-50 text-cyan-900 border border-cyan-200 px-1 py-0.2 rounded font-mono">
-                            SN:{p.imei_serial}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Price & Unit Line */}
-                    <div className="flex items-baseline justify-between gap-1 mt-1.5 pt-1 border-t border-slate-100">
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-xs sm:text-sm font-black text-slate-950 font-mono">
-                          {formatINR(p.selling_price)}
-                        </span>
-                        <span className="text-[9.5px] text-slate-400 font-medium">/{p.unit}</span>
-                      </div>
-                      {p.mrp > p.selling_price && (
-                        <span className="text-[9px] text-slate-400 line-through font-mono">
-                          {formatINR(p.mrp)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Stock Status & Quick Actions Footer */}
-                  <div className="pt-1.5 mt-1.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1 min-w-0">
-                      {p.is_unlimited_stock ? (
-                        <span className="font-bold text-slate-500 text-[9.5px] flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                          <span>Unlimited</span>
-                        </span>
-                      ) : isOutOfStock ? (
-                        <span className="px-1.5 py-0.2 rounded bg-rose-100 text-rose-800 text-[8.5px] font-bold">
-                          {t('products.outOfStock')}
-                        </span>
-                      ) : isLowStock ? (
-                        <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 text-[8.5px] font-bold flex items-center gap-0.5 border border-amber-300">
-                          <AlertTriangle className="w-2.5 h-2.5 text-amber-700 shrink-0" />
-                          <span>{p.current_stock} left</span>
-                        </span>
-                      ) : (
-                        <span className="font-bold text-slate-700 text-[9.5px] flex items-center gap-1 truncate">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
-                          <span className="truncate">{p.current_stock} {p.unit}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {(isOutOfStock || isLowStock) && (
-                        <button
-                          type="button"
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            const now = new Date().toISOString();
-                            const current = Number(p.current_stock ?? 0);
-                            const newStock = current + 10;
-                            await db.products.update(p.id, { current_stock: newStock, updated_at: now });
-                            await db.inventory_movements.put({
-                              id: `mov_prod_quick_${Date.now()}_${p.id}`,
-                              business_id: p.business_id,
-                              product_id: p.id,
-                              product_name: p.name,
-                              movement_type: 'PURCHASE',
-                              quantity: 10,
-                              previous_stock: current,
-                              new_stock: newStock,
-                              reason: 'Quick Catalog Restock (+10)',
-                              created_by: 'owner',
-                              created_at: now,
-                            });
-                            try {
-                              triggerBackgroundSync(p.business_id);
-                            } catch {}
-                          }}
-                          className="px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black cursor-pointer shadow-2xs active:scale-95 transition"
-                          title="Quick Restock +10 units"
-                        >
-                          +10
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEditModal(p);
-                        }}
-                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
-                        title="Edit Item"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteProduct(p.id, p.name);
-                        }}
-                        className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
-                        title="Delete Item"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Load More Pagination */}
-          {visibleProducts.length < filteredProducts.length && (
-            <div className="text-center py-4">
-              <Button
-                type="button"
-                variant="outline"
-                size="md"
-                onClick={() => setDisplayLimit((prev) => prev + 36)}
-                className="bg-white hover:bg-slate-50 border-slate-300 text-slate-800 font-bold text-xs shadow-xs px-6 py-2"
-              >
-                Showing {visibleProducts.length} of {filteredProducts.length} Products • Load More (+36)
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Barcode Camera Scanner Modal */}
+      {/* Barcode Scanner Modal */}
       <BarcodeScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onScan={handleBarcodeScanned}
       />
 
-      {/* Add / Edit Product Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={
-          editingProduct
-            ? t('products.editProduct')
-            : business?.business_type === 'restaurant'
-            ? 'Add Menu Dish / Beverage'
-            : business?.business_type === 'pharmacy'
-            ? 'Add Medicine / Healthcare Item'
-            : business?.business_type === 'clothing'
-            ? 'Add Garment / Footwear SKU'
-            : t('products.addProduct')
-        }
-        description={`Enter ${storeProfile.shortName} details, pricing, GST rate, and inventory parameters.`}
-        size="lg"
-      >
-        <form onSubmit={handleSaveProduct} className="space-y-3.5">
-          {/* 1. Core Primary Name Input with Quick-Add Favorite Star Toggle */}
-          <div className="relative">
-            <Input
-              label={business?.business_type === 'restaurant' ? 'Item / Dish Name' : t('products.name')}
-              placeholder={storeProfile.placeholders.newProductName || 'e.g. Parle-G Gold Biscuits 100g'}
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              required
-              autoFocus
-              rightIcon={
-                <button
-                  type="button"
-                  onClick={() => setFormIsFavorite(!formIsFavorite)}
-                  className="p-1 -mr-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
-                  title={formIsFavorite ? 'Pinned to Quick-Add Favorites (Click to unpin)' : 'Pin to Quick-Add Favorites on POS counter'}
-                >
-                  <Star
-                    className={`w-4 h-4 transition-transform active:scale-125 ${
-                      formIsFavorite
-                        ? 'fill-amber-400 text-amber-500 drop-shadow-xs'
-                        : 'text-slate-300 hover:text-amber-400'
-                    }`}
-                  />
-                </button>
-              }
-            />
-          </div>
-
-          {/* 2. Category & Unit Selection (Single Row for Mobile & Desktop) */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
-            <div>
-              <div className="flex items-center justify-between mb-1 gap-1">
-                <label className="text-xs font-bold text-slate-900 block truncate">
-                  {t('products.category')}
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsAddCategoryModalOpen(true)}
-                  className="text-[10.5px] sm:text-[11px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-0.5 cursor-pointer shrink-0"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span className="hidden sm:inline">New Category</span>
-                  <span className="sm:hidden">New</span>
-                </button>
-              </div>
-              <select
-                value={formCategory}
-                onChange={(e) => setFormCategory(e.target.value)}
-                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2 sm:px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px] truncate"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-900 block truncate">
-                  {t('products.unit')}
-                </label>
-              </div>
-              <select
-                value={formUnit}
-                onChange={(e) => setFormUnit(e.target.value as ProductUnit)}
-                className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-2 sm:px-3 py-2 text-xs font-semibold focus:border-slate-900 focus:outline-none min-h-[38px] truncate"
-              >
-                <optgroup label={`✨ Recommended for ${storeProfile.name}`}>
-                  {MASTER_UNITS.filter(u => storeProfile.recommendedUnits.includes(u.id)).map(u => (
-                    <option key={`rec_${u.id}`} value={u.id}>
-                      {u.labelEn} • {u.labelHi}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="📋 All Supported Units">
-                  {MASTER_UNITS.filter(u => !storeProfile.recommendedUnits.includes(u.id)).map(u => (
-                    <option key={`all_${u.id}`} value={u.id}>
-                      {u.labelEn} • {u.labelHi}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
-          </div>
-
-          {/* 3. Dynamic Category-Specific Attributes (Zero Clutter — Rendered strictly if module enabled) */}
-          
-          {/* A. Batch & Expiry (Pharmacy / Medical / FMCG) */}
-          {(hasModule(business?.business_type, 'BATCH_EXPIRY') || hasModule(business?.business_type, 'PHARMACY')) && (
-            <div className="p-2.5 sm:p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>💊</span>
-                  <span>Batch No. &amp; Expiry Date ({storeProfile.shortName})</span>
-                </span>
-                <span className="text-[9px] sm:text-[9.5px] text-amber-800 bg-amber-200/60 px-1.5 py-0.5 rounded font-semibold">
-                  Compliance
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  label="Batch Number"
-                  placeholder="e.g. BATCH-9942"
-                  value={formBatchNumber}
-                  onChange={(e) => setFormBatchNumber(e.target.value)}
-                />
-                <Input
-                  label="Expiry Date"
-                  type="date"
-                  value={formExpiryDate}
-                  onChange={(e) => setFormExpiryDate(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* B. Size & Color Variants (Clothing / Footwear / Apparel) */}
-          {hasModule(business?.business_type, 'VARIANTS') && (
-            <div className="p-3 bg-purple-50/70 rounded-xl border border-purple-200/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-purple-950 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>👕</span>
-                  <span>Size &amp; Color Variants (Apparel / Footwear)</span>
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <Input
-                  label="Size / Fit (e.g. S, M, L, XL, 32, 34, UK 9)"
-                  placeholder="e.g. XL or 32"
-                  value={formSize}
-                  onChange={(e) => setFormSize(e.target.value)}
-                />
-                <Input
-                  label="Color / Shade"
-                  placeholder="e.g. Navy Blue / Maroon"
-                  value={formColor}
-                  onChange={(e) => setFormColor(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* C. IMEI / Serial & Warranty (Electronics / Mobile / Electrical) */}
-          {(hasModule(business?.business_type, 'IMEI_SERIAL') || hasModule(business?.business_type, 'WARRANTY')) && (
-            <div className="p-3 bg-cyan-50/70 rounded-xl border border-cyan-200/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-cyan-950 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>📱</span>
-                  <span>IMEI / Serial No &amp; Warranty ({storeProfile.shortName})</span>
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {hasModule(business?.business_type, 'IMEI_SERIAL') && (
-                  <Input
-                    label="IMEI / Device Serial Number"
-                    placeholder="e.g. 864209048123456"
-                    value={formImeiSerial}
-                    onChange={(e) => setFormImeiSerial(e.target.value)}
-                  />
-                )}
-                {hasModule(business?.business_type, 'WARRANTY') && (
-                  <Input
-                    label="Brand Warranty (Months)"
-                    placeholder="e.g. 12"
-                    type="number"
-                    value={formWarrantyMonths}
-                    onChange={(e) => setFormWarrantyMonths(e.target.value)}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* 4. Core Pricing, Purchase Cost & Stock Grid */}
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
-            {/* Row 1: Selling Price (Rate) & MRP (Single Row) */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <Input
-                label={t('products.sellingPrice')}
-                placeholder="0.00"
-                type="number"
-                step="0.01"
-                value={formSellingPrice}
-                onChange={(e) => setFormSellingPrice(e.target.value)}
-                leftIcon={<span className="text-xs font-bold text-slate-500">₹</span>}
-                required
-              />
-
-              <Input
-                label={t('products.mrp')}
-                placeholder="0.00"
-                type="number"
-                step="0.01"
-                value={formMrp}
-                onChange={(e) => setFormMrp(e.target.value)}
-                leftIcon={<span className="text-xs font-bold text-slate-500">₹</span>}
-              />
-            </div>
-
-            {/* Row 2: Purchase Price (Cost) & Opening Stock (Single Row with In-Field Unlimited Toggle) */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <Input
-                label={t('products.purchasePrice')}
-                placeholder="0.00"
-                type="number"
-                step="0.01"
-                value={formPurchasePrice}
-                onChange={(e) => setFormPurchasePrice(e.target.value)}
-                leftIcon={<span className="text-xs font-bold text-slate-500">₹</span>}
-                helperText={estMargin() ? `Margin: ~${estMargin()}%` : undefined}
-              />
-
-              <Input
-                label={business?.business_type === 'restaurant' ? 'Available Servings' : t('products.currentStock')}
-                placeholder={formIsUnlimitedStock ? '♾️ Unlimited' : (business?.business_type === 'restaurant' ? '999' : '10')}
-                type={formIsUnlimitedStock ? 'text' : 'number'}
-                value={formIsUnlimitedStock ? '' : formStock}
-                onChange={(e) => setFormStock(e.target.value)}
-                disabled={formIsUnlimitedStock}
-                className={formIsUnlimitedStock ? 'bg-slate-100/90 text-slate-400 font-normal italic pr-20' : 'pr-20'}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setFormIsUnlimitedStock(!formIsUnlimitedStock)}
-                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer select-none flex items-center gap-0.5 shrink-0 ${
-                      formIsUnlimitedStock
-                        ? 'bg-amber-400 border-amber-500 text-slate-950 shadow-2xs font-black'
-                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-600'
-                    }`}
-                    title={formIsUnlimitedStock ? 'Unlimited Stock active (Click to specify quantity)' : 'Click to set Unlimited Stock'}
-                  >
-                    <span>♾️</span>
-                    <span>{formIsUnlimitedStock ? 'Unlimited' : 'Max'}</span>
-                  </button>
-                }
-              />
-            </div>
-
-            {/* Row 3: GST Tax Rate & Barcode / EAN (Single Row) */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-2.5 pt-1 border-t border-slate-200">
-              {/* Left Column: GST Slabs */}
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1 truncate">
-                  {t('products.taxRate')} (GST)
-                </label>
-                <div className="flex items-center gap-1">
-                  {[0, 5, 12, 18, 28].map((rate) => (
-                    <button
-                      key={rate}
-                      type="button"
-                      onClick={() => setFormTaxRate(rate)}
-                      className={`flex-1 py-1.5 sm:py-2 rounded-lg border text-[10.5px] sm:text-xs font-bold transition-colors cursor-pointer min-h-[38px] ${
-                        formTaxRate === rate
-                          ? 'bg-slate-900 border-slate-900 text-white shadow-2xs'
-                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      {rate}%
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Right Column: Barcode / EAN */}
-              <div>
-                {hasModule(business?.business_type, 'BARCODE') ? (
-                  <Input
-                    label={t('products.barcode')}
-                    placeholder="Scan or enter barcode"
-                    value={formBarcode}
-                    onChange={(e) => setFormBarcode(e.target.value)}
-                    leftIcon={<Barcode className="w-3.5 h-3.5 text-slate-400" />}
-                    rightIcon={
-                      <button
-                        type="button"
-                        onClick={() => setIsScannerOpen(true)}
-                        className="text-slate-700 hover:text-slate-900 p-1 cursor-pointer"
-                        title="Scan Barcode via Camera"
-                      >
-                        <Camera className="w-3.5 h-3.5" />
-                      </button>
-                    }
-                  />
-                ) : (
-                  <div></div>
-                )}
-              </div>
-            </div>
-
-            {/* GST Billing Mode (if tax > 0) */}
-            {formTaxRate > 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2 rounded-lg bg-white border border-slate-200 text-xs">
-                <span className="font-bold text-slate-700">GST Billing Mode:</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setFormIsTaxInclusive(false)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition ${
-                      !formIsTaxInclusive
-                        ? 'bg-emerald-600 text-white shadow-2xs'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    + Add on Total (Exclusive)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormIsTaxInclusive(true)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition ${
-                      formIsTaxInclusive
-                        ? 'bg-emerald-600 text-white shadow-2xs'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Included in Price (Inclusive)
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Loose Weight Item Toggle (Grocery / FMCG) */}
-            {hasModule(business?.business_type, 'WEIGHT') && (
-              <label className="flex items-start gap-2 p-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={formIsLooseItem}
-                  onChange={(e) => setFormIsLooseItem(e.target.checked)}
-                  className="mt-0.5 rounded text-slate-900 focus:ring-0 cursor-pointer"
-                />
-                <div>
-                  <span className="font-bold text-slate-900 text-xs block">⚖️ Loose / Sold by Weight</span>
-                  <span className="text-[10px] text-slate-500 block leading-tight">
-                    Allows custom fractional weights (50g, 250g, 0.5 kg) in billing.
-                  </span>
-                </div>
-              </label>
-            )}
-          </div>
-
-          {/* Modal Action Buttons */}
-          <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" size="sm" className="shadow-xs">
-              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-              <span>{t('products.saveProduct')}</span>
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Rapid Barcode Inward Intake Modal */}
+      {/* Rapid Barcode Carton Inward Modal */}
       <RapidBarcodeInwardModal
         isOpen={isRapidInwardOpen}
         onClose={() => setIsRapidInwardOpen(false)}
       />
 
-      {/* Add New Category Modal */}
-      <Modal
-        isOpen={isAddCategoryModalOpen}
-        onClose={() => setIsAddCategoryModalOpen(false)}
-        title="Add New Category"
-        description="Create a custom product category for your store."
-        size="sm"
-      >
-        <form onSubmit={handleCreateCategory} className="space-y-4">
-          <Input
-            label="Category Name"
-            placeholder="e.g. Dairy & Ice Cream, Skin Care, T-Shirts..."
-            value={newCatName}
-            onChange={(e) => setNewCatName(e.target.value)}
-            required
-            autoFocus
-          />
-
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAddCategoryModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" className="bg-slate-900 text-white font-bold">
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              <span>Create Category</span>
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Excel / CSV Inventory Importer Modal */}
+      {/* Excel Inventory Importer Modal */}
       <ExcelInventoryImporter
         isOpen={isExcelImporterOpen}
         onClose={() => setIsExcelImporterOpen(false)}
         businessId={business?.id || 'biz_default'}
       />
 
-      {/* 5-Way Inward Bottom Sheet (AI OCR / PDF / CSV / Continuous Barcode / Manual) */}
+      {/* Purchase Inward Sheet */}
       <PurchaseInwardOptionsSheet
         isOpen={isPurchaseSheetOpen}
         onClose={() => setIsPurchaseSheetOpen(false)}
-        businessType={business?.business_type}
-        businessId={business?.id}
         existingProducts={allProducts}
-        onManualInwardClick={handleOpenAddModal}
-        onRapidBarcodeClick={() => setIsRapidInwardOpen(true)}
-        onScanSuccess={(_billId, updated, created) => {
-          alert(`🎉 Stock inward complete! ${updated} items restocked, ${created} new products created.`);
-        }}
+        onManualInwardClick={() => setIsPurchaseSheetOpen(false)}
       />
 
-      {/* Razorpay Pro Upgrade Modal */}
+      {/* Upgrade Modal */}
       <UpgradeModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
