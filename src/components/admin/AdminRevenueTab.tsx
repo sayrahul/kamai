@@ -6,9 +6,10 @@ import {
   TrendingUp, 
   ArrowUpRight, 
   CheckCircle2, 
-  Calendar 
+  Calendar,
+  IndianRupee,
+  ShieldCheck
 } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
 import { TransactionRecord } from '@/app/admin/page';
 import { formatINR } from '@/lib/utils';
 
@@ -24,44 +25,50 @@ export const AdminRevenueTab: React.FC<AdminRevenueTabProps> = ({
   return (
     <div className="space-y-4 animate-in fade-in duration-150">
       {/* 1. SaaS Financial Summary Card */}
-      <Card className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-4 h-4 text-emerald-600" />
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+      <div className="p-4 sm:p-5 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-black shrink-0">
+            <CreditCard className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm sm:text-base font-black text-white">
               SaaS Subscription Collections &amp; Invoices
             </h3>
+            <p className="text-xs text-slate-400">
+              Live log of Razorpay online checkout transactions &amp; license activations.
+            </p>
           </div>
-          <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">
-            Total: {formatINR(totalRevenuePaise)}
-          </span>
         </div>
-      </Card>
+
+        <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-xs font-mono font-black text-emerald-400 self-end sm:self-center">
+          Total Collections: {formatINR(totalRevenuePaise)}
+        </div>
+      </div>
 
       {/* 2. Transactions Table / List */}
-      <Card className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3">
-        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+      <div className="p-4 sm:p-5 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-xl space-y-3.5 text-slate-100">
+        <div className="divide-y divide-slate-800">
           {transactions.map((t) => (
-            <div key={t.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+            <div key={t.id} className="py-3.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-xs sm:text-sm text-white truncate">
                     {t.business_name || t.business_id}
                   </span>
-                  <span className="px-1.5 py-0.2 rounded text-[9.5px] font-black uppercase bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                     {t.tier} ({t.billing_cycle})
                   </span>
                 </div>
-                <div className="text-[11px] font-mono text-slate-400 mt-0.5 truncate">
+                <div className="text-[11px] font-mono text-slate-500 mt-1 truncate">
                   Payment ID: {t.razorpay_payment_id || t.id}
                 </div>
               </div>
 
               <div className="text-right shrink-0">
-                <div className="text-xs font-black font-mono text-slate-900 dark:text-slate-100">
+                <div className="text-xs sm:text-sm font-black font-mono text-emerald-400">
                   {formatINR(t.amount || 0)}
                 </div>
-                <div className="text-[10px] text-slate-400 font-mono">
+                <div className="text-[10.5px] text-slate-500 font-mono mt-0.5">
                   {new Date(t.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </div>
               </div>
@@ -69,12 +76,12 @@ export const AdminRevenueTab: React.FC<AdminRevenueTabProps> = ({
           ))}
 
           {transactions.length === 0 && (
-            <div className="py-10 text-center text-xs text-slate-400">
+            <div className="py-12 text-center text-xs text-slate-500">
               No SaaS subscription transactions recorded yet.
             </div>
           )}
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

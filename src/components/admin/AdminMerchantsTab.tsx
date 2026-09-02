@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Users, 
   Search, 
@@ -13,10 +13,16 @@ import {
   Eye, 
   X, 
   Sparkles, 
-  Calendar 
+  Calendar,
+  Store,
+  CheckCircle2,
+  AlertCircle,
+  LayoutGrid,
+  List,
+  ShieldCheck,
+  Building2
 } from 'lucide-react';
 import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { MerchantRecord } from '@/app/admin/page';
 import { cn } from '@/lib/utils';
@@ -52,6 +58,8 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
   onDeleteMerchant,
   onSendWhatsApp,
 }) => {
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
   const filteredMerchants = merchants.filter((m) => {
     // 1. Search Query
     if (searchQuery.trim()) {
@@ -85,23 +93,23 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
 
   return (
     <div className="space-y-4 animate-in fade-in duration-150">
-      {/* 1. Header Toolbar & Actions */}
-      <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs">
+      {/* 1. Header Search Toolbar & Actions */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-slate-900/90 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border border-slate-800 shadow-xl">
         {/* Search */}
         <div className="relative flex-1 min-w-0">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search stores by name, phone, city, GSTIN..."
+            placeholder="Search stores by name, owner, phone, city, GSTIN..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8.5 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium"
+            className="w-full pl-10 pr-9 py-2.5 text-xs bg-slate-800/90 rounded-xl border border-slate-700 text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium transition shadow-inner"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 cursor-pointer transition"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -110,173 +118,312 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
 
         {/* Buttons */}
         <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+          {/* View mode toggle */}
+          <div className="hidden sm:flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={cn(
+                "p-1.5 rounded-lg transition cursor-pointer",
+                viewMode === 'grid' ? "bg-slate-700 text-amber-400 shadow-xs" : "text-slate-400 hover:text-white"
+              )}
+              title="Grid Cards"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={cn(
+                "p-1.5 rounded-lg transition cursor-pointer",
+                viewMode === 'table' ? "bg-slate-700 text-amber-400 shadow-xs" : "text-slate-400 hover:text-white"
+              )}
+              title="Data Table"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           <Button
             size="sm"
             onClick={onOpenManualSubModal}
-            className="font-bold border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-xs px-3 py-1.5 shadow-2xs cursor-pointer rounded-xl gap-1"
+            className="font-bold border-amber-400/40 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 text-xs px-3.5 py-2 shadow-xs cursor-pointer rounded-xl gap-1.5"
           >
-            <Crown className="w-3.5 h-3.5 text-amber-600" />
+            <Crown className="w-3.5 h-3.5 text-amber-400" />
             <span>+ Grant Pro</span>
           </Button>
 
           <Button
             size="sm"
             onClick={onOpenAddMerchantModal}
-            className="font-black bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 hover:bg-slate-800 text-xs px-3.5 py-1.5 shadow-2xs cursor-pointer gap-1.5 rounded-xl"
+            className="font-black bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs px-4 py-2 shadow-md shadow-amber-500/10 cursor-pointer gap-1.5 rounded-xl"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4 stroke-[3]" />
             <span>Add Store</span>
           </Button>
         </div>
       </div>
 
-      {/* 2. Filter Chips */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs font-bold">
-        <span className="text-slate-400 text-[11px] uppercase tracking-wider pl-1">Tiers:</span>
-        {['all', 'pro', 'free'].map((tier) => (
-          <button
-            key={tier}
-            type="button"
-            onClick={() => setSelectedTierFilter(tier)}
-            className={cn(
-              "px-3 py-1 rounded-xl transition cursor-pointer capitalize",
-              selectedTierFilter === tier
-                ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-2xs"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
-            )}
-          >
-            {tier === 'all' ? 'All Tiers' : tier === 'pro' ? '⭐ Pro & Growth' : 'Free Trial'}
-          </button>
-        ))}
+      {/* 2. Filter Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-2.5 px-3.5 rounded-2xl border border-slate-800/80 text-xs">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+          <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Plan:</span>
+          {['all', 'pro', 'free'].map((tier) => (
+            <button
+              key={tier}
+              type="button"
+              onClick={() => setSelectedTierFilter(tier)}
+              className={cn(
+                "px-3 py-1 rounded-xl font-bold transition cursor-pointer capitalize text-[11px]",
+                selectedTierFilter === tier
+                  ? "bg-amber-400 text-slate-950 shadow-xs"
+                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60"
+              )}
+            >
+              {tier === 'all' ? 'All Tiers' : tier === 'pro' ? '⭐ Pro & Growth' : 'Free Trial'}
+            </button>
+          ))}
 
-        <span className="text-slate-400 text-[11px] uppercase tracking-wider pl-3">Status:</span>
-        {['all', 'active', 'inactive'].map((st) => (
-          <button
-            key={st}
-            type="button"
-            onClick={() => setSelectedStatusFilter(st)}
-            className={cn(
-              "px-3 py-1 rounded-xl transition cursor-pointer capitalize",
-              selectedStatusFilter === st
-                ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-2xs"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
-            )}
-          >
-            {st}
-          </button>
-        ))}
+          <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider pl-2">Status:</span>
+          {['all', 'active', 'inactive'].map((st) => (
+            <button
+              key={st}
+              type="button"
+              onClick={() => setSelectedStatusFilter(st)}
+              className={cn(
+                "px-3 py-1 rounded-xl font-bold transition cursor-pointer capitalize text-[11px]",
+                selectedStatusFilter === st
+                  ? "bg-slate-100 text-slate-950 shadow-xs font-black"
+                  : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60"
+              )}
+            >
+              {st}
+            </button>
+          ))}
+        </div>
+
+        <div className="text-slate-400 text-xs font-mono">
+          Showing <span className="font-bold text-amber-400">{filteredMerchants.length}</span> of {merchants.length} stores
+        </div>
       </div>
 
-      {/* 3. Merchants Directory Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filteredMerchants.map((m) => {
-          const isPro = m.subscription_tier === 'pro' || m.subscription_tier === 'growth' || m.subscription_tier === 'enterprise';
-          return (
-            <div
-              key={m.id}
-              className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between space-y-3"
-            >
-              {/* Top: Name & Tier Badge */}
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
-                        {m.name}
-                      </span>
-                      <span className={cn(
-                        "px-1.5 py-0.2 rounded text-[9.5px] font-black uppercase flex items-center gap-0.5",
-                        isPro 
-                          ? "bg-amber-100 text-amber-900 border border-amber-300"
-                          : "bg-slate-100 text-slate-700"
-                      )}>
-                        {isPro && <Crown className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />}
-                        {m.subscription_tier}
-                      </span>
+      {/* 3. Merchants View (Grid or Table) */}
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredMerchants.map((m) => {
+            const isPro = m.subscription_tier === 'pro' || m.subscription_tier === 'growth' || m.subscription_tier === 'enterprise';
+            const initials = m.name?.slice(0, 2).toUpperCase() || 'KP';
+
+            return (
+              <div
+                key={m.id}
+                className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 shadow-xl hover:shadow-2xl transition-all flex flex-col justify-between space-y-3.5 group text-slate-100"
+              >
+                {/* Top: Store Avatar, Name, Category & Badges */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    {/* Store Avatar Initial */}
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-inner border",
+                      isPro 
+                        ? "bg-amber-400/20 text-amber-300 border-amber-400/30"
+                        : "bg-slate-800 text-slate-300 border-slate-700"
+                    )}>
+                      {initials}
                     </div>
 
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono flex items-center gap-1">
-                      <Phone className="w-3 h-3 text-slate-400" />
-                      <a href={`tel:${m.phone}`} className="hover:underline">
-                        +91 {m.phone}
-                      </a>
-                      {m.owner_name && <span className="text-slate-400">• {m.owner_name}</span>}
-                    </div>
-
-                    {m.city && (
-                      <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{m.city} ({m.business_type || 'Retail'})</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-black text-sm text-white truncate group-hover:text-amber-400 transition">
+                          {m.name}
+                        </h3>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-[9px] font-black uppercase flex items-center gap-1 border",
+                          isPro 
+                            ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                            : "bg-slate-800 text-slate-400 border-slate-700"
+                        )}>
+                          {isPro && <Crown className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />}
+                          <span>{m.subscription_tier}</span>
+                        </span>
                       </div>
-                    )}
+
+                      <div className="text-xs text-slate-400 mt-1 font-mono flex items-center gap-1.5 flex-wrap">
+                        <span className="text-slate-200">{m.owner_name || 'Owner'}</span>
+                        <span className="text-slate-600">•</span>
+                        <a href={`tel:${m.phone}`} className="text-amber-400/90 hover:underline flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          <span>+91 {m.phone}</span>
+                        </a>
+                      </div>
+
+                      {m.city && (
+                        <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 shrink-0 text-slate-500" />
+                          <span className="truncate">{m.city} • <span className="capitalize">{m.business_type || 'Retail'}</span></span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => onViewMerchant(m)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    className="p-2 rounded-xl bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700 border border-slate-700/60 transition cursor-pointer shrink-0"
                     title="View Store 360"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
 
-              {/* Middle: Subscription Validity */}
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-mono">
-                <span className="text-[10.5px] text-slate-400 flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-slate-400" />
-                  <span>Valid Until:</span>
-                </span>
-                <span className={isPro ? "text-amber-600 dark:text-amber-400 font-bold" : "text-slate-500"}>
-                  {m.subscription_expires_at || m.subscription_valid_until
-                    ? new Date(m.subscription_expires_at || m.subscription_valid_until!).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })
-                    : 'Free / Unlimited'}
-                </span>
-              </div>
+                {/* Middle: Validity & Status */}
+                <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
+                  <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Valid Until:</span>
+                  </span>
+                  <span className={isPro ? "text-amber-400 font-bold" : "text-slate-400"}>
+                    {m.subscription_expires_at || m.subscription_valid_until
+                      ? new Date(m.subscription_expires_at || m.subscription_valid_until!).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })
+                      : 'Free / Trial'}
+                  </span>
+                </div>
 
-              {/* Bottom: Action Buttons */}
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => onSendWhatsApp(m)}
-                  className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition cursor-pointer shadow-2xs"
-                  title="Send WhatsApp Message"
-                >
-                  <WhatsAppLogo className="w-3.5 h-3.5" />
-                </button>
-
-                <div className="flex items-center gap-1.5">
+                {/* Bottom: Action Toolbar */}
+                <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
                   <button
                     type="button"
-                    onClick={() => onEditMerchant(m)}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                    title="Edit Merchant"
+                    onClick={() => onSendWhatsApp(m)}
+                    className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                    title="Send WhatsApp Message"
                   >
-                    <Edit3 className="w-3.5 h-3.5" />
+                    <WhatsAppLogo className="w-3.5 h-3.5" />
+                    <span className="text-[11px]">Chat</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteMerchant(m)}
-                    className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
-                    title="Delete Merchant"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onEditMerchant(m)}
+                      className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700/60 transition cursor-pointer"
+                      title="Edit Merchant"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteMerchant(m)}
+                      className="p-1.5 rounded-xl bg-rose-500/10 text-rose-400 hover:text-rose-200 hover:bg-rose-500/25 border border-rose-500/30 transition cursor-pointer"
+                      title="Delete Merchant"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-
-        {filteredMerchants.length === 0 && (
-          <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-            <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-            <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">No merchants found</div>
-            <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search query.</p>
+            );
+          })}
+        </div>
+      ) : (
+        /* Compact Table View */
+        <div className="bg-slate-900/90 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-800/80 text-slate-400 text-[11px] font-black uppercase tracking-wider border-b border-slate-700">
+                <tr>
+                  <th className="py-3 px-4">Store Name</th>
+                  <th className="py-3 px-4">Owner &amp; Phone</th>
+                  <th className="py-3 px-4">Plan / Tier</th>
+                  <th className="py-3 px-4">City / Category</th>
+                  <th className="py-3 px-4">Expires</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {filteredMerchants.map((m) => {
+                  const isPro = m.subscription_tier === 'pro' || m.subscription_tier === 'growth' || m.subscription_tier === 'enterprise';
+                  return (
+                    <tr key={m.id} className="hover:bg-slate-800/50 transition">
+                      <td className="py-3 px-4 font-bold text-white">
+                        <div className="flex items-center gap-2">
+                          <Store className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span>{m.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 font-mono">
+                        <div>{m.owner_name || '—'}</div>
+                        <div className="text-slate-400 text-[11px]">+91 {m.phone}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase inline-flex items-center gap-1 border",
+                          isPro ? "bg-amber-500/15 text-amber-300 border-amber-500/30" : "bg-slate-800 text-slate-400 border-slate-700"
+                        )}>
+                          {isPro && <Crown className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />}
+                          {m.subscription_tier}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div>{m.city || '—'}</div>
+                        <div className="text-slate-400 text-[11px] capitalize">{m.business_type || 'Retail'}</div>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-slate-400">
+                        {m.subscription_expires_at || m.subscription_valid_until
+                          ? new Date(m.subscription_expires_at || m.subscription_valid_until!).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
+                          : 'Trial'}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onSendWhatsApp(m)}
+                            className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 cursor-pointer"
+                            title="WhatsApp"
+                          >
+                            <WhatsAppLogo className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onViewMerchant(m)}
+                            className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                            title="View 360"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onEditMerchant(m)}
+                            className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                            title="Edit"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteMerchant(m)}
+                            className="p-1.5 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/30 cursor-pointer"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {filteredMerchants.length === 0 && (
+        <div className="col-span-full py-16 text-center text-slate-400 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl">
+          <Users className="w-10 h-10 mx-auto mb-3 text-slate-600" />
+          <div className="font-bold text-slate-200 text-sm">No merchants found</div>
+          <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search keyword.</p>
+        </div>
+      )}
     </div>
   );
 };

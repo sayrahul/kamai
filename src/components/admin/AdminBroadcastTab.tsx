@@ -11,9 +11,7 @@ import {
   Loader2, 
   Save 
 } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { GlobalBroadcastBanner } from '@/components/common/GlobalBroadcastBanner';
 
 interface AdminBroadcastTabProps {
   broadcastEnabled: boolean;
@@ -54,15 +52,18 @@ export const AdminBroadcastTab: React.FC<AdminBroadcastTabProps> = ({
 }) => {
   return (
     <div className="space-y-4 animate-in fade-in duration-150">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Left: Configuration Form */}
-        <Card className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-            <div className="flex items-center gap-2">
-              <Radio className="w-4 h-4 text-amber-600 animate-pulse" />
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                Global Push Banner Broadcast
-              </h3>
+        <div className="p-4 sm:p-5 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-xl space-y-4 text-slate-100">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
+            <div className="flex items-center gap-2.5">
+              <Radio className="w-5 h-5 text-amber-400 animate-pulse" />
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-white">
+                  Global Push Banner Broadcast
+                </h3>
+                <p className="text-xs text-slate-400">Push real-time announcements to all merchant screens.</p>
+              </div>
             </div>
 
             {/* Toggle Switch */}
@@ -73,29 +74,29 @@ export const AdminBroadcastTab: React.FC<AdminBroadcastTabProps> = ({
                 onChange={(e) => setBroadcastEnabled(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-10 h-5.5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-amber-500" />
-              <span className="ml-2 text-xs font-black text-slate-900 dark:text-slate-100">
+              <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-400" />
+              <span className="ml-2 text-xs font-black text-white">
                 {broadcastEnabled ? 'LIVE' : 'OFF'}
               </span>
             </label>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Broadcast Message Content (Shown to all retail users)
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">
+              Broadcast Message Content (Shown across merchant POS apps)
             </label>
             <textarea
               rows={3}
               placeholder="e.g. ✨ Special Diwali Offer: 50% Off on Kamai+ Pro! Instant WhatsApp bills & GST reports."
               value={broadcastMessage}
               onChange={(e) => setBroadcastMessage(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+              className="w-full p-3 rounded-xl border border-slate-700 bg-slate-800 text-white placeholder:text-slate-500 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
 
           {/* Banner Type Chips */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">
               Banner Theme / Style
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -111,8 +112,8 @@ export const AdminBroadcastTab: React.FC<AdminBroadcastTabProps> = ({
                   onClick={() => setBroadcastType(t.id as any)}
                   className={`p-2 rounded-xl text-xs font-bold transition cursor-pointer border ${
                     broadcastType === t.id
-                      ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-2xs'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                      ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-md font-black'
+                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
                   }`}
                 >
                   {t.label}
@@ -123,7 +124,7 @@ export const AdminBroadcastTab: React.FC<AdminBroadcastTabProps> = ({
 
           {/* Action Link */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">
               Action Deep-Link URL (Optional)
             </label>
             <input
@@ -131,7 +132,7 @@ export const AdminBroadcastTab: React.FC<AdminBroadcastTabProps> = ({
               placeholder="e.g. /pricing or /khata or https://wa.me/..."
               value={broadcastLink}
               onChange={(e) => setBroadcastLink(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-amber-500"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-white placeholder:text-slate-500 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
 
@@ -139,29 +140,29 @@ export const AdminBroadcastTab: React.FC<AdminBroadcastTabProps> = ({
             type="button"
             onClick={onSaveBroadcast}
             disabled={isSavingBroadcast}
-            className="w-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 hover:bg-slate-800 font-black text-xs py-2.5 rounded-xl shadow-2xs cursor-pointer gap-2"
+            className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-3 rounded-xl shadow-lg shadow-amber-500/10 cursor-pointer gap-2"
           >
             {isSavingBroadcast ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             <span>Save &amp; Deploy Global Broadcast</span>
           </Button>
-        </Card>
+        </div>
 
         {/* Right: Live Interactive Mockup Preview */}
-        <Card className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div className="p-4 sm:p-5 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-xl flex flex-col justify-between space-y-4 text-slate-100">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
             <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                Live Retail App Preview
+              <Eye className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-sm sm:text-base font-black text-white">
+                Live POS Terminal Preview
               </h3>
             </div>
 
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+            <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700">
               <button
                 type="button"
                 onClick={() => setBroadcastPreviewDevice('mobile')}
-                className={`p-1.5 rounded-lg cursor-pointer ${
-                  broadcastPreviewDevice === 'mobile' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-2xs' : 'text-slate-400'
+                className={`p-1.5 rounded-lg cursor-pointer transition ${
+                  broadcastPreviewDevice === 'mobile' ? 'bg-slate-700 text-amber-400 shadow-xs' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 <Smartphone className="w-3.5 h-3.5" />
@@ -169,8 +170,8 @@ export const AdminBroadcastTab: React.FC<AdminBroadcastTabProps> = ({
               <button
                 type="button"
                 onClick={() => setBroadcastPreviewDevice('desktop')}
-                className={`p-1.5 rounded-lg cursor-pointer ${
-                  broadcastPreviewDevice === 'desktop' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-2xs' : 'text-slate-400'
+                className={`p-1.5 rounded-lg cursor-pointer transition ${
+                  broadcastPreviewDevice === 'desktop' ? 'bg-slate-700 text-amber-400 shadow-xs' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 <Monitor className="w-3.5 h-3.5" />
@@ -181,20 +182,20 @@ export const AdminBroadcastTab: React.FC<AdminBroadcastTabProps> = ({
           <div className={`mx-auto w-full transition-all ${
             broadcastPreviewDevice === 'mobile' ? 'max-w-xs' : 'max-w-md'
           }`}>
-            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 shadow-xl space-y-3">
-              <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold text-center">
+            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 shadow-2xl space-y-3">
+              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold text-center">
                 Merchant Screen Header
               </div>
 
               {broadcastEnabled ? (
-                <div className={`p-2.5 rounded-xl text-xs font-bold text-center ${
+                <div className={`p-3 rounded-xl text-xs font-bold text-center shadow-lg ${
                   broadcastType === 'festive'
-                    ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950'
+                    ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black'
                     : broadcastType === 'warning'
-                    ? 'bg-rose-600 text-white'
-                    : 'bg-sky-600 text-white'
+                    ? 'bg-rose-600 text-white font-bold'
+                    : 'bg-sky-600 text-white font-bold'
                 }`}>
-                  {broadcastMessage}
+                  {broadcastMessage || 'Sample live broadcast alert message'}
                 </div>
               ) : (
                 <div className="p-3 text-center text-xs text-slate-600 border border-dashed border-slate-800 rounded-xl">
@@ -202,16 +203,16 @@ export const AdminBroadcastTab: React.FC<AdminBroadcastTabProps> = ({
                 </div>
               )}
 
-              <div className="p-4 bg-slate-900 rounded-xl text-center text-xs text-slate-500">
-                Store POS Billing Content Area...
+              <div className="p-5 bg-slate-900/80 rounded-xl text-center text-xs text-slate-500 border border-slate-800/60">
+                Store POS Terminal Content Area...
               </div>
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-400 text-center font-medium">
-            Broadcast updates reflect across all live POS terminals within 60 seconds.
+          <div className="text-[11px] text-slate-500 text-center font-medium">
+            Broadcast updates reflect across all live POS terminals automatically.
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

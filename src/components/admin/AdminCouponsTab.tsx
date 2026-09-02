@@ -8,12 +8,11 @@ import {
   Check, 
   Trash2, 
   Percent, 
-  IndianRupee 
+  IndianRupee,
+  Sparkles
 } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { AdminCoupon } from '@/app/api/admin/coupons/route';
-import { formatINR } from '@/lib/utils';
 
 interface AdminCouponsTabProps {
   coupons: AdminCoupon[];
@@ -32,15 +31,17 @@ export const AdminCouponsTab: React.FC<AdminCouponsTabProps> = ({
 }) => {
   return (
     <div className="space-y-4 animate-in fade-in duration-150">
-      <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs">
-        <div className="flex items-center gap-2">
-          <Tag className="w-4 h-4 text-purple-600" />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900/90 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-400 flex items-center justify-center font-black shrink-0">
+            <Tag className="w-5 h-5" />
+          </div>
           <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-              Discount Promo Codes &amp; Referral Campaign
+            <h3 className="text-sm sm:text-base font-black text-white">
+              Discount Promo Codes &amp; Referral Campaigns
             </h3>
-            <p className="text-[10.5px] text-slate-400">
-              Generate promo codes for merchant onboarding discounts &amp; festival campaigns.
+            <p className="text-xs text-slate-400 mt-0.5">
+              Generate custom promo codes for merchant SaaS checkout discounts.
             </p>
           </div>
         </div>
@@ -48,65 +49,71 @@ export const AdminCouponsTab: React.FC<AdminCouponsTabProps> = ({
         <Button
           size="sm"
           onClick={onOpenCreateModal}
-          className="font-black bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 hover:bg-slate-800 text-xs px-3.5 py-1.5 shadow-2xs cursor-pointer gap-1.5 rounded-xl"
+          className="font-black bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs px-4 py-2 shadow-md shadow-amber-500/10 cursor-pointer gap-1.5 rounded-xl self-end sm:self-center"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-4 h-4 stroke-[3]" />
           <span>+ Create Coupon</span>
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {coupons.map((c) => (
-          <Card
+          <div
             key={c.code}
-            className="p-4 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs flex flex-col justify-between space-y-3"
+            className="p-4 sm:p-5 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl flex flex-col justify-between space-y-3.5 relative overflow-hidden group hover:border-purple-500/40 transition"
           >
+            {/* Top decorative badge */}
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-black text-sm text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                  <span className="font-mono font-black text-base text-amber-300 uppercase tracking-widest bg-slate-800/90 px-3 py-1 rounded-xl border border-slate-700">
                     {c.code}
                   </span>
                   <button
                     type="button"
                     onClick={() => onCopyCode(c.code)}
-                    className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer"
+                    className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition cursor-pointer border border-slate-700/60"
                     title="Copy Code"
                   >
                     {copiedCode === c.code ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <Check className="w-4 h-4 text-emerald-400" />
                     ) : (
-                      <Copy className="w-3.5 h-3.5" />
+                      <Copy className="w-4 h-4" />
                     )}
                   </button>
                 </div>
-                <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                  {c.discount_type === 'percentage'
-                    ? `${c.discount_value}% OFF`
-                    : `Flat ₹${c.discount_value} OFF`}
+                <div className="text-sm font-black text-emerald-400 mt-2 flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>
+                    {c.discount_type === 'percentage'
+                      ? `${c.discount_value}% Discount OFF`
+                      : `Flat ₹${c.discount_value} Discount OFF`}
+                  </span>
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={() => onDeleteCoupon(c.id || c.code)}
-                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer"
+                className="p-1.5 rounded-xl bg-rose-500/10 text-rose-400 hover:text-rose-200 hover:bg-rose-500/25 border border-rose-500/30 transition cursor-pointer"
                 title="Delete Coupon"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-mono text-slate-400">
-              <span>Uses: {c.redemptions_count || 0} / {c.max_redemptions || '∞'}</span>
-              <span>Min Order: ₹{c.min_order_amount || 0}</span>
+            <div className="pt-2.5 border-t border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
+              <span>Status: <span className="text-emerald-400 font-bold">Active</span></span>
+              <span>{c.redemptions_count || 0} times claimed</span>
             </div>
-          </Card>
+          </div>
         ))}
 
         {coupons.length === 0 && (
-          <div className="col-span-full py-10 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-            No promo coupons created yet. Create one above to offer subscription discounts.
+          <div className="col-span-full py-16 text-center text-slate-400 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl">
+            <Tag className="w-10 h-10 mx-auto mb-3 text-slate-600" />
+            <div className="font-bold text-slate-200 text-sm">No promo coupons active</div>
+            <p className="text-xs text-slate-500 mt-1">Create your first coupon code to offer merchant discounts.</p>
           </div>
         )}
       </div>

@@ -684,7 +684,7 @@ export default function MasterSuperAdminPage() {
   }
 
   return (
-    <div className="space-y-4 pb-20 animate-in fade-in duration-150">
+    <div className="min-h-screen bg-slate-950 text-slate-100 max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6 pb-28 animate-in fade-in duration-150">
       {/* 1. Header Bar */}
       <AdminHeader
         isLoadingData={isLoadingData}
