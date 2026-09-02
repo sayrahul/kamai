@@ -12,10 +12,18 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan = 'pro', billingCycle = 'annual' } = body;
 
-    // 1. Identify user / business (cookie session or body fallback)
+    // 1. Enforce strict cryptographic session verification (No client body fallback)
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
     const payload = sessionCookie ? verifySessionToken(sessionCookie) : null;
-    const businessId = payload?.business_id || body.businessId || body.business_id || 'biz_local';
+
+    if (!payload || !payload.business_id) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized. Valid merchant login session required to verify payment.' },
+        { status: 401 }
+      );
+    }
+
+    const businessId = payload.business_id;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json(

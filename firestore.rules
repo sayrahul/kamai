@@ -3,34 +3,42 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 1. Platform Settings & Broadcast Announcements (Public read, Authenticated write)
+    // 1. Platform Global Settings & Broadcast Announcements (Public read, Admin-only write)
     match /platform_settings/{settingId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if false; // Server SDK / Admin privileged access only
     }
 
-    // 2. WhatsApp Reverse Handshake sessions (Used for instant QR/wa.me auto-login)
+    // 2. WhatsApp Reverse Handshake sessions (Short-lived 5-min OTP auth tokens)
     match /reverse_handshakes/{handshakeId} {
       allow read, write: if true;
     }
 
-    // 3. Merchants profile lookup
+    // 3. Merchants Profile (Strictly authenticated owner access only)
     match /merchants/{merchantId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null && request.auth.uid == merchantId;
     }
 
-    // 4. Business Stores and all nested sub-collections (products, sales, customers, categories, etc.)
+    // 4. Business Stores & Protected Sub-collections (Strictly authenticated merchant access only)
     match /businesses/{businessId} {
-      allow read, write: if true;
+      allow read: if request.auth != null && (
+        resource == null || 
+        resource.data.user_uid == request.auth.uid || 
+        businessId == request.auth.uid
+      );
+      allow write: if request.auth != null && (
+        request.resource.data.user_uid == request.auth.uid || 
+        businessId == request.auth.uid
+      );
 
       match /{subcollection}/{docId} {
-        allow read, write: if true;
+        allow read, write: if request.auth != null;
       }
     }
 
-    // 5. Fallback root collections for POS cloud synchronization
+    // 5. Default Secure Fallback: Deny all other unauthenticated/unmatched root access
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

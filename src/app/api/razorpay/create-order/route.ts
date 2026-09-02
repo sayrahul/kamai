@@ -2,7 +2,6 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth/session';
-
 import { getLivePlatformConfig } from '@/app/api/admin/config/route';
 
 export const dynamic = 'force-dynamic';
@@ -14,13 +13,20 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
 
-    // 1. Identify user / business (from cookie session or body fallback)
+    // 1. Enforce strict cryptographic session verification (No client body fallback)
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
     const payload = sessionCookie ? verifySessionToken(sessionCookie) : null;
 
-    const businessId = payload?.business_id || body.businessId || body.business_id || 'biz_local';
-    const staffId = payload?.staff_id || 'staff_owner';
-    const phone = payload?.phone || body.phone || '';
+    if (!payload || !payload.business_id) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized. Valid merchant login session required to initiate subscription payment.' },
+        { status: 401 }
+      );
+    }
+
+    const businessId = payload.business_id;
+    const staffId = payload.staff_id || 'staff_owner';
+    const phone = payload.phone || '';
 
     const plan = (body.plan as string) || 'pro';
     const billingCycle = body.billingCycle === 'monthly' ? 'monthly' : 'annual';
