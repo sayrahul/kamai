@@ -147,13 +147,22 @@ export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'Missing coupon ID' }, { status: 400 });
+    const code = searchParams.get('code');
+    if (!id && !code) return NextResponse.json({ error: 'Missing coupon ID or code' }, { status: 400 });
 
-    cachedCoupons = cachedCoupons.filter((c) => c.id !== id);
+    cachedCoupons = cachedCoupons.filter((c) => {
+      if (id && c.id === id) return false;
+      if (code && c.code.toUpperCase() === code.toUpperCase()) return false;
+      return true;
+    });
 
     const supabase = getSupabaseServerClient();
     if (supabase) {
-      await supabase.from('platform_coupons').delete().eq('id', id);
+      if (id) {
+        await supabase.from('platform_coupons').delete().eq('id', id);
+      } else if (code) {
+        await supabase.from('platform_coupons').delete().eq('code', code.toUpperCase());
+      }
     }
 
     return NextResponse.json({ success: true, coupons: cachedCoupons });

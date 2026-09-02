@@ -437,33 +437,160 @@ export default function MasterSuperAdminPage() {
     }
   };
 
-  // Quick Grant Pro
-  const handleGrantProLicense = async (e: React.FormEvent) => {
+  // Add Merchant
+  const handleAddMerchant = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualPhoneOrId.trim()) return;
+    if (!addName.trim() || !addPhone.trim()) {
+      showToast('⚠️ Store Name and Phone are required');
+      return;
+    }
+    setIsCreatingMerchant(true);
 
     try {
-      const res = await fetch('/api/admin/merchants/grant-pro', {
+      const res = await fetch('/api/admin/merchants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          identifier: manualPhoneOrId.trim(),
-          tier: manualTier,
-          durationDays: manualDurationDays,
+          name: addName.trim(),
+          owner_name: addOwnerName.trim(),
+          phone: addPhone.trim(),
+          email: addEmail.trim(),
+          city: addCity.trim(),
+          address: addAddress.trim(),
+          gstin: addGstin.trim(),
+          business_type: addBusinessType,
+          subscription_tier: addTier,
+          days_validity: addDaysValidity,
         }),
       });
 
       const data = await res.json();
-      if (data.success) {
-        showToast(`👑 Pro subscription granted to ${manualPhoneOrId}!`);
-        setIsManualSubModalOpen(false);
-        setManualPhoneOrId('');
+      if (res.ok && data.success) {
+        showToast(`🎉 Merchant "${addName}" created successfully!`);
+        setIsAddMerchantModalOpen(false);
+        setAddName('');
+        setAddOwnerName('');
+        setAddPhone('');
+        setAddEmail('');
+        setAddCity('');
+        setAddAddress('');
+        setAddGstin('');
         fetchAdminData();
       } else {
-        showToast('⚠️ ' + (data.error || 'Failed to grant license'));
+        showToast('⚠️ ' + (data.message || data.error || 'Failed to create merchant'));
       }
-    } catch (err) {
-      showToast('⚠️ Connection error');
+    } catch (err: any) {
+      showToast('⚠️ Error creating merchant: ' + (err?.message || 'Server error'));
+    } finally {
+      setIsCreatingMerchant(false);
+    }
+  };
+
+  // Update Merchant
+  const handleUpdateMerchant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMerchantForEdit) return;
+    setIsUpdatingMerchant(true);
+
+    try {
+      const res = await fetch(`/api/admin/merchants/${selectedMerchantForEdit.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName.trim(),
+          owner_name: editOwnerName.trim(),
+          phone: editPhone.trim(),
+          email: editEmail.trim(),
+          city: editCity.trim(),
+          address: editAddress.trim(),
+          gstin: editGstin.trim(),
+          business_type: editBusinessType,
+          subscription_tier: editTier,
+          days_extension: editDaysExtension,
+          is_active: editIsActive,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`✅ Merchant "${editName}" updated!`);
+        setIsEditModalOpen(false);
+        setSelectedMerchantForEdit(null);
+        fetchAdminData();
+      } else {
+        showToast('⚠️ ' + (data.message || data.error || 'Failed to update merchant'));
+      }
+    } catch (err: any) {
+      showToast('⚠️ Error updating merchant: ' + (err?.message || 'Server error'));
+    } finally {
+      setIsUpdatingMerchant(false);
+    }
+  };
+
+  // Delete Merchant
+  const handleDeleteMerchant = async () => {
+    if (!merchantToDelete) return;
+    setIsDeletingMerchant(true);
+
+    try {
+      const res = await fetch(`/api/admin/merchants/${merchantToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`🗑️ Merchant "${merchantToDelete.name}" removed from platform.`);
+        setMerchantToDelete(null);
+        fetchAdminData();
+      } else {
+        showToast('⚠️ ' + (data.message || data.error || 'Failed to delete merchant'));
+      }
+    } catch (err: any) {
+      showToast('⚠️ Delete error: ' + (err?.message || 'Server error'));
+    } finally {
+      setIsDeletingMerchant(false);
+    }
+  };
+
+  // Quick Grant Pro
+  const handleGrantProLicense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = manualPhoneOrId.trim();
+    if (!query) return;
+
+    // Find target merchant in loaded merchants
+    const target = merchants.find(
+      (m) =>
+        m.id === query ||
+        m.phone === query.replace(/\D/g, '') ||
+        m.phone.endsWith(query.replace(/\D/g, ''))
+    );
+
+    if (target) {
+      try {
+        const res = await fetch(`/api/admin/merchants/${target.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription_tier: manualTier,
+            days_extension: manualDurationDays,
+          }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`👑 ${manualTier.toUpperCase()} subscription granted to ${target.name}!`);
+          setIsManualSubModalOpen(false);
+          setManualPhoneOrId('');
+          fetchAdminData();
+        } else {
+          showToast('⚠️ ' + (data.message || data.error || 'Failed to grant license'));
+        }
+      } catch (err) {
+        showToast('⚠️ Connection error');
+      }
+    } else {
+      showToast(`⚠️ No merchant found matching "${query}". Please check phone number.`);
     }
   };
 
@@ -742,6 +869,352 @@ export default function MasterSuperAdminPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* 3. Add Merchant Store Modal */}
+      <Modal
+        isOpen={isAddMerchantModalOpen}
+        onClose={() => setIsAddMerchantModalOpen(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <Plus className="w-5 h-5 text-emerald-500" />
+            <span>Onboard New Merchant Store</span>
+          </div>
+        }
+        description="Register a new retail shop, assign initial subscription tier, and provision credentials."
+      >
+        <form onSubmit={handleAddMerchant} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Store / Business Name *"
+              placeholder="e.g. Ramesh Supermart"
+              value={addName}
+              onChange={(e) => setAddName(e.target.value)}
+              required
+              autoFocus
+            />
+            <Input
+              label="Owner Full Name"
+              placeholder="e.g. Ramesh Gupta"
+              value={addOwnerName}
+              onChange={(e) => setAddOwnerName(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Phone Number (10-Digit WhatsApp) *"
+              placeholder="e.g. 9876543210"
+              value={addPhone}
+              onChange={(e) => setAddPhone(e.target.value)}
+              required
+            />
+            <Input
+              label="Owner Email Address"
+              placeholder="e.g. store@example.com"
+              type="email"
+              value={addEmail}
+              onChange={(e) => setAddEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Input
+              label="City / Town"
+              placeholder="e.g. Pune"
+              value={addCity}
+              onChange={(e) => setAddCity(e.target.value)}
+            />
+            <Input
+              label="Address / Area"
+              placeholder="e.g. MG Road, Camp"
+              value={addAddress}
+              onChange={(e) => setAddAddress(e.target.value)}
+            />
+            <Input
+              label="GSTIN Number"
+              placeholder="e.g. 27AAAAA0000A1Z5"
+              value={addGstin}
+              onChange={(e) => setAddGstin(e.target.value.toUpperCase())}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Store Category
+              </label>
+              <select
+                value={addBusinessType}
+                onChange={(e) => setAddBusinessType(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
+              >
+                <option value="grocery">Grocery / Kirana</option>
+                <option value="clothing">Apparel / Clothing</option>
+                <option value="electronics">Electronics &amp; Mobile</option>
+                <option value="restaurant">Cafe / Restaurant</option>
+                <option value="pharmacy">Pharmacy / Medical</option>
+                <option value="hardware">Hardware &amp; Electrical</option>
+                <option value="other">General Retail</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Initial Plan
+              </label>
+              <select
+                value={addTier}
+                onChange={(e) => setAddTier(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
+              >
+                <option value="free">Free Forever (₹0)</option>
+                <option value="pro">Pro Plan</option>
+                <option value="growth">Growth Plan</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Validity (Days)
+              </label>
+              <select
+                value={addDaysValidity}
+                onChange={(e) => setAddDaysValidity(Number(e.target.value))}
+                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
+              >
+                <option value={30}>30 Days</option>
+                <option value={90}>90 Days</option>
+                <option value={365}>365 Days (1 Year)</option>
+                <option value={730}>730 Days (2 Years)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsAddMerchantModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isCreatingMerchant} className="bg-emerald-600 hover:bg-emerald-700 text-white font-black">
+              {isCreatingMerchant ? 'Creating...' : 'Create Merchant'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 4. Edit Merchant Store Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <Edit3 className="w-5 h-5 text-indigo-500" />
+            <span>Edit Merchant Store: {selectedMerchantForEdit?.name}</span>
+          </div>
+        }
+        description="Update merchant account details, extend subscription validity, or toggle access status."
+      >
+        <form onSubmit={handleUpdateMerchant} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Store / Business Name *"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              required
+            />
+            <Input
+              label="Owner Full Name"
+              value={editOwnerName}
+              onChange={(e) => setEditOwnerName(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Phone Number"
+              value={editPhone}
+              onChange={(e) => setEditPhone(e.target.value)}
+              required
+            />
+            <Input
+              label="Owner Email Address"
+              type="email"
+              value={editEmail}
+              onChange={(e) => setEditEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="City / Town"
+              value={editCity}
+              onChange={(e) => setEditCity(e.target.value)}
+            />
+            <Input
+              label="GSTIN Number"
+              value={editGstin}
+              onChange={(e) => setEditGstin(e.target.value.toUpperCase())}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Subscription Plan
+              </label>
+              <select
+                value={editTier}
+                onChange={(e) => setEditTier(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
+              >
+                <option value="free">Free Forever</option>
+                <option value="pro">Pro Plan</option>
+                <option value="growth">Growth Plan</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Extend Expiry (+Days)
+              </label>
+              <select
+                value={editDaysExtension}
+                onChange={(e) => setEditDaysExtension(Number(e.target.value))}
+                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
+              >
+                <option value={0}>No change</option>
+                <option value={30}>+30 Days (1 Month)</option>
+                <option value={90}>+90 Days (3 Months)</option>
+                <option value={365}>+365 Days (1 Year)</option>
+                <option value={730}>+730 Days (2 Years)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Account Status
+              </label>
+              <select
+                value={editIsActive ? 'active' : 'inactive'}
+                onChange={(e) => setEditIsActive(e.target.value === 'active')}
+                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
+              >
+                <option value="active">Active (Access Allowed)</option>
+                <option value="inactive">Frozen / Blocked</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isUpdatingMerchant} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black">
+              {isUpdatingMerchant ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 5. Delete Merchant Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(merchantToDelete)}
+        onClose={() => setMerchantToDelete(null)}
+        title={
+          <div className="flex items-center gap-2 text-rose-600">
+            <Trash2 className="w-5 h-5" />
+            <span>Permanently Delete Merchant Store?</span>
+          </div>
+        }
+        description={`Are you sure you want to delete "${merchantToDelete?.name}" (+91${merchantToDelete?.phone})? This will wipe cloud store records and cannot be undone.`}
+      >
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => setMerchantToDelete(null)}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={isDeletingMerchant}
+            onClick={handleDeleteMerchant}
+            className="bg-rose-600 hover:bg-rose-700 text-white font-black"
+          >
+            {isDeletingMerchant ? 'Deleting...' : 'Confirm Delete'}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* 6. Merchant 360 View Dossier Modal */}
+      <Modal
+        isOpen={Boolean(selectedMerchantForView)}
+        onClose={() => setSelectedMerchantForView(null)}
+        title={
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-blue-600" />
+            <span>Store Dossier: {selectedMerchantForView?.name}</span>
+          </div>
+        }
+        description="Comprehensive 360-degree merchant platform profile and sync metadata."
+      >
+        {selectedMerchantForView && (
+          <div className="space-y-3.5 text-xs">
+            <div className="grid grid-cols-2 gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Store Name</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMerchantForView.name}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Owner Name</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMerchantForView.owner_name || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Mobile Phone</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">+91 {selectedMerchantForView.phone}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Email</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMerchantForView.email || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">City / Location</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMerchantForView.city || 'India'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">GSTIN</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMerchantForView.gstin || 'Unregistered'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Subscription Tier</span>
+                <span className="font-black uppercase text-amber-600 dark:text-amber-400">{selectedMerchantForView.subscription_tier}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Store ID</span>
+                <span className="font-mono text-[10px] text-slate-500 truncate block">{selectedMerchantForView.id}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  window.open(`https://wa.me/91${selectedMerchantForView.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${selectedMerchantForView.name}! Special update from KamaiPlus Master Support.`)}`, '_blank');
+                }}
+                className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 text-xs font-bold gap-1"
+              >
+                <span>WhatsApp Merchant</span>
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setSelectedMerchantForView(null)}
+                className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 text-xs font-bold"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Floating Toast */}
