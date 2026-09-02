@@ -546,10 +546,7 @@ export default function BillingPage() {
   const [quickAddName, setQuickAddName] = useState('');
   const [completedSaleDetails, setCompletedSaleDetails] = useState<any>(null);
 
-  // Quick Invoice Number / Prefix Modal State
-  const [isInvoiceNumberModalOpen, setIsInvoiceNumberModalOpen] = useState(false);
-  const [quickEditPrefix, setQuickEditPrefix] = useState('INV-');
-  const [quickEditNextNum, setQuickEditNextNum] = useState('1');
+
 
   // Live Dynamic UPI QR Code States
   const [posQrDataUrl, setPosQrDataUrl] = useState<string>('');
@@ -1393,29 +1390,7 @@ export default function BillingPage() {
         </button>
       </div>
 
-      {/* Active Upcoming Invoice Indicator & Quick Number Change */}
-      <div className="flex items-center justify-between px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs shadow-2xs">
-        <div className="flex items-center gap-1.5 font-semibold text-slate-700">
-          <Receipt className="w-3.5 h-3.5 text-amber-600" />
-          <span>Next Bill #:</span>
-          <span className="font-mono font-black text-slate-900 bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-2xs">
-            {business?.invoice_prefix || 'INV-'}{String(business?.next_invoice_number || 1).padStart(3, '0')}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setQuickEditPrefix(business?.invoice_prefix || 'INV-');
-            setQuickEditNextNum((business?.next_invoice_number || 1).toString());
-            setIsInvoiceNumberModalOpen(true);
-          }}
-          className="text-[11px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer bg-amber-100/70 hover:bg-amber-200/80 px-2 py-0.5 rounded-lg border border-amber-300/80 transition active:scale-95 shadow-2xs"
-          title="Change next invoice number or sequence prefix"
-        >
-          <Edit2 className="w-3 h-3 text-amber-700" />
-          <span>Change #</span>
-        </button>
-      </div>
+
 
       {/* Restaurant Dynamic Controls: Dine-In / Parcel / Delivery & Tables */}
       {storeProfile.featureToggles.showTableOrderType && (
@@ -2764,96 +2739,7 @@ export default function BillingPage() {
         onScan={handleBarcodeScanned}
       />
 
-      {/* Quick Invoice Number / Prefix Config Modal */}
-      <Modal
-        isOpen={isInvoiceNumberModalOpen}
-        onClose={() => setIsInvoiceNumberModalOpen(false)}
-        title="Change Invoice Sequence Number"
-        description="Set the invoice prefix and starting number for upcoming POS bills."
-        size="sm"
-      >
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            try {
-              const currentBiz = business || (await ensureStarterBusinessIfEmpty());
-              const parsedNum = parseInt(quickEditNextNum, 10);
-              const finalNum = isNaN(parsedNum) || parsedNum < 1 ? 1 : parsedNum;
-              const finalPrefix = quickEditPrefix.trim() || 'INV-';
 
-              if (currentBiz?.id) {
-                await db.businesses.update(currentBiz.id, {
-                  invoice_prefix: finalPrefix,
-                  next_invoice_number: finalNum,
-                  updated_at: new Date().toISOString(),
-                });
-              }
-
-              showBillingToast(`✅ Next Invoice sequence updated to ${finalPrefix}${String(finalNum).padStart(3, '0')}`, 'success');
-              setIsInvoiceNumberModalOpen(false);
-            } catch (err: any) {
-              showBillingToast(`Failed to update invoice number: ${err?.message}`, 'error');
-            }
-          }}
-          className="space-y-3.5 p-1"
-        >
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Invoice Prefix</label>
-            <Input
-              value={quickEditPrefix}
-              onChange={(e) => setQuickEditPrefix(e.target.value)}
-              placeholder="INV-"
-              className="font-mono font-bold"
-            />
-            <span className="text-[10.5px] text-slate-500 mt-1 block">
-              Prefix text before the number (e.g. INV-, BILL-, 2026/, SHOP-)
-            </span>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Next Sequence Number *</label>
-            <Input
-              type="number"
-              min="1"
-              value={quickEditNextNum}
-              onChange={(e) => setQuickEditNextNum(e.target.value)}
-              placeholder="1"
-              required
-              className="font-mono font-bold"
-              autoFocus
-            />
-            <span className="text-[10.5px] text-slate-500 mt-1 block">
-              Next bill will start at this number and increment automatically.
-            </span>
-          </div>
-
-          {/* Live Preview Pill */}
-          <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-center">
-            <span className="text-[10px] uppercase font-bold text-amber-900 block">Upcoming Invoice Number Preview</span>
-            <span className="font-mono font-black text-sm text-slate-900">
-              {(quickEditPrefix.trim() || 'INV-')}{String(parseInt(quickEditNextNum, 10) || 1).padStart(3, '0')}
-            </span>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsInvoiceNumberModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold cursor-pointer"
-            >
-              Save &amp; Apply
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Hardware Manager Modal */}
       <HardwareManagerModal
