@@ -74,17 +74,23 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           await localDb.open();
         }
 
-        const localBiz = await ensureStarterBusinessIfEmpty();
         const u = getStoredUser();
 
+        // If user is not logged in (e.g. on /auth or just logged out), DO NOT synthesize a user session
+        if (!u) {
+          return;
+        }
+
+        const localBiz = await localDb.businesses.toCollection().first();
+
         if (localBiz && localBiz.id && localBiz.is_onboarded) {
-          if (!u || !u.business_id || u.business_id === 'biz_pending') {
+          if (!u.business_id || u.business_id === 'biz_pending') {
             const restoredUser: AuthUser = {
-              uid: u?.uid || localBiz.id,
-              id: u?.id || localBiz.id,
-              phone: u?.phone || localBiz.phone,
-              name: u?.name || localBiz.owner_name || 'Store Owner',
-              role: u?.role || 'admin',
+              uid: u.uid || localBiz.id,
+              id: u.id || localBiz.id,
+              phone: u.phone || localBiz.phone,
+              name: u.name || localBiz.owner_name || 'Store Owner',
+              role: u.role || 'admin',
               business_id: localBiz.id,
               business_name: localBiz.name,
               shop_name: localBiz.name,
@@ -103,6 +109,10 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     // Verify session with server API (/api/auth/me) in the background with 30s heartbeat
     const checkServerSession = async () => {
       try {
+        // If client is already logged out, do not automatically pull old session
+        const currentStored = getStoredUser();
+        if (!currentStored) return;
+
         const res = await fetch('/api/auth/me');
         if (res.status === 403 || res.status === 401) {
           const data = await res.json().catch(() => ({}));
@@ -135,20 +145,22 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         if (res.ok) {
           const data = await res.json();
           if (data.authenticated && data.user) {
-            const currentStored = getStoredUser();
+            const activeStored = getStoredUser();
+            if (!activeStored) return; // User logged out while fetch was in-flight
+
             // Only update stored user if cloud found a valid business_id that client didn't have
-            if (data.user.business_id && (!currentStored?.business_id || currentStored.business_id === 'biz_pending')) {
+            if (data.user.business_id && (!activeStored.business_id || activeStored.business_id === 'biz_pending')) {
               const updatedUser: AuthUser = {
-                uid: data.user.id || currentStored?.uid || data.user.phone,
-                id: data.user.id || currentStored?.id || data.user.phone,
-                phone: data.user.phone || currentStored?.phone,
-                name: data.user.name || currentStored?.name || 'Store Owner',
-                email: currentStored?.email || null,
-                photoURL: currentStored?.photoURL || null,
+                uid: data.user.id || activeStored.uid || data.user.phone,
+                id: data.user.id || activeStored.id || data.user.phone,
+                phone: data.user.phone || activeStored.phone,
+                name: data.user.name || activeStored.name || 'Store Owner',
+                email: activeStored.email || null,
+                photoURL: activeStored.photoURL || null,
                 role: data.user.role || 'admin',
                 business_id: data.user.business_id,
-                business_name: data.business?.name || data.user.business_name || currentStored?.business_name || '',
-                shop_name: data.business?.name || data.user.business_name || currentStored?.shop_name || '',
+                business_name: data.business?.name || data.user.business_name || activeStored.business_name || '',
+                shop_name: data.business?.name || data.user.business_name || activeStored.shop_name || '',
               };
               setStoredUser(updatedUser);
               setCurrentUser(updatedUser);

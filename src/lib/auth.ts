@@ -87,9 +87,18 @@ export const purgeLocalDeviceData = async () => {
 export const logoutUser = async () => {
     if (typeof window === 'undefined') return;
     try {
-        await purgeLocalDeviceData();
+        localStorage.removeItem('kamai_user');
+        localStorage.removeItem('kamai_session_timestamp');
+        localStorage.removeItem('kamai_subscription_tier');
+        sessionStorage.clear();
+        
+        const { signOutUser } = await import('@/lib/firebase/googleAuth');
+        await signOutUser().catch(() => {});
+        
         await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-    } catch {}
+    } catch (e) {
+        console.warn('Logout notice:', e);
+    }
     window.dispatchEvent(new Event('auth_changed'));
     window.dispatchEvent(new Event('storage'));
     window.location.href = '/auth?fresh=true';
