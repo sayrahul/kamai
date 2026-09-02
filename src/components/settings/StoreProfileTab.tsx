@@ -11,7 +11,9 @@ import {
   Mail, 
   Pill, 
   UtensilsCrossed, 
-  Layers 
+  Layers,
+  User,
+  LogOut
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -284,6 +286,46 @@ export const StoreProfileTab: React.FC<StoreProfileTabProps> = ({
             </div>
           </div>
         )}
+      </Card>
+
+      {/* Account & Session Management Card */}
+      <Card className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+              Account &amp; Session Management
+            </h3>
+          </div>
+          <span className="text-xs font-mono text-slate-400">
+            Current Device Session
+          </span>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+          <div>
+            <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              Logged in as {ownerName || 'Merchant'} ({phone || 'Owner'})
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Log out to switch accounts or securely sign in from another phone number / Google account.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={async () => {
+              if (confirm('Are you sure you want to log out from this device?')) {
+                const { logoutUser } = await import('@/lib/auth');
+                await logoutUser();
+              }
+            }}
+            className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 dark:text-rose-300 dark:bg-rose-950/60 dark:border-rose-800 font-bold text-xs flex items-center gap-1.5 self-start sm:self-center transition active:scale-95 cursor-pointer shrink-0"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Logout Account</span>
+          </button>
+        </div>
       </Card>
     </div>
   );
