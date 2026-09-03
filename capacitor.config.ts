@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   appName: 'KamaiPlus',
   webDir: 'public',
   server: {
+    url: 'https://kamaiplus.proventure.in',
     androidScheme: 'https',
     cleartext: true,
   },

@@ -49,7 +49,7 @@ export default function ContactUsPage() {
             </div>
             <h3 className="font-bold text-slate-900 text-sm">Customer Support Email</h3>
             <p className="text-xs text-slate-500">For account queries, refund requests, and technical assistance.</p>
-            <div className="pt-2 font-mono text-xs font-bold text-slate-900">support@proventure.in</div>
+            <div className="pt-2 font-mono text-xs font-bold text-slate-900">info@proventure.in</div>
           </div>
 
           {/* Card 2: Operating Entity & Location */}

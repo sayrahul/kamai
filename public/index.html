@@ -48,5 +48,10 @@
   <div class="spinner"></div>
   <h1>KamaiPlus POS</h1>
   <p>Loading Smart Retail Engine...</p>
+  <script>
+    if (window.location.protocol !== 'https:' && !window.location.hostname.includes('localhost')) {
+      window.location.replace('https://kamaiplus.proventure.in');
+    }
+  </script>
 </body>
 </html>

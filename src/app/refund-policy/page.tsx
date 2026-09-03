@@ -105,7 +105,7 @@ export default function RefundPolicyPage() {
               To request a refund, please send an email with your registered store phone number and payment receipt / reference ID to:
             </p>
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1 text-slate-900">
-              <div><strong>Support Email:</strong> <span className="font-mono text-emerald-800 font-bold">support@proventure.in</span></div>
+              <div><strong>Support Email:</strong> <span className="font-mono text-emerald-800 font-bold">info@proventure.in</span></div>
               <div><strong>Subject Line:</strong> Refund Request - [Your Store Name / Mobile Number]</div>
               <div><strong>Operating Entity:</strong> KamaiPlus / ProVenture</div>
             </div>

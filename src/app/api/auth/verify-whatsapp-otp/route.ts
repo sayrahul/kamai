@@ -22,6 +22,51 @@ export async function POST(req: NextRequest) {
 
     const clean10Digit = phone.slice(-10);
 
+    // 0. Google Play Reviewer Demo Account Bypass
+    if (clean10Digit === '9999999999' && enteredOtp === '123456') {
+      const demoToken = signSessionToken({
+        staff_id: 'staff_9999999999',
+        business_id: 'biz_demo_store',
+        phone: '9999999999',
+        role: 'owner',
+      });
+      const response = NextResponse.json({
+        success: true,
+        user: {
+          id: 'staff_9999999999',
+          name: 'Reviewer Demo',
+          phone: '9999999999',
+          role: 'owner',
+          business_id: 'biz_demo_store',
+          business_name: 'Kamai Demo Store',
+          subscription_tier: 'enterprise',
+        },
+        business: {
+          id: 'biz_demo_store',
+          name: 'Kamai Demo Store',
+          owner_name: 'Reviewer Demo',
+          business_type: 'grocery',
+          subscription_tier: 'enterprise',
+        },
+      });
+      response.cookies.set({
+        name: 'kamai_otp_session',
+        value: '',
+        maxAge: 0,
+        path: '/',
+      });
+      response.cookies.set({
+        name: SESSION_COOKIE_NAME,
+        value: demoToken,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: SESSION_MAX_AGE,
+        path: '/',
+      });
+      return response;
+    }
+
     // 1. Multi-Layer OTP Verification: Stateless Signed Token (Serverless) + Memory Cache Fallback
     const otpSessionToken = body.otpSessionToken || req.cookies.get('kamai_otp_session')?.value;
     let isOtpValid = false;

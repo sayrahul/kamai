@@ -22,6 +22,29 @@ export async function POST(req: NextRequest) {
     const clean10Digit = phone.slice(-10);
     const now = Date.now();
 
+    // 0. Google Play Reviewer Demo Account Bypass
+    if (clean10Digit === '9999999999') {
+      const otpCode = '123456';
+      const expiresAt = now + 15 * 60 * 1000;
+      setLocalOtp(clean10Digit, otpCode, expiresAt);
+      const otpSessionToken = signOtpSessionToken(clean10Digit, otpCode, expiresAt);
+      const response = NextResponse.json({
+        success: true,
+        message: 'Official OTP sent to your WhatsApp (+91 9999999999).',
+        otpSessionToken,
+      });
+      response.cookies.set({
+        name: 'kamai_otp_session',
+        value: otpSessionToken,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 900,
+        path: '/',
+      });
+      return response;
+    }
+
     // 1. Rate Limiting: 60-second cooldown per mobile number
     const cooldown = checkOtpCooldown(clean10Digit);
     if (!cooldown.allowed) {

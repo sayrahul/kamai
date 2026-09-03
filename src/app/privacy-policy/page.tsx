@@ -135,7 +135,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1 font-mono text-slate-800">
               <div><strong>Entity:</strong> KamaiPlus / ProVenture</div>
-              <div><strong>Email:</strong> support@proventure.in</div>
+              <div><strong>Email:</strong> info@proventure.in</div>
               <div><strong>Location:</strong> Maharashtra, India</div>
             </div>
           </section>
