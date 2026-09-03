@@ -117,21 +117,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         if (res.status === 403 || res.status === 401) {
           const data = await res.json().catch(() => ({}));
           if (data.isFrozen) {
-            try {
-              await Promise.all([
-                localDb.businesses.clear(),
-                localDb.products.clear(),
-                localDb.sales.clear(),
-                localDb.customers.clear(),
-                localDb.categories.clear(),
-                localDb.inventory_movements.clear(),
-                localDb.suppliers.clear(),
-              ]);
-              localStorage.clear();
-              sessionStorage.clear();
-            } catch (purgeErr) {
-              console.error('Error purging local database on freeze:', purgeErr);
-            }
+            // SAFE LOCKOUT: Keep local IndexedDB records 100% intact (zero data loss for offline business)
+            // Only pause active user session and render the frozen lockout notice
             setStoredUser(null);
             setCurrentUser(null);
             setAccountLockout({

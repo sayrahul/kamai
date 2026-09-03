@@ -7,6 +7,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(KamaiUpiPlugin.class);
+        registerPlugin(KamaiBluetoothPrinterPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

@@ -24,16 +24,30 @@ class BluetoothPrinterService {
   private device: any = null;
   private server: any = null;
   private characteristic: any = null;
+  private nativeConnected: boolean = false;
+  private nativeDeviceName: string | null = null;
+
+  public isNativeAndroid(): boolean {
+    if (typeof window === 'undefined') return false;
+    return !!(window as any).Capacitor?.isNativePlatform?.();
+  }
 
   public isSupported(): boolean {
-    return typeof window !== 'undefined' && 'bluetooth' in navigator;
+    if (typeof window === 'undefined') return false;
+    return this.isNativeAndroid() || 'bluetooth' in navigator;
   }
 
   public isConnected(): boolean {
+    if (this.isNativeAndroid()) {
+      return this.nativeConnected;
+    }
     return !!(this.device && this.device.gatt && this.device.gatt.connected && this.characteristic);
   }
 
   public getDeviceName(): string {
+    if (this.isNativeAndroid() && this.nativeDeviceName) {
+      return this.nativeDeviceName;
+    }
     return this.device?.name || 'Bluetooth Printer';
   }
 
@@ -92,8 +106,61 @@ class BluetoothPrinterService {
     }
   }
 
+  // List bonded printers from Android Settings (Native only)
+  public async listBondedAndroidPrinters(): Promise<Array<{ name: string; address: string }>> {
+    if (!this.isNativeAndroid()) return [];
+    try {
+      const { registerPlugin } = await import('@capacitor/core');
+      const plugin = registerPlugin<any>('KamaiBluetoothPrinterPlugin');
+      const res = await plugin.listBondedPrinters();
+      return res.devices || [];
+    } catch (e) {
+      console.warn('listBondedAndroidPrinters notice:', e);
+      return [];
+    }
+  }
+
   // Request & Connect to Bluetooth ESC/POS Printer
-  public async connect(): Promise<BluetoothPrinterDevice> {
+  public async connect(targetAddress?: string): Promise<BluetoothPrinterDevice> {
+    // 1. Android Native Bluetooth Flow
+    if (this.isNativeAndroid()) {
+      try {
+        const { registerPlugin } = await import('@capacitor/core');
+        const plugin = registerPlugin<any>('KamaiBluetoothPrinterPlugin');
+
+        let address = targetAddress;
+        if (!address) {
+          address = localStorage.getItem('kamai_saved_bt_printer_mac') || undefined;
+          if (!address) {
+            const listRes = await plugin.listBondedPrinters();
+            if (listRes.devices && listRes.devices.length > 0) {
+              address = listRes.devices[0].address;
+            }
+          }
+        }
+
+        if (!address) {
+          throw new Error('No paired Bluetooth printer found. Please pair your 58mm/80mm thermal printer in phone Bluetooth Settings first.');
+        }
+
+        const res = await plugin.connect({ address });
+        this.nativeConnected = true;
+        this.nativeDeviceName = res.name || 'Thermal Printer';
+        localStorage.setItem('kamai_saved_bt_printer_mac', address);
+
+        return {
+          id: address,
+          name: this.nativeDeviceName || 'Thermal Printer',
+          connected: true,
+        };
+      } catch (err: any) {
+        this.nativeConnected = false;
+        console.error('Android Native Bluetooth connection error:', err);
+        throw err;
+      }
+    }
+
+    // 2. Desktop Web Bluetooth Flow
     if (!this.isSupported()) {
       throw new Error('Web Bluetooth is not supported in this browser. Please use Chrome on Android or Windows/Mac.');
     }
@@ -146,6 +213,17 @@ class BluetoothPrinterService {
   }
 
   public async disconnect(): Promise<void> {
+    if (this.isNativeAndroid()) {
+      try {
+        const { registerPlugin } = await import('@capacitor/core');
+        const plugin = registerPlugin<any>('KamaiBluetoothPrinterPlugin');
+        await plugin.disconnect();
+      } catch {}
+      this.nativeConnected = false;
+      this.nativeDeviceName = null;
+      return;
+    }
+
     if (this.device && this.device.gatt && this.device.gatt.connected) {
       await this.device.gatt.disconnect();
     }
@@ -154,12 +232,28 @@ class BluetoothPrinterService {
     this.characteristic = null;
   }
 
-  // Write raw bytecode in 512-byte chunks (Bluetooth LE MTU limit friendly)
+  // Write raw bytecode in chunks (Native SPP or Web BLE MTU limit friendly)
   public async sendRawBytes(bytes: Uint8Array): Promise<void> {
     if (!this.isConnected()) {
       await this.connect();
     }
 
+    // Android Native Direct SPP write
+    if (this.isNativeAndroid()) {
+      const { registerPlugin } = await import('@capacitor/core');
+      const plugin = registerPlugin<any>('KamaiBluetoothPrinterPlugin');
+
+      let binary = '';
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64Data = btoa(binary);
+      await plugin.printRaw({ data: base64Data });
+      return;
+    }
+
+    // Desktop Web Bluetooth chunk write
     const CHUNK_SIZE = 512;
     for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
       const chunk = bytes.slice(i, i + CHUNK_SIZE);
