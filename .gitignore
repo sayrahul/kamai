@@ -38,3 +38,4 @@ repomix-output.*
 
 .vercel
 .env*
+.vscode/

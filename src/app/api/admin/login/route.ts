@@ -28,8 +28,9 @@ export async function POST(req: NextRequest) {
   try {
     const clientIp = getClientIp(req);
 
-    // 1. Rate Limiting: Max 5 failed attempts per IP within 15 minutes
-    const rateLimit = checkRateLimit(`admin_login:${clientIp}`, 5, 15 * 60 * 1000);
+    // 1. Rate Limiting: Max 5 attempts in production, 50 in dev
+    const maxAttempts = process.env.NODE_ENV === 'production' ? 5 : 50;
+    const rateLimit = checkRateLimit(`admin_login:${clientIp}`, maxAttempts, 15 * 60 * 1000);
     if (!rateLimit.isAllowed) {
       const waitMinutes = Math.ceil((rateLimit.resetTimeMs - Date.now()) / (60 * 1000));
       return NextResponse.json(

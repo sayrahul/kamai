@@ -3,21 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ShieldCheck, 
-  Crown, 
-  Trash2, 
-  Edit3, 
-  X, 
-  Check, 
-  Phone, 
-  Building2, 
-  Calendar, 
-  MapPin, 
-  Loader2, 
-  Plus 
+  Loader2 
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Modal } from '@/components/ui/Modal';
 import { AdminCoupon } from '@/app/api/admin/coupons/route';
 import { PlatformRemoteConfig } from '@/app/api/admin/config/route';
 import { clearLocalDexieAndFreshSync } from '@/lib/firebase/firestoreSync';
@@ -34,6 +21,13 @@ import { AdminCouponsTab } from '@/components/admin/AdminCouponsTab';
 import { AdminWhatsAppTab } from '@/components/admin/AdminWhatsAppTab';
 import { AdminRevenueTab } from '@/components/admin/AdminRevenueTab';
 import { AdminConfigTab } from '@/components/admin/AdminConfigTab';
+import { AdminMobileBottomNav } from '@/components/admin/AdminMobileBottomNav';
+import { AdminProGrantModal } from '@/components/admin/modals/AdminProGrantModal';
+import { AdminCouponModal } from '@/components/admin/modals/AdminCouponModal';
+import { AdminAddMerchantModal } from '@/components/admin/modals/AdminAddMerchantModal';
+import { AdminEditMerchantModal } from '@/components/admin/modals/AdminEditMerchantModal';
+import { AdminDeleteMerchantModal } from '@/components/admin/modals/AdminDeleteMerchantModal';
+import { AdminMerchantDrawer } from '@/components/admin/modals/AdminMerchantDrawer';
 
 export interface MerchantRecord {
   id: string;
@@ -151,6 +145,7 @@ export default function MasterSuperAdminPage() {
   const [broadcastMessage, setBroadcastMessage] = useState<string>('✨ Special Festive Update Live! Upgrade to Kamai+ Pro for near-expiry radar & CA tax filing.');
   const [broadcastType, setBroadcastType] = useState<'festive' | 'info' | 'warning' | 'success'>('festive');
   const [broadcastLink, setBroadcastLink] = useState<string>('/pricing');
+  const [broadcastAudience, setBroadcastAudience] = useState<'all' | 'free' | 'pro'>('all');
   const [broadcastDuration, setBroadcastDuration] = useState<'always' | '24h' | '3d' | '7d' | 'custom'>('always');
   const [customBroadcastExpiry, setCustomBroadcastExpiry] = useState<string>('');
   const [isSavingBroadcast, setIsSavingBroadcast] = useState<boolean>(false);
@@ -164,6 +159,7 @@ export default function MasterSuperAdminPage() {
   const [newCouponMaxDiscount, setNewCouponMaxDiscount] = useState<number>(500);
   const [newCouponMinOrder, setNewCouponMinOrder] = useState<number>(0);
   const [newCouponMaxUses, setNewCouponMaxUses] = useState<number>(100);
+  const [newCouponExpiryDays, setNewCouponExpiryDays] = useState<number>(30);
   const [isCreatingCoupon, setIsCreatingCoupon] = useState<boolean>(false);
 
   // WhatsApp Outreach State
@@ -225,11 +221,13 @@ export default function MasterSuperAdminPage() {
       if (couponsRes?.coupons) setCoupons(couponsRes.coupons);
       if (transactionsRes?.transactions) setTransactions(transactionsRes.transactions);
 
-      if (broadcastRes?.broadcast) {
-        setBroadcastEnabled(broadcastRes.broadcast.enabled || false);
-        setBroadcastMessage(broadcastRes.broadcast.message || '');
-        setBroadcastType(broadcastRes.broadcast.type || 'festive');
-        setBroadcastLink(broadcastRes.broadcast.link || '/pricing');
+      const b = broadcastRes?.broadcast || broadcastRes?.announcement;
+      if (b) {
+        setBroadcastEnabled(b.enabled || false);
+        setBroadcastMessage(b.message || '');
+        setBroadcastType(b.type || 'festive');
+        setBroadcastLink(b.link || '/pricing');
+        setBroadcastAudience(b.target_audience || 'all');
       }
 
       if (configRes?.config) {
@@ -300,6 +298,7 @@ export default function MasterSuperAdminPage() {
           message: broadcastMessage,
           type: broadcastType,
           link: broadcastLink,
+          target_audience: broadcastAudience,
           duration: broadcastDuration,
           customExpiry: customBroadcastExpiry,
         }),
@@ -340,6 +339,9 @@ export default function MasterSuperAdminPage() {
     setIsCreatingCoupon(true);
 
     try {
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + (Number(newCouponExpiryDays) || 30));
+
       const res = await fetch('/api/admin/coupons', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -350,6 +352,7 @@ export default function MasterSuperAdminPage() {
           max_discount: Number(newCouponMaxDiscount) || undefined,
           min_order_amount: Number(newCouponMinOrder) || undefined,
           max_uses: Number(newCouponMaxUses) || undefined,
+          expires_at: expiryDate.toISOString(),
         }),
       });
 
@@ -684,7 +687,7 @@ export default function MasterSuperAdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6 pb-28 animate-in fade-in duration-150">
+    <div className="min-h-screen bg-slate-950 text-slate-100 max-w-7xl mx-auto py-3.5 sm:py-6 px-3 sm:px-6 lg:px-8 space-y-3.5 sm:space-y-6 pb-28 sm:pb-12 animate-in fade-in duration-150">
       {/* 1. Header Bar */}
       <AdminHeader
         isLoadingData={isLoadingData}
@@ -705,6 +708,7 @@ export default function MasterSuperAdminPage() {
         <AdminOverviewTab
           metrics={metrics}
           merchants={merchants}
+          transactions={transactions}
           onOpenManualSubModal={() => setIsManualSubModalOpen(true)}
           onSelectTab={setActiveTab}
         />
@@ -750,6 +754,8 @@ export default function MasterSuperAdminPage() {
           setBroadcastType={setBroadcastType}
           broadcastLink={broadcastLink}
           setBroadcastLink={setBroadcastLink}
+          broadcastAudience={broadcastAudience}
+          setBroadcastAudience={setBroadcastAudience}
           broadcastDuration={broadcastDuration}
           setBroadcastDuration={setBroadcastDuration}
           customBroadcastExpiry={customBroadcastExpiry}
@@ -828,471 +834,116 @@ export default function MasterSuperAdminPage() {
         />
       )}
 
+      {/* 4. Mobile Sticky Bottom Navigation Bar */}
+      <AdminMobileBottomNav
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        merchantsCount={merchants.length}
+        couponsCount={coupons.length}
+      />
+
       {/* ---------------- MODALS ---------------- */}
       {/* 1. Quick Pro License Modal */}
-      <Modal
+      <AdminProGrantModal
         isOpen={isManualSubModalOpen}
         onClose={() => setIsManualSubModalOpen(false)}
-        title={
-          <div className="flex items-center gap-2">
-            <Crown className="w-5 h-5 text-amber-500" />
-            <span>Grant Pro License to Store</span>
-          </div>
-        }
-        description="Directly assign a Pro / Growth subscription to any merchant by mobile number or store ID."
-      >
-        <form onSubmit={handleGrantProLicense} className="space-y-3.5">
-          <Input
-            label="Merchant Mobile Phone or Store ID *"
-            placeholder="e.g. 9876543210 or biz_123"
-            value={manualPhoneOrId}
-            onChange={(e) => setManualPhoneOrId(e.target.value)}
-            required
-            autoFocus
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Subscription Plan
-              </label>
-              <select
-                value={manualTier}
-                onChange={(e) => setManualTier(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
-              >
-                <option value="pro">Pro Plan (1 Year)</option>
-                <option value="growth">Growth Plan</option>
-                <option value="enterprise">Enterprise Plan</option>
-                <option value="free">Revert to Free</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Duration (Days)
-              </label>
-              <select
-                value={manualDurationDays}
-                onChange={(e) => setManualDurationDays(Number(e.target.value))}
-                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
-              >
-                <option value={30}>30 Days (1 Month)</option>
-                <option value={90}>90 Days (3 Months)</option>
-                <option value={365}>365 Days (1 Year)</option>
-                <option value={730}>730 Days (2 Years)</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsManualSubModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black">
-              Grant Pro License
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        manualPhoneOrId={manualPhoneOrId}
+        setManualPhoneOrId={setManualPhoneOrId}
+        manualTier={manualTier}
+        setManualTier={setManualTier}
+        manualDurationDays={manualDurationDays}
+        setManualDurationDays={setManualDurationDays}
+        onSubmit={handleGrantProLicense}
+      />
 
       {/* 2. Create Promo Coupon Modal */}
-      <Modal
+      <AdminCouponModal
         isOpen={isCouponModalOpen}
         onClose={() => setIsCouponModalOpen(false)}
-        title="Create Promo Discount Coupon"
-        description="Offer a percentage or flat cash discount on KamaiPlus Pro subscription checkouts."
-      >
-        <form onSubmit={handleCreateCoupon} className="space-y-3.5">
-          <Input
-            label="Coupon Code *"
-            placeholder="e.g. DIWALI50 or PRO20"
-            value={newCouponCode}
-            onChange={(e) => setNewCouponCode(e.target.value.toUpperCase())}
-            required
-            autoFocus
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Discount Type
-              </label>
-              <select
-                value={newCouponType}
-                onChange={(e) => setNewCouponType(e.target.value as any)}
-                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
-              >
-                <option value="percentage">Percentage (% OFF)</option>
-                <option value="flat">Flat Cash (₹ OFF)</option>
-              </select>
-            </div>
-
-            <Input
-              label={newCouponType === 'percentage' ? 'Discount Value (%)' : 'Discount Value (₹)'}
-              type="number"
-              value={String(newCouponValue)}
-              onChange={(e) => setNewCouponValue(Number(e.target.value))}
-              required
-            />
-          </div>
-
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsCouponModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isCreatingCoupon} className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 font-black">
-              {isCreatingCoupon ? 'Creating...' : 'Create Coupon'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        newCouponCode={newCouponCode}
+        setNewCouponCode={setNewCouponCode}
+        newCouponType={newCouponType}
+        setNewCouponType={setNewCouponType}
+        newCouponValue={newCouponValue}
+        setNewCouponValue={setNewCouponValue}
+        newCouponMaxUses={newCouponMaxUses}
+        setNewCouponMaxUses={setNewCouponMaxUses}
+        newCouponMinOrder={newCouponMinOrder}
+        setNewCouponMinOrder={setNewCouponMinOrder}
+        newCouponExpiryDays={newCouponExpiryDays}
+        setNewCouponExpiryDays={setNewCouponExpiryDays}
+        isCreatingCoupon={isCreatingCoupon}
+        onSubmit={handleCreateCoupon}
+      />
 
       {/* 3. Add Merchant Store Modal */}
-      <Modal
+      <AdminAddMerchantModal
         isOpen={isAddMerchantModalOpen}
         onClose={() => setIsAddMerchantModalOpen(false)}
-        title={
-          <div className="flex items-center gap-2">
-            <Plus className="w-5 h-5 text-emerald-500" />
-            <span>Onboard New Merchant Store</span>
-          </div>
-        }
-        description="Register a new retail shop, assign initial subscription tier, and provision credentials."
-      >
-        <form onSubmit={handleAddMerchant} className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
-              label="Store / Business Name *"
-              placeholder="e.g. Ramesh Supermart"
-              value={addName}
-              onChange={(e) => setAddName(e.target.value)}
-              required
-              autoFocus
-            />
-            <Input
-              label="Owner Full Name"
-              placeholder="e.g. Ramesh Gupta"
-              value={addOwnerName}
-              onChange={(e) => setAddOwnerName(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
-              label="Phone Number (10-Digit WhatsApp) *"
-              placeholder="e.g. 9876543210"
-              value={addPhone}
-              onChange={(e) => setAddPhone(e.target.value)}
-              required
-            />
-            <Input
-              label="Owner Email Address"
-              placeholder="e.g. store@example.com"
-              type="email"
-              value={addEmail}
-              onChange={(e) => setAddEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Input
-              label="City / Town"
-              placeholder="e.g. Pune"
-              value={addCity}
-              onChange={(e) => setAddCity(e.target.value)}
-            />
-            <Input
-              label="Address / Area"
-              placeholder="e.g. MG Road, Camp"
-              value={addAddress}
-              onChange={(e) => setAddAddress(e.target.value)}
-            />
-            <Input
-              label="GSTIN Number"
-              placeholder="e.g. 27AAAAA0000A1Z5"
-              value={addGstin}
-              onChange={(e) => setAddGstin(e.target.value.toUpperCase())}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Store Category
-              </label>
-              <select
-                value={addBusinessType}
-                onChange={(e) => setAddBusinessType(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
-              >
-                <option value="grocery">Grocery / Kirana</option>
-                <option value="clothing">Apparel / Clothing</option>
-                <option value="electronics">Electronics &amp; Mobile</option>
-                <option value="restaurant">Cafe / Restaurant</option>
-                <option value="pharmacy">Pharmacy / Medical</option>
-                <option value="hardware">Hardware &amp; Electrical</option>
-                <option value="other">General Retail</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Initial Plan
-              </label>
-              <select
-                value={addTier}
-                onChange={(e) => setAddTier(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
-              >
-                <option value="free">Free Forever (₹0)</option>
-                <option value="pro">Pro Plan</option>
-                <option value="growth">Growth Plan</option>
-                <option value="enterprise">Enterprise</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Validity (Days)
-              </label>
-              <select
-                value={addDaysValidity}
-                onChange={(e) => setAddDaysValidity(Number(e.target.value))}
-                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
-              >
-                <option value={30}>30 Days</option>
-                <option value={90}>90 Days</option>
-                <option value={365}>365 Days (1 Year)</option>
-                <option value={730}>730 Days (2 Years)</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsAddMerchantModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isCreatingMerchant} className="bg-emerald-600 hover:bg-emerald-700 text-white font-black">
-              {isCreatingMerchant ? 'Creating...' : 'Create Merchant'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        addName={addName}
+        setAddName={setAddName}
+        addOwnerName={addOwnerName}
+        setAddOwnerName={setAddOwnerName}
+        addPhone={addPhone}
+        setAddPhone={setAddPhone}
+        addEmail={addEmail}
+        setAddEmail={setAddEmail}
+        addCity={addCity}
+        setAddCity={setAddCity}
+        addAddress={addAddress}
+        setAddAddress={setAddAddress}
+        addGstin={addGstin}
+        setAddGstin={setAddGstin}
+        addBusinessType={addBusinessType}
+        setAddBusinessType={setAddBusinessType}
+        addTier={addTier}
+        setAddTier={setAddTier}
+        addDaysValidity={addDaysValidity}
+        setAddDaysValidity={setAddDaysValidity}
+        isCreatingMerchant={isCreatingMerchant}
+        onSubmit={handleAddMerchant}
+      />
 
       {/* 4. Edit Merchant Store Modal */}
-      <Modal
+      <AdminEditMerchantModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title={
-          <div className="flex items-center gap-2">
-            <Edit3 className="w-5 h-5 text-indigo-500" />
-            <span>Edit Merchant Store: {selectedMerchantForEdit?.name}</span>
-          </div>
-        }
-        description="Update merchant account details, extend subscription validity, or toggle access status."
-      >
-        <form onSubmit={handleUpdateMerchant} className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
-              label="Store / Business Name *"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              required
-            />
-            <Input
-              label="Owner Full Name"
-              value={editOwnerName}
-              onChange={(e) => setEditOwnerName(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
-              label="Phone Number"
-              value={editPhone}
-              onChange={(e) => setEditPhone(e.target.value)}
-              required
-            />
-            <Input
-              label="Owner Email Address"
-              type="email"
-              value={editEmail}
-              onChange={(e) => setEditEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
-              label="City / Town"
-              value={editCity}
-              onChange={(e) => setEditCity(e.target.value)}
-            />
-            <Input
-              label="GSTIN Number"
-              value={editGstin}
-              onChange={(e) => setEditGstin(e.target.value.toUpperCase())}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Subscription Plan
-              </label>
-              <select
-                value={editTier}
-                onChange={(e) => setEditTier(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
-              >
-                <option value="free">Free Forever</option>
-                <option value="pro">Pro Plan</option>
-                <option value="growth">Growth Plan</option>
-                <option value="enterprise">Enterprise</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Extend Expiry (+Days)
-              </label>
-              <select
-                value={editDaysExtension}
-                onChange={(e) => setEditDaysExtension(Number(e.target.value))}
-                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
-              >
-                <option value={0}>No change</option>
-                <option value={30}>+30 Days (1 Month)</option>
-                <option value={90}>+90 Days (3 Months)</option>
-                <option value={365}>+365 Days (1 Year)</option>
-                <option value={730}>+730 Days (2 Years)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Account Status
-              </label>
-              <select
-                value={editIsActive ? 'active' : 'inactive'}
-                onChange={(e) => setEditIsActive(e.target.value === 'active')}
-                className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
-              >
-                <option value="active">Active (Access Allowed)</option>
-                <option value="inactive">Frozen / Blocked</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isUpdatingMerchant} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black">
-              {isUpdatingMerchant ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        selectedMerchant={selectedMerchantForEdit}
+        editName={editName}
+        setEditName={setEditName}
+        editOwnerName={editOwnerName}
+        setEditOwnerName={setEditOwnerName}
+        editPhone={editPhone}
+        setEditPhone={setEditPhone}
+        editEmail={editEmail}
+        setEditEmail={setEditEmail}
+        editCity={editCity}
+        setEditCity={setEditCity}
+        editGstin={editGstin}
+        setEditGstin={setEditGstin}
+        editTier={editTier}
+        setEditTier={setEditTier}
+        editDaysExtension={editDaysExtension}
+        setEditDaysExtension={setEditDaysExtension}
+        editIsActive={editIsActive}
+        setEditIsActive={setEditIsActive}
+        isUpdatingMerchant={isUpdatingMerchant}
+        onSubmit={handleUpdateMerchant}
+      />
 
       {/* 5. Delete Merchant Confirmation Modal */}
-      <Modal
-        isOpen={Boolean(merchantToDelete)}
+      <AdminDeleteMerchantModal
+        merchant={merchantToDelete}
         onClose={() => setMerchantToDelete(null)}
-        title={
-          <div className="flex items-center gap-2 text-rose-600">
-            <Trash2 className="w-5 h-5" />
-            <span>Permanently Delete Merchant Store?</span>
-          </div>
-        }
-        description={`Are you sure you want to delete "${merchantToDelete?.name}" (+91${merchantToDelete?.phone})? This will wipe cloud store records and cannot be undone.`}
-      >
-        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => setMerchantToDelete(null)}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            disabled={isDeletingMerchant}
-            onClick={handleDeleteMerchant}
-            className="bg-rose-600 hover:bg-rose-700 text-white font-black"
-          >
-            {isDeletingMerchant ? 'Deleting...' : 'Confirm Delete'}
-          </Button>
-        </div>
-      </Modal>
+        isDeleting={isDeletingMerchant}
+        onConfirm={handleDeleteMerchant}
+      />
 
       {/* 6. Merchant 360 View Dossier Modal */}
-      <Modal
-        isOpen={Boolean(selectedMerchantForView)}
+      <AdminMerchantDrawer
+        merchant={selectedMerchantForView}
         onClose={() => setSelectedMerchantForView(null)}
-        title={
-          <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-blue-600" />
-            <span>Store Dossier: {selectedMerchantForView?.name}</span>
-          </div>
-        }
-        description="Comprehensive 360-degree merchant platform profile and sync metadata."
-      >
-        {selectedMerchantForView && (
-          <div className="space-y-3.5 text-xs">
-            <div className="grid grid-cols-2 gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Store Name</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMerchantForView.name}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Owner Name</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMerchantForView.owner_name || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Mobile Phone</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">+91 {selectedMerchantForView.phone}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Email</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMerchantForView.email || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">City / Location</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMerchantForView.city || 'India'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">GSTIN</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">{selectedMerchantForView.gstin || 'Unregistered'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Subscription Tier</span>
-                <span className="font-black uppercase text-amber-600 dark:text-amber-400">{selectedMerchantForView.subscription_tier}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Store ID</span>
-                <span className="font-mono text-[10px] text-slate-500 truncate block">{selectedMerchantForView.id}</span>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  window.open(`https://wa.me/91${selectedMerchantForView.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${selectedMerchantForView.name}! Special update from KamaiPlus Master Support.`)}`, '_blank');
-                }}
-                className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 text-xs font-bold gap-1"
-              >
-                <span>WhatsApp Merchant</span>
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setSelectedMerchantForView(null)}
-                className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 text-xs font-bold"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      />
 
       {/* Floating Toast */}
       {toastMessage && (

@@ -9,7 +9,8 @@ import {
   Monitor, 
   Sparkles, 
   Loader2, 
-  Save 
+  Save,
+  Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -22,6 +23,8 @@ interface AdminBroadcastTabProps {
   setBroadcastType: (val: 'festive' | 'info' | 'warning' | 'success') => void;
   broadcastLink: string;
   setBroadcastLink: (val: string) => void;
+  broadcastAudience: 'all' | 'free' | 'pro';
+  setBroadcastAudience: (val: 'all' | 'free' | 'pro') => void;
   broadcastDuration: 'always' | '24h' | '3d' | '7d' | 'custom';
   setBroadcastDuration: (val: 'always' | '24h' | '3d' | '7d' | 'custom') => void;
   customBroadcastExpiry: string;
@@ -41,6 +44,8 @@ export const AdminBroadcastTab: React.FC<AdminBroadcastTabProps> = ({
   setBroadcastType,
   broadcastLink,
   setBroadcastLink,
+  broadcastAudience,
+  setBroadcastAudience,
   broadcastDuration,
   setBroadcastDuration,
   customBroadcastExpiry,
@@ -117,6 +122,40 @@ export const AdminBroadcastTab: React.FC<AdminBroadcastTabProps> = ({
                   }`}
                 >
                   {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Target Audience Selector */}
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-amber-400" />
+                <span>Target Store Audience</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">
+                {broadcastAudience === 'all' ? 'All Merchants' : broadcastAudience === 'free' ? 'Free Trials Only' : 'Pro Subscribers Only'}
+              </span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'all', label: '👥 All Stores', desc: 'All registered' },
+                { id: 'free', label: '🆓 Free Trials', desc: 'Upgrade push' },
+                { id: 'pro', label: '⭐ Pro Stores', desc: 'VIP notice' },
+              ].map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => setBroadcastAudience(a.id as any)}
+                  className={`p-2.5 rounded-xl text-left transition cursor-pointer border ${
+                    broadcastAudience === a.id
+                      ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-md font-black'
+                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  <div className="text-xs font-bold">{a.label}</div>
+                  <div className={`text-[10px] truncate ${broadcastAudience === a.id ? 'text-slate-900 font-medium' : 'text-slate-400'}`}>{a.desc}</div>
                 </button>
               ))}
             </div>

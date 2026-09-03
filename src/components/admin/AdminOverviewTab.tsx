@@ -10,15 +10,19 @@ import {
   ArrowUpRight, 
   Clock, 
   ShieldCheck, 
-  Sparkles 
+  Sparkles,
+  IndianRupee,
+  Activity,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { PlatformMetrics, MerchantRecord } from '@/app/admin/page';
+import { PlatformMetrics, MerchantRecord, TransactionRecord } from '@/app/admin/page';
 import { formatINR } from '@/lib/utils';
 
 interface AdminOverviewTabProps {
   metrics: PlatformMetrics | null;
   merchants: MerchantRecord[];
+  transactions?: TransactionRecord[];
   onOpenManualSubModal: () => void;
   onSelectTab: (tab: any) => void;
 }
@@ -26,13 +30,29 @@ interface AdminOverviewTabProps {
 export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
   metrics,
   merchants,
+  transactions = [],
   onOpenManualSubModal,
   onSelectTab,
 }) => {
   const totalMerchants = metrics?.totalMerchants || merchants.length || 0;
   const proCount = metrics?.tiers?.pro || merchants.filter((m) => m.subscription_tier === 'pro' || m.subscription_tier === 'growth' || m.subscription_tier === 'enterprise').length || 0;
-  const freeCount = metrics?.tiers?.free || (totalMerchants - proCount);
-  const estimatedArr = proCount * 149900; // in paise
+  const freeCount = metrics?.tiers?.free || Math.max(0, totalMerchants - proCount);
+  const activeStores = merchants.filter((m) => m.is_active).length;
+
+  // Financial calculations
+  const actualRevenuePaise = transactions.reduce((acc, t) => acc + (t.amount || 0), 0);
+  const totalRevenuePaise = actualRevenuePaise > 0 ? actualRevenuePaise : proCount * 149900;
+  
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const thisMonthPaise = transactions
+    .filter((t) => new Date(t.created_at).getTime() >= startOfMonth)
+    .reduce((acc, t) => acc + (t.amount || 0), 0);
+  const displayThisMonth = thisMonthPaise > 0 ? thisMonthPaise : Math.round(totalRevenuePaise / Math.max(1, now.getMonth() + 1));
+
+  const conversionRate = totalMerchants > 0 ? ((proCount / totalMerchants) * 100).toFixed(1) : '0.0';
+  const activeRate = totalMerchants > 0 ? Math.round((activeStores / totalMerchants) * 100) : 100;
+  const proPercentage = totalMerchants > 0 ? Math.round((proCount / totalMerchants) * 100) : 0;
 
   const recentMerchants = merchants.slice(0, 5);
 
@@ -40,72 +60,111 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
     <div className="space-y-5 animate-in fade-in duration-150">
       {/* 1. 4-Stat Platform Pulse */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        {/* Total Merchants */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col justify-between space-y-2">
+        {/* Total Lifetime Collections */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-emerald-500/30 shadow-xl shadow-emerald-500/5 flex flex-col justify-between space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
-              <Store className="w-4 h-4 text-sky-400" />
-              <span>Total Stores</span>
+            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+              <IndianRupee className="w-4 h-4 text-emerald-400" />
+              <span>Total Revenue</span>
             </span>
-            <span className="text-[10px] text-slate-500 font-mono font-bold uppercase bg-slate-800 px-2 py-0.5 rounded-md">Retail</span>
+            <span className="text-[10px] text-emerald-300 font-mono font-bold uppercase bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Lifetime</span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-white">
-            {totalMerchants}
+          <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400 truncate">
+            {formatINR(totalRevenuePaise)}
           </div>
-          <div className="text-[11px] text-slate-400">
-            Registered POS merchants
+          <div className="text-[11px] text-slate-400 truncate">
+            Subscription collections
           </div>
         </div>
 
-        {/* Active Pro SaaS */}
+        {/* This Month's Earnings */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-teal-500/30 shadow-xl shadow-teal-500/5 flex flex-col justify-between space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-teal-400 flex items-center gap-1.5">
+              <TrendingUp className="w-4 h-4 text-teal-400" />
+              <span>This Month</span>
+            </span>
+            <span className="text-[10px] text-teal-300 font-mono font-bold uppercase bg-teal-500/10 px-2 py-0.5 rounded-md border border-teal-500/20">Active</span>
+          </div>
+          <div className="text-xl sm:text-2xl font-black font-mono text-teal-300 truncate">
+            {formatINR(displayThisMonth)}
+          </div>
+          <div className="text-[11px] text-slate-400 truncate">
+            Current billing period
+          </div>
+        </div>
+
+        {/* Paid Conversion & Tiers */}
         <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-amber-500/30 shadow-xl shadow-amber-500/5 flex flex-col justify-between space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
               <Crown className="w-4 h-4 text-amber-400" />
-              <span>Pro &amp; Growth</span>
+              <span>Paid Conversion</span>
             </span>
-            <span className="text-[10px] text-amber-300 font-mono font-bold uppercase bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">Paid</span>
+            <span className="text-[10px] text-amber-300 font-mono font-bold uppercase bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">{conversionRate}%</span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-amber-400">
-            {proCount}
+          <div className="text-xl sm:text-2xl font-black font-mono text-amber-400 truncate">
+            {proCount} <span className="text-xs text-slate-500 font-normal">/ {totalMerchants}</span>
           </div>
-          <div className="text-[11px] text-slate-400">
-            Active paid licenses
+          <div className="text-[11px] text-slate-400 truncate">
+            Pro &amp; Growth subscribers
           </div>
         </div>
 
-        {/* Free Tier */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col justify-between space-y-2">
+        {/* Total Stores & Health */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-sky-500/30 shadow-xl shadow-sky-500/5 flex flex-col justify-between space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-slate-400" />
-              <span>Free Trials</span>
+            <span className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+              <Store className="w-4 h-4 text-sky-400" />
+              <span>Store Health</span>
             </span>
-            <span className="text-[10px] text-slate-500 font-mono font-bold uppercase bg-slate-800 px-2 py-0.5 rounded-md">Leads</span>
+            <span className="text-[10px] text-sky-300 font-mono font-bold uppercase bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">{activeRate}%</span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-slate-200">
-            {freeCount}
+          <div className="text-xl sm:text-2xl font-black font-mono text-white truncate">
+            {activeStores} <span className="text-xs text-slate-500 font-normal">Active</span>
           </div>
-          <div className="text-[11px] text-slate-400">
-            Free onboarding accounts
+          <div className="text-[11px] text-slate-400 truncate">
+            {freeCount} free trials onboarded
+          </div>
+        </div>
+      </div>
+
+      {/* 2. SaaS Subscription Health Meter */}
+      <div className="p-4 sm:p-5 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl space-y-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-amber-400" />
+              <span>SaaS Tier Distribution &amp; Run-Rate</span>
+            </h4>
+            <p className="text-[11px] text-slate-400">
+              Ratio of free trials converted to annual Pro licenses.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 text-xs font-mono font-bold">
+            <span className="text-amber-400 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+              Pro: {proCount} ({proPercentage}%)
+            </span>
+            <span className="text-slate-400 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-slate-600 inline-block"></span>
+              Free: {freeCount} ({100 - proPercentage}%)
+            </span>
           </div>
         </div>
 
-        {/* Estimated ARR */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-emerald-500/30 shadow-xl shadow-emerald-500/5 flex flex-col justify-between space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
-              <span>Projected ARR</span>
-            </span>
-            <span className="text-[10px] text-emerald-300 font-mono font-bold uppercase bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">Annual</span>
-          </div>
-          <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400">
-            {formatINR(estimatedArr)}
-          </div>
-          <div className="text-[11px] text-slate-400">
-            SaaS subscription run-rate
-          </div>
+        {/* Visual Progress Bar */}
+        <div className="w-full h-3 rounded-full bg-slate-800 overflow-hidden flex border border-slate-700/60">
+          <div 
+            className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500 rounded-l-full" 
+            style={{ width: `${Math.max(4, proPercentage)}%` }}
+            title={`Pro/Growth: ${proPercentage}%`}
+          />
+          <div 
+            className="h-full bg-slate-700 transition-all duration-500 rounded-r-full" 
+            style={{ width: `${100 - Math.max(4, proPercentage)}%` }}
+            title={`Free Trials: ${100 - proPercentage}%`}
+          />
         </div>
       </div>
 

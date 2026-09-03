@@ -9,6 +9,7 @@ export interface AnnouncementPayload {
   message: string;
   type: 'info' | 'warning' | 'success' | 'festive';
   link?: string;
+  target_audience?: 'all' | 'free' | 'pro';
   expires_at?: string;
   updatedAt: string;
 }
@@ -19,6 +20,7 @@ let cachedAnnouncement: AnnouncementPayload = {
   message: '✨ Welcome to KamaiPlus! Zero-commission digital POS billing & inventory.',
   type: 'festive',
   link: '',
+  target_audience: 'all',
   expires_at: undefined,
   updatedAt: new Date().toISOString(),
 };
@@ -91,13 +93,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { enabled, message, type, link, expires_at } = body;
+    const { enabled, message, type, link, target_audience, expires_at } = body;
 
     const payload: AnnouncementPayload = {
       enabled: Boolean(enabled),
       message: (message || '').trim(),
       type: type || 'festive',
       link: (link || '').trim(),
+      target_audience: target_audience || 'all',
       expires_at: expires_at || undefined,
       updatedAt: new Date().toISOString(),
     };

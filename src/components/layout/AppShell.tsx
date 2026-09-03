@@ -20,6 +20,29 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [isClient, setIsClient] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [accountLockout, setAccountLockout] = useState<{ isFrozen: boolean; message: string } | null>(null);
+  const [impersonationData, setImpersonationData] = useState<{
+    admin_active: boolean;
+    merchant_id: string;
+    merchant_name: string;
+    merchant_phone?: string;
+    backup_user?: string | null;
+  } | null>(null);
+
+  const handleExitImpersonation = () => {
+    try {
+      const imp = sessionStorage.getItem('kamai_admin_impersonation');
+      if (imp) {
+        const parsed = JSON.parse(imp);
+        if (parsed.backup_user) {
+          localStorage.setItem('kamai_user', parsed.backup_user);
+        } else {
+          localStorage.removeItem('kamai_user');
+        }
+      }
+      sessionStorage.removeItem('kamai_admin_impersonation');
+    } catch {}
+    window.location.href = '/admin';
+  };
 
   // Auto Page View Analytics for Platform Owner
   useFirebasePageTracking();
@@ -56,6 +79,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     
     const initialUser = getStoredUser();
     setCurrentUser(initialUser);
+
+    try {
+      const imp = sessionStorage.getItem('kamai_admin_impersonation');
+      if (imp) {
+        setImpersonationData(JSON.parse(imp));
+      }
+    } catch {}
 
     const handleAuthChange = () => {
       const u = getStoredUser();
@@ -267,6 +297,28 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               Return to Login
             </button>
           </div>
+        </div>
+      )}
+
+      {/* SuperAdmin Customer Support Impersonation Banner */}
+      {impersonationData && (
+        <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-slate-950 px-4 py-2 text-xs font-bold flex items-center justify-between shadow-lg sticky top-0 z-[9999] border-b border-amber-400">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="bg-slate-950 text-amber-300 px-2 py-0.5 rounded-full text-[10px] uppercase font-black tracking-wider shadow-xs shrink-0">
+              SuperAdmin Support Mode
+            </span>
+            <span className="truncate text-xs">
+              Inspecting Store: <strong>{impersonationData.merchant_name}</strong> {impersonationData.merchant_phone ? `(+91 ${impersonationData.merchant_phone})` : ''}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleExitImpersonation}
+            className="bg-slate-950 hover:bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shadow-md shrink-0 ml-2"
+          >
+            <span>Exit to Admin</span>
+            <span>&rarr;</span>
+          </button>
         </div>
       )}
 

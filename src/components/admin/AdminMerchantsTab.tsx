@@ -20,11 +20,17 @@ import {
   LayoutGrid,
   List,
   ShieldCheck,
-  Building2
+  Building2,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  FileSpreadsheet,
+  ExternalLink
 } from 'lucide-react';
 import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { Button } from '@/components/ui/Button';
 import { MerchantRecord } from '@/app/admin/page';
+import { AuthUser, setStoredUser } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
 interface AdminMerchantsTabProps {
@@ -59,6 +65,13 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
   onSendWhatsApp,
 }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 18;
+
+  // Reset page when filter or search changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedTierFilter, selectedStatusFilter]);
 
   const filteredMerchants = merchants.filter((m) => {
     // 1. Search Query
@@ -90,6 +103,98 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
 
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredMerchants.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedMerchants = filteredMerchants.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  // 1-Click CSV/Excel Export
+  const handleExportCSV = () => {
+    if (!filteredMerchants || filteredMerchants.length === 0) return;
+
+    const headers = [
+      'Store ID',
+      'Store Name',
+      'Owner Name',
+      'Phone',
+      'Email',
+      'City',
+      'State',
+      'Address',
+      'GSTIN',
+      'Category',
+      'Subscription Tier',
+      'Valid Until',
+      'Status',
+      'Registration Date',
+    ];
+
+    const escapeCSV = (val?: string | number | boolean | null) => {
+      if (val === undefined || val === null) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const rows = filteredMerchants.map((m) => [
+      escapeCSV(m.id),
+      escapeCSV(m.name),
+      escapeCSV(m.owner_name || ''),
+      escapeCSV(m.phone ? `+91 ${m.phone}` : ''),
+      escapeCSV(m.email || ''),
+      escapeCSV(m.city || ''),
+      escapeCSV(m.state || ''),
+      escapeCSV(m.address || ''),
+      escapeCSV(m.gstin || ''),
+      escapeCSV(m.business_type || 'Retail'),
+      escapeCSV(m.subscription_tier?.toUpperCase()),
+      escapeCSV(m.subscription_valid_until || m.subscription_expires_at || 'Perpetual'),
+      escapeCSV(m.is_active ? 'Active' : 'Frozen'),
+      escapeCSV(new Date(m.created_at).toLocaleDateString('en-IN')),
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.setAttribute('download', `kamai_merchants_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // 1-Click Store Inspection (Impersonation in Support Mode)
+  const handleInspectStore = (m: MerchantRecord) => {
+    if (!window.confirm(`Open "${m.name}" (+91 ${m.phone}) in Support Mode?\n\nA SuperAdmin banner will appear at the top allowing you to return to Admin anytime.`)) {
+      return;
+    }
+
+    const backupUser = localStorage.getItem('kamai_user');
+    sessionStorage.setItem('kamai_admin_impersonation', JSON.stringify({
+      admin_active: true,
+      merchant_id: m.id,
+      merchant_name: m.name,
+      merchant_phone: m.phone,
+      backup_user: backupUser,
+    }));
+
+    const impersonatedUser: AuthUser = {
+      uid: m.id,
+      id: m.id,
+      phone: m.phone,
+      name: m.owner_name || m.name,
+      business_id: m.id,
+      business_name: m.name,
+      shop_name: m.name,
+      role: 'owner',
+      login_timestamp: Date.now(),
+    };
+
+    setStoredUser(impersonatedUser);
+    window.location.href = '/';
+  };
 
   return (
     <div className="space-y-4 animate-in fade-in duration-150">
@@ -143,6 +248,18 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
               <List className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          {/* Export CSV Button */}
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            disabled={filteredMerchants.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700 text-xs font-bold transition cursor-pointer shadow-xs disabled:opacity-40 disabled:pointer-events-none"
+            title="Download CSV of stores"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden md:inline">Export CSV</span>
+          </button>
 
           <Button
             size="sm"
@@ -210,7 +327,7 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
       {/* 3. Merchants View (Grid or Table) */}
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredMerchants.map((m) => {
+          {paginatedMerchants.map((m) => {
             const isPro = m.subscription_tier === 'pro' || m.subscription_tier === 'growth' || m.subscription_tier === 'enterprise';
             const initials = m.name?.slice(0, 2).toUpperCase() || 'KP';
 
@@ -304,6 +421,15 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
+                      onClick={() => handleInspectStore(m)}
+                      className="px-2.5 py-1.5 rounded-xl bg-amber-500/15 text-amber-300 hover:text-amber-100 hover:bg-amber-500/25 border border-amber-500/30 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                      title="Inspect Store (Support Mode)"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span className="text-[11px]">Inspect</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => onEditMerchant(m)}
                       className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700/60 transition cursor-pointer"
                       title="Edit Merchant"
@@ -340,7 +466,7 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {filteredMerchants.map((m) => {
+                {paginatedMerchants.map((m) => {
                   const isPro = m.subscription_tier === 'pro' || m.subscription_tier === 'growth' || m.subscription_tier === 'enterprise';
                   return (
                     <tr key={m.id} className="hover:bg-slate-800/50 transition">
@@ -392,6 +518,14 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                           </button>
                           <button
                             type="button"
+                            onClick={() => handleInspectStore(m)}
+                            className="p-1.5 rounded-lg bg-amber-500/15 text-amber-300 hover:text-amber-100 hover:bg-amber-500/30 border border-amber-500/30 cursor-pointer"
+                            title="Inspect Store (Support Mode)"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => onEditMerchant(m)}
                             className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
                             title="Edit"
@@ -413,6 +547,65 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Pagination Controls */}
+      {filteredMerchants.length > pageSize && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/90 p-3 px-4 rounded-2xl border border-slate-800 text-xs shadow-xl">
+          <div className="text-slate-400 font-medium text-xs">
+            Showing <span className="font-bold text-white">{(safePage - 1) * pageSize + 1}</span> to{' '}
+            <span className="font-bold text-white">{Math.min(safePage * pageSize, filteredMerchants.length)}</span> of{' '}
+            <span className="font-bold text-amber-400">{filteredMerchants.length}</span> stores
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled={safePage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="p-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-40 disabled:pointer-events-none border border-slate-700 font-bold flex items-center gap-1 cursor-pointer transition text-xs"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>Prev</span>
+            </button>
+
+            <div className="flex items-center gap-1 px-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                .map((p, idx, arr) => {
+                  const prevP = arr[idx - 1];
+                  const hasGap = prevP && p - prevP > 1;
+                  return (
+                    <React.Fragment key={p}>
+                      {hasGap && <span className="px-1 text-slate-500 font-bold">...</span>}
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        className={cn(
+                          "w-7 h-7 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center",
+                          safePage === p
+                            ? "bg-amber-400 text-slate-950 shadow-xs"
+                            : "bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white"
+                        )}
+                      >
+                        {p}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
+            </div>
+
+            <button
+              type="button"
+              disabled={safePage >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="p-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 disabled:opacity-40 disabled:pointer-events-none border border-slate-700 font-bold flex items-center gap-1 cursor-pointer transition text-xs"
+            >
+              <span>Next</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}

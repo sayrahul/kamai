@@ -9,6 +9,7 @@ export interface Announcement {
   message: string;
   type?: 'info' | 'warning' | 'success' | 'festive';
   link?: string;
+  target_audience?: 'all' | 'free' | 'pro';
   expires_at?: string;
   updatedAt?: string;
 }
@@ -27,6 +28,29 @@ export function GlobalBroadcastBanner() {
     if (a.expires_at && new Date(a.expires_at).getTime() < Date.now()) {
       setAnnouncement(null);
       return;
+    }
+
+    // Check audience targeting (All vs Free vs Pro)
+    if (a.target_audience && a.target_audience !== 'all') {
+      try {
+        const userJson = localStorage.getItem('kamai_user');
+        const user = userJson ? JSON.parse(userJson) : null;
+        const isPro = Boolean(
+          user?.role === 'pro' || 
+          user?.subscription_tier === 'pro' || 
+          user?.subscription_tier === 'growth' || 
+          user?.subscription_tier === 'enterprise'
+        );
+
+        if (a.target_audience === 'free' && isPro) {
+          setAnnouncement(null);
+          return;
+        }
+        if (a.target_audience === 'pro' && !isPro) {
+          setAnnouncement(null);
+          return;
+        }
+      } catch {}
     }
 
     // Check if dismissed for this specific announcement timestamp
