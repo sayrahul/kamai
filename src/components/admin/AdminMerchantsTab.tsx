@@ -95,6 +95,12 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
       if (selectedTierFilter === 'free' && m.subscription_tier !== 'free') {
         return false;
       }
+      if (selectedTierFilter === 'expiring') {
+        const expiryDate = m.subscription_expires_at || m.subscription_valid_until;
+        if (!expiryDate) return false;
+        const diffDays = Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+        if (diffDays > 7) return false;
+      }
     }
 
     // 3. Status Filter
@@ -285,7 +291,7 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-2.5 px-3.5 rounded-2xl border border-slate-800/80 text-xs">
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
           <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Plan:</span>
-          {['all', 'pro', 'free'].map((tier) => (
+          {['all', 'pro', 'free', 'expiring'].map((tier) => (
             <button
               key={tier}
               type="button"
@@ -293,11 +299,11 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
               className={cn(
                 "px-3 py-1 rounded-xl font-bold transition cursor-pointer capitalize text-[11px]",
                 selectedTierFilter === tier
-                  ? "bg-amber-400 text-slate-950 shadow-xs"
+                  ? "bg-amber-400 text-slate-950 shadow-xs font-black"
                   : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60"
               )}
             >
-              {tier === 'all' ? 'All Tiers' : tier === 'pro' ? '⭐ Pro & Growth' : 'Free Trial'}
+              {tier === 'all' ? 'All Tiers' : tier === 'pro' ? '⭐ Pro & Growth' : tier === 'free' ? 'Free Trial' : '⏰ Expiring Soon'}
             </button>
           ))}
 
@@ -330,6 +336,10 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
           {paginatedMerchants.map((m) => {
             const isPro = m.subscription_tier === 'pro' || m.subscription_tier === 'growth' || m.subscription_tier === 'enterprise';
             const initials = m.name?.slice(0, 2).toUpperCase() || 'KP';
+            const expiryDate = m.subscription_expires_at || m.subscription_valid_until;
+            const diffDays = expiryDate ? Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)) : null;
+            const isExpiringSoon = isPro && diffDays !== null && diffDays <= 7 && diffDays > 0;
+            const isExpired = isPro && diffDays !== null && diffDays <= 0;
 
             return (
               <div
@@ -350,7 +360,7 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <h3 className="font-black text-sm text-white truncate group-hover:text-amber-400 transition">
                           {m.name}
                         </h3>
@@ -362,6 +372,19 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                         )}>
                           {isPro && <Crown className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />}
                           <span>{m.subscription_tier}</span>
+                        </span>
+                        {isExpired && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                            Expired
+                          </span>
+                        )}
+                        {isExpiringSoon && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                            {diffDays}d Left
+                          </span>
+                        )}
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] font-mono bg-slate-800/90 text-slate-400 border border-slate-700/80">
+                          v{m.app_version || '4.06.0'}
                         </span>
                       </div>
 
@@ -399,9 +422,9 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                     <Calendar className="w-3.5 h-3.5 text-slate-500" />
                     <span>Valid Until:</span>
                   </span>
-                  <span className={isPro ? "text-amber-400 font-bold" : "text-slate-400"}>
-                    {m.subscription_expires_at || m.subscription_valid_until
-                      ? new Date(m.subscription_expires_at || m.subscription_valid_until!).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })
+                  <span className={isExpired ? "text-rose-400 font-bold" : isExpiringSoon ? "text-amber-400 font-bold" : isPro ? "text-amber-400 font-bold" : "text-slate-400"}>
+                    {expiryDate
+                      ? new Date(expiryDate).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })
                       : 'Free / Trial'}
                   </span>
                 </div>
@@ -411,11 +434,16 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                   <button
                     type="button"
                     onClick={() => onSendWhatsApp(m)}
-                    className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-                    title="Send WhatsApp Message"
+                    className={cn(
+                      "px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs",
+                      isExpiringSoon || isExpired
+                        ? "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 animate-pulse"
+                        : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30"
+                    )}
+                    title={isExpiringSoon || isExpired ? "Send WhatsApp Renewal Alert" : "Send WhatsApp Message"}
                   >
                     <WhatsAppLogo className="w-3.5 h-3.5" />
-                    <span className="text-[11px]">Chat</span>
+                    <span className="text-[11px]">{isExpiringSoon || isExpired ? 'Renew Alert' : 'Chat'}</span>
                   </button>
 
                   <div className="flex items-center gap-1.5">
@@ -468,12 +496,20 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
               <tbody className="divide-y divide-slate-800">
                 {paginatedMerchants.map((m) => {
                   const isPro = m.subscription_tier === 'pro' || m.subscription_tier === 'growth' || m.subscription_tier === 'enterprise';
+                  const expiryDate = m.subscription_expires_at || m.subscription_valid_until;
+                  const diffDays = expiryDate ? Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)) : null;
+                  const isExpiringSoon = isPro && diffDays !== null && diffDays <= 7 && diffDays > 0;
+                  const isExpired = isPro && diffDays !== null && diffDays <= 0;
+
                   return (
                     <tr key={m.id} className="hover:bg-slate-800/50 transition">
                       <td className="py-3 px-4 font-bold text-white">
                         <div className="flex items-center gap-2">
                           <Store className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                           <span>{m.name}</span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono text-slate-400 bg-slate-800 border border-slate-700">
+                            v{m.app_version || '4.06.0'}
+                          </span>
                         </div>
                       </td>
                       <td className="py-3 px-4 font-mono">
@@ -488,14 +524,24 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                           {isPro && <Crown className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />}
                           {m.subscription_tier}
                         </span>
+                        {isExpired && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                            Expired
+                          </span>
+                        )}
+                        {isExpiringSoon && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                            {diffDays}d Left
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         <div>{m.city || '—'}</div>
                         <div className="text-slate-400 text-[11px] capitalize">{m.business_type || 'Retail'}</div>
                       </td>
                       <td className="py-3 px-4 font-mono text-slate-400">
-                        {m.subscription_expires_at || m.subscription_valid_until
-                          ? new Date(m.subscription_expires_at || m.subscription_valid_until!).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
+                        {expiryDate
+                          ? new Date(expiryDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
                           : 'Trial'}
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -503,8 +549,13 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                           <button
                             type="button"
                             onClick={() => onSendWhatsApp(m)}
-                            className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 cursor-pointer"
-                            title="WhatsApp"
+                            className={cn(
+                              "p-1.5 rounded-lg border cursor-pointer transition",
+                              isExpiringSoon || isExpired
+                                ? "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border-amber-500/40 animate-pulse"
+                                : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border-emerald-500/30"
+                            )}
+                            title={isExpiringSoon || isExpired ? "Send Renewal Alert" : "WhatsApp"}
                           >
                             <WhatsAppLogo className="w-3.5 h-3.5" />
                           </button>

@@ -13,6 +13,7 @@ import { initFirebaseAppCheck } from '@/lib/firebase/appCheck';
 import { initBackgroundCloudSync } from '@/lib/firebase/backgroundSync';
 import { restoreFirestoreToLocalDexie } from '@/lib/firebase/firestoreSync';
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
+import { APP_VERSION } from '@/lib/constants/version';
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -20,6 +21,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [isClient, setIsClient] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [accountLockout, setAccountLockout] = useState<{ isFrozen: boolean; message: string } | null>(null);
+  const [forceUpdateInfo, setForceUpdateInfo] = useState<{
+    required: boolean;
+    minVersion: string;
+    latestVersion: string;
+    url: string;
+    changelog?: string;
+  } | null>(null);
   const [impersonationData, setImpersonationData] = useState<{
     admin_active: boolean;
     merchant_id: string;
@@ -86,6 +94,34 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         setImpersonationData(JSON.parse(imp));
       }
     } catch {}
+
+    // Check remote platform version requirements
+    fetch('/api/admin/config')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.config?.forceUpdate && data?.config?.minRequiredVersion) {
+          const reqVer = data.config.minRequiredVersion;
+          const curParts = APP_VERSION.split('.').map((p: string) => parseInt(p, 10) || 0);
+          const reqParts = reqVer.split('.').map((p: string) => parseInt(p, 10) || 0);
+          let isLower = false;
+          for (let i = 0; i < Math.max(curParts.length, reqParts.length); i++) {
+            const cur = curParts[i] || 0;
+            const req = reqParts[i] || 0;
+            if (cur < req) { isLower = true; break; }
+            if (cur > req) { isLower = false; break; }
+          }
+          if (isLower) {
+            setForceUpdateInfo({
+              required: true,
+              minVersion: reqVer,
+              latestVersion: data.config.latestVersion || reqVer,
+              url: data.config.updateDownloadUrl || 'https://github.com/sayrahul/kamai/releases',
+              changelog: data.config.updateChangelog,
+            });
+          }
+        }
+      })
+      .catch(() => {});
 
     const handleAuthChange = () => {
       const u = getStoredUser();
@@ -296,6 +332,39 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             >
               Return to Login
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* App Version Force Update Modal */}
+      {forceUpdateInfo && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-amber-200 text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-xs">
+              <span className="text-3xl">🚀</span>
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-lg font-black text-slate-900">
+                New Update Available!
+              </h2>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                A critical release <strong>v{forceUpdateInfo.latestVersion}</strong> is ready. Please update to continue using POS billing without interruption.
+              </p>
+            </div>
+            {forceUpdateInfo.changelog && (
+              <div className="p-3 bg-amber-50 rounded-2xl border border-amber-100 text-xs text-amber-950 text-left space-y-1">
+                <div className="font-bold text-[11px] uppercase tracking-wider text-amber-800">What's New:</div>
+                <div className="font-medium text-slate-700 leading-relaxed text-[11.5px]">{forceUpdateInfo.changelog}</div>
+              </div>
+            )}
+            <a
+              href={forceUpdateInfo.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs transition cursor-pointer shadow-lg shadow-amber-500/20"
+            >
+              Update Kamai+ App Now &rarr;
+            </a>
           </div>
         </div>
       )}

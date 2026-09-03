@@ -45,6 +45,7 @@ export interface MerchantRecord {
   subscription_expires_at?: string;
   subscription_valid_until?: string;
   is_active: boolean;
+  app_version?: string;
   created_at: string;
   updated_at?: string;
 }
@@ -179,8 +180,15 @@ export default function MasterSuperAdminPage() {
   const [formGstReports, setFormGstReports] = useState<boolean>(true);
   const [formAnnualPrice, setFormAnnualPrice] = useState<number>(1499);
   const [formMonthlyPrice, setFormMonthlyPrice] = useState<number>(199);
+  const [formHoldBillsLimit, setFormHoldBillsLimit] = useState<number>(3);
+  const [formHistoryDaysLimit, setFormHistoryDaysLimit] = useState<number>(7);
   const [formSupportPhone, setFormSupportPhone] = useState<string>('+919595997711');
   const [formSupportWhatsApp, setFormSupportWhatsApp] = useState<string>('919595997711');
+  const [formMinVersion, setFormMinVersion] = useState<string>('4.00.0');
+  const [formLatestVersion, setFormLatestVersion] = useState<string>('4.06.0');
+  const [formForceUpdate, setFormForceUpdate] = useState<boolean>(false);
+  const [formUpdateUrl, setFormUpdateUrl] = useState<string>('https://github.com/sayrahul/kamai/releases');
+  const [formUpdateChangelog, setFormUpdateChangelog] = useState<string>('✨ Native Bluetooth Thermal Printing, Mobile UX Revamp & Security Enhancements');
   const [isSavingConfig, setIsSavingConfig] = useState<boolean>(false);
 
   // Reset Dexie Cache State
@@ -236,8 +244,15 @@ export default function MasterSuperAdminPage() {
         setFormMaintenanceMessage(configRes.config.maintenance_message || '');
         setFormAnnualPrice(configRes.config.annual_pro_price || 1499);
         setFormMonthlyPrice(configRes.config.monthly_pro_price || 199);
+        setFormHoldBillsLimit(configRes.config.freeHoldBillsLimit !== undefined ? configRes.config.freeHoldBillsLimit : 3);
+        setFormHistoryDaysLimit(configRes.config.freeHistoryDaysLimit !== undefined ? configRes.config.freeHistoryDaysLimit : 7);
         setFormSupportPhone(configRes.config.support_phone || '+919595997711');
         setFormSupportWhatsApp(configRes.config.support_whatsapp || '919595997711');
+        setFormMinVersion(configRes.config.minRequiredVersion || '4.00.0');
+        setFormLatestVersion(configRes.config.latestVersion || '4.06.0');
+        setFormForceUpdate(configRes.config.forceUpdate || false);
+        setFormUpdateUrl(configRes.config.updateDownloadUrl || 'https://github.com/sayrahul/kamai/releases');
+        setFormUpdateChangelog(configRes.config.updateChangelog || '✨ Native Bluetooth Thermal Printing, Mobile UX Revamp & Security Enhancements');
       }
     } catch (err) {
       console.error('Failed to load admin data:', err);
@@ -435,8 +450,15 @@ export default function MasterSuperAdminPage() {
           maintenance_message: formMaintenanceMessage,
           annual_pro_price: formAnnualPrice,
           monthly_pro_price: formMonthlyPrice,
+          freeHoldBillsLimit: formHoldBillsLimit,
+          freeHistoryDaysLimit: formHistoryDaysLimit,
           support_phone: formSupportPhone,
           support_whatsapp: formSupportWhatsApp,
+          minRequiredVersion: formMinVersion,
+          latestVersion: formLatestVersion,
+          forceUpdate: formForceUpdate,
+          updateDownloadUrl: formUpdateUrl,
+          updateChangelog: formUpdateChangelog,
         }),
       });
 
@@ -739,7 +761,18 @@ export default function MasterSuperAdminPage() {
           }}
           onDeleteMerchant={setMerchantToDelete}
           onSendWhatsApp={(m) => {
-            window.open(`https://wa.me/91${m.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${m.name || 'Merchant'}! Special update from KamaiPlus Master Support.`)}`, '_blank');
+            const expiryDate = m.subscription_expires_at || m.subscription_valid_until;
+            const diffDays = expiryDate ? Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)) : null;
+            const isExpiringSoon = diffDays !== null && diffDays <= 7 && diffDays > 0;
+            const isExpired = diffDays !== null && diffDays <= 0;
+
+            let text = `Namaste ${m.owner_name || m.name} ji! Special update from KamaiPlus Master Support.`;
+            if (isExpiringSoon) {
+              text = `Namaste ${m.owner_name || m.name} ji! Aapki dukan "${m.name}" ka KamaiPlus Pro subscription agle ${diffDays} din me expire hone wala hai. Bina kisi rukawat billing, digital thermal slips aur cloud backup continue rakhne ke liye abhi renew karein: https://kamaiplus.in/pricing - KamaiPlus Team`;
+            } else if (isExpired) {
+              text = `Namaste ${m.owner_name || m.name} ji! Aapki dukan "${m.name}" ka KamaiPlus Pro plan expire ho gaya hai. Apne billing counter ko uninterrupted rakhne ke liye abhi renew karein: https://kamaiplus.in/pricing - KamaiPlus Team`;
+            }
+            window.open(`https://wa.me/91${m.phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`, '_blank');
           }}
         />
       )}
@@ -819,10 +852,24 @@ export default function MasterSuperAdminPage() {
           setFormGrowthMarketing={setFormGrowthMarketing}
           formGstReports={formGstReports}
           setFormGstReports={setFormGstReports}
+          formMinVersion={formMinVersion}
+          setFormMinVersion={setFormMinVersion}
+          formLatestVersion={formLatestVersion}
+          setFormLatestVersion={setFormLatestVersion}
+          formForceUpdate={formForceUpdate}
+          setFormForceUpdate={setFormForceUpdate}
+          formUpdateUrl={formUpdateUrl}
+          setFormUpdateUrl={setFormUpdateUrl}
+          formUpdateChangelog={formUpdateChangelog}
+          setFormUpdateChangelog={setFormUpdateChangelog}
           formAnnualPrice={formAnnualPrice}
           setFormAnnualPrice={setFormAnnualPrice}
           formMonthlyPrice={formMonthlyPrice}
           setFormMonthlyPrice={setFormMonthlyPrice}
+          formHoldBillsLimit={formHoldBillsLimit}
+          setFormHoldBillsLimit={setFormHoldBillsLimit}
+          formHistoryDaysLimit={formHistoryDaysLimit}
+          setFormHistoryDaysLimit={setFormHistoryDaysLimit}
           formSupportPhone={formSupportPhone}
           setFormSupportPhone={setFormSupportPhone}
           formSupportWhatsApp={formSupportWhatsApp}

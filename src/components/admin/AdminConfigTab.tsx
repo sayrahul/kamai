@@ -8,7 +8,8 @@ import {
   RefreshCw, 
   AlertTriangle, 
   ShieldCheck, 
-  Database 
+  Database,
+  Smartphone
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
@@ -27,10 +28,24 @@ interface AdminConfigTabProps {
   setFormGrowthMarketing: (val: boolean) => void;
   formGstReports: boolean;
   setFormGstReports: (val: boolean) => void;
+  formMinVersion: string;
+  setFormMinVersion: (val: string) => void;
+  formLatestVersion: string;
+  setFormLatestVersion: (val: string) => void;
+  formForceUpdate: boolean;
+  setFormForceUpdate: (val: boolean) => void;
+  formUpdateUrl: string;
+  setFormUpdateUrl: (val: string) => void;
+  formUpdateChangelog: string;
+  setFormUpdateChangelog: (val: string) => void;
   formAnnualPrice: number;
   setFormAnnualPrice: (val: number) => void;
   formMonthlyPrice: number;
   setFormMonthlyPrice: (val: number) => void;
+  formHoldBillsLimit?: number;
+  setFormHoldBillsLimit?: (val: number) => void;
+  formHistoryDaysLimit?: number;
+  setFormHistoryDaysLimit?: (val: number) => void;
   formSupportPhone: string;
   setFormSupportPhone: (val: string) => void;
   formSupportWhatsApp: string;
@@ -56,10 +71,24 @@ export const AdminConfigTab: React.FC<AdminConfigTabProps> = ({
   setFormGrowthMarketing,
   formGstReports,
   setFormGstReports,
+  formMinVersion,
+  setFormMinVersion,
+  formLatestVersion,
+  setFormLatestVersion,
+  formForceUpdate,
+  setFormForceUpdate,
+  formUpdateUrl,
+  setFormUpdateUrl,
+  formUpdateChangelog,
+  setFormUpdateChangelog,
   formAnnualPrice,
   setFormAnnualPrice,
   formMonthlyPrice,
   setFormMonthlyPrice,
+  formHoldBillsLimit = 3,
+  setFormHoldBillsLimit,
+  formHistoryDaysLimit = 7,
+  setFormHistoryDaysLimit,
   formSupportPhone,
   setFormSupportPhone,
   formSupportWhatsApp,
@@ -146,6 +175,30 @@ export const AdminConfigTab: React.FC<AdminConfigTabProps> = ({
           </div>
         </div>
 
+        {/* Free Tier Threshold Limits */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">Free Tier Hold Bills Limit</label>
+            <input
+              type="number"
+              value={String(formHoldBillsLimit)}
+              onChange={(e) => setFormHoldBillsLimit && setFormHoldBillsLimit(Number(e.target.value))}
+              placeholder="e.g. 3"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">Free Sales History Days Limit</label>
+            <input
+              type="number"
+              value={String(formHistoryDaysLimit)}
+              onChange={(e) => setFormHistoryDaysLimit && setFormHistoryDaysLimit(Number(e.target.value))}
+              placeholder="e.g. 7"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-300 mb-1.5">Help Desk Helpline Phone</label>
@@ -178,7 +231,89 @@ export const AdminConfigTab: React.FC<AdminConfigTabProps> = ({
         </Button>
       </div>
 
-      {/* 3. Local Cache Fresh Sync Utility */}
+      {/* 3. App Release & Force Update Radar */}
+      <div className="p-4 sm:p-5 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-xl space-y-4 text-slate-100">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
+          <div className="flex items-center gap-2.5">
+            <Smartphone className="w-5 h-5 text-amber-400" />
+            <div>
+              <h3 className="text-sm sm:text-base font-black text-white">
+                App Version Fleet Radar &amp; Force Update
+              </h3>
+              <p className="text-xs text-slate-400">Enforce minimum app release versions across POS merchant counters.</p>
+            </div>
+          </div>
+
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formForceUpdate}
+              onChange={(e) => setFormForceUpdate(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-400" />
+            <span className="ml-2 text-xs font-black text-white">
+              {formForceUpdate ? 'LOCKOUT ON' : 'OPTIONAL'}
+            </span>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">
+              Minimum Required Version (Lower versions will be prompted to update)
+            </label>
+            <input
+              type="text"
+              value={formMinVersion}
+              onChange={(e) => setFormMinVersion(e.target.value)}
+              placeholder="e.g. 4.05.0"
+              className="w-full px-3 py-2 text-xs bg-slate-800 rounded-xl border border-slate-700 text-white font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">
+              Latest Released Version
+            </label>
+            <input
+              type="text"
+              value={formLatestVersion}
+              onChange={(e) => setFormLatestVersion(e.target.value)}
+              placeholder="e.g. 4.06.0"
+              className="w-full px-3 py-2 text-xs bg-slate-800 rounded-xl border border-slate-700 text-white font-mono"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-300 mb-1.5">
+            Download / Play Store APK URL
+          </label>
+          <input
+            type="text"
+            value={formUpdateUrl}
+            onChange={(e) => setFormUpdateUrl(e.target.value)}
+            placeholder="https://github.com/sayrahul/kamai/releases"
+            className="w-full px-3 py-2 text-xs bg-slate-800 rounded-xl border border-slate-700 text-white font-mono"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-300 mb-1.5">
+            Update Changelog &amp; Highlights (Shown in update modal)
+          </label>
+          <textarea
+            rows={2}
+            value={formUpdateChangelog}
+            onChange={(e) => setFormUpdateChangelog(e.target.value)}
+            placeholder="What's new in this version..."
+            className="w-full p-2.5 text-xs bg-slate-800 rounded-xl border border-slate-700 text-white"
+          />
+        </div>
+      </div>
+
+      {/* 4. Local Cache Fresh Sync Utility */}
       <div className="p-4 sm:p-5 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-xl space-y-3 text-slate-100">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
           <div className="flex items-center gap-2.5">

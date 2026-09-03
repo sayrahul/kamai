@@ -14,6 +14,11 @@ export interface PlatformRemoteConfig {
   proAnnualPrice: number;  // e.g. 2100
   freeHoldBillsLimit: number; // default 3
   freeHistoryDaysLimit: number; // default 7
+  minRequiredVersion?: string;
+  latestVersion?: string;
+  forceUpdate?: boolean;
+  updateDownloadUrl?: string;
+  updateChangelog?: string;
   supportPhone: string;
   supportWhatsApp: string;
   updatedAt: string;
@@ -31,6 +36,11 @@ export let cachedConfig: PlatformRemoteConfig = {
   proAnnualPrice: 1499,
   freeHoldBillsLimit: 3,
   freeHistoryDaysLimit: 7,
+  minRequiredVersion: '4.00.0',
+  latestVersion: '4.06.0',
+  forceUpdate: false,
+  updateDownloadUrl: 'https://github.com/sayrahul/kamai/releases',
+  updateChangelog: '✨ Native Bluetooth Thermal Printing, Fast Mobile Checkout & Security Enhancements',
   supportPhone: '+919595997711',
   supportWhatsApp: '919595997711',
   updatedAt: new Date().toISOString(),
@@ -82,9 +92,20 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
+    const annualPrice = body.annual_pro_price !== undefined ? Number(body.annual_pro_price) : (body.proAnnualPrice !== undefined ? Number(body.proAnnualPrice) : cachedConfig.proAnnualPrice);
+    const monthlyPrice = body.monthly_pro_price !== undefined ? Number(body.monthly_pro_price) : (body.proMonthlyPrice !== undefined ? Number(body.proMonthlyPrice) : cachedConfig.proMonthlyPrice);
+    const holdBills = body.freeHoldBillsLimit !== undefined ? Number(body.freeHoldBillsLimit) : cachedConfig.freeHoldBillsLimit;
+    const historyDays = body.freeHistoryDaysLimit !== undefined ? Number(body.freeHistoryDaysLimit) : cachedConfig.freeHistoryDaysLimit;
+
     cachedConfig = {
       ...cachedConfig,
       ...body,
+      proAnnualPrice: annualPrice,
+      annual_pro_price: annualPrice,
+      proMonthlyPrice: monthlyPrice,
+      monthly_pro_price: monthlyPrice,
+      freeHoldBillsLimit: holdBills,
+      freeHistoryDaysLimit: historyDays,
       updatedAt: new Date().toISOString(),
     };
 

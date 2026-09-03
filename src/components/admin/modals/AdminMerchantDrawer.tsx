@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2 } from 'lucide-react';
+import { Building2, Download, Database, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { MerchantRecord } from '@/app/admin/page';
@@ -13,6 +13,33 @@ export const AdminMerchantDrawer: React.FC<AdminMerchantDrawerProps> = ({
   merchant,
   onClose,
 }) => {
+  const handleDownloadBackup = () => {
+    if (!merchant) return;
+    const snapshot = {
+      metadata: {
+        store_id: merchant.id,
+        store_name: merchant.name,
+        owner: merchant.owner_name,
+        phone: merchant.phone,
+        email: merchant.email,
+        tier: merchant.subscription_tier,
+        app_version: merchant.app_version || '4.06.0',
+        exported_at: new Date().toISOString(),
+        backup_engine: 'KamaiPlus Cloud Disaster Recovery',
+      },
+      merchant_profile: merchant,
+    };
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kamai_store_backup_${(merchant.name || 'store').replace(/[^a-zA-Z0-9_-]/g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Modal
       isOpen={Boolean(merchant)}
@@ -57,9 +84,29 @@ export const AdminMerchantDrawer: React.FC<AdminMerchantDrawerProps> = ({
               <span className="font-black uppercase text-amber-600 dark:text-amber-400">{merchant.subscription_tier}</span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-bold">Store ID</span>
-              <span className="font-mono text-[10px] text-slate-500 truncate block">{merchant.id}</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">App Release</span>
+              <span className="font-mono text-[10px] text-slate-700 dark:text-slate-300 font-bold block">v{merchant.app_version || '4.06.0'}</span>
             </div>
+          </div>
+
+          {/* Disaster Recovery & Cloud Snapshot Card */}
+          <div className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-900/50 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Database className="w-4 h-4 text-indigo-500 shrink-0" />
+              <div>
+                <div className="font-bold text-slate-900 dark:text-slate-100 text-[11px]">Disaster Recovery Snapshot</div>
+                <div className="text-[10px] text-slate-500">1-Click JSON backup for store data recovery.</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDownloadBackup}
+              className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition shadow-xs shrink-0"
+              title="Download full JSON store backup"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export JSON</span>
+            </button>
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
