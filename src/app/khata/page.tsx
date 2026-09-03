@@ -278,10 +278,36 @@ function KhataContent() {
     });
 
     setIsEntryModalOpen(false);
+
+    // 1-Click WhatsApp Payment Received Receipt Slip
+    if (entryType === 'PAYMENT_RECEIVED' && selectedCustomer.phone) {
+      const cleanPhone = selectedCustomer.phone.replace(/\D/g, '').slice(-10);
+      const formattedPhone = cleanPhone ? `91${cleanPhone}` : '';
+      const bizName = business?.name || 'Hamari Dukan';
+      const msg = `🙏 *PAYMENT RECEIVED RECEIPT* 🙏\n` +
+        `🏪 *${bizName}*\n\n` +
+        `Namaste *${selectedCustomer.name}* ji,\n` +
+        `Aapki taraf se *${formatINR(amountPaise)}* prapt hue.\n\n` +
+        `📅 *Tareekh:* ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}\n` +
+        `💳 *Payment Mode:* ${entryPaymentMode.toUpperCase()}\n` +
+        `${entryNotes.trim() ? `📝 *Note:* ${entryNotes.trim()}\n` : ''}` +
+        `--------------------------------\n` +
+        `💰 *Remaining Khata Balance:* ${balanceAfter > 0 ? formatINR(balanceAfter) : '₹0 (Hisab Nil / Clear ✅)'}\n` +
+        `--------------------------------\n` +
+        `Aapke vishwas aur payment ke liye dhanyawad! 🙏`;
+
+      const waUrl = formattedPhone 
+        ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`
+        : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      if (typeof window !== 'undefined') {
+        window.open(waUrl, '_blank');
+      }
+    }
+
     showToast(
       entryType === 'CREDIT_SALE' 
         ? `Added ₹${(amountPaise / 100).toFixed(2)} Udhar for ${selectedCustomer.name}`
-        : `Recorded ₹${(amountPaise / 100).toFixed(2)} Payment from ${selectedCustomer.name}`
+        : `Recorded ₹${(amountPaise / 100).toFixed(2)} Payment & sent receipt for ${selectedCustomer.name}`
     );
   };
 

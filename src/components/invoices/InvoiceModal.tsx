@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Business, Sale, CartItem, UpiAccount } from '@/types';
 import { formatINR, generateUPILink } from '@/lib/utils';
 import { calculateGstSummary, numberToWordsINR } from '@/lib/invoices/gstCalculator';
-import { sendInvoiceViaOfficialCloudApi } from '@/lib/invoices/whatsappInvoice';
+import { sendInvoiceViaOfficialCloudApi, sendInvoiceViaWhatsApp } from '@/lib/invoices/whatsappInvoice';
 import { usePlatformPromoConfig } from '@/lib/firebase/remoteConfig';
 import Link from 'next/link';
 import { 
@@ -326,13 +326,19 @@ export function InvoiceModal({
         setShareSuccessMsg(`✅ Official WhatsApp invoice delivered silently to +91${masked}!`);
         setTimeout(() => setShareSuccessMsg(''), 5000);
       } else {
-        setShareSuccessMsg(`⚠️ ${res.error || 'Failed to dispatch WhatsApp invoice'}`);
-        setTimeout(() => setShareSuccessMsg(''), 6000);
+        // Smart Fail-Safe Auto-Fallback: Open via merchant's WhatsApp app / Web
+        console.warn('Cloud API unavailable or unconfigured, launching direct WhatsApp:', res.error);
+        sendInvoiceViaWhatsApp(targetPhone, sale, business);
+        const masked = targetPhone.replace(/\D/g, '').slice(-10);
+        setShareSuccessMsg(`📲 Opened WhatsApp for +91${masked} (Direct Dispatch)`);
+        setTimeout(() => setShareSuccessMsg(''), 5000);
       }
     } catch (err: any) {
-      console.error('WhatsApp send error:', err);
-      setShareSuccessMsg(`⚠️ ${err?.message || 'Failed to send WhatsApp invoice'}`);
-      setTimeout(() => setShareSuccessMsg(''), 6000);
+      console.error('WhatsApp send error, launching direct fallback:', err);
+      sendInvoiceViaWhatsApp(targetPhone, sale, business);
+      const masked = targetPhone.replace(/\D/g, '').slice(-10);
+      setShareSuccessMsg(`📲 Opened WhatsApp for +91${masked}`);
+      setTimeout(() => setShareSuccessMsg(''), 5000);
     } finally {
       if (prevMode !== 'full') {
         setViewMode(prevMode);

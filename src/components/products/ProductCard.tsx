@@ -38,6 +38,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const isLowStock = !product.is_unlimited_stock && product.current_stock > 0 && product.current_stock <= (product.min_stock_level || 5);
   const profitMarginPaise = product.selling_price - (product.purchase_price || 0);
 
+  const expiryStatus = (() => {
+    if (!product.expiry_date) return null;
+    const expDate = new Date(product.expiry_date);
+    const now = new Date();
+    const diffTime = expDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return { label: 'Expired', isExpired: true };
+    if (diffDays <= 30) return { label: `${diffDays}d to Expiry`, isNear: true };
+    return null;
+  })();
+
   return (
     <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between space-y-3">
       {/* Top Bar: Name, Category, Badges & Favorite */}
@@ -52,6 +63,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-0.5">
                   <Scale className="w-2.5 h-2.5" />
                   Weighed
+                </span>
+              )}
+              {expiryStatus && (
+                <span className={cn(
+                  "px-1.5 py-0.2 rounded text-[9.5px] font-bold flex items-center gap-0.5",
+                  expiryStatus.isExpired 
+                    ? "bg-rose-100 text-rose-900 border border-rose-300"
+                    : "bg-amber-100 text-amber-900 border border-amber-300 animate-pulse"
+                )}>
+                  ⏰ {expiryStatus.label}
                 </span>
               )}
             </div>

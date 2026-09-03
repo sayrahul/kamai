@@ -45,6 +45,7 @@ export function SettleInvoicesModal({
   const [paymentMode, setPaymentMode] = useState<'cash' | 'upi' | 'bank' | 'other'>('cash');
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState<string>('');
+  const [sendWhatsAppReceipt, setSendWhatsAppReceipt] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
@@ -174,6 +175,31 @@ export function SettleInvoicesModal({
         }
       } catch {}
 
+      // 5. WhatsApp Payment Receipt Voucher Dispatch
+      if (sendWhatsAppReceipt && customer?.phone) {
+        const cleanPhone = customer.phone.replace(/\D/g, '').slice(-10);
+        const formattedPhone = cleanPhone ? `91${cleanPhone}` : '';
+        const bizName = business?.name || 'Hamari Dukan';
+        const msg = `🙏 *PAYMENT RECEIVED RECEIPT* 🙏\n` +
+          `🏪 *${bizName}*\n\n` +
+          `Namaste *${customer.name}* ji,\n` +
+          `Aapki taraf se *${formatINR(totalSettlementPaise)}* prapt hue.\n\n` +
+          `📅 *Tareekh:* ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}\n` +
+          `💳 *Payment Mode:* ${paymentMode.toUpperCase()}\n` +
+          `${notes.trim() ? `📝 *Note:* ${notes.trim()}\n` : ''}` +
+          `--------------------------------\n` +
+          `💰 *Remaining Khata Balance:* ${updatedCustomerBalance > 0 ? formatINR(updatedCustomerBalance) : '₹0 (Hisab Nil / Clear ✅)'}\n` +
+          `--------------------------------\n` +
+          `Aapke vishwas aur payment ke liye dhanyawad! 🙏`;
+
+        const waUrl = formattedPhone 
+          ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`
+          : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+        if (typeof window !== 'undefined') {
+          window.open(waUrl, '_blank');
+        }
+      }
+
       onSuccess(updatedCustomerBalance, selectedSales.length);
       onClose();
     } catch (err: any) {
@@ -286,6 +312,18 @@ export function SettleInvoicesModal({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
+
+        {customer?.phone && (
+          <label className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-950 dark:text-emerald-200 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={sendWhatsAppReceipt}
+              onChange={(e) => setSendWhatsAppReceipt(e.target.checked)}
+              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+            />
+            <span>📲 Send WhatsApp Payment Receipt Slip to +91{customer.phone.replace(/\D/g, '').slice(-10)}</span>
+          </label>
+        )}
 
         {/* Action Buttons */}
         <div className="pt-3 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800">

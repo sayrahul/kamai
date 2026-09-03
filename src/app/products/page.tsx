@@ -50,6 +50,7 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [showExpiringOnly, setShowExpiringOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isRapidInwardOpen, setIsRapidInwardOpen] = useState(false);
@@ -118,13 +119,22 @@ export default function ProductsPage() {
         if (p.current_stock > minAlert) return false;
       }
 
+      // 4. Expiring Soon Filter (Within 30 days or already expired)
+      if (showExpiringOnly) {
+        if (!p.expiry_date) return false;
+        const expTime = new Date(p.expiry_date).getTime();
+        const nowTime = new Date().getTime();
+        const diffDays = Math.ceil((expTime - nowTime) / (1000 * 60 * 60 * 24));
+        if (diffDays > 30) return false;
+      }
+
       return true;
     }).sort((a, b) => {
       if (a.is_favorite && !b.is_favorite) return -1;
       if (!a.is_favorite && b.is_favorite) return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [allProducts, searchQuery, selectedCategory, showLowStockOnly]);
+  }, [allProducts, searchQuery, selectedCategory, showLowStockOnly, showExpiringOnly]);
 
   // Financial & Inventory Metrics
   const lowStockCount = useMemo(() => {
@@ -371,6 +381,8 @@ export default function ProductsPage() {
         onSelectCategory={setSelectedCategory}
         showLowStockOnly={showLowStockOnly}
         onToggleLowStock={setShowLowStockOnly}
+        showExpiringOnly={showExpiringOnly}
+        onToggleExpiringOnly={setShowExpiringOnly}
         onOpenScanner={() => setIsScannerOpen(true)}
       />
 
