@@ -16,14 +16,16 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
     signingConfigs {
         release {
-            if (file('kamai-release-key.jks').exists()) {
-                storeFile file('kamai-release-key.jks')
-                storePassword 'kamaiplus2026'
-                keyAlias 'kamaiplus'
-                keyPassword 'kamaiplus2026'
-            }
+            storeFile file('kamai-release-key.jks')
+            storePassword 'kamaiplus2026'
+            keyAlias 'kamaiplus'
+            keyPassword 'kamaiplus2026'
         }
     }
     buildTypes {
