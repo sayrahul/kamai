@@ -6,7 +6,7 @@ import { db as localDb, seedBusinessStarterData } from '@/lib/db';
 import { BusinessType, Business } from '@/types';
 import { getStoredUser, setStoredUser, AuthUser } from '@/lib/auth';
 import { getFirestoreDb } from '@/lib/firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { sanitizeForFirestore } from '@/lib/firebase/firestoreSync';
 import { syncProfileToCloud } from '@/lib/sync/syncEngine';
 import { 
@@ -212,6 +212,12 @@ export default function OnboardingPage() {
             updated_at: now,
           };
           await setDoc(doc(firestore, 'businesses', businessId), sanitizeForFirestore(businessDoc), { merge: true });
+
+          // Clear any legacy tombstones for this store ID and phone so it is immediately active and visible in Admin
+          await deleteDoc(doc(firestore, 'deleted_businesses', businessId)).catch(() => {});
+          if (cleanPhone) {
+            await deleteDoc(doc(firestore, 'deleted_phones', cleanPhone)).catch(() => {});
+          }
         } catch (cloudErr) {
           console.warn('Cloud Firestore merchant creation notice:', cloudErr);
         }

@@ -96,7 +96,7 @@ export async function syncLocalDexieToFirestore(businessId: string): Promise<{ s
       getDoc(doc(firestore, 'deleted_businesses', businessId)).catch(() => null),
     ]);
 
-    if (tombSnap?.exists() || (bizSnap && !bizSnap.exists())) {
+    if (tombSnap?.exists()) {
       console.warn(`🛑 Business ${businessId} was deleted in cloud. Aborting sync and wiping device.`);
       const { purgeLocalDeviceData } = await import('@/lib/auth');
       await purgeLocalDeviceData().catch(() => {});

@@ -137,7 +137,7 @@ export async function GET(req: NextRequest) {
     } catch (e) {}
 
     // If account was explicitly deleted by admin
-    if (isExplicitlyDeleted || (targetBusinessId && !isFound)) {
+    if (isExplicitlyDeleted) {
       const resp = NextResponse.json(
         {
           authenticated: false,

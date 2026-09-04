@@ -2,7 +2,7 @@
 'use client';
 
 import { getFirestoreDb } from '@/lib/firebase/config';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db as localDb } from '@/lib/db';
 import { 
   syncLocalDexieToFirestore, 
@@ -25,7 +25,7 @@ export async function syncProfileToCloud(businessId: string): Promise<void> {
       getDoc(doc(firestore, 'deleted_businesses', businessId)).catch(() => null),
     ]);
 
-    if (tombSnap?.exists() || (bizSnap && !bizSnap.exists())) {
+    if (tombSnap?.exists()) {
       console.warn(`🛑 Store ${businessId} was deleted in cloud. Aborting profile sync.`);
       return;
     }
@@ -94,6 +94,12 @@ export async function syncProfileToCloud(businessId: string): Promise<void> {
           }),
           { merge: true }
         );
+      }
+
+      // Clear any legacy tombstones for this active store and phone
+      await deleteDoc(doc(firestore, 'deleted_businesses', businessId)).catch(() => {});
+      if (cleanPhone && cleanPhone.length === 10) {
+        await deleteDoc(doc(firestore, 'deleted_phones', cleanPhone)).catch(() => {});
       }
     }
   } catch (err) {

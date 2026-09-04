@@ -187,11 +187,10 @@ export const AuthForm: React.FC = () => {
                 getDoc(doc(firestore, 'businesses', targetBizId)).catch(() => null),
                 getDoc(doc(firestore, 'deleted_businesses', targetBizId)).catch(() => null),
               ]);
-              if (tombSnap?.exists() || (bizSnap && !bizSnap.exists()) || bizSnap?.data()?.is_active === false) {
+              if (tombSnap?.exists() || (bizSnap?.exists() && bizSnap.data()?.is_active === false)) {
                 // The store was deleted or frozen by platform admin!
-                await deleteDoc(doc(firestore, 'merchants', uid)).catch(() => {});
                 merchantData = null;
-              } else if (bizSnap) {
+              } else if (bizSnap && bizSnap.exists()) {
                 merchantData = { ...merchantData, ...bizSnap.data() };
               }
             } catch (vErr) {
@@ -220,7 +219,7 @@ export const AuthForm: React.FC = () => {
                   getDoc(doc(firestore, 'businesses', localBiz.id)).catch(() => null),
                   getDoc(doc(firestore, 'deleted_businesses', localBiz.id)).catch(() => null),
                 ]);
-                if (tSnap?.exists() || (bSnap && !bSnap.exists())) {
+                if (tSnap?.exists()) {
                   isCloudDeleted = true;
                 }
               }
@@ -377,14 +376,26 @@ export const AuthForm: React.FC = () => {
               }, { merge: true });
             }
 
-            // 3. Keep business doc bound with both email and phone
+            // 3. Keep business doc bound with full profile details so it is 100% visible in Admin panel
             await setDoc(doc(firestore, 'businesses', businessId), {
+              id: businessId,
+              name: shopName,
+              owner_name: ownerName,
               email: resolvedEmail || undefined,
               user_email: resolvedEmail || undefined,
               phone: resolvedPhone || userPhone || undefined,
               user_uid: uid,
+              is_active: true,
+              subscription_tier: merchantData.subscription_tier || 'free',
+              created_at: merchantData.createdAt || merchantData.created_at || new Date().toISOString(),
               updated_at: new Date().toISOString(),
             }, { merge: true });
+
+            // 4. Clear any stale tombstones for this active store and phone
+            await deleteDoc(doc(firestore, 'deleted_businesses', businessId)).catch(() => {});
+            if (resolvedPhone && resolvedPhone.length === 10) {
+              await deleteDoc(doc(firestore, 'deleted_phones', resolvedPhone)).catch(() => {});
+            }
           }
         } catch (bindErr) {
           console.warn('Cross-index binding notice on login:', bindErr);

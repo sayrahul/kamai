@@ -16,18 +16,20 @@ export async function GET(req: NextRequest) {
 
     const merchantsMap = new Map<string, any>();
 
-    // 1. Fetch from Cloud Firestore `businesses` collection
+    // 1. Fetch from Cloud Firestore `businesses` & `merchants` collections
     try {
       const firestore = getFirestoreDb();
       if (firestore) {
-        const bizQuery = query(collection(firestore, 'businesses'), limit(200));
+        // 1a. Primary query: businesses collection
+        const bizQuery = query(collection(firestore, 'businesses'), limit(500));
         const snapshot = await getDocs(bizQuery);
         
         snapshot.forEach((doc) => {
           const data = doc.data();
           merchantsMap.set(doc.id, {
             id: doc.id,
-            name: data.name || 'Store Name',
+            business_id: doc.id,
+            name: data.name || data.shop_name || data.business_name || 'Store Name',
             owner_name: data.owner_name || data.ownerName || 'Merchant',
             phone: data.phone || '',
             email: data.email || data.user_email || '',
@@ -37,26 +39,88 @@ export async function GET(req: NextRequest) {
             gstin: data.gstin || '',
             business_type: data.business_type || 'grocery',
             subscription_tier: data.subscription_tier || 'free',
-            subscription_expires_at: data.subscription_expires_at || null,
+            subscription_expires_at: data.subscription_expires_at || data.subscription_valid_until || null,
             is_active: data.is_active !== false,
-            created_at: data.created_at || new Date().toISOString(),
-            updated_at: data.updated_at || data.last_synced_at || new Date().toISOString(),
+            created_at: data.created_at || data.createdAt || new Date().toISOString(),
+            updated_at: data.updated_at || data.last_synced_at || data.updatedAt || new Date().toISOString(),
           });
         });
 
-        // 1b. Filter out tombstoned businesses & phones so deleted stores never appear
+        // 1b. Fallback query: merchants collection (ensures newly onboarded or phone/email logins are 100% visible)
+        try {
+          const mQuery = query(collection(firestore, 'merchants'), limit(500));
+          const mSnapshot = await getDocs(mQuery);
+          
+          mSnapshot.forEach((doc) => {
+            const data = doc.data();
+            const targetId = data.business_id || doc.id;
+            
+            if (merchantsMap.has(targetId)) {
+              // Merge missing phone/email/owner from merchants document
+              const existing = merchantsMap.get(targetId);
+              if (!existing.phone && data.phone) existing.phone = data.phone;
+              if (!existing.email && data.email) existing.email = data.email;
+              if ((!existing.owner_name || existing.owner_name === 'Merchant') && data.owner_name) {
+                existing.owner_name = data.owner_name;
+              }
+              if ((!existing.name || existing.name === 'Store Name') && (data.shop_name || data.business_name)) {
+                existing.name = data.shop_name || data.business_name;
+              }
+            } else if (!doc.id.startsWith('wa_') && !doc.id.startsWith('user_')) {
+              // Full merchant record that wasn't yet in businesses collection
+              merchantsMap.set(targetId, {
+                id: targetId,
+                business_id: targetId,
+                name: data.shop_name || data.business_name || data.name || 'Store Name',
+                owner_name: data.owner_name || data.ownerName || 'Merchant',
+                phone: data.phone || '',
+                email: data.email || data.user_email || '',
+                address: data.address || '',
+                city: data.city || '',
+                state: data.state || '',
+                gstin: data.gstin || '',
+                business_type: data.business_type || 'grocery',
+                subscription_tier: data.subscription_tier || 'free',
+                subscription_expires_at: data.subscription_expires_at || data.subscription_valid_until || null,
+                is_active: data.is_active !== false,
+                created_at: data.createdAt || data.created_at || new Date().toISOString(),
+                updated_at: data.updatedAt || data.updated_at || new Date().toISOString(),
+              });
+            }
+          });
+        } catch (mFetchErr) {
+          console.warn('merchants collection fetch notice in admin:', mFetchErr);
+        }
+
+        // 1c. Filter out tombstoned businesses safely without wiping newly registered stores
         try {
           const delSnap = await getDocs(query(collection(firestore, 'deleted_businesses'), limit(500)));
           delSnap.forEach((d) => {
+            const delData = d.data();
+            const delTime = delData?.deleted_at ? new Date(delData.deleted_at).getTime() : 0;
+            
+            // Delete the exact deleted business ID
             merchantsMap.delete(d.id);
-            const p = d.data().phone;
+            if (delData?.business_id) {
+              merchantsMap.delete(delData.business_id);
+            }
+
+            // For phone matching: ONLY filter out if the merchant was created BEFORE the deletion!
+            const p = delData?.phone;
             if (p) {
               const pClean = p.replace(/\D/g, '').slice(-10);
-              merchantsMap.forEach((val, key) => {
-                if (val.phone && val.phone.replace(/\D/g, '').slice(-10) === pClean) {
-                  merchantsMap.delete(key);
-                }
-              });
+              if (pClean.length === 10) {
+                merchantsMap.forEach((val, key) => {
+                  const mPhone = val.phone ? val.phone.replace(/\D/g, '').slice(-10) : '';
+                  if (mPhone === pClean) {
+                    const mCreatedAt = val.created_at ? new Date(val.created_at).getTime() : 0;
+                    // Only filter if created before deletion timestamp!
+                    if (delTime > 0 && mCreatedAt > 0 && mCreatedAt <= delTime) {
+                      merchantsMap.delete(key);
+                    }
+                  }
+                });
+              }
             }
           });
         } catch (delErr) {}
