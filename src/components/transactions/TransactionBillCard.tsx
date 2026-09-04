@@ -10,7 +10,8 @@ import {
   Printer, 
   CheckCircle2, 
   Clock, 
-  Loader2 
+  Loader2,
+  Zap
 } from 'lucide-react';
 import { Sale } from '@/types';
 import { formatINR, cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ interface TransactionBillCardProps {
   onEditSale: (sale: Sale) => void;
   onReturnSale: (saleId: string) => void;
   onSendWhatsApp: (sale: Sale, e: React.MouseEvent) => void;
+  onConvertToInvoice?: (sale: Sale) => void;
 }
 
 export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
@@ -34,10 +36,12 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
   onEditSale,
   onReturnSale,
   onSendWhatsApp,
+  onConvertToInvoice,
 }) => {
   const isCredit = sale.payment_method === 'credit' || (sale.balance_due && sale.balance_due > 0);
   const isUPI = sale.payment_method === 'upi';
   const isReturned = sale.status === 'returned';
+  const isEstimate = sale.status === 'draft' || (sale.invoice_number && sale.invoice_number.startsWith('EST-'));
 
   return (
     <div
@@ -70,14 +74,20 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
             <span className="font-black text-slate-900 dark:text-slate-100 font-mono text-xs">
               {sale.invoice_number}
             </span>
-            <span className={cn(
-              'px-1.5 py-0.2 rounded text-[9px] font-black uppercase shrink-0',
-              sale.payment_method === 'cash' ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
-              sale.payment_method === 'upi' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800' :
-              'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
-            )}>
-              {sale.payment_method}
-            </span>
+            {isEstimate ? (
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-300 dark:border-violet-800 shrink-0">
+                📝 Estimate
+              </span>
+            ) : (
+              <span className={cn(
+                'px-1.5 py-0.2 rounded text-[9px] font-black uppercase shrink-0',
+                sale.payment_method === 'cash' ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
+                sale.payment_method === 'upi' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800' :
+                'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
+              )}>
+                {sale.payment_method}
+              </span>
+            )}
             {isReturned && (
               <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 shrink-0">
                 ↩ Returned
@@ -114,6 +124,8 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
         <div className="flex items-center gap-1.5 shrink-0">
           {isReturned ? (
             <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 mr-1">Refunded</span>
+          ) : isEstimate ? (
+            <span className="text-[10px] font-bold text-violet-700 dark:text-violet-400 mr-1">Quotation</span>
           ) : sale.balance_due && sale.balance_due > 0 ? (
             <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 font-mono mr-1">Due: {formatINR(sale.balance_due)}</span>
           ) : (
@@ -121,6 +133,22 @@ export const TransactionBillCard: React.FC<TransactionBillCardProps> = ({
               <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
               <span>Paid</span>
             </span>
+          )}
+
+          {/* 0. Convert to Tax Invoice (Estimates Only) */}
+          {isEstimate && onConvertToInvoice && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onConvertToInvoice(sale);
+              }}
+              title="Convert Quotation to Official Tax Invoice"
+              className="px-2 py-1 rounded-lg border border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/70 hover:bg-violet-100 text-violet-700 dark:text-violet-200 cursor-pointer shadow-2xs transition active:scale-95 text-[10px] font-bold flex items-center gap-1 shrink-0"
+            >
+              <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+              <span>Convert to Bill</span>
+            </button>
           )}
 
           {/* 1. Edit Invoice */}

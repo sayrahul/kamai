@@ -167,6 +167,78 @@ export const WhatsAppSettingsTab: React.FC<WhatsAppSettingsTabProps> = ({
           </div>
         )}
       </Card>
+
+      {/* 3. Automated Daily Business Summary Digest (9:00 PM & 9:00 AM) */}
+      <Card className="p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3.5">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🌙</span>
+            <div>
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                Automated Daily Business Summary on WhatsApp
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Auto-dispatched at <b>9:00 PM</b> (Closing Digest) and <b>9:00 AM</b> (Morning Recap) to store owner.
+              </p>
+            </div>
+          </div>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
+            Active
+          </span>
+        </div>
+
+        <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200/80 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 space-y-1 leading-relaxed">
+          <div>• <b>9:00 PM Closing Digest:</b> Today's gross sales, Cash, UPI, Credit given, Udhar collected &amp; top selling items.</div>
+          <div>• <b>9:00 AM Morning Recap:</b> Yesterday's business closing report &amp; positive opening motivation.</div>
+          <div>• <b>Recipient:</b> Store owner's registered contact number.</div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/whatsapp/daily-summary', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ type: 'night', phone: testWhatsAppPhone }),
+                });
+                const data = await res.json();
+                alert(data.message || (data.success ? 'Night closing digest sent!' : data.error));
+              } catch (e: any) {
+                alert(e?.message || 'Failed to dispatch digest');
+              }
+            }}
+            disabled={!testWhatsAppPhone.trim()}
+            className="text-xs font-bold py-2 px-3 rounded-xl gap-1.5"
+          >
+            <span>🌙 Test 9:00 PM Night Digest</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/whatsapp/daily-summary', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ type: 'morning', phone: testWhatsAppPhone }),
+                });
+                const data = await res.json();
+                alert(data.message || (data.success ? 'Morning recap sent!' : data.error));
+              } catch (e: any) {
+                alert(e?.message || 'Failed to dispatch digest');
+              }
+            }}
+            disabled={!testWhatsAppPhone.trim()}
+            className="text-xs font-bold py-2 px-3 rounded-xl gap-1.5"
+          >
+            <span>☀️ Test 9:00 AM Morning Recap</span>
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 };

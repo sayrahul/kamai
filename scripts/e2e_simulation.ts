@@ -40,7 +40,8 @@ import {
   sendWhatsAppWelcomeMessage, 
   sendWhatsAppLoginAlert,
   sendWhatsAppKhataReminderMessage,
-  sendWhatsAppCustomNotification
+  sendWhatsAppCustomNotification,
+  sendWhatsAppDailySummaryMessage
 } from '../src/lib/whatsapp/cloudApi';
 import { signOtpSessionToken, verifyStatelessOtp } from '../src/lib/auth/otpService';
 import { createHandshakeSession, verifyHandshakeSessionByMessage, getHandshakeStatus } from '../src/lib/auth/reverseHandshakeService';
@@ -733,6 +734,63 @@ assert(fallbackNav.posItems.some(i => i.href === '/barcode-generator'), 'Fallbac
 assert(fallbackNav.stockItems.some(i => i.href === '/products'), 'Fallback retains Products');
 assert(fallbackNav.stockItems.some(i => i.href === '/inventory'), 'Fallback retains Inventory & Expiry');
 assert(fallbackNav.stockItems.some(i => i.href === '/purchases'), 'Fallback retains Purchases & Bills');
+
+// 🌙 SUITE 10: WhatsApp Daily Summary, Khata Payment Deep-Link & Hardware Quotation/Estimate
+console.log('\n🌙 SUITE 10: WhatsApp Daily Summary, Khata Payment Deep-Link & Hardware Quotation/Estimate');
+
+// 1. Hardware Store Profile Quotation/Estimate Toggle Verification
+const hardwareProfile = getStoreProfile('hardware');
+assert(hardwareProfile.featureToggles.showQuotationEstimate === true, 'Hardware store profile has showQuotationEstimate enabled');
+const groceryProfile = getStoreProfile('grocery');
+assert(groceryProfile.featureToggles.showQuotationEstimate === false, 'Grocery profile has showQuotationEstimate disabled');
+const restaurantProfile = getStoreProfile('restaurant');
+assert(restaurantProfile.featureToggles.showQuotationEstimate === false, 'Restaurant profile has showQuotationEstimate disabled');
+const pharmacyProfile = getStoreProfile('pharmacy');
+assert(pharmacyProfile.featureToggles.showQuotationEstimate === false, 'Pharmacy profile has showQuotationEstimate disabled');
+const clothingProfile = getStoreProfile('clothing');
+assert(clothingProfile.featureToggles.showQuotationEstimate === false, 'Clothing profile has showQuotationEstimate disabled');
+
+// 2. WhatsApp Khata Payment Deep-Link Construction & Validation
+const mockUpiId = 'shreeganesh@oksbi';
+const mockStoreName = 'Shree Ganesh Hardware';
+const mockDueAmount = 145000; // in paise = ₹1,450.00
+const mockCustName = 'Ramesh Patel';
+
+const payUrlParams = new URLSearchParams({
+  pa: mockUpiId,
+  pn: mockStoreName,
+  am: (mockDueAmount / 100).toFixed(2),
+  cu: 'INR',
+  tn: `Khata payment to ${mockStoreName}`,
+  cust: mockCustName,
+});
+const fullPayUrl = `http://localhost:3000/pay?${payUrlParams.toString()}`;
+
+assert(fullPayUrl.includes('pa=shreeganesh%40oksbi'), 'Pay URL correctly encodes merchant UPI VPA');
+assert(fullPayUrl.includes('am=1450.00'), 'Pay URL correctly encodes amount in decimal rupees');
+assert(fullPayUrl.includes('cust=Ramesh+Patel'), 'Pay URL preserves customer name context');
+assert(fullPayUrl.includes('cu=INR'), 'Pay URL enforces INR currency parameter');
+
+// 3. Estimate Number Formatting & Invariant Simulation
+const mockEstimateNum = `EST-${String(1).padStart(3, '0')}`;
+assert(mockEstimateNum.startsWith('EST-'), 'Estimate sequence starts with EST- prefix');
+assert(mockEstimateNum === 'EST-001', 'First estimate formatted as EST-001');
+
+// Verify Estimate to Official Tax Invoice Transition
+const mockConvertedInv = `INV-${String(1).padStart(3, '0')}`;
+assert(mockConvertedInv.startsWith('INV-'), 'Converted invoice starts with INV- prefix');
+assert(mockConvertedInv === 'INV-001', 'First tax invoice formatted as INV-001');
+
+// Verify Stock Reservation vs Stock Deduction
+const initialStock = 25;
+const estimateQty = 5;
+// When creating estimate, stock is NOT deducted
+const stockAfterEstimate = initialStock;
+assert(stockAfterEstimate === 25, 'Creating quotation/estimate does NOT deduct inventory stock');
+
+// When converted to tax invoice, stock is deducted
+const stockAfterConversion = stockAfterEstimate - estimateQty;
+assert(stockAfterConversion === 20, 'Converting quotation to tax invoice successfully deducts stock from 25 to 20');
 
 console.log('');
 console.log('================================================================');

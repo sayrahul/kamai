@@ -436,7 +436,11 @@ export function InvoiceModal({
 
               <div className="text-left sm:text-right shrink-0 space-y-1 sm:self-center">
                 <div className="inline-block px-3 py-1 rounded-lg bg-white/20 backdrop-blur-xs text-white text-xs font-black uppercase tracking-wider border border-white/20 shadow-2xs">
-                  {business.gstin ? 'TAX INVOICE' : 'RETAIL INVOICE'}
+                  {sale.status === 'draft' || sale.invoice_number.startsWith('EST-')
+                    ? 'ESTIMATE / QUOTATION'
+                    : business.gstin
+                    ? 'TAX INVOICE'
+                    : 'RETAIL INVOICE'}
                 </div>
                 <div className="font-mono text-base font-black text-amber-300">
                   #{sale.invoice_number}
@@ -725,20 +729,32 @@ export function InvoiceModal({
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm sm:text-base font-black text-slate-900">Sale Completed Successfully!</span>
+                <span className="text-sm sm:text-base font-black text-slate-900">
+                  {sale.status === 'draft' || sale.invoice_number.startsWith('EST-')
+                    ? 'Estimate / Quotation Created!'
+                    : 'Sale Completed Successfully!'}
+                </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white uppercase shadow-2xs">
-                  {sale.balance_due && sale.balance_due > 0 ? 'Credit Sale' : 'Paid in Full'}
+                  {sale.status === 'draft' || sale.invoice_number.startsWith('EST-')
+                    ? 'Quotation'
+                    : sale.balance_due && sale.balance_due > 0
+                    ? 'Credit Sale'
+                    : 'Paid in Full'}
                 </span>
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-slate-700" />
-              <span>Tax Invoice & Receipt</span>
+              <span>
+                {sale.status === 'draft' || sale.invoice_number.startsWith('EST-')
+                  ? 'Estimate & Quotation'
+                  : 'Tax Invoice & Receipt'}
+              </span>
             </div>
           )
         }
-        description={`Invoice #${sale.invoice_number} • ${sale.customer_name || 'Cash Customer'}`}
+        description={`${sale.status === 'draft' || sale.invoice_number.startsWith('EST-') ? 'Estimate' : 'Invoice'} #${sale.invoice_number} • ${sale.customer_name || 'Cash Customer'}`}
         size="xl"
       >
         <div className="space-y-3.5">

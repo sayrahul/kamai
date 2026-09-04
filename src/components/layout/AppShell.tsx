@@ -8,6 +8,7 @@ import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { GlobalBroadcastBanner } from '@/components/common/GlobalBroadcastBanner';
+import { DailyDigestAutoWatcher } from '@/components/common/DailyDigestAutoWatcher';
 import { useFirebasePageTracking } from '@/lib/firebase/analytics';
 import { initFirebaseAppCheck } from '@/lib/firebase/appCheck';
 import { initBackgroundCloudSync } from '@/lib/firebase/backgroundSync';
@@ -392,6 +393,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       )}
 
       <GlobalBroadcastBanner />
+      <DailyDigestAutoWatcher />
       <Navbar />
       <div className="flex-1 flex w-full max-w-7xl mx-auto">
         <Sidebar />

@@ -5,9 +5,11 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '@/lib/i18n';
 import { formatINR } from '@/lib/utils';
-import { Sale, Customer } from '@/types';
+import { Sale, Customer, Product, LedgerTransaction } from '@/types';
 import { sendInvoiceViaOfficialCloudApi, sendInvoiceViaWhatsApp } from '@/lib/invoices/whatsappInvoice';
 import { generateTallyPrimeXML } from '@/lib/tally/tallyXmlGenerator';
+import { getNextUniqueInvoiceNumber, commitNextInvoiceNumber } from '@/lib/invoices/invoiceNumberService';
+import { exportTransactionsCSV } from '@/lib/reports/transactionsCsv';
 import { 
   Receipt, 
   CheckCircle2, 
@@ -15,36 +17,22 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { InvoiceModal } from '@/components/invoices/InvoiceModal';
-import { SalesReturnModal } from '@/components/sales/SalesReturnModal';
-import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
-import { UpgradeModal } from '@/components/subscription/UpgradeModal';
 
 // Modular Sub-components
 import { TransactionHeaderActions } from '@/components/transactions/TransactionHeaderActions';
 import { TransactionMetricsRibbon } from '@/components/transactions/TransactionMetricsRibbon';
 import { TransactionFilterToolbar } from '@/components/transactions/TransactionFilterToolbar';
 import { TransactionBillCard } from '@/components/transactions/TransactionBillCard';
-import { ClearHistoryModal } from '@/components/transactions/ClearHistoryModal';
+import { TransactionModals } from '@/components/transactions/TransactionModals';
+import { useTransactionFilters, DatePreset, PaymentFilter, SortOption } from '@/components/transactions/useTransactionFilters';
 
-export type DatePreset = 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom';
-export type PaymentFilter = 'all' | 'cash' | 'upi' | 'credit';
-export type SortOption = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
+export type { DatePreset, PaymentFilter, SortOption };
 
 export default function TransactionsPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const { t } = useTranslation();
 
-  // Filter States
-  const [searchQuery, setSearchQuery] = useState('');
-  const [datePreset, setDatePreset] = useState<DatePreset>('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('date-desc');
-  
   // Modals State
   const [activeSaleForInvoice, setActiveSaleForInvoice] = useState<Sale | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -62,128 +50,123 @@ export default function TransactionsPage() {
     return await db.sales.orderBy('created_at').reverse().limit(500).toArray();
   }) || [];
 
-  // Filter logic
-  const filteredSales = allSales
-    .filter((sale) => {
-      const saleDate = new Date(sale.created_at);
-      const now = new Date();
-
-      // 1. Date Range Filter
-      if (datePreset === 'today') {
-        const todayStr = now.toISOString().split('T')[0];
-        if (!sale.created_at.startsWith(todayStr)) return false;
-      } else if (datePreset === 'yesterday') {
-        const yesterday = new Date(now);
-        yesterday.setDate(now.getDate() - 1);
-        const yestStr = yesterday.toISOString().split('T')[0];
-        if (!sale.created_at.startsWith(yestStr)) return false;
-      } else if (datePreset === 'week') {
-        const sevenDaysAgo = new Date(now);
-        sevenDaysAgo.setDate(now.getDate() - 7);
-        if (saleDate < sevenDaysAgo) return false;
-      } else if (datePreset === 'month') {
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        if (saleDate < monthStart) return false;
-      } else if (datePreset === 'custom') {
-        if (startDate) {
-          const start = new Date(startDate);
-          start.setHours(0, 0, 0, 0);
-          if (saleDate < start) return false;
-        }
-        if (endDate) {
-          const end = new Date(endDate);
-          end.setHours(23, 59, 59, 999);
-          if (saleDate > end) return false;
-        }
-      }
-
-      // 2. Transaction Type (Cash vs Credit vs UPI)
-      if (paymentFilter !== 'all') {
-        if (paymentFilter === 'cash' && sale.payment_method !== 'cash') return false;
-        if (paymentFilter === 'upi' && sale.payment_method !== 'upi') return false;
-        if (paymentFilter === 'credit' && sale.payment_method !== 'credit' && (sale.balance_due || 0) <= 0) return false;
-      }
-
-      // 3. Customer Filter
-      if (selectedCustomerId === 'walk-in') {
-        if (sale.customer_id) return false;
-      } else if (selectedCustomerId !== 'all') {
-        if (sale.customer_id !== selectedCustomerId) return false;
-      }
-
-      // 4. Search Query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchInv = sale.invoice_number.toLowerCase().includes(q);
-        const matchCust = (sale.customer_name && sale.customer_name.toLowerCase().includes(q)) || 
-                          (sale.customer_phone && sale.customer_phone.includes(q));
-        const matchItems = sale.items && sale.items.some((i) => i.product_name.toLowerCase().includes(q));
-
-        if (!matchInv && !matchCust && !matchItems) return false;
-      }
-
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'date-asc') {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      }
-      if (sortBy === 'amount-desc') {
-        return b.grand_total - a.grand_total;
-      }
-      if (sortBy === 'amount-asc') {
-        return a.grand_total - b.grand_total;
-      }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-
-  // KPI Calculations on filtered subset
-  const totalRevenuePaise = filteredSales.reduce((acc, s) => acc + s.grand_total, 0);
-  const totalCashPaise = filteredSales.filter((s) => s.payment_method === 'cash').reduce((acc, s) => acc + s.amount_received, 0);
-  const totalUpiPaise = filteredSales.filter((s) => s.payment_method === 'upi').reduce((acc, s) => acc + s.amount_received, 0);
-  const totalCreditPaise = filteredSales.reduce((acc, s) => acc + (s.balance_due || 0), 0);
+  // Filter & KPI Logic
+  const {
+    searchQuery,
+    setSearchQuery,
+    datePreset,
+    setDatePreset,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    paymentFilter,
+    setPaymentFilter,
+    selectedCustomerId,
+    setSelectedCustomerId,
+    sortBy,
+    setSortBy,
+    filteredSales,
+    totalRevenuePaise,
+    totalCashPaise,
+    totalUpiPaise,
+    totalCreditPaise,
+    clearAllFilters,
+  } = useTransactionFilters(allSales);
 
   // Export Filtered Records to CSV
   const handleExportCSV = () => {
-    if (filteredSales.length === 0) {
-      alert('No transactions to export.');
-      return;
+    exportTransactionsCSV(filteredSales);
+  };
+
+  // 1-Tap Convert Quotation / Estimate to Official Tax Invoice
+  const handleConvertToInvoice = async (sale: Sale) => {
+    try {
+      const bizId = business?.id || 'biz_default';
+      const { invoiceNumber, nextSeq } = await getNextUniqueInvoiceNumber(bizId);
+      await commitNextInvoiceNumber(bizId, nextSeq);
+
+      const now = new Date().toISOString();
+
+      // Deduct product inventory stock & record inventory movements
+      for (const item of sale.items || []) {
+        let prod = await db.products.get(item.product_id);
+        if (!prod && item.barcode) {
+          prod = await db.products.where('barcode').equals(item.barcode).first();
+        }
+        if (!prod && item.product_name) {
+          prod = await db.products.where('name').equalsIgnoreCase(item.product_name).first();
+        }
+        if (prod && !prod.is_unlimited_stock) {
+          const prevStock = Number(prod.current_stock ?? 0);
+          const newStock = Math.max(0, prevStock - item.quantity);
+          const updatedProd: Product = {
+            ...prod,
+            current_stock: newStock,
+            updated_at: now,
+          };
+          await db.products.put(updatedProd);
+
+          await db.inventory_movements.put({
+            id: `mov_${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${prod.id}`,
+            business_id: bizId,
+            product_id: prod.id,
+            product_name: prod.name,
+            movement_type: 'SALE',
+            quantity: item.quantity,
+            previous_stock: prevStock,
+            new_stock: newStock,
+            reference_id: sale.id,
+            reason: `Converted Estimate #${sale.invoice_number} to Bill #${invoiceNumber}`,
+            created_by: 'owner',
+            created_at: now,
+          });
+        }
+      }
+
+      // If credit, adjust customer khata balance & ledger
+      if (sale.customer_id && sale.balance_due && sale.balance_due > 0) {
+        const cust = await db.customers.get(sale.customer_id);
+        if (cust) {
+          const prevBal = Number(cust.current_balance || 0);
+          const newBal = prevBal + sale.balance_due;
+          await db.customers.update(cust.id, {
+            current_balance: newBal,
+            updated_at: now,
+          });
+          await db.ledger_transactions.put({
+            id: `ledg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            business_id: bizId,
+            party_type: 'customer',
+            party_id: cust.id,
+            party_name: cust.name,
+            transaction_type: 'CREDIT_SALE',
+            amount: sale.balance_due,
+            balance_after: newBal,
+            reference_id: sale.id,
+            notes: `Converted to Tax Invoice #${invoiceNumber}`,
+            created_at: now,
+            sync_status: 'synced',
+          });
+        }
+      }
+
+      // Update sale status to completed with official Tax Invoice #
+      const updatedSale: Sale = {
+        ...sale,
+        invoice_number: invoiceNumber,
+        status: 'completed',
+        updated_at: now,
+      };
+      await db.sales.put(updatedSale);
+
+      showTxToast(`🎉 Estimate converted to Tax Invoice #${invoiceNumber}! Inventory updated.`, 'success');
+      setActiveSaleForInvoice(updatedSale);
+      setIsInvoiceModalOpen(true);
+    } catch (err) {
+      console.error('Failed to convert estimate to invoice:', err);
+      showTxToast('Failed to convert estimate to tax invoice.', 'error');
     }
-
-    const headers = [
-      'Invoice Number',
-      'Date & Time',
-      'Customer Name',
-      'Customer Phone',
-      'Items Count',
-      'Payment Method',
-      'Grand Total (₹)',
-      'Amount Received (₹)',
-      'Balance Due / Credit (₹)',
-      'Payment Status',
-    ];
-
-    const rows = filteredSales.map((s) => [
-      s.invoice_number,
-      new Date(s.created_at).toLocaleString('en-IN'),
-      `"${(s.customer_name || 'Walk-in Customer').replace(/"/g, '""')}"`,
-      s.customer_phone || '',
-      s.items?.length || 0,
-      s.payment_method.toUpperCase(),
-      (s.grand_total / 100).toFixed(2),
-      (s.amount_received / 100).toFixed(2),
-      (s.balance_due / 100).toFixed(2),
-      s.payment_status.toUpperCase(),
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `kamai_transactions_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   const [sendingWhatsAppSaleId, setSendingWhatsAppSaleId] = useState<string | null>(null);
@@ -217,16 +200,6 @@ export default function TransactionsPage() {
     } finally {
       setSendingWhatsAppSaleId(null);
     }
-  };
-
-  const clearAllFilters = () => {
-    setSearchQuery('');
-    setDatePreset('all');
-    setStartDate('');
-    setEndDate('');
-    setPaymentFilter('all');
-    setSelectedCustomerId('all');
-    setSortBy('date-desc');
   };
 
   // Export 1-Click Tally Prime XML
@@ -355,6 +328,7 @@ export default function TransactionsPage() {
                 isPro={isPro}
                 sendingWhatsAppSaleId={sendingWhatsAppSaleId}
                 onOpenInvoice={handleOpenInvoice}
+                onConvertToInvoice={handleConvertToInvoice}
                 onEditSale={(s) => {
                   setEditSale(s);
                   setIsEditModalOpen(true);
@@ -374,66 +348,29 @@ export default function TransactionsPage() {
         )}
       </Card>
 
-      {/* ---------------- MODALS ---------------- */}
-      {/* Invoice Modal */}
-      <InvoiceModal
-        isOpen={isInvoiceModalOpen}
-        onClose={() => setIsInvoiceModalOpen(false)}
-        sale={activeSaleForInvoice}
-        business={business || null}
-      />
-
-      {/* Edit Invoice Modal */}
-      <EditInvoiceModal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setEditSale(null);
-        }}
-        sale={editSale}
-      />
-
-      {/* Sales Return Modal */}
-      <SalesReturnModal
-        isOpen={isReturnModalOpen}
-        onClose={() => {
-          setIsReturnModalOpen(false);
-          setReturnSaleId(undefined);
-        }}
-        initialSaleId={returnSaleId}
-      />
-
-      {/* Clear All History Confirmation Modal */}
-      <ClearHistoryModal
-        isOpen={isClearHistoryModalOpen}
-        onClose={() => setIsClearHistoryModalOpen(false)}
-        totalInvoicesCount={allSales.length}
+      {/* ---------------- MODALS & FLOATING TOASTS ---------------- */}
+      <TransactionModals
+        business={business}
+        isInvoiceModalOpen={isInvoiceModalOpen}
+        setIsInvoiceModalOpen={setIsInvoiceModalOpen}
+        activeSaleForInvoice={activeSaleForInvoice}
+        isEditModalOpen={isEditModalOpen}
+        setIsEditModalOpen={setIsEditModalOpen}
+        editSale={editSale}
+        setEditSale={setEditSale}
+        isReturnModalOpen={isReturnModalOpen}
+        setIsReturnModalOpen={setIsReturnModalOpen}
+        returnSaleId={returnSaleId}
+        setReturnSaleId={setReturnSaleId}
+        isClearHistoryModalOpen={isClearHistoryModalOpen}
+        setIsClearHistoryModalOpen={setIsClearHistoryModalOpen}
+        allSalesCount={allSales.length}
         totalRevenuePaise={totalRevenuePaise}
         onConfirmClear={handleClearAllHistory}
+        isUpgradeModalOpen={isUpgradeModalOpen}
+        setIsUpgradeModalOpen={setIsUpgradeModalOpen}
+        txToast={txToast}
       />
-
-      {/* Razorpay Pro Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        businessName={business?.name || 'Your Store'}
-      />
-
-      {/* Floating In-App Toast Notification */}
-      {txToast && (
-        <div className={`fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-3 duration-200 ${
-          txToast.type === 'success'
-            ? 'bg-emerald-950/95 border-emerald-500/50 text-emerald-100 shadow-emerald-950/40'
-            : txToast.type === 'info'
-            ? 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/40'
-            : 'bg-rose-950/95 border-rose-500/50 text-rose-100 shadow-rose-950/40'
-        }`}>
-          {txToast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-          {txToast.type === 'info' && <Sparkles className="w-4 h-4 text-sky-400 shrink-0 animate-pulse" />}
-          {txToast.type === 'error' && <span className="text-sm shrink-0">⚠️</span>}
-          <span>{txToast.message}</span>
-        </div>
-      )}
     </div>
   );
 }

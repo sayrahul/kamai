@@ -23,6 +23,7 @@ import {
   CheckCircle2, 
   User, 
   Star,
+  FileText,
   Sparkles,
   ArrowRight,
   IndianRupee,
@@ -108,6 +109,7 @@ export interface BillTab {
   isHeld: boolean;
   heldAt?: string;
   holdNote?: string;
+  isQuotation?: boolean;
 }
 
 const TABS_STORAGE_KEY = 'kamai_pos_tabs';
@@ -139,6 +141,7 @@ function getInitialTabs(): { tabs: BillTab[]; activeTabId: string } {
     billDiscountValue: '',
     orderType: 'dine_in',
     isHeld: false,
+    isQuotation: false,
   };
   return { tabs: [defaultTab], activeTabId: 'tab_1' };
 }
@@ -363,6 +366,11 @@ export default function BillingPage() {
   const orderType = activeTab.orderType;
   const doctorName = activeTab.doctorName || '';
   const patientName = activeTab.patientName || '';
+  const isQuotation = Boolean(activeTab.isQuotation);
+
+  const setIsQuotation = (val: boolean) => {
+    updateActiveTab((tab) => ({ ...tab, isQuotation: val }));
+  };
 
   // Persist tabs in localStorage
   useEffect(() => {
@@ -456,6 +464,7 @@ export default function BillingPage() {
       splitCard: '',
       splitCredit: '',
       isHeld: false,
+      isQuotation: false,
     };
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTabId);
@@ -503,6 +512,7 @@ export default function BillingPage() {
         splitCard: '',
         splitCredit: '',
         isHeld: false,
+        isQuotation: false,
       }]);
       setActiveTabId('tab_1');
       return;
@@ -1129,6 +1139,8 @@ export default function BillingPage() {
       const { invoiceNumber, nextSeq } = await getNextUniqueInvoiceNumber(businessId);
       const now = new Date().toISOString();
 
+      const finalInvoiceNumber = isQuotation ? `EST-${nextSeq}` : invoiceNumber;
+
       let finalMethod: PaymentMethod = explicitPayment ? 'upi' : paymentMethod;
       let receivedPaise = 0;
       let balanceDuePaise = 0;
@@ -1170,7 +1182,7 @@ export default function BillingPage() {
       const newSale: Sale = {
         id: saleId,
         business_id: businessId,
-        invoice_number: invoiceNumber,
+        invoice_number: finalInvoiceNumber,
         customer_id: targetCustomer?.id,
         customer_name: targetCustomer?.name || 'Cash Customer',
         customer_phone: targetCustomer?.phone,
@@ -1179,18 +1191,22 @@ export default function BillingPage() {
         discount_total: discountTotalPaise,
         tax_total: taxTotalPaise,
         grand_total: grandTotalPaise,
-        payment_method: finalMethod,
-        payment_split: paymentSplitData,
-        amount_received: receivedPaise,
-        balance_due: balanceDuePaise,
-        change_returned: changeReturnedPaise,
-        payment_status: balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
-        status: 'completed',
+        payment_method: isQuotation ? 'cash' : finalMethod,
+        payment_split: isQuotation ? undefined : paymentSplitData,
+        amount_received: isQuotation ? 0 : receivedPaise,
+        balance_due: isQuotation ? 0 : balanceDuePaise,
+        change_returned: isQuotation ? 0 : changeReturnedPaise,
+        payment_status: isQuotation ? 'unpaid' : balanceDuePaise === 0 ? 'paid' : balanceDuePaise < grandTotalPaise ? 'partial' : 'unpaid',
+        status: isQuotation ? 'draft' : 'completed',
         table_no: isRestaurant ? (tableNo || undefined) : undefined,
         order_type: isRestaurant ? (orderType || 'dine_in') : undefined,
         token_number: isRestaurant ? Math.floor(100 + (nextSeq % 900)) : undefined,
         doctor_name: isPharmacy ? (doctorName || undefined) : undefined,
-        notes: explicitPayment?.referenceNumber ? `UPI Ref / UTR: ${explicitPayment.referenceNumber} (${explicitPayment.sourceApp})` : undefined,
+        notes: isQuotation
+          ? 'ESTIMATE / QUOTATION'
+          : explicitPayment?.referenceNumber
+          ? `UPI Ref / UTR: ${explicitPayment.referenceNumber} (${explicitPayment.sourceApp})`
+          : undefined,
         created_by: 'owner',
         created_at: now,
         updated_at: now,
@@ -1222,8 +1238,9 @@ export default function BillingPage() {
         await commitNextInvoiceNumber(currentBiz.id, nextSeq);
       }
 
-      // 3. Deduct product inventory stock & create movement logs with name/barcode resilience
-      for (const item of cart) {
+      // 3. Deduct product inventory stock ONLY if NOT an estimate/quotation
+      if (!isQuotation) {
+        for (const item of cart) {
         let prod = await db.products.get(item.product_id);
         if (!prod && item.barcode) {
           prod = await db.products.where('barcode').equals(item.barcode).first();
@@ -1268,14 +1285,15 @@ export default function BillingPage() {
           } catch {}
         }
       }
+    }
 
       // Trigger background sync debounce for full backup
       try {
         triggerBackgroundSync(businessId);
       } catch {}
 
-      // 4. If Udhar / Credit, update customer balance & write ledger entry
-      if (targetCustomer && balanceDuePaise > 0) {
+      // 4. If Udhar / Credit, update customer balance & write ledger entry (Skip for quotations)
+      if (!isQuotation && targetCustomer && balanceDuePaise > 0) {
         const freshCust = (await db.customers.get(targetCustomer.id)) || targetCustomer;
         const updatedBalance = (freshCust.current_balance || 0) + balanceDuePaise;
         
@@ -2170,14 +2188,54 @@ export default function BillingPage() {
           </span>
         </div>
 
+        {/* Hardware & Sanitary Only: Quotation / Estimate Toggle */}
+        {storeProfile.featureToggles.showQuotationEstimate && (
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setIsQuotation(false)}
+              className={cn(
+                'flex-1 py-1.5 text-center text-xs font-black rounded-lg transition-all cursor-pointer',
+                !isQuotation ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+              )}
+            >
+              🧾 Tax Invoice
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsQuotation(true)}
+              className={cn(
+                'flex-1 py-1.5 text-center text-xs font-black rounded-lg transition-all cursor-pointer',
+                isQuotation ? 'bg-amber-400 text-slate-950 shadow-2xs ring-1 ring-amber-400/50' : 'text-slate-500 hover:text-slate-900'
+              )}
+            >
+              📝 Estimate / Quotation
+            </button>
+          </div>
+        )}
+
         <Button
           size="lg"
           disabled={cart.length === 0}
           onClick={() => handleCompleteSale()}
-          className="w-full text-xs font-bold py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400 shadow-sm cursor-pointer"
+          className={cn(
+            'w-full text-xs font-bold py-3 shadow-sm cursor-pointer transition-all',
+            isQuotation
+              ? 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 border-amber-400'
+              : 'bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-400'
+          )}
         >
-          <Receipt className="w-4 h-4 mr-1.5 text-slate-950" />
-          <span>Complete Sale & Generate Bill</span>
+          {isQuotation ? (
+            <>
+              <FileText className="w-4 h-4 mr-1.5 text-slate-950" />
+              <span>Save &amp; Print Estimate / Quotation</span>
+            </>
+          ) : (
+            <>
+              <Receipt className="w-4 h-4 mr-1.5 text-slate-950" />
+              <span>Complete Sale &amp; Generate Bill</span>
+            </>
+          )}
         </Button>
       </div>
     </div>

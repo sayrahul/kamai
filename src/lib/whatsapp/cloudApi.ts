@@ -739,6 +739,7 @@ export async function sendWhatsAppKhataReminderMessage(params: {
   storePhone?: string;
   upiId?: string;
   upiLink?: string;
+  payUrl?: string;
   customNote?: string;
 }): Promise<WhatsAppSendResult> {
   const {
@@ -749,6 +750,7 @@ export async function sendWhatsAppKhataReminderMessage(params: {
     storePhone,
     upiId,
     upiLink,
+    payUrl,
     customNote,
   } = params;
 
@@ -757,7 +759,12 @@ export async function sendWhatsAppKhataReminderMessage(params: {
   textBody += `💰 *कुल बकाया: ${balanceDueFormatted}*\n\n`;
   textBody += `कृपया सुविधानुसार बकाया राशि का भुगतान करें।`;
 
-  if (upiLink && upiId) {
+  if (payUrl) {
+    textBody += `\n\n📲 *GPay / PhonePe / Paytm से 1-क्लिक भुगतान करें:*\n👉 ${payUrl}`;
+    if (upiId) {
+      textBody += `\n*UPI ID:* \`${upiId}\``;
+    }
+  } else if (upiLink && upiId) {
     textBody += `\n\n📲 *UPI से 1-क्लिक भुगतान करें:*\n${upiLink}\n*UPI ID:* \`${upiId}\``;
   } else if (upiId) {
     textBody += `\n\n📲 *UPI ID:* \`${upiId}\``;
@@ -776,6 +783,65 @@ export async function sendWhatsAppKhataReminderMessage(params: {
   return sendWhatsAppFreeformTextMessage(phone, textBody);
 }
 
+export interface DailySummaryStats {
+  date: string;
+  totalBills: number;
+  grossSalesFormatted: string;
+  cashSalesFormatted: string;
+  upiSalesFormatted: string;
+  creditSalesFormatted: string;
+  udharCollectedFormatted?: string;
+  topItems?: string[];
+}
+
+/**
+ * Sends an automated Daily Business Closing Digest (9 PM) or Morning Recap (9 AM) to Store Owner
+ */
+export async function sendWhatsAppDailySummaryMessage(params: {
+  phone: string;
+  ownerName: string;
+  storeName: string;
+  type: 'night' | 'morning';
+  stats: DailySummaryStats;
+  appUrl?: string;
+}): Promise<WhatsAppSendResult> {
+  const { phone, ownerName, storeName, type, stats, appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://kamaiplus.proventure.in') } = params;
+
+  let textBody = '';
+  if (type === 'night') {
+    textBody = `🌙 *दुकान का दैनिक हिसाब (Daily Closing Digest)*\n━━━━━━━━━━━━━━━━━━━━\n`;
+    textBody += `नमस्ते *${ownerName}* जी, पेश है *"${storeName}"* की आज की बिक्री रिपोर्ट:\n\n`;
+    textBody += `📅 *तारीख:* ${stats.date}\n`;
+    textBody += `🧾 *कुल बिल:* ${stats.totalBills} बिल\n`;
+    textBody += `💰 *कुल बिक्री:* *${stats.grossSalesFormatted}*\n\n`;
+    textBody += `💵 *नकद (Cash):* ${stats.cashSalesFormatted}\n`;
+    textBody += `📱 *ऑनलाइन (UPI):* ${stats.upiSalesFormatted}\n`;
+    textBody += `🤝 *नया उधार (Credit):* ${stats.creditSalesFormatted}\n`;
+    if (stats.udharCollectedFormatted) {
+      textBody += `📥 *उधार वसूली (Khata Jama):* ${stats.udharCollectedFormatted}\n`;
+    }
+    if (stats.topItems && stats.topItems.length > 0) {
+      textBody += `\n🔥 *टॉप सेलिंग आइटम्स:*\n${stats.topItems.map((item, i) => `${i + 1}. ${item}`).join('\n')}\n`;
+    }
+    textBody += `\n👉 *विस्तृत रिपोर्ट व Z-Report देखें:*\n${appUrl}/reports\n\n`;
+    textBody += `━━━━━━━━━━━━━━━━━━━━\n_आज का दिन शानदार रहा! शुभ रात्रि 🌟 — KamaiPlus_`;
+  } else {
+    textBody = `☀️ *शुभ प्रभात! कल की दुकान रिपोर्ट (Morning Booster)*\n━━━━━━━━━━━━━━━━━━━━\n`;
+    textBody += `नमस्ते *${ownerName}* जी! एक नई ऊर्जा के साथ *"${storeName}"* की शुरुआत करें:\n\n`;
+    textBody += `📊 *कल (${stats.date}) का हिसाब:*\n`;
+    textBody += `💰 *कल की बिक्री:* *${stats.grossSalesFormatted}* (${stats.totalBills} बिल)\n`;
+    textBody += `💵 *Cash:* ${stats.cashSalesFormatted} | 📱 *UPI:* ${stats.upiSalesFormatted}\n`;
+    if (stats.creditSalesFormatted && stats.creditSalesFormatted !== '₹0.00') {
+      textBody += `🤝 *कल का उधार:* ${stats.creditSalesFormatted}\n`;
+    }
+    textBody += `\n🚀 *आज का लक्ष्य:* अधिक ग्राहक, बेहतर सेवा और 100% नकद/UPI पेमेंट!\n\n`;
+    textBody += `👉 *बिलिंग काउंटर खोलें:*\n${appUrl}/billing\n\n`;
+    textBody += `━━━━━━━━━━━━━━━━━━━━\n_आज का दिन आपके व्यवसाय के लिए मंगलमय हो! 🚀 — KamaiPlus_`;
+  }
+
+  return sendWhatsAppFreeformTextMessage(phone, textBody);
+}
+
 /**
  * Sends a customized WhatsApp marketing or general notification to customers or suppliers
  */
@@ -785,4 +851,5 @@ export async function sendWhatsAppCustomNotification(params: {
 }): Promise<WhatsAppSendResult> {
   return sendWhatsAppFreeformTextMessage(params.phone, params.message);
 }
+
 

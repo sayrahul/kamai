@@ -79,6 +79,7 @@ export interface StoreProfile {
     showDoctorPrescription: boolean; // True for pharmacy
     showKOTToken: boolean; // True for restaurant
     hasBillScan: boolean; // True for retail/wholesale, False for restaurant/cafe
+    showQuotationEstimate: boolean; // True exclusively for hardware & sanitary
   };
 
   // Dynamic Input Placeholders
@@ -119,6 +120,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showDoctorPrescription: false,
       showKOTToken: false,
       hasBillScan: true,
+      showQuotationEstimate: false,
     },
     placeholders: {
       searchProduct: 'Scan barcode or type Atta, Rice, Oil, Maggi...',
@@ -161,6 +163,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showDoctorPrescription: true,
       showKOTToken: false,
       hasBillScan: true,
+      showQuotationEstimate: false,
     },
     placeholders: {
       searchProduct: 'Type medicine name (Paracetamol, Cetirizine, Syrup)...',
@@ -203,6 +206,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showDoctorPrescription: false,
       showKOTToken: false,
       hasBillScan: true,
+      showQuotationEstimate: false,
     },
     placeholders: {
       searchProduct: 'Search Shirt, Jeans, Kurti, Shoes or scan tag...',
@@ -244,6 +248,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showDoctorPrescription: false,
       showKOTToken: false,
       hasBillScan: true,
+      showQuotationEstimate: true,
     },
     placeholders: {
       searchProduct: 'Search Paint, PVC Pipe, Screw, Wire, MCB, Tap...',
@@ -287,6 +292,7 @@ export const STORE_PROFILES: Record<string, StoreProfile> = {
       showDoctorPrescription: false,
       showKOTToken: true,
       hasBillScan: false,
+      showQuotationEstimate: false,
     },
     placeholders: {
       searchProduct: 'Touch category or type Chai, Paneer, Dosa, Pizza...',

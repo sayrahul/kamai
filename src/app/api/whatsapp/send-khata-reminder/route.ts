@@ -77,9 +77,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Generate UPI link if UPI ID is configured
+    // 4. Generate UPI link and Web Pay deep-link if UPI ID is configured
     const upiLink = upiId
       ? generateUPILink(upiId, businessName, balanceDue, 'Khata_Udhar_Payment')
+      : undefined;
+
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kamaiplus.proventure.in';
+    const payUrl = upiId
+      ? `${appBaseUrl}/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(businessName)}&am=${(balanceDue / 100).toFixed(2)}&cust=${encodeURIComponent(customerName)}`
       : undefined;
 
     // 5. Dispatch via Meta WhatsApp Cloud API
@@ -91,6 +96,7 @@ export async function POST(req: NextRequest) {
       storePhone: storePhone || undefined,
       upiId: upiId || undefined,
       upiLink,
+      payUrl,
       customNote: customNote || undefined,
     });
 
