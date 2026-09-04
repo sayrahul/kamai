@@ -185,9 +185,27 @@ export default function OnboardingPage() {
           };
           await setDoc(doc(firestore, 'merchants', rawUid), sanitizeForFirestore(merchantDoc), { merge: true });
 
-          // Also write Business Document for full compatibility
+          // Cross-index with WhatsApp phone prefix so WhatsApp OTP login resolves immediately to this store
+          if (cleanPhone && cleanPhone.length === 10) {
+            await setDoc(doc(firestore, 'merchants', `wa_${cleanPhone}`), sanitizeForFirestore({
+              ...merchantDoc,
+              uid: `wa_${cleanPhone}`,
+              linked_uid: rawUid,
+            }), { merge: true });
+            await setDoc(doc(firestore, 'merchants', `user_${cleanPhone}`), sanitizeForFirestore({
+              ...merchantDoc,
+              uid: `user_${cleanPhone}`,
+              linked_uid: rawUid,
+            }), { merge: true });
+          }
+
+          // Also write Business Document for full compatibility with email & phone bindings
           const businessDoc = {
             ...newBusinessRecord,
+            user_uid: rawUid,
+            email: user?.email || null,
+            user_email: user?.email || null,
+            phone: cleanPhone,
             subscription_tier: 'free',
             is_active: true,
             created_at: now,

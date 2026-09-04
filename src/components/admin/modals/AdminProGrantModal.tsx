@@ -59,10 +59,8 @@ export const AdminProGrantModal: React.FC<AdminProGrantModalProps> = ({
               onChange={(e) => setManualTier(e.target.value)}
               className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
             >
-              <option value="pro">Pro Plan (1 Year)</option>
-              <option value="growth">Growth Plan</option>
-              <option value="enterprise">Enterprise Plan</option>
-              <option value="free">Revert to Free</option>
+              <option value="pro">Pro Enterprise (₹1,499/Year)</option>
+              <option value="free">Free Forever (₹0)</option>
             </select>
           </div>
 

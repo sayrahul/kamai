@@ -402,6 +402,25 @@ export default function SettingsPage() {
         updated_at: new Date().toISOString(),
       });
 
+      // Keep session and cloud synchronized
+      try {
+        const { getStoredUser, setStoredUser } = await import('@/lib/auth');
+        const stored = getStoredUser();
+        if (stored) {
+          setStoredUser({
+            ...stored,
+            phone: phone.trim() || stored.phone,
+            name: ownerName.trim() || stored.name,
+            business_name: name.trim() || stored.business_name,
+            shop_name: name.trim() || stored.shop_name,
+          });
+        }
+        const { syncProfileToCloud } = await import('@/lib/sync/syncEngine');
+        await syncProfileToCloud(business.id);
+      } catch (syncErr) {
+        console.warn('Settings cloud sync notice:', syncErr);
+      }
+
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 3000);
     } catch (err) {

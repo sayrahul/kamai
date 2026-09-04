@@ -14,7 +14,11 @@ export function useProSubscription() {
       setSubscription(subscriptionService.getSubscription());
     };
     window.addEventListener('subscription_changed', handleSubChange);
-    return () => window.removeEventListener('subscription_changed', handleSubChange);
+    window.addEventListener('storage', handleSubChange);
+    return () => {
+      window.removeEventListener('subscription_changed', handleSubChange);
+      window.removeEventListener('storage', handleSubChange);
+    };
   }, []);
 
   const isPro = subscription.tier === 'pro' || subscription.tier === 'enterprise';

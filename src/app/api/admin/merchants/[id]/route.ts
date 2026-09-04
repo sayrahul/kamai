@@ -72,11 +72,37 @@ export async function PATCH(
     }
 
     // 1. Update in Cloud Firestore
+    let targetBizId = id;
     try {
       const firestore = getFirestoreDb();
       if (firestore) {
-        const bizDocRef = doc(firestore, 'businesses', id);
+        // Check if id is a merchant doc
+        const mSnap = await getDoc(doc(firestore, 'merchants', id));
+        if (mSnap.exists() && mSnap.data().business_id) {
+          targetBizId = mSnap.data().business_id;
+        }
+
+        const bizDocRef = doc(firestore, 'businesses', targetBizId);
         await setDoc(bizDocRef, updates, { merge: true });
+
+        // Also update merchant doc if id was a merchant or if biz has phone / user_uid
+        const bizSnap = await getDoc(bizDocRef);
+        if (bizSnap.exists()) {
+          const bData = bizSnap.data();
+          const cleanP = bData.phone ? bData.phone.replace(/\D/g, '').slice(-10) : '';
+          if (cleanP) {
+            await setDoc(doc(firestore, 'merchants', `wa_${cleanP}`), {
+              ...updates,
+              updatedAt: new Date().toISOString(),
+            }, { merge: true }).catch(() => {});
+          }
+          if (bData.user_uid) {
+            await setDoc(doc(firestore, 'merchants', bData.user_uid), {
+              ...updates,
+              updatedAt: new Date().toISOString(),
+            }, { merge: true }).catch(() => {});
+          }
+        }
       }
     } catch (firestoreErr) {
       console.warn('Firestore update warning:', firestoreErr);
@@ -89,13 +115,13 @@ export async function PATCH(
         await supabase
           .from('businesses')
           .update(updates)
-          .eq('id', id);
+          .eq('id', targetBizId);
 
         if (is_active !== undefined) {
           await supabase
             .from('business_staff')
             .update({ is_active, updated_at: new Date().toISOString() })
-            .eq('business_id', id);
+            .eq('business_id', targetBizId);
         }
       }
     } catch (supabaseErr) {

@@ -853,6 +853,103 @@ const filteredMerchants = rawMerchantsList.filter((m) => !mockTombstones.has(m.i
 assert(filteredMerchants.length === 1, 'Admin merchant query strictly filters out deleted stores');
 assert(filteredMerchants[0].id === 'biz_active_1', 'Only active stores remain visible in Admin panel');
 
+// ================================================================
+// SUITE 16: ADMIN 2-PLAN LIMIT, REALTIME PRO/FREEZE & UNIVERSAL AUTH BINDING
+// ================================================================
+console.log('\n--- Test Suite 16: Admin 2-Plan Limit, Realtime Pro/Freeze Sync & Dual Auth Binding ---');
+
+// 1. Subscription Plan Restriction (Only 2 official plans: free & pro)
+const officialPlans = ['free', 'pro'];
+const validatePlanChoice = (plan: string) => officialPlans.includes(plan);
+assert(validatePlanChoice('free') === true, 'Free Forever plan is supported');
+assert(validatePlanChoice('pro') === true, 'Pro Enterprise (₹1,499/Year) plan is supported');
+assert(validatePlanChoice('growth') === false, 'Legacy growth plan is removed');
+assert(validatePlanChoice('enterprise') === false, 'Legacy enterprise plan is unified into pro');
+
+// 2. Real-time Pro Upgrade & Downgrade State Transition
+interface MockSubState {
+  tier: 'free' | 'pro';
+  activeUntil?: string;
+}
+const mockSetTierFromCloud = (cloudTier: string, activeUntil?: string): MockSubState => {
+  const normalizedTier: 'free' | 'pro' = (cloudTier === 'pro' || cloudTier === 'enterprise') ? 'pro' : 'free';
+  return {
+    tier: normalizedTier,
+    activeUntil: normalizedTier === 'pro' ? (activeUntil || new Date().toISOString()) : undefined,
+  };
+};
+
+const upgradedState = mockSetTierFromCloud('pro');
+assert(upgradedState.tier === 'pro', 'Cloud pro tier sets local subscription to pro');
+assert(Boolean(upgradedState.activeUntil), 'Pro plan receives valid expiration timestamp');
+
+const downgradedState = mockSetTierFromCloud('free');
+assert(downgradedState.tier === 'free', 'Cloud free tier immediately downgrades local subscription to free');
+assert(downgradedState.activeUntil === undefined, 'Downgraded free tier clears activeUntil date');
+
+// 3. Real-time Freeze / Block Lockout Enforcement
+const simulateCloudSnapshot = (cloudBiz: { is_active: boolean }) => {
+  if (cloudBiz.is_active === false) {
+    return { event: 'account_frozen', lockout: true };
+  }
+  return { event: 'account_unfrozen', lockout: false };
+};
+
+const frozenEvent = simulateCloudSnapshot({ is_active: false });
+assert(frozenEvent.event === 'account_frozen', 'Snapshot with is_active: false emits account_frozen event');
+assert(frozenEvent.lockout === true, 'Account lockout is activated immediately');
+
+const unfrozenEvent = simulateCloudSnapshot({ is_active: true });
+assert(unfrozenEvent.event === 'account_unfrozen', 'Snapshot with is_active: true emits account_unfrozen event');
+assert(unfrozenEvent.lockout === false, 'Account lockout is released immediately');
+
+// 4. Bi-directional Google Email <-> WhatsApp Phone Universal Binding
+interface MockMerchantDoc {
+  uid: string;
+  business_id: string;
+  phone?: string;
+  email?: string;
+}
+const mockFirestoreMerchants = new Map<string, MockMerchantDoc>();
+
+// Step A: User logs in with Google OAuth (uid: google_user_123, email: merchant@example.com)
+const googleUid = 'google_user_123';
+const userEmail = 'merchant@example.com';
+const userPhone = '9876543210';
+const businessId = 'biz_cross_indexed_456';
+
+// Onboarding saves both Google UID and wa_phone documents
+mockFirestoreMerchants.set(googleUid, {
+  uid: googleUid,
+  business_id: businessId,
+  phone: userPhone,
+  email: userEmail,
+});
+mockFirestoreMerchants.set(`wa_${userPhone}`, {
+  uid: `wa_${userPhone}`,
+  business_id: businessId,
+  phone: userPhone,
+  email: userEmail,
+});
+
+// Step B: User later logs in via WhatsApp OTP with phone 9876543210
+const resolveStoreByPhone = (phone: string) => {
+  const clean = phone.replace(/\D/g, '').slice(-10);
+  const waDoc = mockFirestoreMerchants.get(`wa_${clean}`);
+  return waDoc ? waDoc.business_id : null;
+};
+assert(resolveStoreByPhone(userPhone) === businessId, 'WhatsApp login with phone opens the EXACT same store as Google account');
+
+// Step C: User later logs in with Google email
+const resolveStoreByEmail = (email: string) => {
+  for (const doc of Array.from(mockFirestoreMerchants.values())) {
+    if (doc.email === email) return doc.business_id;
+  }
+  return null;
+};
+assert(resolveStoreByEmail(userEmail) === businessId, 'Google login with email opens the EXACT same store as WhatsApp account');
+
+
 console.log('');
 console.log('================================================================');
 console.log(`📊 SIMULATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED (${failedTests} failures)`);

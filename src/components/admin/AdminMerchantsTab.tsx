@@ -47,6 +47,8 @@ interface AdminMerchantsTabProps {
   onEditMerchant: (merchant: MerchantRecord) => void;
   onDeleteMerchant: (merchant: MerchantRecord) => void;
   onSendWhatsApp: (merchant: MerchantRecord) => void;
+  onTogglePro?: (merchant: MerchantRecord) => void;
+  onToggleActive?: (merchant: MerchantRecord) => void;
 }
 
 export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
@@ -63,6 +65,8 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
   onEditMerchant,
   onDeleteMerchant,
   onSendWhatsApp,
+  onTogglePro,
+  onToggleActive,
 }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -303,7 +307,7 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                   : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60"
               )}
             >
-              {tier === 'all' ? 'All Tiers' : tier === 'pro' ? '⭐ Pro & Growth' : tier === 'free' ? 'Free Trial' : '⏰ Expiring Soon'}
+              {tier === 'all' ? 'All Plans' : tier === 'pro' ? '⭐ Pro (₹1,499/Yr)' : tier === 'free' ? 'Free Forever' : '⏰ Expiring Soon'}
             </button>
           ))}
 
@@ -364,15 +368,39 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                         <h3 className="font-black text-sm text-white truncate group-hover:text-amber-400 transition">
                           {m.name}
                         </h3>
-                        <span className={cn(
-                          "px-2 py-0.5 rounded-full text-[9px] font-black uppercase flex items-center gap-1 border",
-                          isPro 
-                            ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
-                            : "bg-slate-800 text-slate-400 border-slate-700"
-                        )}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onTogglePro?.(m);
+                          }}
+                          className={cn(
+                            "px-2 py-0.5 rounded-full text-[9px] font-black uppercase flex items-center gap-1 border transition cursor-pointer hover:scale-105 active:scale-95",
+                            isPro 
+                              ? "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
+                              : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white"
+                          )}
+                          title={isPro ? "⭐ Pro Plan - Click to Downgrade to Free" : "Free Forever - Click to Upgrade to Pro (₹1,499/Yr)"}
+                        >
                           {isPro && <Crown className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />}
-                          <span>{m.subscription_tier}</span>
-                        </span>
+                          <span>{isPro ? '⭐ Pro (Downgrade)' : 'Free (Make Pro)'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleActive?.(m);
+                          }}
+                          className={cn(
+                            "px-2 py-0.5 rounded-full text-[9px] font-black uppercase flex items-center gap-1 border transition cursor-pointer hover:scale-105 active:scale-95",
+                            m.is_active !== false
+                              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-rose-500/20 hover:text-rose-300"
+                              : "bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-emerald-500/20 hover:text-emerald-300 animate-pulse"
+                          )}
+                          title={m.is_active !== false ? "Active Store - Click to Freeze/Block" : "🔒 Frozen Store - Click to Unfreeze"}
+                        >
+                          <span>{m.is_active !== false ? 'Active' : '🔒 Frozen'}</span>
+                        </button>
                         {isExpired && (
                           <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-500/20 text-rose-300 border border-rose-500/40">
                             Expired
@@ -517,23 +545,41 @@ export const AdminMerchantsTab: React.FC<AdminMerchantsTabProps> = ({
                         <div className="text-slate-400 text-[11px]">+91 {m.phone}</div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className={cn(
-                          "px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase inline-flex items-center gap-1 border",
-                          isPro ? "bg-amber-500/15 text-amber-300 border-amber-500/30" : "bg-slate-800 text-slate-400 border-slate-700"
-                        )}>
-                          {isPro && <Crown className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />}
-                          {m.subscription_tier}
-                        </span>
-                        {isExpired && (
-                          <span className="ml-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                            Expired
-                          </span>
-                        )}
-                        {isExpiringSoon && (
-                          <span className="ml-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
-                            {diffDays}d Left
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => onTogglePro?.(m)}
+                            className={cn(
+                              "px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase inline-flex items-center gap-1 border transition cursor-pointer hover:scale-105 active:scale-95",
+                              isPro ? "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30" : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white"
+                            )}
+                            title={isPro ? "⭐ Pro Plan - Click to Downgrade to Free" : "Free Forever - Click to Upgrade to Pro (₹1,499/Yr)"}
+                          >
+                            {isPro && <Crown className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />}
+                            <span>{isPro ? '⭐ Pro' : 'Free'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onToggleActive?.(m)}
+                            className={cn(
+                              "px-2 py-0.5 rounded-full text-[9px] font-black uppercase inline-flex items-center gap-1 border transition cursor-pointer hover:scale-105 active:scale-95",
+                              m.is_active !== false ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse"
+                            )}
+                            title={m.is_active !== false ? "Active Store - Click to Freeze/Block" : "🔒 Frozen Store - Click to Unfreeze"}
+                          >
+                            <span>{m.is_active !== false ? 'Active' : '🔒 Frozen'}</span>
+                          </button>
+                          {isExpired && (
+                            <span className="ml-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                              Expired
+                            </span>
+                          )}
+                          {isExpiringSoon && (
+                            <span className="ml-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                              {diffDays}d Left
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4">
                         <div>{m.city || '—'}</div>

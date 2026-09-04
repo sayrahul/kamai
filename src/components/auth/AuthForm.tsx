@@ -6,7 +6,7 @@ import { signInWithGoogle } from '@/lib/firebase/googleAuth';
 import { setStoredUser, AuthUser } from '@/lib/auth';
 import { db as localDb } from '@/lib/db';
 import { getFirestoreDb } from '@/lib/firebase/config';
-import { doc, getDoc, collection, query, where, getDocs, limit, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, limit, deleteDoc } from 'firebase/firestore';
 import { syncProfileToCloud, restoreDataFromCloud } from '@/lib/sync/syncEngine';
 import { 
   CheckCircle2, 
@@ -99,9 +99,10 @@ export const AuthForm: React.FC = () => {
           console.warn('merchants/{uid} lookup notice:', mErr);
         }
 
-        // 2. Fallback check: Query collection `businesses` by user_uid, user_email or phone
+        // 2. Comprehensive Fallback Check: Query businesses & merchants by user_uid, email, or phone
         if (!merchantData) {
           try {
+            // 2a. Query by UID
             if (uid) {
               const uidQ = query(collection(firestore, 'businesses'), where('user_uid', '==', uid), limit(1));
               const uidSnap = await getDocs(uidQ);
@@ -110,25 +111,34 @@ export const AuthForm: React.FC = () => {
               }
             }
 
+            // 2b. Query by Email (Google Sign-In <-> WhatsApp Store binding)
             if (!merchantData && cleanEmail) {
-              const emailQ = query(collection(firestore, 'businesses'), where('user_email', '==', cleanEmail), limit(1));
-              const emailSnap = await getDocs(emailQ);
-              if (!emailSnap.empty) {
-                merchantData = emailSnap.docs[0].data();
+              const emailQ1 = query(collection(firestore, 'businesses'), where('user_email', '==', cleanEmail), limit(1));
+              const emailSnap1 = await getDocs(emailQ1);
+              if (!emailSnap1.empty) {
+                merchantData = emailSnap1.docs[0].data();
+              }
+
+              if (!merchantData) {
+                const emailQ2 = query(collection(firestore, 'businesses'), where('email', '==', cleanEmail), limit(1));
+                const emailSnap2 = await getDocs(emailQ2);
+                if (!emailSnap2.empty) {
+                  merchantData = emailSnap2.docs[0].data();
+                }
+              }
+
+              if (!merchantData) {
+                const emailMQ = query(collection(firestore, 'merchants'), where('email', '==', cleanEmail), limit(1));
+                const emailMSnap = await getDocs(emailMQ);
+                if (!emailMSnap.empty) {
+                  merchantData = emailMSnap.docs[0].data();
+                }
               }
             }
 
+            // 2c. Query by Phone (WhatsApp OTP <-> Google Store binding)
             if (!merchantData && cleanPhone) {
-              const phoneQ = query(collection(firestore, 'businesses'), where('phone', '==', cleanPhone), limit(1));
-              const phoneSnap = await getDocs(phoneQ);
-              if (!phoneSnap.empty) {
-                merchantData = phoneSnap.docs[0].data();
-              }
-            }
-
-            // Also check alternate merchant doc IDs
-            if (!merchantData && cleanPhone) {
-              const possibleUids = [`user_${cleanPhone}`, `staff_${cleanPhone}`, `wa_${cleanPhone}`];
+              const possibleUids = [`wa_${cleanPhone}`, `user_${cleanPhone}`, `staff_${cleanPhone}`];
               for (const pUid of possibleUids) {
                 if (merchantData) break;
                 try {
@@ -138,9 +148,33 @@ export const AuthForm: React.FC = () => {
                   }
                 } catch (pErr) {}
               }
+
+              if (!merchantData) {
+                const phoneQ1 = query(collection(firestore, 'businesses'), where('phone', '==', cleanPhone), limit(1));
+                const phoneSnap1 = await getDocs(phoneQ1);
+                if (!phoneSnap1.empty) {
+                  merchantData = phoneSnap1.docs[0].data();
+                }
+              }
+
+              if (!merchantData) {
+                const phoneQ2 = query(collection(firestore, 'businesses'), where('phone', '==', `+91${cleanPhone}`), limit(1));
+                const phoneSnap2 = await getDocs(phoneQ2);
+                if (!phoneSnap2.empty) {
+                  merchantData = phoneSnap2.docs[0].data();
+                }
+              }
+
+              if (!merchantData) {
+                const phoneMQ = query(collection(firestore, 'merchants'), where('phone', '==', cleanPhone), limit(1));
+                const phoneMSnap = await getDocs(phoneMQ);
+                if (!phoneMSnap.empty) {
+                  merchantData = phoneMSnap.docs[0].data();
+                }
+              }
             }
           } catch (bErr) {
-            console.warn('businesses lookup fallback notice:', bErr);
+            console.warn('businesses/merchants lookup fallback notice:', bErr);
           }
         }
 
@@ -294,6 +328,67 @@ export const AuthForm: React.FC = () => {
           role: merchantData.role || 'admin',
         };
         setStoredUser(sessionPayload);
+
+        // Ensure bi-directional cross-indexing in Firestore so email and phone always resolve to the exact same store
+        try {
+          const firestore = getFirestoreDb();
+          if (firestore) {
+            const resolvedPhone = (userPhone || cleanPhone || '').replace(/\D/g, '').slice(-10);
+            const resolvedEmail = cleanEmail || merchantData.email || '';
+
+            // 1. Update/bind current uid in merchants collection
+            await setDoc(doc(firestore, 'merchants', uid), {
+              uid,
+              business_id: businessId,
+              shop_name: shopName,
+              business_name: shopName,
+              owner_name: ownerName,
+              phone: resolvedPhone || userPhone || null,
+              email: resolvedEmail || null,
+              role: merchantData.role || 'admin',
+              updatedAt: new Date().toISOString(),
+            }, { merge: true });
+
+            // 2. If phone is available, bind wa_${resolvedPhone} and user_${resolvedPhone} to same store
+            if (resolvedPhone && resolvedPhone.length === 10) {
+              await setDoc(doc(firestore, 'merchants', `wa_${resolvedPhone}`), {
+                uid: `wa_${resolvedPhone}`,
+                linked_uid: uid,
+                business_id: businessId,
+                shop_name: shopName,
+                business_name: shopName,
+                owner_name: ownerName,
+                phone: resolvedPhone,
+                email: resolvedEmail || null,
+                role: merchantData.role || 'admin',
+                updatedAt: new Date().toISOString(),
+              }, { merge: true });
+              await setDoc(doc(firestore, 'merchants', `user_${resolvedPhone}`), {
+                uid: `user_${resolvedPhone}`,
+                linked_uid: uid,
+                business_id: businessId,
+                shop_name: shopName,
+                business_name: shopName,
+                owner_name: ownerName,
+                phone: resolvedPhone,
+                email: resolvedEmail || null,
+                role: merchantData.role || 'admin',
+                updatedAt: new Date().toISOString(),
+              }, { merge: true });
+            }
+
+            // 3. Keep business doc bound with both email and phone
+            await setDoc(doc(firestore, 'businesses', businessId), {
+              email: resolvedEmail || undefined,
+              user_email: resolvedEmail || undefined,
+              phone: resolvedPhone || userPhone || undefined,
+              user_uid: uid,
+              updated_at: new Date().toISOString(),
+            }, { merge: true });
+          }
+        } catch (bindErr) {
+          console.warn('Cross-index binding notice on login:', bindErr);
+        }
 
         // Restore cloud data and sync profile
         try {

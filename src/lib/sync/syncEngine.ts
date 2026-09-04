@@ -32,32 +32,65 @@ export async function syncProfileToCloud(businessId: string): Promise<void> {
 
     const biz = await localDb.businesses.get(businessId);
     if (biz) {
+      const userEmail = biz.email || (biz as any).user_email;
       await setDoc(
         bizRef,
         sanitizeForFirestore({ 
           ...biz, 
+          email: userEmail || undefined,
+          user_email: userEmail || undefined,
+          phone: biz.phone || undefined,
           last_synced_at: new Date().toISOString() 
         }), 
         { merge: true }
       );
 
-      // If user_uid is present, also keep merchants/{uid} document in sync
-      const uid = (biz as any).user_uid;
+      // Keep merchants documents in sync for both UID and WhatsApp phone
+      const { getStoredUser } = await import('@/lib/auth');
+      const storedUser = getStoredUser();
+      const uid = (biz as any).user_uid || storedUser?.uid;
+      const cleanPhone = biz.phone ? biz.phone.replace(/\D/g, '').slice(-10) : '';
+
+      const merchantPayload = {
+        business_id: biz.id,
+        shop_name: biz.name,
+        business_name: biz.name,
+        owner_name: biz.owner_name,
+        phone: cleanPhone || biz.phone,
+        email: userEmail || undefined,
+        business_type: biz.business_type,
+        role: 'admin',
+        updatedAt: new Date().toISOString(),
+      };
+
       if (uid) {
         const merchantRef = doc(firestore, 'merchants', uid);
         await setDoc(
           merchantRef,
           sanitizeForFirestore({
+            ...merchantPayload,
             uid,
-            business_id: biz.id,
-            shop_name: biz.name,
-            business_name: biz.name,
-            owner_name: biz.owner_name,
-            phone: biz.phone,
-            email: biz.email,
-            business_type: biz.business_type,
-            role: 'admin',
-            updatedAt: new Date().toISOString(),
+          }),
+          { merge: true }
+        );
+      }
+
+      if (cleanPhone && cleanPhone.length === 10) {
+        await setDoc(
+          doc(firestore, 'merchants', `wa_${cleanPhone}`),
+          sanitizeForFirestore({
+            ...merchantPayload,
+            uid: `wa_${cleanPhone}`,
+            linked_uid: uid,
+          }),
+          { merge: true }
+        );
+        await setDoc(
+          doc(firestore, 'merchants', `user_${cleanPhone}`),
+          sanitizeForFirestore({
+            ...merchantPayload,
+            uid: `user_${cleanPhone}`,
+            linked_uid: uid,
           }),
           { merge: true }
         );

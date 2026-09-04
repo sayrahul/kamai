@@ -629,6 +629,54 @@ export default function MasterSuperAdminPage() {
     }
   };
 
+  // Quick 1-Click Pro Upgrade/Downgrade Toggle
+  const handleTogglePro = async (merchant: MerchantRecord) => {
+    const isPro = merchant.subscription_tier === 'pro' || merchant.subscription_tier === 'enterprise' || merchant.subscription_tier === 'growth';
+    const nextTier = isPro ? 'free' : 'pro';
+    try {
+      const res = await fetch(`/api/admin/merchants/${merchant.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription_tier: nextTier,
+          days_extension: nextTier === 'pro' ? 365 : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(nextTier === 'pro' ? `⭐ Upgraded "${merchant.name}" to Pro (₹1,499/Yr)!` : `Downgraded "${merchant.name}" to Free Forever`);
+        fetchAdminData();
+      } else {
+        showToast('⚠️ ' + (data.message || 'Failed to toggle plan'));
+      }
+    } catch (err: any) {
+      showToast('⚠️ Error updating plan: ' + (err?.message || 'Network error'));
+    }
+  };
+
+  // Quick 1-Click Freeze / Unfreeze Toggle
+  const handleToggleActive = async (merchant: MerchantRecord) => {
+    const nextActive = merchant.is_active === false ? true : false;
+    try {
+      const res = await fetch(`/api/admin/merchants/${merchant.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          is_active: nextActive,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(nextActive ? `✅ Unfrozen store "${merchant.name}"!` : `🔒 Store "${merchant.name}" has been FROZEN/BLOCKED!`);
+        fetchAdminData();
+      } else {
+        showToast('⚠️ ' + (data.message || 'Failed to toggle status'));
+      }
+    } catch (err: any) {
+      showToast('⚠️ Error: ' + (err?.message || 'Network error'));
+    }
+  };
+
   // Delete Merchant
   const handleDeleteMerchant = async () => {
     if (!merchantToDelete) return;
@@ -760,6 +808,8 @@ export default function MasterSuperAdminPage() {
             setIsEditModalOpen(true);
           }}
           onDeleteMerchant={setMerchantToDelete}
+          onTogglePro={handleTogglePro}
+          onToggleActive={handleToggleActive}
           onSendWhatsApp={(m) => {
             const expiryDate = m.subscription_expires_at || m.subscription_valid_until;
             const diffDays = expiryDate ? Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)) : null;

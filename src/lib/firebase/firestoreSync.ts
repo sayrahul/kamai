@@ -312,13 +312,33 @@ export function subscribeToMultiDeviceSync(businessId: string): Unsubscribe[] {
   const unsubs: Unsubscribe[] = [];
 
   try {
-    // 0. Business Profile live stream (mirrors store type and config changes across devices)
+    // 0. Business Profile live stream (mirrors store type, plan, and freeze changes in real-time across devices)
     const bizDocUnsub = onSnapshot(
       doc(firestore, `businesses/${businessId}`),
       async (snapshot) => {
         if (snapshot.exists()) {
           const cloudBiz = snapshot.data() as Business;
           if (cloudBiz && cloudBiz.name) {
+            // 1. Instant Real-time Freeze / Block Lockout
+            if ((cloudBiz as any).is_active === false) {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('account_frozen', {
+                  detail: { message: 'Your merchant store has been blocked/frozen by the platform administrator.' }
+                }));
+              }
+            } else if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('account_unfrozen'));
+            }
+
+            // 2. Instant Real-time Pro Upgrade / Downgrade (Both Mobile & Desktop)
+            if (cloudBiz.subscription_tier) {
+              const { subscriptionService } = await import('@/lib/subscription/subscriptionService');
+              subscriptionService.setTierFromCloud(
+                cloudBiz.subscription_tier,
+                cloudBiz.subscription_valid_until || (cloudBiz as any).subscription_expires_at
+              );
+            }
+
             await db.businesses.put(cloudBiz);
           }
         }

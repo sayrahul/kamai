@@ -121,10 +121,8 @@ export const AdminEditMerchantModal: React.FC<AdminEditMerchantModalProps> = ({
               onChange={(e) => setEditTier(e.target.value)}
               className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
             >
-              <option value="free">Free Forever</option>
-              <option value="pro">Pro Plan</option>
-              <option value="growth">Growth Plan</option>
-              <option value="enterprise">Enterprise</option>
+              <option value="free">Free Forever (₹0)</option>
+              <option value="pro">Pro Enterprise (₹1,499/Year)</option>
             </select>
           </div>
 

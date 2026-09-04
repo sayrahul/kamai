@@ -129,6 +129,19 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       setCurrentUser(u);
     };
 
+    const handleAccountFrozen = (e: any) => {
+      setAccountLockout({
+        isFrozen: true,
+        message: e.detail?.message || 'Your merchant store has been frozen/blocked by the platform administrator.',
+      });
+    };
+
+    const handleAccountUnfrozen = () => {
+      setAccountLockout(null);
+    };
+
+    window.addEventListener('account_frozen', handleAccountFrozen);
+    window.addEventListener('account_unfrozen', handleAccountUnfrozen);
     window.addEventListener('auth_changed', handleAuthChange);
     window.addEventListener('storage', handleAuthChange);
 
@@ -191,7 +204,15 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         const currentStored = getStoredUser();
         if (!currentStored) return;
 
-        const res = await fetch('/api/auth/me');
+        const qParams = new URLSearchParams();
+        if (currentStored.business_id && currentStored.business_id !== 'biz_pending') {
+          qParams.set('business_id', currentStored.business_id);
+        }
+        if (currentStored.phone) {
+          qParams.set('phone', currentStored.phone);
+        }
+        const meUrl = qParams.toString() ? `/api/auth/me?${qParams.toString()}` : '/api/auth/me';
+        const res = await fetch(meUrl);
         if (res.status === 410 || res.status === 403 || res.status === 401) {
           const data = await res.json().catch(() => ({}));
           if (res.status === 410 || data.isDeleted) {
@@ -266,11 +287,20 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     checkServerSession();
     const heartbeatTimer = setInterval(checkServerSession, 30000);
     window.addEventListener('focus', checkServerSession);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkServerSession();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       clearInterval(heartbeatTimer);
       window.removeEventListener('focus', checkServerSession);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       cleanupSync();
+      window.removeEventListener('account_frozen', handleAccountFrozen);
+      window.removeEventListener('account_unfrozen', handleAccountUnfrozen);
       window.removeEventListener('auth_changed', handleAuthChange);
       window.removeEventListener('storage', handleAuthChange);
     };

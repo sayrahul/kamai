@@ -11,12 +11,16 @@ export async function GET(req: NextRequest) {
     const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
     const payload = sessionCookie ? verifySessionToken(sessionCookie) : null;
 
-    if (!payload || (!payload.business_id && !payload.phone)) {
+    const url = new URL(req.url);
+    const queryBizId = url.searchParams.get('business_id');
+    const queryPhone = url.searchParams.get('phone');
+
+    const targetBusinessId = payload?.business_id || queryBizId || undefined;
+    const targetPhone = payload?.phone || queryPhone || undefined;
+
+    if (!targetBusinessId && !targetPhone) {
       return NextResponse.json({ authenticated: false });
     }
-
-    const targetBusinessId = payload.business_id;
-    const targetPhone = payload.phone;
 
     let isFound = false;
     let isStoreActive = true;
@@ -42,7 +46,7 @@ export async function GET(req: NextRequest) {
         // Phone fallback in Firestore
         if (!isFound && targetPhone) {
           const clean10 = targetPhone.replace(/\D/g, '').slice(-10);
-          const candidateUids = [`user_${clean10}`, `staff_${clean10}`, `wa_${clean10}`, payload?.staff_id].filter(Boolean);
+          const candidateUids = [`user_${clean10}`, `staff_${clean10}`, `wa_${clean10}`, payload?.staff_id].filter((id): id is string => Boolean(id));
           for (const cUid of candidateUids) {
             if (isFound) break;
             try {
