@@ -153,7 +153,7 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
               }}
               className="px-2.5 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 text-xs font-black shrink-0 hover:bg-slate-800 cursor-pointer shadow-xs active:scale-95 transition"
             >
-              {isRestaurant ? '📸 Scan Menu' : '📸 Scan Bill'}
+              {isRestaurant ? '📸 Scan Menu with AI' : '📸 Inward with AI'}
             </button>
           </div>
         )}

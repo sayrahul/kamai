@@ -4,7 +4,6 @@ import React from 'react';
 import { 
   Package, 
   Plus, 
-  FileSpreadsheet, 
   Sparkles,
   Camera
 } from 'lucide-react';
@@ -15,7 +14,7 @@ interface ProductHeaderActionsProps {
   totalProducts: number;
   businessType?: string;
   onOpenAddModal: () => void;
-  onOpenExcelImporter: () => void;
+  onOpenExcelImporter?: () => void;
   onOpenInwardSheet?: () => void;
   onOpenRapidInward?: () => void;
 }
@@ -53,33 +52,23 @@ export const ProductHeaderActions: React.FC<ProductHeaderActionsProps> = ({
       </div>
 
       <div className="flex items-center gap-1.5 self-start sm:self-center shrink-0 flex-wrap">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onOpenExcelImporter}
-          className="text-xs font-bold gap-1 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer shadow-2xs"
-        >
-          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-          <span className="hidden sm:inline">Excel Import</span>
-        </Button>
-
         {/* Store-Aware AI Inward Button */}
         <Button
           variant="outline"
           size="sm"
           onClick={handleInwardClick}
           className="text-xs font-black gap-1.5 rounded-xl border-amber-400/60 text-slate-900 dark:text-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/30 hover:from-amber-100 hover:to-orange-100 cursor-pointer shadow-2xs"
-          title={isRestaurant ? "Scan printed Menu Card photo to auto-add all dishes & rates" : "Upload distributor invoice or wholesale parcha to auto-add stock"}
+          title={isRestaurant ? "Scan printed Menu Card photo to auto-add all dishes & rates" : "Upload distributor invoice, wholesale parcha, or Excel/CSV"}
         >
           {isRestaurant ? (
             <>
               <Camera className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-              <span>📸 Scan Menu Card</span>
+              <span>📸 Scan Menu with AI</span>
             </>
           ) : (
             <>
               <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 animate-pulse" />
-              <span>📸 Inward Bill / Parcha</span>
+              <span>📸 Inward with AI</span>
             </>
           )}
         </Button>
