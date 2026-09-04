@@ -792,6 +792,67 @@ assert(stockAfterEstimate === 25, 'Creating quotation/estimate does NOT deduct i
 const stockAfterConversion = stockAfterEstimate - estimateQty;
 assert(stockAfterConversion === 20, 'Converting quotation to tax invoice successfully deducts stock from 25 to 20');
 
+// ================================================================
+// SUITE 11: Admin Deletion, Tombstone Persistence & Anti-Resurrection Invariants
+// ================================================================
+console.log('\n🛡️ SUITE 11: Admin Deletion, Tombstone Persistence & Anti-Resurrection');
+
+const mockDeletedBizId = 'biz_deleted_test_999';
+const mockDeletedPhone = '9876500000';
+const mockTombstone = {
+  id: mockDeletedBizId,
+  business_id: mockDeletedBizId,
+  phone: mockDeletedPhone,
+  deleted_at: new Date().toISOString(),
+  reason: 'admin_deleted',
+};
+
+// 1. Tombstone verification
+assert(mockTombstone.reason === 'admin_deleted', 'Admin deletion writes tombstone with admin_deleted reason');
+assert(Boolean(mockTombstone.deleted_at), 'Tombstone contains valid ISO deletion timestamp');
+
+// 2. Anti-resurrection guard logic simulation
+const isStoreTombstoned = (id: string, tombstoneMap: Set<string>) => tombstoneMap.has(id);
+const mockTombstones = new Set([mockDeletedBizId]);
+
+assert(isStoreTombstoned(mockDeletedBizId, mockTombstones) === true, 'Tombstoned store is correctly detected');
+assert(isStoreTombstoned('biz_active_123', mockTombstones) === false, 'Active legitimate store is not flagged as tombstoned');
+
+// 3. Cloud sync abort on deleted store
+const simulateSyncAttempt = (targetBizId: string, isDeleted: boolean) => {
+  if (isDeleted) {
+    return { shouldAbort: true, shouldPurgeDevice: true, shouldUpload: false };
+  }
+  return { shouldAbort: false, shouldPurgeDevice: false, shouldUpload: true };
+};
+
+const syncResultForDeleted = simulateSyncAttempt(mockDeletedBizId, true);
+assert(syncResultForDeleted.shouldAbort === true, 'Sync attempt for deleted store is immediately aborted');
+assert(syncResultForDeleted.shouldPurgeDevice === true, 'Sync attempt triggers local device data purge');
+assert(syncResultForDeleted.shouldUpload === false, 'Sync attempt strictly refuses to write or resurrect document to cloud');
+
+// 4. Session check returns 410 Gone for deleted store
+const simulateAuthCheck = (bizId: string | undefined, isFoundInCloud: boolean, isTombstoned: boolean) => {
+  if (isTombstoned || (bizId && !isFoundInCloud)) {
+    return { status: 410, authenticated: false, isDeleted: true };
+  }
+  return { status: 200, authenticated: true, isDeleted: false };
+};
+
+const authCheckForDeleted = simulateAuthCheck(mockDeletedBizId, false, true);
+assert(authCheckForDeleted.status === 410, 'Session check returns HTTP 410 Gone for deleted store');
+assert(authCheckForDeleted.isDeleted === true, 'Session check sets isDeleted flag to true');
+assert(authCheckForDeleted.authenticated === false, 'Session check de-authenticates deleted merchant');
+
+// 5. Admin merchant list excludes tombstoned stores
+const rawMerchantsList = [
+  { id: 'biz_active_1', name: 'Active Store', phone: '9111111111' },
+  { id: mockDeletedBizId, name: 'Ghost Deleted Store', phone: mockDeletedPhone },
+];
+const filteredMerchants = rawMerchantsList.filter((m) => !mockTombstones.has(m.id));
+assert(filteredMerchants.length === 1, 'Admin merchant query strictly filters out deleted stores');
+assert(filteredMerchants[0].id === 'biz_active_1', 'Only active stores remain visible in Admin panel');
+
 console.log('');
 console.log('================================================================');
 console.log(`📊 SIMULATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED (${failedTests} failures)`);

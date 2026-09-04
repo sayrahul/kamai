@@ -192,8 +192,17 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         if (!currentStored) return;
 
         const res = await fetch('/api/auth/me');
-        if (res.status === 403 || res.status === 401) {
+        if (res.status === 410 || res.status === 403 || res.status === 401) {
           const data = await res.json().catch(() => ({}));
+          if (res.status === 410 || data.isDeleted) {
+            console.warn('🚨 Merchant account permanently deleted by admin. Purging local device.');
+            const { purgeLocalDeviceData } = await import('@/lib/auth');
+            await purgeLocalDeviceData().catch(() => {});
+            setStoredUser(null);
+            setCurrentUser(null);
+            router.replace('/auth?deleted=true');
+            return;
+          }
           if (data.isFrozen) {
             // SAFE LOCKOUT: Keep local IndexedDB records 100% intact (zero data loss for offline business)
             // Only pause active user session and render the frozen lockout notice

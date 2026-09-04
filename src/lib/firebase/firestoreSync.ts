@@ -88,10 +88,30 @@ export async function syncLocalDexieToFirestore(businessId: string): Promise<{ s
     expenses: 0,
   };
 
+  // PREVENT RESURRECTION OF DELETED STORES: Verify business exists in cloud before sync!
+  const bizRef = doc(firestore, 'businesses', businessId);
+  try {
+    const [bizSnap, tombSnap] = await Promise.all([
+      getDoc(bizRef).catch(() => null),
+      getDoc(doc(firestore, 'deleted_businesses', businessId)).catch(() => null),
+    ]);
+
+    if (tombSnap?.exists() || (bizSnap && !bizSnap.exists())) {
+      console.warn(`🛑 Business ${businessId} was deleted in cloud. Aborting sync and wiping device.`);
+      const { purgeLocalDeviceData } = await import('@/lib/auth');
+      await purgeLocalDeviceData().catch(() => {});
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth?deleted=true';
+      }
+      return { success: false, stats };
+    }
+  } catch (checkErr) {
+    console.warn('Sync cloud existence check notice:', checkErr);
+  }
+
   // 1. Sync Business Profile
   const biz = await db.businesses.get(businessId);
   if (biz) {
-    const bizRef = doc(firestore, 'businesses', businessId);
     const cleanBiz = sanitizeForFirestore({ ...biz, last_synced_at: new Date().toISOString() });
     await setDoc(bizRef, cleanBiz, { merge: true });
   }

@@ -19,9 +19,19 @@ export async function syncProfileToCloud(businessId: string): Promise<void> {
   if (!firestore || !businessId) return;
 
   try {
+    const bizRef = doc(firestore, 'businesses', businessId);
+    const [bizSnap, tombSnap] = await Promise.all([
+      getDoc(bizRef).catch(() => null),
+      getDoc(doc(firestore, 'deleted_businesses', businessId)).catch(() => null),
+    ]);
+
+    if (tombSnap?.exists() || (bizSnap && !bizSnap.exists())) {
+      console.warn(`🛑 Store ${businessId} was deleted in cloud. Aborting profile sync.`);
+      return;
+    }
+
     const biz = await localDb.businesses.get(businessId);
     if (biz) {
-      const bizRef = doc(firestore, 'businesses', businessId);
       await setDoc(
         bizRef,
         sanitizeForFirestore({ 

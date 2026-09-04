@@ -43,6 +43,23 @@ export async function GET(req: NextRequest) {
             updated_at: data.updated_at || data.last_synced_at || new Date().toISOString(),
           });
         });
+
+        // 1b. Filter out tombstoned businesses & phones so deleted stores never appear
+        try {
+          const delSnap = await getDocs(query(collection(firestore, 'deleted_businesses'), limit(500)));
+          delSnap.forEach((d) => {
+            merchantsMap.delete(d.id);
+            const p = d.data().phone;
+            if (p) {
+              const pClean = p.replace(/\D/g, '').slice(-10);
+              merchantsMap.forEach((val, key) => {
+                if (val.phone && val.phone.replace(/\D/g, '').slice(-10) === pClean) {
+                  merchantsMap.delete(key);
+                }
+              });
+            }
+          });
+        } catch (delErr) {}
       }
     } catch (firestoreErr) {
       console.warn('Firestore merchants fetch error:', firestoreErr);

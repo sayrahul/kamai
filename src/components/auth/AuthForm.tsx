@@ -61,6 +61,13 @@ export const AuthForm: React.FC = () => {
     };
   }, []);
 
+  // Show notice if redirected after admin store deletion
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('deleted=true')) {
+      setError('⚠️ आपका स्टोर एडमिन द्वारा हमेशा के लिए हटा दिया गया है। नया स्टोर शुरू करने के लिए नया अकाउंट बनाएं।');
+    }
+  }, []);
+
   /**
    * Universal Post-Authentication Handler
    * Handles routing and local hydration for Google OAuth, WhatsApp Handshake, and WhatsApp OTP
@@ -137,18 +144,20 @@ export const AuthForm: React.FC = () => {
           }
         }
 
-        // 3. Strict Verification: Check if the business document actually exists in `businesses`
+        // 3. Strict Verification: Check if the business document actually exists in `businesses` and is not tombstoned
         if (merchantData) {
           const targetBizId = merchantData.business_id || merchantData.id;
           if (targetBizId) {
             try {
-              const bizDocRef = doc(firestore, 'businesses', targetBizId);
-              const bizSnap = await getDoc(bizDocRef);
-              if (!bizSnap.exists() || bizSnap.data()?.is_active === false) {
+              const [bizSnap, tombSnap] = await Promise.all([
+                getDoc(doc(firestore, 'businesses', targetBizId)).catch(() => null),
+                getDoc(doc(firestore, 'deleted_businesses', targetBizId)).catch(() => null),
+              ]);
+              if (tombSnap?.exists() || (bizSnap && !bizSnap.exists()) || bizSnap?.data()?.is_active === false) {
                 // The store was deleted or frozen by platform admin!
                 await deleteDoc(doc(firestore, 'merchants', uid)).catch(() => {});
                 merchantData = null;
-              } else {
+              } else if (bizSnap) {
                 merchantData = { ...merchantData, ...bizSnap.data() };
               }
             } catch (vErr) {
@@ -158,7 +167,7 @@ export const AuthForm: React.FC = () => {
         }
       }
 
-      // 4. Local Database Fallback: ONLY if the local business actually belongs to this authenticated user!
+      // 4. Local Database Fallback: ONLY if the local business actually belongs to this authenticated user AND wasn't deleted!
       if (!merchantData) {
         try {
           if (!localDb.isOpen()) await localDb.open();
@@ -171,7 +180,34 @@ export const AuthForm: React.FC = () => {
             const matchesUid = Boolean((localBiz as any).user_uid && (localBiz as any).user_uid === uid);
 
             if (matchesPhone || matchesEmail || matchesUid) {
-              merchantData = localBiz;
+              let isCloudDeleted = false;
+              if (firestore) {
+                const [bSnap, tSnap] = await Promise.all([
+                  getDoc(doc(firestore, 'businesses', localBiz.id)).catch(() => null),
+                  getDoc(doc(firestore, 'deleted_businesses', localBiz.id)).catch(() => null),
+                ]);
+                if (tSnap?.exists() || (bSnap && !bSnap.exists())) {
+                  isCloudDeleted = true;
+                }
+              }
+
+              if (!isCloudDeleted) {
+                merchantData = localBiz;
+              } else {
+                console.log('🧹 Local store was deleted in cloud. Purging local device.');
+                await Promise.all([
+                  localDb.businesses.clear().catch(() => {}),
+                  localDb.products.clear().catch(() => {}),
+                  localDb.sales.clear().catch(() => {}),
+                  localDb.customers.clear().catch(() => {}),
+                  localDb.categories.clear().catch(() => {}),
+                  localDb.inventory_movements.clear().catch(() => {}),
+                  localDb.suppliers.clear().catch(() => {}),
+                  localDb.cash_registers.clear().catch(() => {}),
+                  localDb.cash_expenses.clear().catch(() => {}),
+                  localDb.ledger_transactions.clear().catch(() => {}),
+                ]);
+              }
             } else {
               // Stale data from previous user on this shared device/browser!
               console.log('🧹 Stale local store data detected from a different account. Purging local device.');

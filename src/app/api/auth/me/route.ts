@@ -115,6 +115,42 @@ export async function GET(req: NextRequest) {
       console.warn('Supabase auth check notice:', supabaseErr);
     }
 
+    // Check if account/store was deleted by platform admin
+    let isExplicitlyDeleted = false;
+    try {
+      const firestore = getFirestoreDb();
+      if (firestore) {
+        if (targetBusinessId) {
+          const delSnap = await getDoc(doc(firestore, 'deleted_businesses', targetBusinessId));
+          if (delSnap.exists()) isExplicitlyDeleted = true;
+        }
+        if (!isExplicitlyDeleted && targetPhone) {
+          const clean10 = targetPhone.replace(/\D/g, '').slice(-10);
+          const delPhoneSnap = await getDoc(doc(firestore, 'deleted_phones', clean10));
+          if (delPhoneSnap.exists()) isExplicitlyDeleted = true;
+        }
+      }
+    } catch (e) {}
+
+    // If account was explicitly deleted by admin
+    if (isExplicitlyDeleted || (targetBusinessId && !isFound)) {
+      const resp = NextResponse.json(
+        {
+          authenticated: false,
+          isDeleted: true,
+          error: 'Your store account has been permanently removed by the platform administrator.',
+        },
+        { status: 410 }
+      );
+      resp.cookies.set({
+        name: SESSION_COOKIE_NAME,
+        value: '',
+        maxAge: 0,
+        path: '/',
+      });
+      return resp;
+    }
+
     // If account was explicitly frozen by admin
     if (isFound && !isStoreActive) {
       return NextResponse.json(

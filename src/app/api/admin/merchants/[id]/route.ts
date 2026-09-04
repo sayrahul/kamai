@@ -133,14 +133,64 @@ export async function DELETE(
         const bizDocRef = doc(firestore, 'businesses', id);
         const bizSnap = await getDoc(bizDocRef);
         const bizData = bizSnap.exists() ? bizSnap.data() : null;
-        const cleanPhone = bizData?.phone ? bizData.phone.replace(/\D/g, '').slice(-10) : '';
+        let cleanPhone = bizData?.phone ? bizData.phone.replace(/\D/g, '').slice(-10) : '';
+
+        // Check if id is a merchant doc or business doc
+        let userUid = bizData?.user_uid || null;
+        if (!cleanPhone) {
+          const mDocRef = doc(firestore, 'merchants', id);
+          const mSnap = await getDoc(mDocRef);
+          if (mSnap.exists()) {
+            const mData = mSnap.data();
+            if (mData.phone) cleanPhone = mData.phone.replace(/\D/g, '').slice(-10);
+            if (mData.business_id) {
+              await deleteDoc(doc(firestore, 'businesses', mData.business_id)).catch(() => {});
+              await setDoc(doc(firestore, 'deleted_businesses', mData.business_id), {
+                id: mData.business_id,
+                business_id: mData.business_id,
+                phone: cleanPhone || null,
+                deleted_at: new Date().toISOString(),
+                reason: 'admin_deleted',
+              }).catch(() => {});
+            }
+            await deleteDoc(mDocRef).catch(() => {});
+          }
+        }
+
+        // Write persistent tombstones so clients can NEVER re-create this store
+        await setDoc(doc(firestore, 'deleted_businesses', id), {
+          id,
+          business_id: id,
+          phone: cleanPhone || null,
+          user_uid: userUid,
+          deleted_at: new Date().toISOString(),
+          reason: 'admin_deleted',
+        }).catch(() => {});
+
+        if (cleanPhone) {
+          await setDoc(doc(firestore, 'deleted_phones', cleanPhone), {
+            phone: cleanPhone,
+            business_id: id,
+            deleted_at: new Date().toISOString(),
+            reason: 'admin_deleted',
+          }).catch(() => {});
+        }
+
+        if (userUid) {
+          await setDoc(doc(firestore, 'deleted_uids', userUid), {
+            uid: userUid,
+            business_id: id,
+            deleted_at: new Date().toISOString(),
+            reason: 'admin_deleted',
+          }).catch(() => {});
+        }
 
         // Delete primary business record
         await deleteDoc(bizDocRef).catch(() => {});
 
         // Delete linked merchant documents by user_uid
-        if (bizData?.user_uid) {
-          await deleteDoc(doc(firestore, 'merchants', bizData.user_uid)).catch(() => {});
+        if (userUid) {
+          await deleteDoc(doc(firestore, 'merchants', userUid)).catch(() => {});
         }
 
         // Delete linked merchant documents by phone
