@@ -87,10 +87,7 @@ export const purgeLocalDeviceData = async () => {
 export const logoutUser = async () => {
     if (typeof window === 'undefined') return;
     try {
-        localStorage.removeItem('kamai_user');
-        localStorage.removeItem('kamai_session_timestamp');
-        localStorage.removeItem('kamai_subscription_tier');
-        sessionStorage.clear();
+        await purgeLocalDeviceData().catch(() => {});
         
         const { signOutUser } = await import('@/lib/firebase/googleAuth');
         await signOutUser().catch(() => {});

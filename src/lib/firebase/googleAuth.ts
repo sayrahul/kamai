@@ -41,10 +41,11 @@ export async function signInWithGoogle(): Promise<GoogleAuthResult> {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    // Link user details to local Dexie store if business exists
+    // Link user details to local Dexie store ONLY if this store belongs to the Google user
     try {
       const existingBiz = await db.businesses.toCollection().first();
-      if (existingBiz) {
+      const userEmail = (user.email || '').toLowerCase().trim();
+      if (existingBiz && userEmail && existingBiz.email && existingBiz.email.toLowerCase().trim() === userEmail) {
         await db.businesses.update(existingBiz.id, {
           owner_name: user.displayName || existingBiz.owner_name,
           updated_at: new Date().toISOString(),

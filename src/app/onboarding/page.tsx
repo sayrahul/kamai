@@ -142,7 +142,18 @@ export default function OnboardingPage() {
       if (!localDb.isOpen()) {
         await localDb.open();
       }
-      await localDb.businesses.clear();
+      await Promise.all([
+        localDb.businesses.clear().catch(() => {}),
+        localDb.products.clear().catch(() => {}),
+        localDb.sales.clear().catch(() => {}),
+        localDb.customers.clear().catch(() => {}),
+        localDb.categories.clear().catch(() => {}),
+        localDb.inventory_movements.clear().catch(() => {}),
+        localDb.suppliers.clear().catch(() => {}),
+        localDb.cash_registers.clear().catch(() => {}),
+        localDb.cash_expenses.clear().catch(() => {}),
+        localDb.ledger_transactions.clear().catch(() => {}),
+      ]);
       await localDb.businesses.put(newBusinessRecord);
 
       // Seed starter catalog products for selected category

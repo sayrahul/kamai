@@ -158,13 +158,36 @@ export const AuthForm: React.FC = () => {
         }
       }
 
-      // 4. Local Database Fallback: If cloud was offline or document matched locally
+      // 4. Local Database Fallback: ONLY if the local business actually belongs to this authenticated user!
       if (!merchantData) {
         try {
           if (!localDb.isOpen()) await localDb.open();
           const localBiz = await localDb.businesses.toCollection().first();
           if (localBiz && localBiz.id && localBiz.is_onboarded) {
-            merchantData = localBiz;
+            const bizPhone = localBiz.phone ? localBiz.phone.replace(/\D/g, '').slice(-10) : '';
+            const bizEmail = localBiz.email ? localBiz.email.toLowerCase().trim() : '';
+            const matchesPhone = Boolean(cleanPhone && bizPhone && bizPhone === cleanPhone);
+            const matchesEmail = Boolean(cleanEmail && bizEmail && bizEmail === cleanEmail);
+            const matchesUid = Boolean((localBiz as any).user_uid && (localBiz as any).user_uid === uid);
+
+            if (matchesPhone || matchesEmail || matchesUid) {
+              merchantData = localBiz;
+            } else {
+              // Stale data from previous user on this shared device/browser!
+              console.log('🧹 Stale local store data detected from a different account. Purging local device.');
+              await Promise.all([
+                localDb.businesses.clear().catch(() => {}),
+                localDb.products.clear().catch(() => {}),
+                localDb.sales.clear().catch(() => {}),
+                localDb.customers.clear().catch(() => {}),
+                localDb.categories.clear().catch(() => {}),
+                localDb.inventory_movements.clear().catch(() => {}),
+                localDb.suppliers.clear().catch(() => {}),
+                localDb.cash_registers.clear().catch(() => {}),
+                localDb.cash_expenses.clear().catch(() => {}),
+                localDb.ledger_transactions.clear().catch(() => {}),
+              ]);
+            }
           }
         } catch (dexErr) {
           console.warn('Local Dexie business fallback notice:', dexErr);
@@ -183,6 +206,23 @@ export const AuthForm: React.FC = () => {
         // Store business into local Dexie
         try {
           if (!localDb.isOpen()) await localDb.open();
+          const existingBiz = await localDb.businesses.toCollection().first();
+          if (existingBiz && existingBiz.id && existingBiz.id !== businessId) {
+            console.log('🔄 Switching store accounts on this device. Purging previous store data.');
+            await Promise.all([
+              localDb.businesses.clear().catch(() => {}),
+              localDb.products.clear().catch(() => {}),
+              localDb.sales.clear().catch(() => {}),
+              localDb.customers.clear().catch(() => {}),
+              localDb.categories.clear().catch(() => {}),
+              localDb.inventory_movements.clear().catch(() => {}),
+              localDb.suppliers.clear().catch(() => {}),
+              localDb.cash_registers.clear().catch(() => {}),
+              localDb.cash_expenses.clear().catch(() => {}),
+              localDb.ledger_transactions.clear().catch(() => {}),
+            ]);
+          }
+
           await localDb.businesses.put({
             id: businessId,
             name: shopName,
@@ -237,14 +277,16 @@ export const AuthForm: React.FC = () => {
         try {
           if (!localDb.isOpen()) await localDb.open();
           await Promise.all([
-            localDb.sales.clear(),
-            localDb.customers.clear(),
-            localDb.products.clear(),
-            localDb.categories.clear(),
-            localDb.ledger_transactions.clear(),
-            localDb.cash_expenses.clear(),
-            localDb.cash_registers.clear(),
-            localDb.businesses.clear(),
+            localDb.sales.clear().catch(() => {}),
+            localDb.customers.clear().catch(() => {}),
+            localDb.products.clear().catch(() => {}),
+            localDb.categories.clear().catch(() => {}),
+            localDb.ledger_transactions.clear().catch(() => {}),
+            localDb.cash_expenses.clear().catch(() => {}),
+            localDb.cash_registers.clear().catch(() => {}),
+            localDb.inventory_movements.clear().catch(() => {}),
+            localDb.suppliers.clear().catch(() => {}),
+            localDb.businesses.clear().catch(() => {}),
           ]);
         } catch (purgeErr) {
           console.warn('Wipe local device tables on first-time signup:', purgeErr);

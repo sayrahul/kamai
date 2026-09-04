@@ -151,7 +151,15 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         const localBiz = await localDb.businesses.toCollection().first();
 
         if (localBiz && localBiz.id && localBiz.is_onboarded) {
-          if (!u.business_id || u.business_id === 'biz_pending') {
+          const userPhone = (u.phone || '').replace(/\D/g, '').slice(-10);
+          const bizPhone = (localBiz.phone || '').replace(/\D/g, '').slice(-10);
+          const userEmail = (u.email || '').toLowerCase().trim();
+          const bizEmail = (localBiz.email || '').toLowerCase().trim();
+          const isOwner = (userPhone && bizPhone && userPhone === bizPhone) ||
+                          (userEmail && bizEmail && userEmail === bizEmail) ||
+                          (u.business_id && u.business_id === localBiz.id);
+
+          if (isOwner && (!u.business_id || u.business_id === 'biz_pending')) {
             const restoredUser: AuthUser = {
               uid: u.uid || localBiz.id,
               id: u.id || localBiz.id,
@@ -164,6 +172,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             };
             setStoredUser(restoredUser);
             setCurrentUser(restoredUser);
+          } else if (!isOwner && (!u.business_id || u.business_id === 'biz_pending')) {
+            // Stale business from an old or different account on this device; clear it so new user is routed to onboarding cleanly
+            await localDb.businesses.clear().catch(() => {});
           }
         }
       } catch (err) {
@@ -202,22 +213,31 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             const activeStored = getStoredUser();
             if (!activeStored) return; // User logged out while fetch was in-flight
 
-            // Only update stored user if cloud found a valid business_id that client didn't have
+            // Only update stored user if cloud found a valid business_id that client didn't have AND identity matches
             if (data.user.business_id && (!activeStored.business_id || activeStored.business_id === 'biz_pending')) {
-              const updatedUser: AuthUser = {
-                uid: data.user.id || activeStored.uid || data.user.phone,
-                id: data.user.id || activeStored.id || data.user.phone,
-                phone: data.user.phone || activeStored.phone,
-                name: data.user.name || activeStored.name || 'Store Owner',
-                email: activeStored.email || null,
-                photoURL: activeStored.photoURL || null,
-                role: data.user.role || 'admin',
-                business_id: data.user.business_id,
-                business_name: data.business?.name || data.user.business_name || activeStored.business_name || '',
-                shop_name: data.business?.name || data.user.business_name || activeStored.shop_name || '',
-              };
-              setStoredUser(updatedUser);
-              setCurrentUser(updatedUser);
+              const uPhone = (activeStored.phone || '').replace(/\D/g, '').slice(-10);
+              const dPhone = (data.user.phone || '').replace(/\D/g, '').slice(-10);
+              const uEmail = (activeStored.email || '').toLowerCase().trim();
+              const dEmail = (data.user.email || '').toLowerCase().trim();
+              const matches = (uPhone && dPhone && uPhone === dPhone) ||
+                              (uEmail && dEmail && uEmail === dEmail) ||
+                              (activeStored.uid && data.user.id && activeStored.uid === data.user.id);
+              if (matches) {
+                const updatedUser: AuthUser = {
+                  uid: data.user.id || activeStored.uid || data.user.phone,
+                  id: data.user.id || activeStored.id || data.user.phone,
+                  phone: data.user.phone || activeStored.phone,
+                  name: data.user.name || activeStored.name || 'Store Owner',
+                  email: activeStored.email || null,
+                  photoURL: activeStored.photoURL || null,
+                  role: data.user.role || 'admin',
+                  business_id: data.user.business_id,
+                  business_name: data.business?.name || data.user.business_name || activeStored.business_name || '',
+                  shop_name: data.business?.name || data.user.business_name || activeStored.shop_name || '',
+                };
+                setStoredUser(updatedUser);
+                setCurrentUser(updatedUser);
+              }
             }
 
             // Sync subscription tier from Cloud DB
