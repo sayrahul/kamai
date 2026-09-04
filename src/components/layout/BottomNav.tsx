@@ -4,14 +4,41 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n';
-import { Home, Receipt, LayoutGrid, BookOpen, Boxes } from 'lucide-react';
+import { Home, Receipt, LayoutGrid, BookOpen, Boxes, UtensilsCrossed, Pill, Shirt, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MobileMenuCardsModal } from './MobileMenuCardsModal';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
 
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();
   const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const business = useLiveQuery(() => db.businesses.toCollection().first());
+  const storeType = business?.business_type;
+
+  const isRestaurant = storeType === 'restaurant' || storeType === 'bakery';
+  const isPharmacy = storeType === 'pharmacy';
+  const isClothing = storeType === 'clothing';
+  const isHardware = storeType === 'hardware' || storeType === 'electrical' || storeType === 'electronics' || storeType === 'mobile';
+
+  let productLabel = 'Product';
+  let ProductIcon = Boxes;
+
+  if (isRestaurant) {
+    productLabel = 'Menu';
+    ProductIcon = UtensilsCrossed;
+  } else if (isPharmacy) {
+    productLabel = 'Medicines';
+    ProductIcon = Pill;
+  } else if (isClothing) {
+    productLabel = 'Garments';
+    ProductIcon = Shirt;
+  } else if (isHardware) {
+    productLabel = 'Items';
+    ProductIcon = Wrench;
+  }
 
   const isHomeActive = pathname === '/';
   const isProductActive = pathname.startsWith('/products') || pathname.startsWith('/inventory');
@@ -37,7 +64,7 @@ export const BottomNav: React.FC = () => {
             {isHomeActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-0.5" />}
           </Link>
 
-          {/* 2. Product */}
+          {/* 2. Product / Menu */}
           <Link
             href="/products"
             className={cn(
@@ -47,8 +74,8 @@ export const BottomNav: React.FC = () => {
                 : 'text-slate-500 hover:text-slate-900 font-medium'
             )}
           >
-            <Boxes className={cn('w-5 h-5 transition-transform', isProductActive ? 'scale-110 stroke-[2.4]' : '')} />
-            <span className="text-[10.5px] tracking-tight mt-1 truncate w-full">Product</span>
+            <ProductIcon className={cn('w-5 h-5 transition-transform', isProductActive ? 'scale-110 stroke-[2.4]' : '')} />
+            <span className="text-[10.5px] tracking-tight mt-1 truncate w-full">{productLabel}</span>
             {isProductActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-0.5" />}
           </Link>
 

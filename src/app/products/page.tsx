@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -89,6 +89,18 @@ export default function ProductsPage() {
     categories.forEach((c) => map.set(c.id, c.name));
     return map;
   }, [categories]);
+
+  // Auto-launch AI Inward/Menu scan sheet if navigated from 1-Tap Onboarding
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('scan') === 'auto') {
+        setIsPurchaseSheetOpen(true);
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    }
+  }, []);
 
   // Filtered Products List
   const filteredProducts = useMemo(() => {

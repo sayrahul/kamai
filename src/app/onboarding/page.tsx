@@ -28,6 +28,7 @@ import {
   QrCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { OnboardingPhotoScanCard } from '@/components/onboarding/OnboardingPhotoScanCard';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -42,6 +43,7 @@ export default function OnboardingPage() {
   const [upiId, setUpiId] = useState<string>('');
   const [businessType, setBusinessType] = useState<BusinessType>('grocery');
   const [seedStarterCatalog, setSeedStarterCatalog] = useState<boolean>(true);
+  const [launchPhotoScan, setLaunchPhotoScan] = useState<boolean>(true);
 
   // Load current authenticated user and pre-fill details
   useEffect(() => {
@@ -220,8 +222,12 @@ export default function OnboardingPage() {
         }).catch(() => {});
       }
 
-      // 4. Navigate to dashboard with setup complete notification
-      router.replace('/');
+      // 4. Navigate to products catalog with auto-scan if enabled, otherwise dashboard
+      if (launchPhotoScan) {
+        router.replace('/products?scan=auto');
+      } else {
+        router.replace('/');
+      }
     } catch (err: any) {
       console.error('Failed to complete onboarding:', err);
       setError(err?.message || 'Error setting up your store. Please try again.');
@@ -407,6 +413,13 @@ export default function OnboardingPage() {
                 </div>
               </label>
             </div>
+
+            {/* 6. 1-Tap Photo Scan Card (Adaptive for Restaurant / Retail) */}
+            <OnboardingPhotoScanCard
+              businessType={businessType}
+              enabled={launchPhotoScan}
+              onToggle={setLaunchPhotoScan}
+            />
 
             {/* Submit Button */}
             <Button

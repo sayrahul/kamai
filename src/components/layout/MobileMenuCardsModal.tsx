@@ -25,12 +25,18 @@ import {
   Store,
   DollarSign,
   Crown,
-  LogOut
+  LogOut,
+  UtensilsCrossed,
+  Shirt,
+  Wrench,
+  Pill
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { WhatsAppLogo } from '@/components/ui/WhatsAppLogo';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
 import { logoutUser } from '@/lib/auth';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
 
 interface MobileMenuCardsModalProps {
   isOpen: boolean;
@@ -40,6 +46,73 @@ interface MobileMenuCardsModalProps {
 export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
   const { isPro } = useProSubscription();
+
+  const business = useLiveQuery(() => db.businesses.toCollection().first());
+  const storeType = business?.business_type;
+
+  const isRestaurant = storeType === 'restaurant' || storeType === 'bakery';
+  const isClothing = storeType === 'clothing';
+  const isHardware = storeType === 'hardware' || storeType === 'electrical' || storeType === 'electronics' || storeType === 'mobile';
+  const isPharmacy = storeType === 'pharmacy';
+  const isGrocery = storeType === 'grocery' || storeType === 'fmcg';
+
+  let productsTitle = 'Products';
+  let productsDesc = 'Item Catalog & Prices';
+  let ProductsIcon = Package;
+  let productsBg = 'bg-blue-100 text-blue-900';
+  let productsBorder = 'border-blue-300';
+
+  if (isRestaurant) {
+    productsTitle = 'Menu & Dishes';
+    productsDesc = 'Food Items & Rates';
+    ProductsIcon = UtensilsCrossed;
+    productsBg = 'bg-orange-100 text-orange-900';
+    productsBorder = 'border-orange-300';
+  } else if (isPharmacy) {
+    productsTitle = 'Medicines Master';
+    productsDesc = 'Drugs & Prescriptions';
+    ProductsIcon = Pill;
+    productsBg = 'bg-sky-100 text-sky-900';
+    productsBorder = 'border-sky-300';
+  } else if (isClothing) {
+    productsTitle = 'Garments & Sizes';
+    productsDesc = 'Sizes, Colors & Fits';
+    ProductsIcon = Shirt;
+    productsBg = 'bg-purple-100 text-purple-900';
+    productsBorder = 'border-purple-300';
+  } else if (isHardware) {
+    productsTitle = 'Items & Materials';
+    productsDesc = 'Tools, Pipes & Parts';
+    ProductsIcon = Wrench;
+    productsBg = 'bg-slate-100 text-slate-900';
+    productsBorder = 'border-slate-300';
+  } else if (isGrocery) {
+    productsTitle = 'Products & FMCG';
+    productsDesc = 'Daily Essentials & Barcodes';
+  }
+
+  let inventoryTitle = 'Inventory & Expiry';
+  let inventoryDesc = 'Batches & Low Stock';
+  if (isPharmacy) {
+    inventoryTitle = 'Expiry & Batches';
+    inventoryDesc = 'Batch Radar & Expiry';
+  } else if (isGrocery) {
+    inventoryTitle = 'Inventory & Alerts';
+    inventoryDesc = 'Stock Alerts & Low Stock';
+  }
+
+  let purchasesTitle = 'Purchases';
+  let purchasesDesc = 'Supplier Invoices';
+  if (isPharmacy) {
+    purchasesTitle = 'Distributor Invoices';
+    purchasesDesc = 'Medicine Inward & Bills';
+  } else if (isGrocery) {
+    purchasesTitle = 'Wholesale Inward';
+    purchasesDesc = 'Mandi & Supplier Bills';
+  } else if (isHardware) {
+    purchasesTitle = 'Vendor Inward';
+    purchasesDesc = 'Hardware Supplier Bills';
+  }
 
   // Exactly 4 sections
   const menuSections = [
@@ -53,12 +126,18 @@ export const MobileMenuCardsModal: React.FC<MobileMenuCardsModalProps> = ({ isOp
       ],
     },
     {
-      title: 'Stock & Inventory',
+      title: isRestaurant ? 'Menu & Catalog' : 'Stock & Inventory',
       items: [
-        { href: '/products', title: 'Products', desc: 'Item Catalog & Prices', icon: Package, bg: 'bg-blue-100 text-blue-900', border: 'border-blue-300' },
-        { href: '/inventory', title: 'Inventory & Expiry', desc: 'Batches & Low Stock', icon: Boxes, bg: 'bg-cyan-100 text-cyan-900', border: 'border-cyan-300' },
-        { href: '/purchases', title: 'Purchases', desc: 'Supplier Invoices', icon: ShoppingBag, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' },
-        { href: '/barcode-generator', title: 'Barcode Studio', desc: 'Price Stickers & Tags', icon: Barcode, bg: 'bg-purple-100 text-purple-900', border: 'border-purple-300' },
+        { href: '/products', title: productsTitle, desc: productsDesc, icon: ProductsIcon, bg: productsBg, border: productsBorder },
+        ...(!isRestaurant && !isClothing && !isHardware ? [
+          { href: '/inventory', title: inventoryTitle, desc: inventoryDesc, icon: Boxes, bg: 'bg-cyan-100 text-cyan-900', border: 'border-cyan-300' }
+        ] : []),
+        ...(!isRestaurant ? [
+          { href: '/purchases', title: purchasesTitle, desc: purchasesDesc, icon: ShoppingBag, bg: 'bg-amber-100 text-amber-900', border: 'border-amber-300' }
+        ] : []),
+        ...(!isRestaurant ? [
+          { href: '/barcode-generator', title: 'Barcode Studio', desc: 'Price Stickers & Tags', icon: Barcode, bg: 'bg-purple-100 text-purple-900', border: 'border-purple-300' }
+        ] : []),
       ],
     },
     {

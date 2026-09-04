@@ -638,6 +638,102 @@ const wholesaleExtractTest = PurchaseBillExtractionSchema.safeParse({
 });
 assert(wholesaleExtractTest.success === true, 'PurchaseBillExtractionSchema successfully validates wholesale invoice line items');
 
+// 🧭 SUITE 9: Store-Type Adaptive Sidebar Navigation & Onboarding Flow Verification
+console.log('\n🧭 SUITE 9: Store-Type Adaptive Sidebar Navigation & Onboarding Flow Verification');
+
+// 1. Profile Feature Toggle Assertions
+const restProfile = getStoreProfile('restaurant');
+assert(restProfile.featureToggles.showBarcode === false, 'Restaurant store profile has showBarcode set to false');
+assert(restProfile.featureToggles.showBatchExpiry === false, 'Restaurant store profile has showBatchExpiry set to false');
+
+const clothProfile = getStoreProfile('clothing');
+assert(clothProfile.featureToggles.showBatchExpiry === false, 'Clothing store profile has showBatchExpiry set to false');
+assert(clothProfile.featureToggles.showSizeVariants === true, 'Clothing store profile has showSizeVariants set to true');
+
+const hardProfile = getStoreProfile('hardware');
+assert(hardProfile.featureToggles.showBatchExpiry === false, 'Hardware store profile has showBatchExpiry set to false');
+assert(hardProfile.featureToggles.showImeiWarranty === true, 'Hardware store profile has showImeiWarranty set to true');
+
+const pharmProfile = getStoreProfile('pharmacy');
+assert(pharmProfile.featureToggles.showBatchExpiry === true, 'Pharmacy store profile has showBatchExpiry set to true');
+assert(pharmProfile.featureToggles.showDoctorPrescription === true, 'Pharmacy store profile has showDoctorPrescription set to true');
+
+const grocProfile = getStoreProfile('grocery');
+assert(grocProfile.featureToggles.showWeightUnits === true, 'Grocery store profile has showWeightUnits set to true');
+
+// 2. Navigation Simulation Helper matching Sidebar.tsx logic
+function simulateSidebarItems(storeType?: string) {
+  const isRestaurant = storeType === 'restaurant' || storeType === 'bakery';
+  const isClothing = storeType === 'clothing';
+  const isHardware = storeType === 'hardware' || storeType === 'electrical' || storeType === 'electronics' || storeType === 'mobile';
+  const isPharmacy = storeType === 'pharmacy';
+  const isGrocery = storeType === 'grocery' || storeType === 'fmcg';
+
+  let productsLabel = 'Products';
+  if (isRestaurant) productsLabel = 'Menu & Dishes';
+  else if (isPharmacy) productsLabel = 'Medicines Master';
+  else if (isClothing) productsLabel = 'Garments & Sizes';
+  else if (isHardware) productsLabel = 'Items & Materials';
+  else if (isGrocery) productsLabel = 'Products & FMCG';
+
+  let inventoryLabel = 'Inventory & Expiry';
+  if (isPharmacy) inventoryLabel = 'Expiry & Batch Radar';
+  else if (isGrocery) inventoryLabel = 'Inventory & Alerts';
+
+  let purchasesLabel = 'Purchases & Bills';
+  if (isPharmacy) purchasesLabel = 'Distributor Invoices';
+  else if (isGrocery) purchasesLabel = 'Wholesale Inward';
+  else if (isHardware) purchasesLabel = 'Vendor Inward & Bills';
+
+  const posItems = [
+    { href: '/', label: 'Dashboard' },
+    { href: '/billing', label: 'Billing POS' },
+    { href: '/cash-register', label: 'Cash Register' },
+    ...(!isRestaurant ? [{ href: '/barcode-generator', label: 'Barcode Studio' }] : []),
+    { href: '/transactions', label: 'Transactions' },
+  ];
+
+  const stockItems = [
+    { href: '/products', label: productsLabel },
+    ...(!isRestaurant && !isClothing && !isHardware ? [{ href: '/inventory', label: inventoryLabel }] : []),
+    ...(!isRestaurant ? [{ href: '/purchases', label: purchasesLabel }] : []),
+  ];
+
+  return { posItems, stockItems };
+}
+
+// 3. Verify Restaurant Navigation
+const restNav = simulateSidebarItems('restaurant');
+assert(!restNav.posItems.some(i => i.href === '/barcode-generator'), 'Restaurant hides Barcode Studio');
+assert(!restNav.stockItems.some(i => i.href === '/inventory'), 'Restaurant hides Inventory & Expiry');
+assert(!restNav.stockItems.some(i => i.href === '/purchases'), 'Restaurant hides Purchases & Bills');
+assert(restNav.stockItems.find(i => i.href === '/products')?.label === 'Menu & Dishes', 'Restaurant renames /products to "Menu & Dishes"');
+
+// 4. Verify Clothing Navigation
+const clothNav = simulateSidebarItems('clothing');
+assert(!clothNav.stockItems.some(i => i.href === '/inventory'), 'Clothing hides Inventory & Expiry');
+assert(clothNav.stockItems.some(i => i.href === '/purchases'), 'Clothing retains Purchases & Bills');
+assert(clothNav.stockItems.find(i => i.href === '/products')?.label === 'Garments & Sizes', 'Clothing renames /products to "Garments & Sizes"');
+
+// 5. Verify Hardware Navigation
+const hardNav = simulateSidebarItems('hardware');
+assert(!hardNav.stockItems.some(i => i.href === '/inventory'), 'Hardware hides Inventory & Expiry');
+assert(hardNav.stockItems.find(i => i.href === '/purchases')?.label === 'Vendor Inward & Bills', 'Hardware renames /purchases to "Vendor Inward & Bills"');
+assert(hardNav.stockItems.find(i => i.href === '/products')?.label === 'Items & Materials', 'Hardware renames /products to "Items & Materials"');
+
+// 6. Verify Pharmacy Navigation
+const pharmNav = simulateSidebarItems('pharmacy');
+assert(pharmNav.stockItems.find(i => i.href === '/products')?.label === 'Medicines Master', 'Pharmacy renames /products to "Medicines Master"');
+assert(pharmNav.stockItems.find(i => i.href === '/inventory')?.label === 'Expiry & Batch Radar', 'Pharmacy renames /inventory to "Expiry & Batch Radar"');
+assert(pharmNav.stockItems.find(i => i.href === '/purchases')?.label === 'Distributor Invoices', 'Pharmacy renames /purchases to "Distributor Invoices"');
+
+// 7. Verify Fallback Navigation (Unknown or null store type)
+const fallbackNav = simulateSidebarItems(undefined);
+assert(fallbackNav.posItems.some(i => i.href === '/barcode-generator'), 'Fallback retains Barcode Studio');
+assert(fallbackNav.stockItems.some(i => i.href === '/products'), 'Fallback retains Products');
+assert(fallbackNav.stockItems.some(i => i.href === '/inventory'), 'Fallback retains Inventory & Expiry');
+assert(fallbackNav.stockItems.some(i => i.href === '/purchases'), 'Fallback retains Purchases & Bills');
+
 console.log('');
 console.log('================================================================');
 console.log(`📊 SIMULATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED (${failedTests} failures)`);

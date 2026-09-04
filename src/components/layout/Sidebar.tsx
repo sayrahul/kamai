@@ -23,16 +23,76 @@ import {
   HardDrive,
   Sparkles,
   Lock,
-  Crown
+  Crown,
+  UtensilsCrossed,
+  Shirt,
+  Wrench,
+  Pill
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/constants/version';
 import { cn } from '@/lib/utils';
 import { useProSubscription } from '@/components/subscription/ProFeatureGate';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
   const { t } = useTranslation();
   const { isPro } = useProSubscription();
+
+  const business = useLiveQuery(() => db.businesses.toCollection().first());
+  const storeType = business?.business_type;
+
+  const isRestaurant = storeType === 'restaurant' || storeType === 'bakery';
+  const isClothing = storeType === 'clothing';
+  const isHardware = storeType === 'hardware' || storeType === 'electrical' || storeType === 'electronics' || storeType === 'mobile';
+  const isPharmacy = storeType === 'pharmacy';
+  const isGrocery = storeType === 'grocery' || storeType === 'fmcg';
+
+  // Dynamic Product Label & Icon
+  let productsLabel = t('nav.products');
+  let ProductsIcon = Package;
+  let productsBg = 'bg-blue-100 text-blue-800';
+
+  if (isRestaurant) {
+    productsLabel = 'Menu & Dishes';
+    ProductsIcon = UtensilsCrossed;
+    productsBg = 'bg-orange-100 text-orange-800';
+  } else if (isPharmacy) {
+    productsLabel = 'Medicines Master';
+    ProductsIcon = Pill;
+    productsBg = 'bg-sky-100 text-sky-800';
+  } else if (isClothing) {
+    productsLabel = 'Garments & Sizes';
+    ProductsIcon = Shirt;
+    productsBg = 'bg-purple-100 text-purple-800';
+  } else if (isHardware) {
+    productsLabel = 'Items & Materials';
+    ProductsIcon = Wrench;
+    productsBg = 'bg-slate-100 text-slate-800';
+  } else if (isGrocery) {
+    productsLabel = 'Products & FMCG';
+  }
+
+  // Dynamic Inventory Label
+  let inventoryLabel = 'Inventory & Expiry';
+  if (isPharmacy) {
+    inventoryLabel = 'Expiry & Batch Radar';
+  } else if (isGrocery) {
+    inventoryLabel = 'Inventory & Alerts';
+  }
+
+  // Dynamic Purchases Label
+  let purchasesLabel = 'Purchases & Bills';
+  if (isPharmacy) {
+    purchasesLabel = 'Distributor Invoices';
+  } else if (isGrocery) {
+    purchasesLabel = 'Wholesale Inward';
+  } else if (isHardware) {
+    purchasesLabel = 'Vendor Inward & Bills';
+  }
+
+  const stockSectionTitle = isRestaurant ? 'Menu & Catalog' : 'Stock & Sourcing';
 
   const sections = [
     {
@@ -42,17 +102,21 @@ export const Sidebar: React.FC = () => {
         { href: '/', label: t('nav.dashboard'), icon: Home, iconBg: 'bg-slate-100 text-slate-700', activeIcon: 'text-white' },
         { href: '/billing', label: 'Billing POS', icon: Receipt, iconBg: 'bg-emerald-100 text-emerald-800', activeIcon: 'text-emerald-300' },
         { href: '/cash-register', label: 'Cash Register', icon: Calculator, iconBg: 'bg-amber-100 text-amber-900', activeIcon: 'text-amber-300' },
-        { href: '/barcode-generator', label: 'Barcode Studio', icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300', isPro: true },
+        ...(!isRestaurant ? [{ href: '/barcode-generator', label: 'Barcode Studio', icon: Barcode, iconBg: 'bg-purple-100 text-purple-800', activeIcon: 'text-purple-300', isPro: true }] : []),
         { href: '/transactions', label: 'Transactions', icon: ShieldCheck, iconBg: 'bg-teal-100 text-teal-800', activeIcon: 'text-teal-300' },
       ],
     },
     {
-      title: 'Stock & Sourcing',
+      title: stockSectionTitle,
       dotColor: 'bg-blue-500',
       items: [
-        { href: '/products', label: t('nav.products'), icon: Package, iconBg: 'bg-blue-100 text-blue-800', activeIcon: 'text-blue-300' },
-        { href: '/inventory', label: 'Inventory & Expiry', icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' },
-        { href: '/purchases', label: 'Purchases & Bills', icon: ShoppingBag, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' },
+        { href: '/products', label: productsLabel, icon: ProductsIcon, iconBg: productsBg, activeIcon: 'text-blue-300' },
+        ...(!isRestaurant && !isClothing && !isHardware ? [
+          { href: '/inventory', label: inventoryLabel, icon: Boxes, iconBg: 'bg-cyan-100 text-cyan-800', activeIcon: 'text-cyan-300' }
+        ] : []),
+        ...(!isRestaurant ? [
+          { href: '/purchases', label: purchasesLabel, icon: ShoppingBag, iconBg: 'bg-amber-100 text-amber-800', activeIcon: 'text-amber-300' }
+        ] : []),
       ],
     },
     {
