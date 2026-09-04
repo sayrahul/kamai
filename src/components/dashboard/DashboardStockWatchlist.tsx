@@ -18,7 +18,7 @@ interface DashboardStockWatchlistProps {
   outOfStockProducts: Product[];
   lowStockProducts: Product[];
   onQuickRestock: (product: Product, quantityToAdd?: number) => void;
-  onOpenRapidInward: () => void;
+  onOpenRapidInward?: () => void;
 }
 
 export const DashboardStockWatchlist: React.FC<DashboardStockWatchlistProps> = ({
@@ -58,21 +58,22 @@ export const DashboardStockWatchlist: React.FC<DashboardStockWatchlistProps> = (
             </div>
             <p className="text-[10.5px] sm:text-xs text-slate-500 dark:text-slate-400">
               {isExpanded 
-                ? 'Items below minimum threshold. Restock in 1-tap or scan new cartons.'
+                ? 'Items below minimum threshold. Restock in 1-tap or record wholesale bills.'
                 : `${stockWatchlist.length} items require attention. Click to expand & restock.`}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap self-start sm:self-center">
-          <button
-            type="button"
-            onClick={onOpenRapidInward}
-            className="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-xs active:scale-95"
-          >
-            <Boxes className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Rapid Stock In</span>
-          </button>
+          <Link href="/purchases">
+            <button
+              type="button"
+              className="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-xs active:scale-95"
+            >
+              <Boxes className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Restock Bills</span>
+            </button>
+          </Link>
 
           <Link href="/products?filter=low_stock">
             <button

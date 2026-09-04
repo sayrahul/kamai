@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   Boxes, 
   FileSpreadsheet, 
-  Zap, 
+  Sparkles, 
   Package 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -14,12 +14,14 @@ import { CashierPrivacyToggleButton } from '@/components/privacy/ProfitMask';
 interface InventoryHeaderActionsProps {
   totalItems: number;
   onOpenExcelImporter: () => void;
-  onOpenRapidInward: () => void;
+  onOpenInwardSheet?: () => void;
+  onOpenRapidInward?: () => void;
 }
 
 export const InventoryHeaderActions: React.FC<InventoryHeaderActionsProps> = ({
   totalItems,
   onOpenExcelImporter,
+  onOpenInwardSheet,
   onOpenRapidInward,
 }) => {
   return (
@@ -52,15 +54,16 @@ export const InventoryHeaderActions: React.FC<InventoryHeaderActionsProps> = ({
           <span className="hidden sm:inline">Excel Import</span>
         </Button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onOpenRapidInward}
-          className="text-xs font-bold gap-1 rounded-xl border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 cursor-pointer shadow-2xs"
-        >
-          <Zap className="w-3.5 h-3.5 text-amber-600" />
-          <span>Carton Inward</span>
-        </Button>
+        <Link href="/purchases">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs font-bold gap-1 rounded-xl border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 cursor-pointer shadow-2xs"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>Inward Bills</span>
+          </Button>
+        </Link>
 
         <Link href="/products">
           <Button

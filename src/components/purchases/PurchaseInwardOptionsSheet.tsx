@@ -381,21 +381,25 @@ export function PurchaseInwardOptionsSheet({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-base font-black text-slate-900 dark:text-white">
-                    5 Ways to Inward Stock &amp; Bills
+                    {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
+                      ? 'AI Menu Card Scanner & Intake'
+                      : 'AI Wholesale Invoice & Inward'}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-black uppercase">
-                    Auto-Stock
+                    AI Vision
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Select your preferred method to record wholesale invoices and update inventory.
+                  {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
+                    ? 'Take a photo of your printed menu card or tariff board to auto-add all food items & rates.'
+                    : 'Scan wholesale invoices, parchas, or upload PDFs to auto-add products, prices & stock.'}
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -407,44 +411,50 @@ export function PurchaseInwardOptionsSheet({
                 <Loader2 className="w-8 h-8 text-amber-500 animate-spin mx-auto" />
                 <div className="space-y-0.5">
                   <p className="text-sm font-black text-slate-900 dark:text-white">
-                    {processingStatus || 'Processing Invoice...'}
+                    {processingStatus || 'Processing with AI Vision...'}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                    Extracting products, quantities &amp; cost rates
+                    {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
+                      ? 'Extracting dishes, categories & prices from menu card'
+                      : 'Extracting products, quantities & cost rates from invoice'}
                   </p>
                 </div>
               </div>
             ) : (
-              /* 5 Options Grid */
+              /* Smart Adaptive Options Grid */
               <div className="space-y-2.5">
-                {/* 1. Upload a CSV File (Fastest) */}
+                {/* 1. HERO OPTION: Camera Scan (Menu Card or Bill Picture) */}
                 <div
-                  onClick={() => csvInputRef.current?.click()}
-                  className="p-3.5 rounded-2xl border border-emerald-300 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-100/70 hover:border-emerald-400 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 group shadow-xs"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="p-3.5 rounded-2xl border border-amber-300 dark:border-amber-700/80 bg-amber-50/80 dark:bg-amber-950/30 hover:bg-amber-100/80 hover:border-amber-400 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 group shadow-xs ring-1 ring-amber-400/20"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                      <FileSpreadsheet className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                      <Camera className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          Upload a CSV File
+                          {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
+                            ? '📸 Scan Menu Card Photo'
+                            : '📸 Scan Bill / Parcha Photo'}
                         </span>
-                        <span className="px-1.5 py-0.2 rounded-md bg-emerald-600 text-white text-[9px] font-black uppercase tracking-tight">
-                          Fastest
+                        <span className="px-1.5 py-0.2 rounded-md bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-tight">
+                          Recommended
                         </span>
                       </div>
-                      <div className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium truncate mt-0.5">
-                        Ask for a CSV file from supplier
+                      <div className="text-[11px] text-amber-900 dark:text-amber-300 font-medium truncate mt-0.5">
+                        {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
+                          ? 'Point camera at printed menu card or board'
+                          : 'Camera photo of invoice, slip or wholesale parcha'}
                       </div>
                     </div>
                   </div>
 
-                  <ArrowRight className="w-4 h-4 text-emerald-700 dark:text-emerald-400 group-hover:translate-x-1 transition-transform shrink-0" />
+                  <ArrowRight className="w-4 h-4 text-amber-700 dark:text-amber-400 group-hover:translate-x-1 transition-transform shrink-0" />
                 </div>
 
-                {/* 2. Upload a PDF File (Faster) */}
+                {/* 2. Upload a PDF File (Invoices / Menus) */}
                 <div
                   onClick={() => pdfInputRef.current?.click()}
                   className="p-3.5 rounded-2xl border border-sky-300 dark:border-sky-900/60 bg-sky-50/70 dark:bg-sky-950/20 hover:bg-sky-100/70 hover:border-sky-400 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 group shadow-xs"
@@ -456,14 +466,16 @@ export function PurchaseInwardOptionsSheet({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          Upload a PDF File
+                          {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
+                            ? 'Upload Menu PDF / File'
+                            : 'Upload Invoice PDF'}
                         </span>
                         <span className="px-1.5 py-0.2 rounded-md bg-sky-600 text-white text-[9px] font-black uppercase tracking-tight">
                           Faster
                         </span>
                       </div>
                       <div className="text-[11px] text-sky-800 dark:text-sky-300 font-medium truncate mt-0.5">
-                        Upload a single or Multi-page PDF
+                        Single or multi-page digital invoice / tariff document
                       </div>
                     </div>
                   </div>
@@ -471,69 +483,34 @@ export function PurchaseInwardOptionsSheet({
                   <ArrowRight className="w-4 h-4 text-sky-700 dark:text-sky-400 group-hover:translate-x-1 transition-transform shrink-0" />
                 </div>
 
-                {/* 3. Scan a Bill Picture (Fast) */}
+                {/* 3. Upload a CSV / Excel File */}
                 <div
-                  onClick={() => imageInputRef.current?.click()}
-                  className="p-3.5 rounded-2xl border border-amber-300 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 hover:bg-amber-100/70 hover:border-amber-400 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 group shadow-xs"
+                  onClick={() => csvInputRef.current?.click()}
+                  className="p-3.5 rounded-2xl border border-emerald-300 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/20 hover:bg-emerald-100/70 hover:border-emerald-400 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 group shadow-xs"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                      <Camera className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                      <FileSpreadsheet className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          Scan a Bill Picture
+                          Upload Excel / CSV File
                         </span>
-                        <span className="px-1.5 py-0.2 rounded-md bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-tight">
-                          Fast
+                        <span className="px-1.5 py-0.2 rounded-md bg-emerald-600 text-white text-[9px] font-black uppercase tracking-tight">
+                          Bulk
                         </span>
                       </div>
-                      <div className="text-[11px] text-amber-900 dark:text-amber-300 font-medium truncate mt-0.5">
-                        Camera Photo or Pick Recent from Gallery
-                      </div>
-                    </div>
-                  </div>
-
-                  <ArrowRight className="w-4 h-4 text-amber-700 dark:text-amber-400 group-hover:translate-x-1 transition-transform shrink-0" />
-                </div>
-
-                {/* 4. Rapid Barcode Scanner ⚡ (Continuous) */}
-                <div
-                  onClick={() => {
-                    onClose();
-                    if (!isPro) {
-                      setIsUpgradeModalOpen(true);
-                    } else if (onRapidBarcodeClick) {
-                      onRapidBarcodeClick();
-                    }
-                  }}
-                  className="p-3.5 rounded-2xl border border-yellow-300 dark:border-yellow-900/60 bg-yellow-50/70 dark:bg-yellow-950/20 hover:bg-yellow-100/70 hover:border-yellow-400 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3 group shadow-xs"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                      <Zap className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          Rapid Barcode Inward
-                        </span>
-                        <span className="px-1.5 py-0.2 rounded-md bg-amber-400 text-slate-950 text-[9px] font-black uppercase tracking-tight">
-                          Continuous ⚡
-                        </span>
-                        {!isPro && <ProFeatureBadge />}
-                      </div>
-                      <div className="text-[11px] text-yellow-900 dark:text-yellow-300 font-medium truncate mt-0.5">
-                        Continuous laser gun &amp; camera barcode intake
+                      <div className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium truncate mt-0.5">
+                        Spreadsheet with item names, prices &amp; stock
                       </div>
                     </div>
                   </div>
 
-                  <ArrowRight className="w-4 h-4 text-yellow-800 dark:text-yellow-400 group-hover:translate-x-1 transition-transform shrink-0" />
+                  <ArrowRight className="w-4 h-4 text-emerald-700 dark:text-emerald-400 group-hover:translate-x-1 transition-transform shrink-0" />
                 </div>
 
-                {/* 5. Add Bill Manually */}
+                {/* 4. Add Manually (Single Item) */}
                 <div
                   onClick={() => {
                     onClose();
@@ -548,14 +525,16 @@ export function PurchaseInwardOptionsSheet({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                          Add Bill Manually
+                          {businessType === 'restaurant' || businessType === 'cafe' || businessType === 'bakery'
+                            ? 'Add Single Dish Manually'
+                            : 'Add Single Item Manually'}
                         </span>
                         <span className="px-1.5 py-0.2 rounded-md bg-purple-600 text-white text-[9px] font-black uppercase tracking-tight">
-                          Master Search
+                          Manual Form
                         </span>
                       </div>
                       <div className="text-[11px] text-purple-800 dark:text-purple-300 font-medium truncate mt-0.5">
-                        Search to add from 3 Lac+ Store/Pharmacy Items
+                        Fill in product name, rate, category and stock individually
                       </div>
                     </div>
                   </div>

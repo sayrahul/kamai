@@ -57,6 +57,7 @@ import {
   validateExpenseData 
 } from '../src/lib/validation/validators';
 import { formatInvoiceNumber, parseInvoiceSequenceNumber } from '../src/lib/invoices/invoiceNumberService';
+import { BILL_SCAN_SYSTEM_PROMPT, PurchaseBillExtractionSchema } from '../src/lib/ai/billScanPrompt';
 import crypto from 'crypto';
 
 let totalTests = 0;
@@ -592,6 +593,50 @@ assert(parseInvoiceSequenceNumber('INV-001') === 1, 'parseInvoiceSequenceNumber 
 assert(parseInvoiceSequenceNumber('INV-002') === 2, 'parseInvoiceSequenceNumber extracts 2 from INV-002');
 assert(parseInvoiceSequenceNumber('BILL-1045') === 1045, 'parseInvoiceSequenceNumber extracts 1045 from BILL-1045');
 assert(parseInvoiceSequenceNumber('CUSTOM-99') === 99, 'parseInvoiceSequenceNumber extracts 99 from CUSTOM-99');
+
+// 📸 SUITE 8: Store-Adaptive AI Inward & Menu Card Extraction Verification
+console.log('\n📸 SUITE 8: Store-Adaptive AI Inward & Menu Card Extraction Verification');
+assert(BILL_SCAN_SYSTEM_PROMPT.includes('Restaurant, cafe, and food stall menu cards'), 'AI Vision prompt explicitly supports Restaurant & Cafe menu cards');
+assert(BILL_SCAN_SYSTEM_PROMPT.includes('dish / food item as a line item'), 'AI Vision prompt instructs extraction of dish items');
+assert(BILL_SCAN_SYSTEM_PROMPT.includes('Wholesale Invoice / Distributor Bill / Parcha'), 'AI Vision prompt supports wholesale parchas and distributor bills');
+
+// Test schema extraction parsing for Restaurant Menu item
+const menuExtractTest = PurchaseBillExtractionSchema.safeParse({
+  supplier_name: 'Royal Spice Restaurant',
+  bill_number: null,
+  bill_date: null,
+  total_amount: 220,
+  line_items: [
+    {
+      name: 'Paneer Butter Masala',
+      quantity: 1,
+      unit: 'plate',
+      unit_price: 220,
+      total_price: 220,
+      confidence: 'high'
+    }
+  ]
+});
+assert(menuExtractTest.success === true, 'PurchaseBillExtractionSchema successfully validates extracted restaurant dish');
+
+// Test schema extraction parsing for Wholesale Invoice line item
+const wholesaleExtractTest = PurchaseBillExtractionSchema.safeParse({
+  supplier_name: 'Shree Ganesh Traders',
+  bill_number: 'INV-9901',
+  bill_date: '2026-09-01',
+  total_amount: 1400,
+  line_items: [
+    {
+      name: 'Fortune Sunlite Sunflower Oil 1L',
+      quantity: 10,
+      unit: 'packet',
+      unit_price: 140,
+      total_price: 1400,
+      confidence: 'high'
+    }
+  ]
+});
+assert(wholesaleExtractTest.success === true, 'PurchaseBillExtractionSchema successfully validates wholesale invoice line items');
 
 console.log('');
 console.log('================================================================');

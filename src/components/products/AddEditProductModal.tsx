@@ -58,6 +58,7 @@ interface AddEditProductModalProps {
   setFormColor: (val: string) => void;
   onOpenScanner: () => void;
   onOpenAddCategoryModal: () => void;
+  onOpenInwardSheet?: () => void;
   onSubmit: (e: React.FormEvent) => Promise<void>;
   onDeleteProduct?: (id: string, name: string) => Promise<void>;
   formError?: string;
@@ -103,13 +104,14 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
   setFormColor,
   onOpenScanner,
   onOpenAddCategoryModal,
+  onOpenInwardSheet,
   onSubmit,
   onDeleteProduct,
   formError,
 }) => {
   const isPharmacy = businessType === 'pharmacy';
   const isClothing = businessType === 'clothing';
-  const isRestaurant = businessType === 'restaurant';
+  const isRestaurant = businessType === 'restaurant' || businessType === 'bakery';
 
   return (
     <Modal
@@ -118,13 +120,44 @@ export const AddEditProductModal: React.FC<AddEditProductModalProps> = ({
       title={
         <div className="flex items-center gap-2">
           {editingProduct ? <Edit3 className="w-5 h-5 text-sky-500" /> : <Plus className="w-5 h-5 text-sky-500" />}
-          <span>{editingProduct ? `Edit Item: ${editingProduct.name}` : 'Add New Item to Catalog'}</span>
+          <span>{editingProduct ? `Edit Item: ${editingProduct.name}` : (isRestaurant ? 'Add New Dish to Menu' : 'Add New Item to Catalog')}</span>
         </div>
       }
-      description={editingProduct ? "Update pricing, barcode, inventory levels, and niche compliance." : "Enter product details, barcode, selling price, and initial stock."}
+      description={editingProduct ? "Update pricing, barcode, inventory levels, and niche compliance." : (isRestaurant ? "Enter food dish name, price, and category." : "Enter product details, barcode, selling price, and initial stock.")}
       size="lg"
     >
       <form onSubmit={onSubmit} className="space-y-3.5">
+        {/* Bulk Photo AI Inward Suggestion Banner */}
+        {!editingProduct && onOpenInwardSheet && (
+          <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border border-amber-200/80 dark:border-amber-800/60 flex items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shrink-0">
+                <Sparkles className="w-4 h-4 text-slate-950" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black text-slate-900 dark:text-slate-100">
+                  {isRestaurant ? 'Have a printed Menu Card?' : 'Have a Wholesale Bill / Parcha?'}
+                </p>
+                <p className="text-[10.5px] text-slate-600 dark:text-slate-400 truncate">
+                  {isRestaurant
+                    ? 'Don’t type dishes one by one. Take a photo to auto-add your whole menu!'
+                    : 'Don’t type items one by one. Scan distributor invoice photo to auto-add stock!'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenInwardSheet();
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 text-xs font-black shrink-0 hover:bg-slate-800 cursor-pointer shadow-xs active:scale-95 transition"
+            >
+              {isRestaurant ? '📸 Scan Menu' : '📸 Scan Bill'}
+            </button>
+          </div>
+        )}
+
         {/* Product Name */}
         <Input
           label={isRestaurant ? "Menu Item / Dish Name *" : "Product / Item Full Name *"}

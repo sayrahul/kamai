@@ -22,11 +22,6 @@ import { NicheRadarBanner } from '@/components/dashboard/NicheRadarBanner';
 import { DashboardStockWatchlist } from '@/components/dashboard/DashboardStockWatchlist';
 import { DashboardRecentSales } from '@/components/dashboard/DashboardRecentSales';
 
-const RapidBarcodeInwardModal = dynamic(
-  () => import('@/components/products/RapidBarcodeInwardModal').then((m) => m.RapidBarcodeInwardModal),
-  { ssr: false }
-);
-
 const getTodayISORange = () => {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -40,7 +35,6 @@ export default function HomePage() {
   const { isPro, isUpgradeModalOpen: isUpgradeOpen, setIsUpgradeModalOpen: setIsUpgradeOpen } = useProSubscription();
   const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
   const [isClosingReportOpen, setIsClosingReportOpen] = useState<boolean>(false);
-  const [isRapidInwardOpen, setIsRapidInwardOpen] = useState<boolean>(false);
   const [restockToast, setRestockToast] = useState<string | null>(null);
 
   const business = useLiveQuery(async () => db.businesses.toCollection().first());
@@ -222,7 +216,6 @@ export default function HomePage() {
 
       {/* 2. 1-TAP QUICK ACTION DOCK (POS, Khata, Inward, Closing) */}
       <QuickActionDock
-        onOpenRapidInward={() => setIsRapidInwardOpen(true)}
         onOpenClosingReport={() => setIsClosingReportOpen(true)}
       />
 
@@ -241,7 +234,6 @@ export default function HomePage() {
         outOfStockProducts={outOfStockProducts}
         lowStockProducts={lowStockProducts}
         onQuickRestock={handleQuickRestock}
-        onOpenRapidInward={() => setIsRapidInwardOpen(true)}
       />
 
       {/* 5. SHOP MANAGEMENT TOOLS (Compact 8-Tool Grid) */}
@@ -255,12 +247,6 @@ export default function HomePage() {
       />
 
       {/* ---------------- MODALS ---------------- */}
-      {/* Rapid Barcode Inward Modal */}
-      <RapidBarcodeInwardModal
-        isOpen={isRapidInwardOpen}
-        onClose={() => setIsRapidInwardOpen(false)}
-      />
-
       {/* Day-End Closing Z-Report Modal */}
       <DayEndClosingReportModal
         isOpen={isClosingReportOpen}

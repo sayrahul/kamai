@@ -17,10 +17,6 @@ import { StockMovementsList } from '@/components/inventory/StockMovementsList';
 import { ExpiryRadar } from '@/components/inventory/ExpiryRadar';
 
 // Lazy-load heavy modals
-const RapidBarcodeInwardModal = dynamic(
-  () => import('@/components/products/RapidBarcodeInwardModal').then((m) => m.RapidBarcodeInwardModal),
-  { ssr: false }
-);
 const ExcelInventoryImporter = dynamic(
   () => import('@/components/inventory/ExcelInventoryImporter').then((m) => m.ExcelInventoryImporter),
   { ssr: false }
@@ -33,7 +29,6 @@ const UpgradeModal = dynamic(
 export default function InventoryPage() {
   const { isPro, isUpgradeModalOpen, setIsUpgradeModalOpen } = useProSubscription();
   const [isExcelImporterOpen, setIsExcelImporterOpen] = useState(false);
-  const [isRapidInwardOpen, setIsRapidInwardOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<InventoryTabType>('reorder');
   const [invToast, setInvToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
 
@@ -126,7 +121,6 @@ export default function InventoryPage() {
       <InventoryHeaderActions
         totalItems={products.length}
         onOpenExcelImporter={() => setIsExcelImporterOpen(true)}
-        onOpenRapidInward={() => setIsRapidInwardOpen(true)}
       />
 
       {/* 2. Metrics Ribbon */}
@@ -170,11 +164,6 @@ export default function InventoryPage() {
         isOpen={isExcelImporterOpen}
         onClose={() => setIsExcelImporterOpen(false)}
         businessId={business?.id || 'biz_default'}
-      />
-
-      <RapidBarcodeInwardModal
-        isOpen={isRapidInwardOpen}
-        onClose={() => setIsRapidInwardOpen(false)}
       />
 
       <UpgradeModal

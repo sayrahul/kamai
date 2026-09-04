@@ -35,10 +35,6 @@ const BarcodeScannerModal = dynamic(
   () => import('@/components/barcode/BarcodeScannerModal').then((m) => m.BarcodeScannerModal),
   { ssr: false }
 );
-const RapidBarcodeInwardModal = dynamic(
-  () => import('@/components/products/RapidBarcodeInwardModal').then((m) => m.RapidBarcodeInwardModal),
-  { ssr: false }
-);
 const UpgradeModal = dynamic(
   () => import('@/components/subscription/UpgradeModal').then((m) => m.UpgradeModal),
   { ssr: false }
@@ -53,7 +49,6 @@ export default function ProductsPage() {
   const [showExpiringOnly, setShowExpiringOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isRapidInwardOpen, setIsRapidInwardOpen] = useState(false);
   const [isPurchaseSheetOpen, setIsPurchaseSheetOpen] = useState(false);
   const [isExcelImporterOpen, setIsExcelImporterOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -359,9 +354,10 @@ export default function ProductsPage() {
       {/* 1. Header Actions */}
       <ProductHeaderActions
         totalProducts={allProducts.length}
+        businessType={business?.business_type}
         onOpenAddModal={handleOpenAddModal}
         onOpenExcelImporter={() => setIsExcelImporterOpen(true)}
-        onOpenRapidInward={() => setIsRapidInwardOpen(true)}
+        onOpenInwardSheet={() => setIsPurchaseSheetOpen(true)}
       />
 
       {/* 2. Metrics Ribbon */}
@@ -450,6 +446,7 @@ export default function ProductsPage() {
         setFormColor={setFormColor}
         onOpenScanner={() => setIsScannerOpen(true)}
         onOpenAddCategoryModal={() => setIsAddCategoryModalOpen(true)}
+        onOpenInwardSheet={() => setIsPurchaseSheetOpen(true)}
         onSubmit={handleSaveProduct}
         onDeleteProduct={handleDeleteProduct}
         formError={formError}
@@ -489,12 +486,6 @@ export default function ProductsPage() {
         onScan={handleBarcodeScanned}
       />
 
-      {/* Rapid Barcode Carton Inward Modal */}
-      <RapidBarcodeInwardModal
-        isOpen={isRapidInwardOpen}
-        onClose={() => setIsRapidInwardOpen(false)}
-      />
-
       {/* Excel Inventory Importer Modal */}
       <ExcelInventoryImporter
         isOpen={isExcelImporterOpen}
@@ -502,12 +493,17 @@ export default function ProductsPage() {
         businessId={business?.id || 'biz_default'}
       />
 
-      {/* Purchase Inward Sheet */}
+      {/* Purchase & Menu Inward Sheet */}
       <PurchaseInwardOptionsSheet
         isOpen={isPurchaseSheetOpen}
         onClose={() => setIsPurchaseSheetOpen(false)}
+        businessType={business?.business_type}
+        businessId={business?.id || 'biz_default'}
         existingProducts={allProducts}
-        onManualInwardClick={() => setIsPurchaseSheetOpen(false)}
+        onManualInwardClick={() => {
+          setIsPurchaseSheetOpen(false);
+          handleOpenAddModal();
+        }}
       />
 
       {/* Upgrade Modal */}
