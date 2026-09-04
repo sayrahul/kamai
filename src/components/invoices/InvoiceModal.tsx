@@ -465,8 +465,25 @@ export function InvoiceModal({
               </div>
             </div>
 
-            {/* 2. Pharmacy Rx License Bar (Optional) */}
-            {isPharmacyRxEnabled && (
+            {/* 2. Restaurant Order & KOT Bar */}
+            {(sale.table_no || sale.token_number || (sale.order_type && sale.order_type !== 'counter')) && (
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 flex items-center justify-between text-[11px] shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-black px-2 py-0.5 bg-amber-500 text-slate-950 rounded-md text-[10px] uppercase">
+                    {sale.order_type === 'takeaway' ? '🥡 Takeaway / Parcel' : sale.order_type === 'delivery' ? '🛵 Delivery' : '🍽️ Dine-In'}
+                  </span>
+                  {sale.table_no && <span>Table: <b>{sale.table_no}</b></span>}
+                </div>
+                {sale.token_number && (
+                  <div className="font-mono font-black text-[11px] text-amber-900">
+                    KOT Token #{sale.token_number}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 2b. Pharmacy Rx License Bar */}
+            {(isPharmacyRxEnabled || sale.doctor_name || business.business_type === 'pharmacy') && (
               <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 flex items-center justify-between text-[11px] shadow-2xs">
                 <div className="flex items-center gap-2">
                   <span className="font-black px-2 py-0.5 bg-sky-600 text-white rounded-md text-[10px]">Rx</span>
@@ -537,6 +554,16 @@ export function InvoiceModal({
                             Batch: {item.batch_number} {item.expiry_date ? `| Exp: ${item.expiry_date}` : ''}
                           </div>
                         )}
+                        {(item.size || item.color) && (
+                          <div className="text-[10px] text-purple-700 font-medium pt-0.5">
+                            {[item.size ? `Size: ${item.size}` : '', item.color ? `Color: ${item.color}` : ''].filter(Boolean).join(' • ')}
+                          </div>
+                        )}
+                        {item.warranty_period_months ? (
+                          <div className="text-[10px] text-slate-600 font-medium pt-0.5">
+                            Warranty: {item.warranty_period_months} Months
+                          </div>
+                        ) : null}
                       </td>
                       <td className="py-2.5 px-3 text-center font-bold font-mono text-slate-800 whitespace-nowrap">
                         {item.quantity} <span className="text-[10px] text-slate-500 font-normal">{item.unit || 'pcs'}</span>
@@ -663,15 +690,38 @@ export function InvoiceModal({
             {business.phone && <p className="text-[10px] text-slate-600">Ph: {business.phone}</p>}
             {business.gstin && <p className="text-[10px] font-bold">GSTIN: {business.gstin}</p>}
             <div className="text-[10px] font-bold mt-1">
-              Inv #{sale.invoice_number} • {new Date(sale.created_at).toLocaleDateString('en-IN')}
+              {sale.status === 'draft' || sale.invoice_number.startsWith('EST-') ? 'ESTIMATE' : 'TAX INVOICE'} #{sale.invoice_number} • {new Date(sale.created_at).toLocaleDateString('en-IN')}
             </div>
+            {(sale.table_no || sale.token_number || (sale.order_type && sale.order_type !== 'counter')) && (
+              <div className="text-[10px] font-bold text-amber-900 bg-amber-50 rounded px-1 py-0.5 mt-0.5">
+                {sale.order_type ? `[${sale.order_type.toUpperCase()}] ` : ''}
+                {sale.table_no ? `Table: ${sale.table_no} ` : ''}
+                {sale.token_number ? `• Token #${sale.token_number}` : ''}
+              </div>
+            )}
+            {sale.doctor_name && (
+              <div className="text-[9.5px] font-bold text-sky-900 bg-sky-50 rounded px-1 py-0.5 mt-0.5">
+                Rx: Dr. {sale.doctor_name}
+              </div>
+            )}
           </div>
 
           <div className="space-y-1 py-1 border-b border-dashed border-slate-300">
             {sale.items.map((item, i) => (
               <div key={i} className="flex justify-between items-start text-[10.5px]">
                 <div className="flex-1 pr-1 truncate">
-                  {item.product_name} x {item.quantity}
+                  <div>{item.product_name} x {item.quantity} {item.unit || ''}</div>
+                  {(item.batch_number || item.size || item.color || item.warranty_period_months) && (
+                    <div className="text-[9px] text-slate-500">
+                      {[
+                        item.batch_number ? `B:${item.batch_number}` : '',
+                        item.expiry_date ? `Exp:${item.expiry_date}` : '',
+                        item.size ? `Size:${item.size}` : '',
+                        item.color ? item.color : '',
+                        item.warranty_period_months ? `War:${item.warranty_period_months}m` : '',
+                      ].filter(Boolean).join(' ')}
+                    </div>
+                  )}
                 </div>
                 <div className="font-bold">{formatINR(item.total_amount)}</div>
               </div>
