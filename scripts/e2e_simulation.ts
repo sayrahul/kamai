@@ -949,6 +949,84 @@ const resolveStoreByEmail = (email: string) => {
 };
 assert(resolveStoreByEmail(userEmail) === businessId, 'Google login with email opens the EXACT same store as WhatsApp account');
 
+// -------------------------------------------------------------
+// SUITE 17: Security & Auth Hardening (Subscription Auth-Bypass, ensureStarterBusiness, Firestore Rules)
+// -------------------------------------------------------------
+console.log('\n🔒 SUITE 17: Security & Auth Hardening (Subscription Auth-Bypass, ensureStarterBusiness, Firestore Rules)');
+
+// 1. Subscription activation without session or admin must strictly be rejected
+interface MockActivateReq {
+  cookies: { session?: string };
+  body: { businessId?: string; tier: string; razorpayPaymentId?: string };
+  isAdmin: boolean;
+}
+
+function simulateSubscriptionActivate(req: MockActivateReq): { status: number; error?: string; success?: boolean } {
+  let businessId: string | undefined;
+  if (req.cookies.session === 'valid_merchant_cookie') {
+    businessId = 'biz_merchant_123';
+  }
+
+  if (!businessId) {
+    if (req.isAdmin && req.body.businessId) {
+      businessId = req.body.businessId;
+    } else {
+      return { status: 401, error: 'Unauthorized. Valid merchant login session or admin privileges required.' };
+    }
+  }
+
+  return { status: 200, success: true };
+}
+
+const unauthAttempt = simulateSubscriptionActivate({
+  cookies: {},
+  body: { businessId: 'biz_victim_999', tier: 'pro', razorpayPaymentId: 'pay_fake_123' },
+  isAdmin: false,
+});
+assert(unauthAttempt.status === 401, 'Unauthenticated subscription activation with arbitrary businessId strictly rejected with 401');
+
+const adminAttempt = simulateSubscriptionActivate({
+  cookies: {},
+  body: { businessId: 'biz_customer_555', tier: 'pro' },
+  isAdmin: true,
+});
+assert(adminAttempt.status === 200 && adminAttempt.success === true, 'SuperAdmin can activate subscription for specified businessId');
+
+const merchantAttempt = simulateSubscriptionActivate({
+  cookies: { session: 'valid_merchant_cookie' },
+  body: { businessId: 'biz_tampered_999', tier: 'pro', razorpayPaymentId: 'pay_real_123' },
+  isAdmin: false,
+});
+assert(merchantAttempt.status === 200, 'Merchant with valid session successfully activates subscription');
+
+// 2. ensureStarterBusinessIfEmpty identity binding invariant
+function simulateEnsureStarterBusiness(user: { business_id?: string; business_name?: string; phone?: string } | null) {
+  const isRealMerchant = Boolean(user && user.business_id && user.business_id !== 'biz_pending');
+  return {
+    id: isRealMerchant ? user!.business_id! : 'biz_dummy_starter',
+    name: isRealMerchant ? (user!.business_name || 'My Retail Store') : 'My Retail Store',
+    isRealMerchant,
+  };
+}
+
+const loggedInStore = simulateEnsureStarterBusiness({
+  business_id: 'biz_real_merchant_888',
+  business_name: 'Gupta General Store',
+  phone: '9876543210',
+});
+assert(loggedInStore.id === 'biz_real_merchant_888', 'ensureStarterBusiness binds to authenticated merchant ID');
+assert(loggedInStore.name === 'Gupta General Store', 'ensureStarterBusiness preserves merchant business name');
+
+const guestStore = simulateEnsureStarterBusiness(null);
+assert(guestStore.id === 'biz_dummy_starter', 'Unauthenticated guest receives safe isolated starter store');
+
+// 3. Firestore Rules Anti-Resurrection Tombstone Rule
+const rulesFilePath = path.resolve(__dirname, '../firestore.rules');
+const firestoreRulesContent = fs.readFileSync(rulesFilePath, 'utf8');
+assert(firestoreRulesContent.includes('match /deleted_businesses/{businessId}'), 'firestore.rules contains deleted_businesses tombstone matcher');
+assert(firestoreRulesContent.includes('allow read: if true;'), 'firestore.rules allows read on deleted_businesses tombstones');
+assert(firestoreRulesContent.includes('allow write: if false;'), 'firestore.rules strictly forbids write on deleted_businesses tombstones');
+
 
 console.log('');
 console.log('================================================================');

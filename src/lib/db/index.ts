@@ -77,19 +77,24 @@ export class VyaparSetuDatabase extends Dexie {
 
 export const db = new VyaparSetuDatabase();
 
+import { getStoredUser } from '@/lib/auth';
+
 // Ensure clean starter business & default products exist if DB is empty
 export async function ensureStarterBusinessIfEmpty(): Promise<Business> {
   let existing = await db.businesses.toCollection().first();
   const now = new Date().toISOString();
 
   if (!existing) {
-    const businessId = `biz_${Date.now()}`;
+    const user = getStoredUser();
+    const isRealMerchant = Boolean(user && user.business_id && user.business_id !== 'biz_pending');
+
+    const businessId = isRealMerchant ? user!.business_id! : `biz_${Date.now()}`;
     const starterBiz: Business = {
       id: businessId,
-      name: 'My Retail Store',
+      name: isRealMerchant ? (user!.business_name || user!.shop_name || 'My Retail Store') : 'My Retail Store',
       business_type: 'grocery',
-      owner_name: 'Store Owner',
-      phone: '',
+      owner_name: isRealMerchant ? (user!.name || 'Store Owner') : 'Store Owner',
+      phone: isRealMerchant ? (user!.phone || '') : '',
       address: 'Main Market',
       pincode: '400001',
       currency: 'INR',

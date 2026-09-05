@@ -27,8 +27,15 @@ export async function POST(req: NextRequest) {
       razorpayPaymentId,
     } = body;
 
-    if (!businessId && body.businessId) {
-      businessId = body.businessId;
+    if (!businessId) {
+      if (isAdmin && body.businessId) {
+        businessId = body.businessId;
+      } else {
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized. Valid merchant login session or admin privileges required.' },
+          { status: 401 }
+        );
+      }
     }
 
     if (!tier || !['free', 'pro', 'enterprise'].includes(tier)) {

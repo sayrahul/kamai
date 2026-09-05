@@ -161,7 +161,17 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           return;
         }
 
-        const localBiz = await localDb.businesses.toCollection().first();
+        let localBiz = await localDb.businesses.toCollection().first();
+
+        // If local DB is empty for an authenticated merchant, attempt cloud restore from Firestore
+        if (!localBiz && u.business_id && u.business_id !== 'biz_pending') {
+          try {
+            await restoreFirestoreToLocalDexie(u.business_id);
+            localBiz = await localDb.businesses.toCollection().first();
+          } catch (cloudErr) {
+            console.warn('Initial cloud restore hydration notice:', cloudErr);
+          }
+        }
 
         if (localBiz && localBiz.id && localBiz.is_onboarded) {
           const userPhone = (u.phone || '').replace(/\D/g, '').slice(-10);
